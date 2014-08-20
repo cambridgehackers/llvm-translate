@@ -15,8 +15,6 @@
 
 #define DEBUG_TYPE "lli"
 #include "llvm/IR/LLVMContext.h"
-//#include "RemoteMemoryManager.h"
-//#include "RemoteTarget.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
@@ -120,10 +118,6 @@ namespace {
                      " program"), cl::value_desc("executable"));
 
   cl::opt<bool>
-  DisableCoreFiles("disable-core-files", cl::Hidden,
-                   cl::desc("Disable emission of core files if possible"));
-
-  cl::opt<bool>
   NoLazyCompilation("disable-lazy-compilation",
                   cl::desc("Disable JIT lazy compilation"),
                   cl::init(false));
@@ -178,11 +172,7 @@ namespace {
                      clEnumValEnd));
   cl::opt<bool>
 // In debug builds, make this default to true.
-#ifdef NDEBUG
-#define EMIT_DEBUG false
-#else
 #define EMIT_DEBUG true
-#endif
   EmitJitDebugInfo("jit-emit-debug",
     cl::desc("Emit debug information to debugger"),
     cl::init(EMIT_DEBUG));
@@ -208,7 +198,9 @@ static void do_shutdown() {
 //===----------------------------------------------------------------------===//
 // main Driver function
 //
-int main(int argc, char **argv, char * const *envp) {
+int main(int argc, char **argv, char * const *envp)
+{
+printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
 
@@ -225,7 +217,6 @@ int main(int argc, char **argv, char * const *envp) {
                               "llvm interpreter & dynamic compiler\n");
 
   // If the user doesn't want core files, disable them.
-  if (DisableCoreFiles)
     sys::Process::PreventCoreFiles();
 
   // Load the bitcode...
@@ -238,13 +229,13 @@ int main(int argc, char **argv, char * const *envp) {
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
   std::string ErrorMsg;
-  if (NoLazyCompilation) {
+  //if (NoLazyCompilation) {
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
       errs() << argv[0] << ": bitcode didn't read correctly.\n";
       errs() << "Reason: " << ErrorMsg << "\n";
       exit(1);
     }
-  }
+  //}
 
   if (DebugIR) {
     ModulePass *DebugIRPass = createDebugIRPass();
@@ -271,18 +262,7 @@ int main(int argc, char **argv, char * const *envp) {
     builder.setJITMemoryManager(ForceInterpreter ? 0 :
                                 JITMemoryManager::CreateDefaultMemManager());
 
-  CodeGenOpt::Level OLvl = CodeGenOpt::Default;
-  switch (OptLevel) {
-  default:
-    errs() << argv[0] << ": invalid optimization level.\n";
-    return 1;
-  case ' ': break;
-  case '0': OLvl = CodeGenOpt::None; break;
-  case '1': OLvl = CodeGenOpt::Less; break;
-  case '2': OLvl = CodeGenOpt::Default; break;
-  case '3': OLvl = CodeGenOpt::Aggressive; break;
-  }
-  builder.setOptLevel(OLvl);
+  builder.setOptLevel(CodeGenOpt::None);
 
   TargetOptions Options;
   Options.UseSoftFloat = GenerateSoftFloatCalls;
@@ -322,7 +302,7 @@ int main(int argc, char **argv, char * const *envp) {
   EE->RegisterJITEventListener(
                 JITEventListener::createIntelJITEventListener());
 
-  EE->DisableLazyCompilation(NoLazyCompilation);
+  EE->DisableLazyCompilation(true); //NoLazyCompilation);
 
   // If the user specifically requested an argv[0] to pass into the program,
   // do it now.
@@ -397,5 +377,6 @@ int main(int argc, char **argv, char * const *envp) {
       abort();
     }
 
+printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
