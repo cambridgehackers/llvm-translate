@@ -15,8 +15,8 @@
 
 #define DEBUG_TYPE "lli"
 #include "llvm/IR/LLVMContext.h"
-#include "RemoteMemoryManager.h"
-#include "RemoteTarget.h"
+//#include "RemoteMemoryManager.h"
+//#include "RemoteTarget.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"

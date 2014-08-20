@@ -10,8 +10,8 @@ PROJ_VERSION := 0.9
 
 LLVM_SRC_ROOT = /home/jca/s/git/llvm
 LLVM_OBJ_ROOT = /home/jca/s/git/llvm/build
-PROJ_SRC_ROOT := /home/jca/s/git/llvm/projects/jca
-PROJ_OBJ_ROOT := /home/jca/s/git/llvm/build/projects/jca
+PROJ_SRC_ROOT := /home/jca/s/git/llvm/projects/llvm-translate
+PROJ_OBJ_ROOT := /home/jca/s/git/llvm/build/projects/llvm-translate
 PROJ_INSTALL_ROOT := /usr/local
 
 include $(LLVM_OBJ_ROOT)/Makefile.config
