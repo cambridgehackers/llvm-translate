@@ -1,17 +1,16 @@
 
 LEVEL := .
-TOOLNAME := llijca
+TOOLNAME := llvm-translate
 
-#LINK_COMPONENTS := mcjit jit instrumentation interpreter nativecodegen bitreader asmparser irreader selectiondag native
 LINK_COMPONENTS := jit instrumentation interpreter bitreader asmparser irreader selectiondag native
 
-PROJECT_NAME := jca
-PROJ_VERSION := 0.9
+PROJECT_NAME := llvm-translate
+PROJ_VERSION := 0.1
 
 LLVM_SRC_ROOT = /home/jca/s/git/llvm
 LLVM_OBJ_ROOT = /home/jca/s/git/llvm/build
-PROJ_SRC_ROOT := /home/jca/s/git/llvm/projects/llvm-translate
-PROJ_OBJ_ROOT := /home/jca/s/git/llvm/build/projects/llvm-translate
+PROJ_SRC_ROOT := $(PWD)
+PROJ_OBJ_ROOT := $(PWD)
 PROJ_INSTALL_ROOT := /usr/local
 
 include $(LLVM_OBJ_ROOT)/Makefile.config
