@@ -64,22 +64,9 @@ namespace {
   cl::list<std::string>
   InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
 
-  cl::opt<bool> ForceInterpreter("force-interpreter",
-                                 cl::desc("Force interpretation: disable JIT"),
-                                 cl::init(false));
-
   cl::opt<bool> DebugIR(
     "debug-ir", cl::desc("Generate debug information to allow debugging IR."),
     cl::init(false));
-
-  // Determine optimization level.
-  cl::opt<char>
-  OptLevel("O",
-           cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
-                    "(default = '-O2')"),
-           cl::Prefix,
-           cl::ZeroOrMore,
-           cl::init(' '));
 
   cl::opt<std::string>
   TargetTriple("mtriple", cl::desc("Override target triple for module"));
@@ -111,52 +98,6 @@ namespace {
   ExtraModules("extra-module",
          cl::desc("Extra modules to be loaded"),
          cl::value_desc("input bitcode"));
-
-  cl::opt<std::string>
-  FakeArgv0("fake-argv0",
-            cl::desc("Override the 'argv[0]' value passed into the executing"
-                     " program"), cl::value_desc("executable"));
-
-  cl::opt<bool>
-  NoLazyCompilation("disable-lazy-compilation",
-                  cl::desc("Disable JIT lazy compilation"),
-                  cl::init(false));
-
-  cl::opt<Reloc::Model>
-  RelocModel("relocation-model",
-             cl::desc("Choose relocation model"),
-             cl::init(Reloc::Default),
-             cl::values(
-            clEnumValN(Reloc::Default, "default",
-                       "Target default relocation model"),
-            clEnumValN(Reloc::Static, "static",
-                       "Non-relocatable code"),
-            clEnumValN(Reloc::PIC_, "pic",
-                       "Fully relocatable, position independent code"),
-            clEnumValN(Reloc::DynamicNoPIC, "dynamic-no-pic",
-                       "Relocatable external references, non-relocatable code"),
-            clEnumValEnd));
-
-  cl::opt<llvm::CodeModel::Model>
-  CMModel("code-model",
-          cl::desc("Choose code model"),
-          cl::init(CodeModel::JITDefault),
-          cl::values(clEnumValN(CodeModel::JITDefault, "default",
-                                "Target default JIT code model"),
-                     clEnumValN(CodeModel::Small, "small",
-                                "Small code model"),
-                     clEnumValN(CodeModel::Kernel, "kernel",
-                                "Kernel code model"),
-                     clEnumValN(CodeModel::Medium, "medium",
-                                "Medium code model"),
-                     clEnumValN(CodeModel::Large, "large",
-                                "Large code model"),
-                     clEnumValEnd));
-
-  cl::opt<bool>
-  GenerateSoftFloatCalls("soft-float",
-    cl::desc("Generate software floating point library calls"),
-    cl::init(false));
 
   cl::opt<llvm::FloatABI::ABIType>
   FloatABIForCalls("float-abi",
@@ -213,8 +154,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
 
-  cl::ParseCommandLineOptions(argc, argv,
-                              "llvm interpreter & dynamic compiler\n");
+  cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
   // If the user doesn't want core files, disable them.
     sys::Process::PreventCoreFiles();
@@ -229,13 +169,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
   std::string ErrorMsg;
-  //if (NoLazyCompilation) {
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
       errs() << argv[0] << ": bitcode didn't read correctly.\n";
       errs() << "Reason: " << ErrorMsg << "\n";
       exit(1);
     }
-  //}
 
   if (DebugIR) {
     ModulePass *DebugIRPass = createDebugIRPass();
@@ -246,30 +184,24 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   builder.setMArch(MArch);
   builder.setMCPU(MCPU);
   builder.setMAttrs(MAttrs);
-  builder.setRelocationModel(RelocModel);
-  builder.setCodeModel(CMModel);
+  builder.setRelocationModel(Reloc::Default);
+  builder.setCodeModel(CodeModel::JITDefault);
   builder.setErrorStr(&ErrorMsg);
-  builder.setEngineKind(ForceInterpreter
-                        ? EngineKind::Interpreter
-                        : EngineKind::JIT);
+  builder.setEngineKind(EngineKind::Interpreter);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
     Mod->setTargetTriple(Triple::normalize(TargetTriple));
 
-  // Enable MCJIT if desired.
   RTDyldMemoryManager *RTDyldMM = 0;
-    builder.setJITMemoryManager(ForceInterpreter ? 0 :
-                                JITMemoryManager::CreateDefaultMemManager());
+    builder.setJITMemoryManager(0);
 
   builder.setOptLevel(CodeGenOpt::None);
 
   TargetOptions Options;
-  Options.UseSoftFloat = GenerateSoftFloatCalls;
+  Options.UseSoftFloat = false;
   if (FloatABIForCalls != FloatABI::Default)
     Options.FloatABIType = FloatABIForCalls;
-  if (GenerateSoftFloatCalls)
-    FloatABIForCalls = FloatABI::Soft;
 
     Options.JITEmitDebugInfo = EmitJitDebugInfo;
     Options.JITEmitDebugInfoToDisk = EmitJitDebugInfoToDisk;
@@ -297,23 +229,15 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // The following functions have no effect if their respective profiling
   // support wasn't enabled in the build configuration.
-  EE->RegisterJITEventListener(
-                JITEventListener::createOProfileJITEventListener());
-  EE->RegisterJITEventListener(
-                JITEventListener::createIntelJITEventListener());
+  EE->RegisterJITEventListener( JITEventListener::createOProfileJITEventListener());
+  EE->RegisterJITEventListener( JITEventListener::createIntelJITEventListener());
 
   EE->DisableLazyCompilation(true); //NoLazyCompilation);
 
-  // If the user specifically requested an argv[0] to pass into the program,
-  // do it now.
-  if (!FakeArgv0.empty()) {
-    InputFile = FakeArgv0;
-  } else {
-    // Otherwise, if there is a .bc suffix on the executable strip it off, it
+    // if there is a .bc suffix on the executable strip it off, it
     // might confuse the program.
     if (StringRef(InputFile).endswith(".bc"))
       InputFile.erase(InputFile.length() - 3);
-  }
 
   // Add the module's name to the start of the vector of arguments to main().
   InputArgv.insert(InputArgv.begin(), InputFile);
