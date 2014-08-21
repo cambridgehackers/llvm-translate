@@ -43,6 +43,8 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include <cerrno>
 
+int dump_ir; // = 1;
+
 using namespace llvm;
 
 namespace {
@@ -105,8 +107,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
-  //ModulePass *DebugIRPass = createDebugIRPass();
-  //DebugIRPass->runOnModule(*Mod);
+if (dump_ir) {
+  ModulePass *DebugIRPass = createDebugIRPass();
+  DebugIRPass->runOnModule(*Mod);
+}
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -195,6 +199,12 @@ printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
 GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
 printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
 printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, *((PointerTy*)Ptr));
+
+std::string tName = "class.Module";
+StructType *tgv = Mod->getTypeByName(tName);
+//GlobalValue *tgv = Mod->getNamedValue(tName);
+printf("[%s:%d] tgv %p\n", __FUNCTION__, __LINE__, tgv);
+tgv->dump();
 
 #if 0
     // Run static destructors.
