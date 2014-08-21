@@ -17,13 +17,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/CodeGen/LinkAllCodegenComponents.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/ExecutionEngine/JIT.h"
-#include "llvm/ExecutionEngine/JITEventListener.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -48,13 +43,6 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include <cerrno>
 
-#ifdef __CYGWIN__
-#include <cygwin/version.h>
-#if defined(CYGWIN_VERSION_DLL_MAJOR) && CYGWIN_VERSION_DLL_MAJOR<1007
-#define DO_NOTHING_ATEXIT 1
-#endif
-#endif
-
 using namespace llvm;
 
 namespace {
@@ -69,17 +57,8 @@ namespace {
     cl::init(false));
 
   cl::opt<std::string>
-  TargetTriple("mtriple", cl::desc("Override target triple for module"));
-
-  cl::opt<std::string>
   MArch("march",
         cl::desc("Architecture to generate assembly for (see --version)"));
-
-  cl::opt<std::string>
-  MCPU("mcpu",
-       cl::desc("Target a specific cpu type (-mcpu=help for details)"),
-       cl::value_desc("cpu-name"),
-       cl::init(""));
 
   cl::list<std::string>
   MAttrs("mattr",
@@ -87,80 +66,35 @@ namespace {
          cl::desc("Target specific attributes (-mattr=help for details)"),
          cl::value_desc("a1,+a2,-a3,..."));
 
-  cl::opt<std::string>
-  EntryFunc("entry-function",
-            cl::desc("Specify the entry function (default = 'main') "
-                     "of the executable"),
-            cl::value_desc("function"),
-            cl::init("main"));
-
   cl::list<std::string>
   ExtraModules("extra-module",
          cl::desc("Extra modules to be loaded"),
          cl::value_desc("input bitcode"));
-
-  cl::opt<llvm::FloatABI::ABIType>
-  FloatABIForCalls("float-abi",
-                   cl::desc("Choose float ABI type"),
-                   cl::init(FloatABI::Default),
-                   cl::values(
-                     clEnumValN(FloatABI::Default, "default",
-                                "Target default float ABI type"),
-                     clEnumValN(FloatABI::Soft, "soft",
-                                "Soft float ABI (implied by -soft-float)"),
-                     clEnumValN(FloatABI::Hard, "hard",
-                                "Hard float ABI (uses FP registers)"),
-                     clEnumValEnd));
-  cl::opt<bool>
-// In debug builds, make this default to true.
-#define EMIT_DEBUG true
-  EmitJitDebugInfo("jit-emit-debug",
-    cl::desc("Emit debug information to debugger"),
-    cl::init(EMIT_DEBUG));
-#undef EMIT_DEBUG
-
-  static cl::opt<bool>
-  EmitJitDebugInfoToDisk("jit-emit-debug-to-disk",
-    cl::Hidden,
-    cl::desc("Emit debug info objfiles to disk"),
-    cl::init(false));
 }
 
 static ExecutionEngine *EE = 0;
-
-static void do_shutdown() {
-  // Cygwin-1.5 invokes DLL's dtors before atexit handler.
-#ifndef DO_NOTHING_ATEXIT
-  delete EE;
-  llvm_shutdown();
-#endif
-}
 
 //===----------------------------------------------------------------------===//
 // main Driver function
 //
 int main(int argc, char **argv, char * const *envp)
 {
+  SMDiagnostic Err;
+  std::string ErrorMsg;
+  int Result;
+
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
 
   LLVMContext &Context = getGlobalContext();
-  atexit(do_shutdown);  // Call llvm_shutdown() on exit.
-
-  // If we have a native target, initialize it to ensure it is linked in and
-  // usable by the JIT.
-  InitializeNativeTarget();
-  InitializeNativeTargetAsmPrinter();
-  InitializeNativeTargetAsmParser();
 
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
   // If the user doesn't want core files, disable them.
-    sys::Process::PreventCoreFiles();
+    //sys::Process::PreventCoreFiles();
 
   // Load the bitcode...
-  SMDiagnostic Err;
   Module *Mod = ParseIRFile(InputFile, Err, Context);
   if (!Mod) {
     Err.print(argv[0], errs());
@@ -168,7 +102,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
-  std::string ErrorMsg;
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
       errs() << argv[0] << ": bitcode didn't read correctly.\n";
       errs() << "Reason: " << ErrorMsg << "\n";
@@ -182,29 +115,19 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
-  builder.setMCPU(MCPU);
+  builder.setMCPU("");
   builder.setMAttrs(MAttrs);
   builder.setRelocationModel(Reloc::Default);
   builder.setCodeModel(CodeModel::JITDefault);
   builder.setErrorStr(&ErrorMsg);
   builder.setEngineKind(EngineKind::Interpreter);
-
-  // If we are supposed to override the target triple, do so now.
-  if (!TargetTriple.empty())
-    Mod->setTargetTriple(Triple::normalize(TargetTriple));
-
-  RTDyldMemoryManager *RTDyldMM = 0;
-    builder.setJITMemoryManager(0);
-
+  builder.setJITMemoryManager(0);
   builder.setOptLevel(CodeGenOpt::None);
 
   TargetOptions Options;
   Options.UseSoftFloat = false;
-  if (FloatABIForCalls != FloatABI::Default)
-    Options.FloatABIType = FloatABIForCalls;
-
-    Options.JITEmitDebugInfo = EmitJitDebugInfo;
-    Options.JITEmitDebugInfoToDisk = EmitJitDebugInfoToDisk;
+    Options.JITEmitDebugInfo = true;
+    Options.JITEmitDebugInfoToDisk = false;
 
   builder.setTargetOptions(Options);
 
@@ -229,15 +152,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // The following functions have no effect if their respective profiling
   // support wasn't enabled in the build configuration.
-  EE->RegisterJITEventListener( JITEventListener::createOProfileJITEventListener());
-  EE->RegisterJITEventListener( JITEventListener::createIntelJITEventListener());
+  //EE->RegisterJITEventListener( JITEventListener::createOProfileJITEventListener());
+  //EE->RegisterJITEventListener( JITEventListener::createIntelJITEventListener());
 
   EE->DisableLazyCompilation(true); //NoLazyCompilation);
-
-    // if there is a .bc suffix on the executable strip it off, it
-    // might confuse the program.
-    if (StringRef(InputFile).endswith(".bc"))
-      InputFile.erase(InputFile.length() - 3);
 
   // Add the module's name to the start of the vector of arguments to main().
   InputArgv.insert(InputArgv.begin(), InputFile);
@@ -247,16 +165,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // using the contents of Args to determine argc & argv, and the contents of
   // EnvVars to determine envp.
   //
-  Function *EntryFn = Mod->getFunction(EntryFunc);
+  Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn) {
-    errs() << '\'' << EntryFunc << "\' function not found in module.\n";
+    errs() << "\'main\' function not found in module.\n";
     return -1;
   }
 
   // Reset errno to zero on entry to main.
   errno = 0;
-
-  int Result;
 
     // If the program doesn't explicitly call exit, we will need the Exit
     // function later on to make an explicit call, so get the function now.
@@ -266,6 +182,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     // Run static constructors.
     EE->runStaticConstructorsDestructors(false);
+printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
 
       for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
         Function *Fn = &*I;
@@ -276,9 +193,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     // Trigger compilation separately so code regions that need to be 
     // invalidated will be known.
     (void)EE->getPointerToFunction(EntryFn);
-    // Clear instruction cache before code will be executed.
-    if (RTDyldMM)
-      static_cast<SectionMemoryManager*>(RTDyldMM)->invalidateInstructionCache();
 
     // Run main.
     Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
