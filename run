@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+set -x
+./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.exe.bc
