@@ -105,8 +105,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
-  ModulePass *DebugIRPass = createDebugIRPass();
-  DebugIRPass->runOnModule(*Mod);
+  //ModulePass *DebugIRPass = createDebugIRPass();
+  //DebugIRPass->runOnModule(*Mod);
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -186,7 +186,17 @@ printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
 
     // Run main.
     Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+std::string Name = "_ZN6Module5firstE";
+GlobalValue *gv = Mod->getNamedValue(Name);
+printf("\n[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
+gv->dump();
+printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
+printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
+GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
+printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
+printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, *((PointerTy*)Ptr));
 
+#if 0
     // Run static destructors.
     EE->runStaticConstructorsDestructors(true);
 
@@ -204,6 +214,7 @@ printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
       errs() << "ERROR: exit defined with wrong prototype!\n";
       abort();
     }
+#endif
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
