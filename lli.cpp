@@ -52,10 +52,6 @@ namespace {
   cl::list<std::string>
   InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
 
-  cl::opt<bool> DebugIR(
-    "debug-ir", cl::desc("Generate debug information to allow debugging IR."),
-    cl::init(false));
-
   cl::opt<std::string>
   MArch("march",
         cl::desc("Architecture to generate assembly for (see --version)"));
@@ -79,6 +75,7 @@ static ExecutionEngine *EE = 0;
 //
 int main(int argc, char **argv, char * const *envp)
 {
+DebugFlag = true;
   SMDiagnostic Err;
   std::string ErrorMsg;
   int Result;
@@ -108,10 +105,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
-  if (DebugIR) {
-    ModulePass *DebugIRPass = createDebugIRPass();
-    DebugIRPass->runOnModule(*Mod);
-  }
+  ModulePass *DebugIRPass = createDebugIRPass();
+  DebugIRPass->runOnModule(*Mod);
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -149,11 +144,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
     EE->addModule(XMod);
   }
-
-  // The following functions have no effect if their respective profiling
-  // support wasn't enabled in the build configuration.
-  //EE->RegisterJITEventListener( JITEventListener::createOProfileJITEventListener());
-  //EE->RegisterJITEventListener( JITEventListener::createIntelJITEventListener());
 
   EE->DisableLazyCompilation(true); //NoLazyCompilation);
 
