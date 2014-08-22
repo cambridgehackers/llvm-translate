@@ -126,6 +126,8 @@ int i;
 void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) 
 {
   //TypePrinter.print(Arg->getType());
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      Arg->getType()->dump();
   //if (Attrs.hasAttributes(Idx))
     //Attrs.getAsString(Idx);
   //if (Arg->hasName()) {
@@ -140,6 +142,8 @@ void writeOperand(const Value *Operand, bool PrintType)
   }
   if (PrintType) {
     //TypePrinter.print(Operand->getType());
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      Operand->getType()->dump();
   }
   //WriteAsOperandInternal(Operand, &TypePrinter, &Machine, TheModule);
 }
@@ -212,6 +216,8 @@ void printInstruction(const Instruction &I)
     }
   } else if (const PHINode *PN = dyn_cast<PHINode>(&I)) {
     //TypePrinter.print(I.getType());
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      I.getType()->dump();
     for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
       writeOperand(PN->getIncomingValue(op), false);
       writeOperand(PN->getIncomingBlock(op), false);
@@ -227,6 +233,8 @@ void printInstruction(const Instruction &I)
       //printf(", " << *i);
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
     //TypePrinter.print(I.getType());
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      I.getType()->dump();
     printf(" personality ");
     writeOperand(I.getOperand(0), true);
     if (LPI->isCleanup())
@@ -262,6 +270,8 @@ void printInstruction(const Instruction &I)
         (!RetTy->isPointerTy() ||
          !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
       //TypePrinter.print(RetTy);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      RetTy->dump();
       writeOperand(Operand, false);
     } else {
       writeOperand(Operand, true);
@@ -291,6 +301,8 @@ void printInstruction(const Instruction &I)
         (!RetTy->isPointerTy() ||
          !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
       //TypePrinter.print(RetTy);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      RetTy->dump();
       writeOperand(Operand, false);
     } else {
       writeOperand(Operand, true);
@@ -338,6 +350,8 @@ void printInstruction(const Instruction &I)
       }
     }
     if (!PrintAllTypes) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      TheType->dump();
       //TypePrinter.print(TheType);
     }
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
@@ -414,7 +428,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
 static void ACprintFunction(const Function *F) 
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //if (F->isMaterializable())
     //printf("); Materializable\n";
   const AttributeSet &Attrs = F->getAttributes();
@@ -449,6 +462,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //if (Attrs.hasAttributes(AttributeSet::ReturnIndex))
     //printf( Attrs.getAsString(AttributeSet::ReturnIndex) << ' ');
   //TypePrinter.print(F->getReturnType());
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      F->getReturnType()->dump();
   //WriteAsOperandInternal(F, &TypePrinter, &Machine, F->getParent());
   //Machine.incorporateFunction(F);
   // Loop over the arguments, printing them...
@@ -463,6 +478,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // Otherwise, print the types from the function type.
     for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
       //TypePrinter.print(FT->getParamType(i));
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      FT->getParamType(i)->dump();
       //if (Attrs.hasAttributes(i+1))
         //printf(' ' << Attrs.getAsString(i+1));
     }
