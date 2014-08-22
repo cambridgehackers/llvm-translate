@@ -43,7 +43,8 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include <cerrno>
 
-int dump_ir = 1;
+int dump_ir;// = 1;
+int dump_interpret;// = 1;
 
 using namespace llvm;
 
@@ -72,6 +73,37 @@ namespace {
 
 static ExecutionEngine *EE = 0;
 
+static void memdump(void *p, int len, const char *title);
+
+void dump_vtab(uint64_t **vtab)
+{
+int arr_size = 0;
+    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
+    printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
+    if (g) {
+        if (g->getType()->getTypeID() == Type::PointerTyID) {
+           Type *ty = g->getType()->getElementType();
+           if (ty->getTypeID() == Type::ArrayTyID) {
+               ArrayType *aty = cast<ArrayType>(ty);
+               arr_size = aty->getNumElements();
+           }
+        }
+        //g->getType()->dump();
+    }
+    for (int i = 0; i < arr_size-2; i++) {
+       Function *f = (Function *)(vtab[i]);
+       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], f->getName().str().c_str());
+    }
+}
+
+void dump_type(Module *Mod, const char *p)
+{
+    StructType *tgv = Mod->getTypeByName(p);
+    printf("%s:] ", __FUNCTION__);
+    tgv->dump();
+    printf(" tgv %p\n", tgv);
+}
+
 static void memdump(void *p, int len, const char *title)
 {
 int i;
@@ -91,33 +123,21 @@ int i;
     printf("\n");
 }
 
-//===----------------------------------------------------------------------===//
-// main Driver function
-//
-void dump_type(Module *Mod, const char *p)
-{
-    StructType *tgv = Mod->getTypeByName(p);
-    printf("%s:] ", __FUNCTION__);
-    tgv->dump();
-    printf(" tgv %p\n", tgv);
-}
 int main(int argc, char **argv, char * const *envp)
 {
-DebugFlag = true;
   SMDiagnostic Err;
   std::string ErrorMsg;
   int Result;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
+  if (dump_interpret)
+      DebugFlag = true;
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
 
   LLVMContext &Context = getGlobalContext();
 
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
-
-  // If the user doesn't want core files, disable them.
-    //sys::Process::PreventCoreFiles();
 
   // Load the bitcode...
   Module *Mod = ParseIRFile(InputFile, Err, Context);
@@ -133,10 +153,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
-if (dump_ir) {
-  ModulePass *DebugIRPass = createDebugIRPass();
-  DebugIRPass->runOnModule(*Mod);
-}
+  if (dump_ir) {
+    ModulePass *DebugIRPass = createDebugIRPass();
+    DebugIRPass->runOnModule(*Mod);
+  }
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -151,12 +171,11 @@ if (dump_ir) {
 
   TargetOptions Options;
   Options.UseSoftFloat = false;
-    Options.JITEmitDebugInfo = true;
-    Options.JITEmitDebugInfoToDisk = false;
+  Options.JITEmitDebugInfo = true;
+  Options.JITEmitDebugInfoToDisk = false;
 
   builder.setTargetOptions(Options);
 
-printf("[%s:%d] before EECREATE\n", __FUNCTION__, __LINE__);
   EE = builder.create();
   if (!EE) {
     if (!ErrorMsg.empty())
@@ -231,28 +250,15 @@ uint64_t **modfirst = (uint64_t **)*(PointerTy*)Ptr;
 printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
 dump_type(Mod, "class.Module");
 printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-   const GlobalValue *g = EE->getGlobalValueAtAddress(modfirst[0]-2);
-if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, modfirst[0]-2, g);
+dump_vtab((uint64_t **)modfirst[0]);
 
 dump_type(Mod, "class.Rule");
 t = (uint64_t ***)modfirst[1];
 printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-g = EE->getGlobalValueAtAddress(t[0]-2);
-if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
-for (int i = 0; i < 9; i++) {
-   g = EE->getGlobalValueAtAddress(t[0][i-2]);
-   if (g) g->dump(); printf("[%s:%d] [%d] %p = %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], g);
-}
+dump_vtab(t[0]);
 t = (uint64_t ***)t[1];
 printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-g = EE->getGlobalValueAtAddress(t[0]-2);
-if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
-for (int i = 0; i < 9; i++) {
-   //g = EE->getGlobalValueAtAddress(t[0][i-2]);
-   Function *f = (Function *)(t[0][i-2]);
-   if (g) g->dump(); printf("[%s:%d] [%d] %p = %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], g);
-   if (f) f->dump(); printf("[%s:%d] [%d]       f  %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], f);
-}
+dump_vtab(t[0]);
 
   Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
 printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
