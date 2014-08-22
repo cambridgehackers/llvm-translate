@@ -43,7 +43,7 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include <cerrno>
 
-int dump_ir; // = 1;
+int dump_ir = 1;
 
 using namespace llvm;
 
@@ -72,9 +72,35 @@ namespace {
 
 static ExecutionEngine *EE = 0;
 
+static void memdump(void *p, int len, const char *title)
+{
+int i;
+
+    i = 0;
+    while (len > 0) {
+        if (!(i & 0xf)) {
+            if (i > 0)
+                printf("\n");
+            printf("%s: ",title);
+        }
+        printf("%02x ", *(unsigned char *)p);
+        p = 1 + (char *)p;
+        i++;
+        len--;
+    }
+    printf("\n");
+}
+
 //===----------------------------------------------------------------------===//
 // main Driver function
 //
+void dump_type(Module *Mod, const char *p)
+{
+    StructType *tgv = Mod->getTypeByName(p);
+    printf("%s:] ", __FUNCTION__);
+    tgv->dump();
+    printf(" tgv %p\n", tgv);
+}
 int main(int argc, char **argv, char * const *envp)
 {
 DebugFlag = true;
@@ -130,6 +156,7 @@ if (dump_ir) {
 
   builder.setTargetOptions(Options);
 
+printf("[%s:%d] before EECREATE\n", __FUNCTION__, __LINE__);
   EE = builder.create();
   if (!EE) {
     if (!ErrorMsg.empty())
@@ -189,22 +216,37 @@ printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
     (void)EE->getPointerToFunction(EntryFn);
 
     // Run main.
+uint64_t ***t;
     Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 std::string Name = "_ZN6Module5firstE";
 GlobalValue *gv = Mod->getNamedValue(Name);
-printf("\n[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
+printf("\n\n");
 gv->dump();
+printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
 printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
 printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
 GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
 printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, *((PointerTy*)Ptr));
+uint64_t **modfirst = (uint64_t **)*(PointerTy*)Ptr;
+printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
+dump_type(Mod, "class.Module");
+printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
+   const GlobalValue *g = EE->getGlobalValueAtAddress(modfirst[0]-2);
+if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, modfirst[0]-2, g);
 
-std::string tName = "class.Module";
-StructType *tgv = Mod->getTypeByName(tName);
-//GlobalValue *tgv = Mod->getNamedValue(tName);
-printf("[%s:%d] tgv %p\n", __FUNCTION__, __LINE__, tgv);
-tgv->dump();
+dump_type(Mod, "class.Rule");
+t = (uint64_t ***)modfirst[1];
+printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+g = EE->getGlobalValueAtAddress(t[0]-2);
+if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
+for (int i = 0; i < 9; i++) {
+   g = EE->getGlobalValueAtAddress(t[0][i-2]);
+   if (g) g->dump(); printf("[%s:%d] [%d] %p = %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], g);
+}
+t = (uint64_t ***)t[1];
+printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+g = EE->getGlobalValueAtAddress(t[0]-2);
+if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
 
 #if 0
     // Run static destructors.
