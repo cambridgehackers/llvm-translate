@@ -123,172 +123,8 @@ int i;
     printf("\n");
 }
 
-int main(int argc, char **argv, char * const *envp)
+void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) 
 {
-  SMDiagnostic Err;
-  std::string ErrorMsg;
-  int Result;
-
-printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-  if (dump_interpret)
-      DebugFlag = true;
-  sys::PrintStackTraceOnErrorSignal();
-  PrettyStackTraceProgram X(argc, argv);
-
-  LLVMContext &Context = getGlobalContext();
-
-  cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
-
-  // Load the bitcode...
-  Module *Mod = ParseIRFile(InputFile, Err, Context);
-  if (!Mod) {
-    Err.print(argv[0], errs());
-    return 1;
-  }
-
-  // If not jitting lazily, load the whole bitcode file eagerly too.
-    if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
-      errs() << argv[0] << ": bitcode didn't read correctly.\n";
-      errs() << "Reason: " << ErrorMsg << "\n";
-      exit(1);
-    }
-
-  if (dump_ir) {
-    ModulePass *DebugIRPass = createDebugIRPass();
-    DebugIRPass->runOnModule(*Mod);
-  }
-
-  EngineBuilder builder(Mod);
-  builder.setMArch(MArch);
-  builder.setMCPU("");
-  builder.setMAttrs(MAttrs);
-  builder.setRelocationModel(Reloc::Default);
-  builder.setCodeModel(CodeModel::JITDefault);
-  builder.setErrorStr(&ErrorMsg);
-  builder.setEngineKind(EngineKind::Interpreter);
-  builder.setJITMemoryManager(0);
-  builder.setOptLevel(CodeGenOpt::None);
-
-  TargetOptions Options;
-  Options.UseSoftFloat = false;
-  Options.JITEmitDebugInfo = true;
-  Options.JITEmitDebugInfoToDisk = false;
-
-  builder.setTargetOptions(Options);
-
-  EE = builder.create();
-  if (!EE) {
-    if (!ErrorMsg.empty())
-      errs() << argv[0] << ": error creating EE: " << ErrorMsg << "\n";
-    else
-      errs() << argv[0] << ": unknown error creating EE!\n";
-    exit(1);
-  }
-
-  // Load any additional modules specified on the command line.
-  for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
-    Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
-    if (!XMod) {
-      Err.print(argv[0], errs());
-      return 1;
-    }
-    EE->addModule(XMod);
-  }
-
-  EE->DisableLazyCompilation(true); //NoLazyCompilation);
-
-  // Add the module's name to the start of the vector of arguments to main().
-  InputArgv.insert(InputArgv.begin(), InputFile);
-
-  // Call the main function from M as if its signature were:
-  //   int main (int argc, char **argv, const char **envp)
-  // using the contents of Args to determine argc & argv, and the contents of
-  // EnvVars to determine envp.
-  //
-  Function *EntryFn = Mod->getFunction("main");
-  if (!EntryFn) {
-    errs() << "\'main\' function not found in module.\n";
-    return -1;
-  }
-
-  // Reset errno to zero on entry to main.
-  errno = 0;
-
-    // If the program doesn't explicitly call exit, we will need the Exit
-    // function later on to make an explicit call, so get the function now.
-    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
-                                                      Type::getInt32Ty(Context),
-                                                      NULL);
-
-    // Run static constructors.
-    EE->runStaticConstructorsDestructors(false);
-printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
-
-      for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
-        Function *Fn = &*I;
-        if (Fn != EntryFn && !Fn->isDeclaration())
-          EE->getPointerToFunction(Fn);
-      }
-
-    // Trigger compilation separately so code regions that need to be 
-    // invalidated will be known.
-    (void)EE->getPointerToFunction(EntryFn);
-
-    // Run main.
-uint64_t ***t;
-    Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-std::string Name = "_ZN6Module5firstE";
-GlobalValue *gv = Mod->getNamedValue(Name);
-printf("\n\n");
-gv->dump();
-printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
-printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
-GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-uint64_t **modfirst = (uint64_t **)*(PointerTy*)Ptr;
-printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
-dump_type(Mod, "class.Module");
-printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-dump_vtab((uint64_t **)modfirst[0]);
-
-dump_type(Mod, "class.Rule");
-t = (uint64_t ***)modfirst[1];
-printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-dump_vtab(t[0]);
-t = (uint64_t ***)t[1];
-printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-dump_vtab(t[0]);
-
-  Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
-printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
-if (guard) guard->dump();
-
-#if 0
-    // Run static destructors.
-    EE->runStaticConstructorsDestructors(true);
-
-    // If the program didn't call exit explicitly, we should call it now.
-    // This ensures that any atexit handlers get called correctly.
-    if (Function *ExitF = dyn_cast<Function>(Exit)) {
-      std::vector<GenericValue> Args;
-      GenericValue ResultGV;
-      ResultGV.IntVal = APInt(32, Result);
-      Args.push_back(ResultGV);
-      EE->runFunction(ExitF, Args);
-      errs() << "ERROR: exit(" << Result << ") returned!\n";
-      abort();
-    } else {
-      errs() << "ERROR: exit defined with wrong prototype!\n";
-      abort();
-    }
-#endif
-
-printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
-  return Result;
-}
-
-void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) {
   //TypePrinter.print(Arg->getType());
   //if (Attrs.hasAttributes(Idx))
     //Attrs.getAsString(Idx);
@@ -297,7 +133,8 @@ void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) {
   //}
 }
 
-void writeOperand(const Value *Operand, bool PrintType) {
+void writeOperand(const Value *Operand, bool PrintType) 
+{
   if (Operand == 0) {
     return;
   }
@@ -307,24 +144,30 @@ void writeOperand(const Value *Operand, bool PrintType) {
   //WriteAsOperandInternal(Operand, &TypePrinter, &Machine, TheModule);
 }
 
+std::map<const Instruction *, int> slotmap;
+static int slotindex;
 // This member is called for each Instruction in a function..
-void printInstruction(const Instruction &I) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+void printInstruction(const Instruction &I) 
+{
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Print out indentation for an instruction.
   // Print out name if it exists...
   if (I.hasName()) {
-    //PrintLLVMName(&I);
+    printf("%10s: ", I.getName().str().c_str());
   } else if (!I.getType()->isVoidTy()) {
     // Print out the def slot taken.
-    //int SlotNum = Machine.getLocalSlot(&I);
-    //if (SlotNum == -1)
-      //printf("<badref> = ");
-    //else
-      //printf("%d =",  SlotNum);
+    std::map<const Instruction *, int>::const_iterator search = slotmap.find(&I);
+    if (search == slotmap.end()) {
+      slotmap.insert(std::pair<const Instruction *, int>(&I, slotindex++));
+      search = slotmap.find(&I);
+    }
+    printf("%10d: ",  search->second);
   }
+  else
+    printf("          : ");
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
-  //printf(I.getOpcodeName());
+  printf("OC:%s ", I.getOpcodeName());
   // If this is an atomic load or store, print out the atomic marker.
   if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isAtomic()) ||
       (isa<StoreInst>(I) && cast<StoreInst>(I).isAtomic()))
@@ -536,9 +379,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
   }
   //printInfoComment(I);
+  printf("\n");
 }
 
-void printBasicBlock(const BasicBlock *BB) {
+void printBasicBlock(const BasicBlock *BB) 
+{
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (BB->hasName()) {              // Print out the label if it exists...
     //PrintLLVMName(BB->getName(), LabelPrefix);
@@ -567,7 +412,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 }
 
-void printFunction(const Function *F) {
+static void ACprintFunction(const Function *F) 
+{
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //if (F->isMaterializable())
     //printf("); Materializable\n";
@@ -645,4 +491,173 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printBasicBlock(I);
   }
   //Machine.purgeFunction();
+}
+
+int main(int argc, char **argv, char * const *envp)
+{
+  SMDiagnostic Err;
+  std::string ErrorMsg;
+  int Result;
+
+printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
+  if (dump_interpret)
+      DebugFlag = true;
+  sys::PrintStackTraceOnErrorSignal();
+  PrettyStackTraceProgram X(argc, argv);
+
+  LLVMContext &Context = getGlobalContext();
+
+  cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
+
+  // Load the bitcode...
+  Module *Mod = ParseIRFile(InputFile, Err, Context);
+  if (!Mod) {
+    Err.print(argv[0], errs());
+    return 1;
+  }
+
+  // If not jitting lazily, load the whole bitcode file eagerly too.
+    if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
+      errs() << argv[0] << ": bitcode didn't read correctly.\n";
+      errs() << "Reason: " << ErrorMsg << "\n";
+      exit(1);
+    }
+
+  if (dump_ir) {
+    ModulePass *DebugIRPass = createDebugIRPass();
+    DebugIRPass->runOnModule(*Mod);
+  }
+
+  EngineBuilder builder(Mod);
+  builder.setMArch(MArch);
+  builder.setMCPU("");
+  builder.setMAttrs(MAttrs);
+  builder.setRelocationModel(Reloc::Default);
+  builder.setCodeModel(CodeModel::JITDefault);
+  builder.setErrorStr(&ErrorMsg);
+  builder.setEngineKind(EngineKind::Interpreter);
+  builder.setJITMemoryManager(0);
+  builder.setOptLevel(CodeGenOpt::None);
+
+  TargetOptions Options;
+  Options.UseSoftFloat = false;
+  Options.JITEmitDebugInfo = true;
+  Options.JITEmitDebugInfoToDisk = false;
+
+  builder.setTargetOptions(Options);
+
+  EE = builder.create();
+  if (!EE) {
+    if (!ErrorMsg.empty())
+      errs() << argv[0] << ": error creating EE: " << ErrorMsg << "\n";
+    else
+      errs() << argv[0] << ": unknown error creating EE!\n";
+    exit(1);
+  }
+
+  // Load any additional modules specified on the command line.
+  for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
+    Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
+    if (!XMod) {
+      Err.print(argv[0], errs());
+      return 1;
+    }
+    EE->addModule(XMod);
+  }
+
+  EE->DisableLazyCompilation(true); //NoLazyCompilation);
+
+  // Add the module's name to the start of the vector of arguments to main().
+  InputArgv.insert(InputArgv.begin(), InputFile);
+
+  // Call the main function from M as if its signature were:
+  //   int main (int argc, char **argv, const char **envp)
+  // using the contents of Args to determine argc & argv, and the contents of
+  // EnvVars to determine envp.
+  //
+  Function *EntryFn = Mod->getFunction("main");
+  if (!EntryFn) {
+    errs() << "\'main\' function not found in module.\n";
+    return -1;
+  }
+
+  // Reset errno to zero on entry to main.
+  errno = 0;
+
+    // If the program doesn't explicitly call exit, we will need the Exit
+    // function later on to make an explicit call, so get the function now.
+    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
+                                                      Type::getInt32Ty(Context),
+                                                      NULL);
+
+    // Run static constructors.
+    EE->runStaticConstructorsDestructors(false);
+printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
+
+      for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
+        Function *Fn = &*I;
+        if (Fn != EntryFn && !Fn->isDeclaration())
+          EE->getPointerToFunction(Fn);
+      }
+
+    // Trigger compilation separately so code regions that need to be 
+    // invalidated will be known.
+    (void)EE->getPointerToFunction(EntryFn);
+
+    // Run main.
+uint64_t ***t;
+    Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+std::string Name = "_ZN6Module5firstE";
+GlobalValue *gv = Mod->getNamedValue(Name);
+printf("\n\n");
+gv->dump();
+printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
+printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
+printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
+GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
+printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
+uint64_t **modfirst = (uint64_t **)*(PointerTy*)Ptr;
+printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
+dump_type(Mod, "class.Module");
+printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
+dump_vtab((uint64_t **)modfirst[0]);
+
+dump_type(Mod, "class.Rule");
+t = (uint64_t ***)modfirst[1];
+printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+dump_vtab(t[0]);
+t = (uint64_t ***)t[1];
+printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+dump_vtab(t[0]);
+
+  const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
+printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
+if (guard) {
+   ACprintFunction(guard);
+   printf("FULL:\n");
+   guard->dump();
+}
+
+#if 0
+    // Run static destructors.
+    EE->runStaticConstructorsDestructors(true);
+
+    // If the program didn't call exit explicitly, we should call it now.
+    // This ensures that any atexit handlers get called correctly.
+    if (Function *ExitF = dyn_cast<Function>(Exit)) {
+      std::vector<GenericValue> Args;
+      GenericValue ResultGV;
+      ResultGV.IntVal = APInt(32, Result);
+      Args.push_back(ResultGV);
+      EE->runFunction(ExitF, Args);
+      errs() << "ERROR: exit(" << Result << ") returned!\n";
+      abort();
+    } else {
+      errs() << "ERROR: exit defined with wrong prototype!\n";
+      abort();
+    }
+#endif
+
+printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
+  return Result;
 }
