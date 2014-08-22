@@ -232,13 +232,13 @@ printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
 dump_type(Mod, "class.Module");
 printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
    const GlobalValue *g = EE->getGlobalValueAtAddress(modfirst[0]-2);
-if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, modfirst[0]-2, g);
+if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, modfirst[0]-2, g);
 
 dump_type(Mod, "class.Rule");
 t = (uint64_t ***)modfirst[1];
 printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
 g = EE->getGlobalValueAtAddress(t[0]-2);
-if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
+if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
 for (int i = 0; i < 9; i++) {
    g = EE->getGlobalValueAtAddress(t[0][i-2]);
    if (g) g->dump(); printf("[%s:%d] [%d] %p = %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], g);
@@ -246,7 +246,17 @@ for (int i = 0; i < 9; i++) {
 t = (uint64_t ***)t[1];
 printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
 g = EE->getGlobalValueAtAddress(t[0]-2);
-if (g) g->dump(); printf("[%s:%d] p %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
+if (g) g->dump(); printf("[%s:%d] vtabbase %p g %p\n", __FUNCTION__, __LINE__, t[0]-2, g);
+for (int i = 0; i < 9; i++) {
+   //g = EE->getGlobalValueAtAddress(t[0][i-2]);
+   Function *f = (Function *)(t[0][i-2]);
+   if (g) g->dump(); printf("[%s:%d] [%d] %p = %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], g);
+   if (f) f->dump(); printf("[%s:%d] [%d]       f  %p\n", __FUNCTION__, __LINE__, i, t[0][i-2], f);
+}
+
+  Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
+printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
+if (guard) guard->dump();
 
 #if 0
     // Run static destructors.
