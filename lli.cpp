@@ -73,7 +73,13 @@ namespace {
 
 static ExecutionEngine *EE = 0;
 
-static void memdump(void *p, int len, const char *title);
+std::map<const Instruction *, int> slotmap;
+#define MAX_SLOTARRAY 1000
+struct {
+    char *name;
+} slotarray[MAX_SLOTARRAY];
+static int slotindex;
+
 
 void dump_vtab(uint64_t **vtab)
 {
@@ -104,25 +110,6 @@ void dump_type(Module *Mod, const char *p)
     printf(" tgv %p\n", tgv);
 }
 
-static void memdump(void *p, int len, const char *title)
-{
-int i;
-
-    i = 0;
-    while (len > 0) {
-        if (!(i & 0xf)) {
-            if (i > 0)
-                printf("\n");
-            printf("%s: ",title);
-        }
-        printf("%02x ", *(unsigned char *)p);
-        p = 1 + (char *)p;
-        i++;
-        len--;
-    }
-    printf("\n");
-}
-
 void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) 
 {
   //TypePrinter.print(Arg->getType());
@@ -148,8 +135,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //WriteAsOperandInternal(Operand, &TypePrinter, &Machine, TheModule);
 }
 
-std::map<const Instruction *, int> slotmap;
-static int slotindex;
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
@@ -162,6 +147,7 @@ void printInstruction(const Instruction &I)
     // Print out the def slot taken.
     std::map<const Instruction *, int>::const_iterator search = slotmap.find(&I);
     if (search == slotmap.end()) {
+      memset(&slotarray[slotindex], 0, sizeof(slotarray[slotindex]));
       slotmap.insert(std::pair<const Instruction *, int>(&I, slotindex++));
       search = slotmap.find(&I);
     }
@@ -426,8 +412,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 }
 
-static void ACprintFunction(const Function *F) 
+static void processFunction(const Function *F) 
 {
+
   //if (F->isMaterializable())
     //printf("); Materializable\n";
   const AttributeSet &Attrs = F->getAttributes();
@@ -494,10 +481,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (F->hasSection()) {
     //PrintEscapedString(F->getSection());
   }
-  //if (F->getAlignment())
-    //printf(" align " << F->getAlignment());
-  //if (F->hasGC())
-    //printf(" gc \"" << F->getGC() << '"');
   if (F->hasPrefixData()) {
     printf(" prefix ");
     writeOperand(F->getPrefixData(), true);
@@ -507,7 +490,48 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (Function::const_iterator I = F->begin(), E = F->end(); I != E; ++I)
       printBasicBlock(I);
   }
-  //Machine.purgeFunction();
+
+  slotmap.clear();
+  slotindex = 0;
+}
+
+void generate_verilog(Module *Mod)
+{
+  uint64_t ***t;
+  uint64_t **modfirst;
+  GenericValue *Ptr;
+  GlobalValue *gv;
+
+  std::string Name = "_ZN6Module5firstE";
+  gv = Mod->getNamedValue(Name);
+  printf("\n\n");
+  gv->dump();
+  printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
+  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
+  printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
+  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
+  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
+  modfirst = (uint64_t **)*(PointerTy*)Ptr;
+  printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
+  dump_type(Mod, "class.Module");
+  printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
+  dump_vtab((uint64_t **)modfirst[0]);
+
+  dump_type(Mod, "class.Rule");
+  t = (uint64_t ***)modfirst[1];
+  printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+  dump_vtab(t[0]);
+  t = (uint64_t ***)t[1];
+  printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+  dump_vtab(t[0]);
+
+  const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
+  printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
+  if (guard) {
+     processFunction(guard);
+     printf("FULL:\n");
+     guard->dump();
+  }
 }
 
 int main(int argc, char **argv, char * const *envp)
@@ -581,8 +605,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
     EE->addModule(XMod);
   }
-
-  EE->DisableLazyCompilation(true); //NoLazyCompilation);
+  EE->DisableLazyCompilation(true);
 
   // Add the module's name to the start of the vector of arguments to main().
   InputArgv.insert(InputArgv.begin(), InputFile);
@@ -597,83 +620,23 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     errs() << "\'main\' function not found in module.\n";
     return -1;
   }
+  // Run static constructors.
+  EE->runStaticConstructorsDestructors(false);
 
-  // Reset errno to zero on entry to main.
-  errno = 0;
-
-    // If the program doesn't explicitly call exit, we will need the Exit
-    // function later on to make an explicit call, so get the function now.
-    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
-                                                      Type::getInt32Ty(Context),
-                                                      NULL);
-
-    // Run static constructors.
-    EE->runStaticConstructorsDestructors(false);
-printf("[%s:%d] after staric constructors\n", __FUNCTION__, __LINE__);
-
-      for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
+  for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
         Function *Fn = &*I;
         if (Fn != EntryFn && !Fn->isDeclaration())
           EE->getPointerToFunction(Fn);
-      }
+  }
 
-    // Trigger compilation separately so code regions that need to be 
-    // invalidated will be known.
-    (void)EE->getPointerToFunction(EntryFn);
+  // Trigger compilation separately so code regions that need to be 
+  // invalidated will be known.
+  (void)EE->getPointerToFunction(EntryFn);
 
-    // Run main.
-uint64_t ***t;
-    Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-std::string Name = "_ZN6Module5firstE";
-GlobalValue *gv = Mod->getNamedValue(Name);
-printf("\n\n");
-gv->dump();
-printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
-printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
-GenericValue *Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-uint64_t **modfirst = (uint64_t **)*(PointerTy*)Ptr;
-printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
-dump_type(Mod, "class.Module");
-printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-dump_vtab((uint64_t **)modfirst[0]);
+  // Run main.
+  Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-dump_type(Mod, "class.Rule");
-t = (uint64_t ***)modfirst[1];
-printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-dump_vtab(t[0]);
-t = (uint64_t ***)t[1];
-printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-dump_vtab(t[0]);
-
-  const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
-printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
-if (guard) {
-   ACprintFunction(guard);
-   printf("FULL:\n");
-   guard->dump();
-}
-
-#if 0
-    // Run static destructors.
-    EE->runStaticConstructorsDestructors(true);
-
-    // If the program didn't call exit explicitly, we should call it now.
-    // This ensures that any atexit handlers get called correctly.
-    if (Function *ExitF = dyn_cast<Function>(Exit)) {
-      std::vector<GenericValue> Args;
-      GenericValue ResultGV;
-      ResultGV.IntVal = APInt(32, Result);
-      Args.push_back(ResultGV);
-      EE->runFunction(ExitF, Args);
-      errs() << "ERROR: exit(" << Result << ") returned!\n";
-      abort();
-    } else {
-      errs() << "ERROR: exit defined with wrong prototype!\n";
-      abort();
-    }
-#endif
+  generate_verilog(Mod);
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
