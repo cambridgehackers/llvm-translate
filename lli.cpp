@@ -514,16 +514,20 @@ void generate_verilog(Module *Mod)
   modfirst = (uint64_t **)*(PointerTy*)Ptr;
   printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
   dump_type(Mod, "class.Module");
-  printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-  dump_vtab((uint64_t **)modfirst[0]);
-
   dump_type(Mod, "class.Rule");
-  t = (uint64_t ***)modfirst[1];
-  printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-  dump_vtab(t[0]);
-  t = (uint64_t ***)t[1];
-  printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
-  dump_vtab(t[0]);
+
+  while (modfirst) { /* loop through all modules */
+    printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
+    dump_vtab((uint64_t **)modfirst[0]);
+    t = (uint64_t ***)modfirst[1];        // Module.rfirst
+    modfirst = (uint64_t **)modfirst[2]; // Module.next
+
+    while (t) {      /* loop through all rules for this module */
+      printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+      dump_vtab(t[0]);
+      t = (uint64_t ***)t[1];             // Rule.next
+    }
+  }
 
   const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
   printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
