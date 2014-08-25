@@ -80,28 +80,6 @@ struct {
 } slotarray[MAX_SLOTARRAY];
 static int slotindex;
 
-
-void dump_vtab(uint64_t **vtab)
-{
-int arr_size = 0;
-    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
-    printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
-    if (g) {
-        if (g->getType()->getTypeID() == Type::PointerTyID) {
-           Type *ty = g->getType()->getElementType();
-           if (ty->getTypeID() == Type::ArrayTyID) {
-               ArrayType *aty = cast<ArrayType>(ty);
-               arr_size = aty->getNumElements();
-           }
-        }
-        //g->getType()->dump();
-    }
-    for (int i = 0; i < arr_size-2; i++) {
-       Function *f = (Function *)(vtab[i]);
-       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], f->getName().str().c_str());
-    }
-}
-
 void dump_type(Module *Mod, const char *p)
 {
     StructType *tgv = Mod->getTypeByName(p);
@@ -495,6 +473,37 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   slotindex = 0;
 }
 
+void dump_vtab(uint64_t **vtab)
+{
+int arr_size = 0;
+    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
+    printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
+    if (g) {
+        if (g->getType()->getTypeID() == Type::PointerTyID) {
+           Type *ty = g->getType()->getElementType();
+           if (ty->getTypeID() == Type::ArrayTyID) {
+               ArrayType *aty = cast<ArrayType>(ty);
+               arr_size = aty->getNumElements();
+           }
+        }
+        //g->getType()->dump();
+    }
+    for (int i = 0; i < arr_size-2; i++) {
+       Function *f = (Function *)(vtab[i]);
+       const char *cp = f->getName().str().c_str();
+       const char *cend = cp + (strlen(cp)-4);
+       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
+       if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
+           if (!strcmp(cend, "rdEv")) {
+           processFunction(f);
+           printf("FULL:\n");
+           f->dump();
+           printf("\n");
+           }
+       }
+    }
+}
+
 void generate_verilog(Module *Mod)
 {
   uint64_t ***t;
@@ -523,12 +532,12 @@ void generate_verilog(Module *Mod)
     modfirst = (uint64_t **)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
-      printf("Rule %p: vtab %p next %p\n", t, t[0], t[1]);
+      printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
       dump_vtab(t[0]);
       t = (uint64_t ***)t[1];             // Rule.next
     }
   }
-
+#if 0
   const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
   printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
   if (guard) {
@@ -536,6 +545,7 @@ void generate_verilog(Module *Mod)
      printf("FULL:\n");
      guard->dump();
   }
+#endif
 }
 
 int main(int argc, char **argv, char * const *envp)
