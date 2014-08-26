@@ -23,6 +23,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
+//#include "llvm/ADT/ValueMap.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -75,7 +76,7 @@ namespace {
 #define MAX_OPERAND_LIST 200
 
 static ExecutionEngine *EE = 0;
-std::map<const Instruction *, int> slotmap;
+std::map<const Value *, int> slotmap;
 struct {
     char *name;
 } slotarray[MAX_SLOTARRAY];
@@ -94,7 +95,6 @@ void dump_type(Module *Mod, const char *p)
 }
 
 static void WriteConstantInternal(const Constant *CV)
-// TypePrinting &TypePrinter, SlotTracker *Machine, const Module *Context)
 {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     operand_list[operand_list_index++] = CI->getZExtValue();
@@ -135,12 +135,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           }
         }
       }
-      // Otherwise we could not reparse it to exactly the same value, so we must
-      // output the string in hexadecimal format!  Note that loading and storing
-      // floating point types changes the bits of NaNs on some hosts, notably
-      // x86, so we must not use these types.
       assert(sizeof(double) == sizeof(uint64_t) && "assuming that double is 64 bits!");
-      char Buffer[40];
+      //char Buffer[40];
       APFloat apf = CFP->getValueAPF();
       // Halves and floats are represented in ASCII IR as double, convert.
       if (!isDouble)
@@ -307,9 +303,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   printf( "<placeholder or erroneous Constant>");
 }
 
-void writeOperand(const Value *Operand, bool PrintType) 
+void writeOperand(const Value *Operand)
 {
-  if (Operand == 0) {
+  if (!Operand) {
     return;
   }
 //printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
@@ -408,20 +404,24 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 }
 
+int getLocalSlot(const Value *V) {
+  assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!"); 
+  std::map<const Value *, int>::iterator FI = slotmap.find(V);
+  return FI == slotmap.end() ? -1 : (int)FI->second;
+}
+
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
   
   operand_list_index = 0;
   memset(operand_list, 0, sizeof(operand_list));
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  // Print out indentation for an instruction.
-  // Print out name if it exists...
+
   if (I.hasName()) {
     printf("%10s: ", I.getName().str().c_str());
   } else if (!I.getType()->isVoidTy()) {
     // Print out the def slot taken.
-    std::map<const Instruction *, int>::const_iterator search = slotmap.find(&I);
+    std::map<const Value *, int>::const_iterator search = slotmap.find(&I);
     if (search == slotmap.end()) {
       memset(&slotarray[slotindex], 0, sizeof(slotarray[slotindex]));
       slotmap.insert(std::pair<const Instruction *, int>(&I, slotindex++));
@@ -456,40 +456,40 @@ void printInstruction(const Instruction &I)
   // Special case conditional branches to swizzle the condition out to the front
   if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
     const BranchInst &BI(cast<BranchInst>(I));
-    writeOperand(BI.getCondition(), true);
-    writeOperand(BI.getSuccessor(0), true);
-    writeOperand(BI.getSuccessor(1), true);
+    writeOperand(BI.getCondition());
+    writeOperand(BI.getSuccessor(0));
+    writeOperand(BI.getSuccessor(1));
   } else if (isa<SwitchInst>(I)) {
     const SwitchInst& SI(cast<SwitchInst>(I));
     // Special case switch instruction to get formatting nice and correct.
-    writeOperand(SI.getCondition(), true);
-    writeOperand(SI.getDefaultDest(), true);
+    writeOperand(SI.getCondition());
+    writeOperand(SI.getDefaultDest());
     printf(" [");
     for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-      writeOperand(i.getCaseValue(), true);
-      writeOperand(i.getCaseSuccessor(), true);
+      writeOperand(i.getCaseValue());
+      writeOperand(i.getCaseSuccessor());
     }
   } else if (isa<IndirectBrInst>(I)) {
     // Special case indirectbr instruction to get formatting nice and correct.
-    writeOperand(Operand, true);
+    writeOperand(Operand);
     for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
-      writeOperand(I.getOperand(i), true);
+      writeOperand(I.getOperand(i));
     }
   } else if (const PHINode *PN = dyn_cast<PHINode>(&I)) {
     //TypePrinter.print(I.getType());
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       I.getType()->dump();
     for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-      writeOperand(PN->getIncomingValue(op), false);
-      writeOperand(PN->getIncomingBlock(op), false);
+      writeOperand(PN->getIncomingValue(op));
+      writeOperand(PN->getIncomingBlock(op));
     }
   } else if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(&I)) {
-    writeOperand(I.getOperand(0), true);
+    writeOperand(I.getOperand(0));
     for (const unsigned *i = EVI->idx_begin(), *e = EVI->idx_end(); i != e; ++i)
       printf(", %x", *i);
   } else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(&I)) {
-    writeOperand(I.getOperand(0), true);
-    writeOperand(I.getOperand(1), true);
+    writeOperand(I.getOperand(0));
+    writeOperand(I.getOperand(1));
     for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
       printf(", %x", *i);
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
@@ -497,7 +497,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       I.getType()->dump();
     printf(" personality ");
-    writeOperand(I.getOperand(0), true);
+    writeOperand(I.getOperand(0));
     if (LPI->isCleanup())
       printf("          cleanup");
     for (unsigned i = 0, e = LPI->getNumClauses(); i != e; ++i) {
@@ -506,7 +506,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         printf("          catch ");
       else
         printf("          filter ");
-      writeOperand(LPI->getClause(i), true);
+      writeOperand(LPI->getClause(i));
     }
   } else if (isa<ReturnInst>(I) && !Operand) {
     printf(" void");
@@ -532,7 +532,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
       RetTy->dump();
     }
-    writeOperand(Operand, true);
+    writeOperand(Operand);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
     }
@@ -560,38 +560,32 @@ printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(RetTy);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       RetTy->dump();
-      writeOperand(Operand, false);
-    } else {
-      writeOperand(Operand, true);
     }
+    writeOperand(Operand);
     for (unsigned op = 0, Eop = II->getNumArgOperands(); op < Eop; ++op) {
       //writeParamOperand(II->getArgOperand(op), PAL, op + 1);
     }
     //if (PAL.hasAttributes(AttributeSet::FunctionIndex))
       //printf(" #" < < Machine.getAttributeGroupSlot(PAL.getFnAttributes()));
-    writeOperand(II->getNormalDest(), true);
-    writeOperand(II->getUnwindDest(), true);
+    writeOperand(II->getNormalDest());
+    writeOperand(II->getUnwindDest());
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
     //TypePrinter.print(AI->getAllocatedType());
     if (!AI->getArraySize() || AI->isArrayAllocation()) {
-      writeOperand(AI->getArraySize(), true);
+      writeOperand(AI->getArraySize());
     }
     //if (AI->getAlignment()) {
       //printf(", align " << AI->getAlignment());
     //}
   } else if (isa<CastInst>(I)) {
-    if (Operand) {
-      writeOperand(Operand, true);   // Work with broken code
-    }
+    writeOperand(Operand);
     //TypePrinter.print(I.getType());
   } else if (isa<VAArgInst>(I)) {
-    if (Operand) {
-      writeOperand(Operand, true);   // Work with broken code
-    }
+    writeOperand(Operand);
     //TypePrinter.print(I.getType());
   } else if (Operand) {   // Print the normal way.
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
-      writeOperand(I.getOperand(i), true);
+      writeOperand(I.getOperand(i));
     }
   }
   // Print atomic ordering/alignment for memory operations
@@ -682,8 +676,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (operand_list_index >= 3 && operand_list[0]) {
           uint64_t *val = *(uint64_t **)(operand_list[0] + 8 * (1+operand_list[2] + operand_list[3]));
           const GlobalValue *g = EE->getGlobalValueAtAddress(val);
-          printf(" g=%p", g);
-          if (g) g->dump();
+          //printf(" g=%p", g);
+          if (g)
+              printf(" g='%s'", g->getName().str().c_str());
+          //if (g) g->dump();
       }
       }
       break;
@@ -755,9 +751,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     const_pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
     if (PI == PE) {
     } else {
-      writeOperand(*PI, false);
+      writeOperand(*PI);
       for (++PI; PI != PE; ++PI) {
-        writeOperand(*PI, false);
+        writeOperand(*PI);
       }
     }
 #endif
@@ -845,7 +841,7 @@ printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
   }
   if (F->hasPrefixData()) {
     printf(" prefix ");
-    writeOperand(F->getPrefixData(), true);
+    writeOperand(F->getPrefixData());
   }
   if (F->isDeclaration()) {
   } else {
