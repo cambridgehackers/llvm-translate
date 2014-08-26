@@ -103,15 +103,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 static void WriteConstantInternal(const Constant *CV)
 // TypePrinting &TypePrinter, SlotTracker *Machine, const Module *Context)
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     if (CI->getType()->isIntegerTy(1)) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("%s", CI->getZExtValue() ? "true" : "false");
       return;
     }
-printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, 0);
-CI->getValue().dump();
+printf("[%s:%d] %lld.\n", __FUNCTION__, __LINE__, (long long)CI->getZExtValue());
+//CI->getValue().dump();
     return;
   }
 
@@ -385,49 +384,27 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 }
 
-static void WriteAsOperandInternal( const Value *V) //TypePrinting *TypePrinter, SlotTracker *Machine, //const Module *Context)
-{
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  if (V->hasName()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //PrintLLVMName(V);
-    return;
-  }
-
-  const Constant *CV = dyn_cast<Constant>(V);
-  if (CV && !isa<GlobalValue>(CV)) {
-    //assert(TypePrinter && "Constants require TypePrinting!");
-    WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
-    return;
-  }
-}
-
 void writeOperand(const Value *Operand, bool PrintType) 
 {
   if (Operand == 0) {
     return;
   }
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//Operand->dump();
-Operand->getType()->dump();
+Operand->dump();
+//Operand->getType()->dump();
 printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
-  //const ValueTy &getValue() const { return second; }
-
-//Operand->getValueName()->dump();
-//Operand->getValue().dump();
-//printf("V %x\n", Operand->getValue());
-//printf("K %s\n", Operand->getValueName()->getKey().str().c_str());
-//printf("V %d\n", Operand->getValueName()->getValue()->getValueID());//str().c_str());
   //LLVMContext &getContext() const;
-  //bool hasName() const { return Name != 0 && SubclassID != MDStringVal; }
-  //ValueName *getValueName() const { return Name; }
-#if 0
-  if (PrintType) {
-    //TypePrinter.print(Operand->getType());
+  if (Operand->hasName()) {
+printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, Operand->getName().str().c_str());
+    //PrintLLVMName(Operand);
+    return;
   }
-#endif
-  WriteAsOperandInternal(Operand); //&TypePrinter, &Machine, 
-//TheModule);
+  const Constant *CV = dyn_cast<Constant>(Operand);
+  if (CV && !isa<GlobalValue>(CV)) {
+    WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
+    return;
+  }
+printf("[%s:%d] not int const\n", __FUNCTION__, __LINE__);
 }
 
 // This member is called for each Instruction in a function..
