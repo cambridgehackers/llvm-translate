@@ -71,14 +71,19 @@ namespace {
          cl::value_desc("input bitcode"));
 }
 
-static ExecutionEngine *EE = 0;
-
-std::map<const Instruction *, int> slotmap;
 #define MAX_SLOTARRAY 1000
+#define MAX_OPERAND_LIST 200
+
+static ExecutionEngine *EE = 0;
+std::map<const Instruction *, int> slotmap;
 struct {
     char *name;
 } slotarray[MAX_SLOTARRAY];
 static int slotindex;
+
+static uint64_t ***globalThis;
+static uint64_t operand_list[MAX_OPERAND_LIST];
+static int operand_list_index;
 
 void dump_type(Module *Mod, const char *p)
 {
@@ -104,13 +109,16 @@ static void WriteConstantInternal(const Constant *CV)
 // TypePrinting &TypePrinter, SlotTracker *Machine, const Module *Context)
 {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+#if 0
     if (CI->getType()->isIntegerTy(1)) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("%s", CI->getZExtValue() ? "true" : "false");
       return;
     }
-printf("[%s:%d] %lld.\n", __FUNCTION__, __LINE__, (long long)CI->getZExtValue());
+//printf("[%s:%d] %lld.\n", __FUNCTION__, __LINE__, (long long)CI->getZExtValue());
 //CI->getValue().dump();
+#endif
+    operand_list[operand_list_index++] = CI->getZExtValue();
     return;
   }
 
@@ -384,29 +392,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 }
 
-static uint64_t ***globalThis;
 void writeOperand(const Value *Operand, bool PrintType) 
 {
   if (Operand == 0) {
     return;
   }
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-Operand->dump();
-//Operand->getType()->dump();
-printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
-  //LLVMContext &getContext() const;
+//printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
   if (Operand->hasName()) {
     const char *cp = Operand->getName().str().c_str();
-printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, cp);
-if (!strcmp(cp, "this")) {
-printf("[%s:%d]THIS %p\n", __FUNCTION__, __LINE__, globalThis);
-const GlobalValue *g = EE->getGlobalValueAtAddress(globalThis);
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
-g = EE->getGlobalValueAtAddress(globalThis[1+1]);
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
-if (g) g->dump();
-}
-    //PrintLLVMName(Operand);
+    if (!strcmp(cp, "this"))
+        operand_list[operand_list_index++] = (uint64_t)globalThis;
+    else
+        printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, cp);
     return;
   }
   const Constant *CV = dyn_cast<Constant>(Operand);
@@ -420,6 +417,9 @@ printf("[%s:%d] not int const\n", __FUNCTION__, __LINE__);
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
+  
+  operand_list_index = 0;
+  memset(operand_list, 0, sizeof(operand_list));
 //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Print out indentation for an instruction.
   // Print out name if it exists...
@@ -439,7 +439,6 @@ void printInstruction(const Instruction &I)
     printf("          : ");
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
-  printf("OC:%s ", I.getOpcodeName());
   // If this is an atomic load or store, print out the atomic marker.
   if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isAtomic()) ||
       (isa<StoreInst>(I) && cast<StoreInst>(I).isAtomic()))
@@ -538,7 +537,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         (!RetTy->isPointerTy() ||
          !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
       //TypePrinter.print(RetTy);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
       RetTy->dump();
       writeOperand(Operand, false);
     } else {
@@ -618,7 +617,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
     }
     if (!PrintAllTypes) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
       TheType->dump();
       //TypePrinter.print(TheType);
     }
@@ -660,7 +659,110 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //WriteAsOperandInternal(InstMD[i].second, &TypePrinter, &Machine, TheModule);
     }
   }
-  //printInfoComment(I);
+  int opcode = I.getOpcode();
+  printf("    ");
+  switch (I.getOpcode()) {
+  // Terminators
+  case Instruction::Ret:
+      printf("XLAT: Ret");
+      break;
+  //case Instruction::Br:
+  //case Instruction::Switch:
+  //case Instruction::IndirectBr:
+  //case Instruction::Invoke:
+  //case Instruction::Resume:
+  case Instruction::Unreachable:
+      printf("XLAT: Unreachable");
+      break;
+
+  // Standard binary operators...
+  case Instruction::Add:
+      printf("XLAT: Add");
+      break;
+  //case Instruction::FAdd:
+  //case Instruction::Sub:
+  //case Instruction::FSub:
+  //case Instruction::Mul:
+  //case Instruction::FMul:
+  //case Instruction::UDiv:
+  //case Instruction::SDiv:
+  //case Instruction::FDiv:
+  //case Instruction::URem:
+  //case Instruction::SRem:
+  //case Instruction::FRem:
+
+  // Logical operators...
+  //case Instruction::And:
+  //case Instruction::Or:
+  //case Instruction::Xor:
+
+  // Memory instructions...
+  //case Instruction::Alloca:
+  case Instruction::Load:
+      printf("XLAT: Load");
+      break;
+  case Instruction::Store:
+      printf("XLAT: Store");
+      break;
+  //case Instruction::AtomicCmpXchg:
+  //case Instruction::AtomicRMW:
+  //case Instruction::Fence:
+  case Instruction::GetElementPtr:
+      {
+      printf("XLAT: GetElementPtr");
+      if (operand_list_index >= 3 && operand_list[0]) {
+          uint64_t *val = *(uint64_t **)(operand_list[0] + 8 * (1+operand_list[2] + operand_list[3]));
+          const GlobalValue *g = EE->getGlobalValueAtAddress(val);
+          printf(" g=%p", g);
+          if (g) g->dump();
+      }
+      }
+      break;
+
+  // Convert instructions...
+  //case Instruction::Trunc:
+  //case Instruction::ZExt:
+  //case Instruction::SExt:
+  //case Instruction::FPTrunc:
+  //case Instruction::FPExt:
+  //case Instruction::FPToUI:
+  //case Instruction::FPToSI:
+  //case Instruction::UIToFP:
+  //case Instruction::SIToFP:
+  //case Instruction::IntToPtr:
+  //case Instruction::PtrToInt:
+  case Instruction::BitCast:
+      printf("XLAT: BitCast");
+      break;
+  //case Instruction::AddrSpaceCast:
+
+  // Other instructions...
+  case Instruction::ICmp:
+      printf("XLAT: ICmp");
+      break;
+  //case Instruction::FCmp:
+  //case Instruction::PHI:
+  //case Instruction::Select:
+  case Instruction::Call:
+      printf("XLAT: Call");
+      break;
+  //case Instruction::Shl:
+  //case Instruction::LShr:
+  //case Instruction::AShr:
+  //case Instruction::VAArg:
+  //case Instruction::ExtractElement:
+  //case Instruction::InsertElement:
+  //case Instruction::ShuffleVector:
+  //case Instruction::ExtractValue:
+  //case Instruction::InsertValue:
+  //case Instruction::LandingPad:
+  default:
+      printf("XLAT: Other opcode %d.=%s", opcode, I.getOpcodeName());
+      break;
+  }
+  for (int i = 0; i < operand_list_index; i++) {
+      printf(" op[%d]=%llx;", i, (long long)operand_list[i]);
+  }
   printf("\n");
 }
 
@@ -802,7 +904,7 @@ int arr_size = 0;
        const char *cend = cp + (strlen(cp)-4);
        printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
-           if (!strcmp(cend, "rdEv")) {
+           if (1 || !strcmp(cend, "rdEv")) {
            processFunction(f);
            printf("FULL:\n");
            f->dump();
