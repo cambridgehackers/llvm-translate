@@ -643,15 +643,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       {
       printf("XLAT:          Load");
       const char *ret = NULL;
-      if (operand_list[1].type == OpTypeLocalRef) {
-//int getLocalSlot(const Value *V)
-          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[1].value);
-          ret = slotarray[FI->second].name;
-      }
-      if (operand_list[0].type == OpTypeLocalRef && ret) {
-          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[0].value);
-          slotarray[FI->second].name = strdup(ret);
-      }
+      if (operand_list[1].type == OpTypeLocalRef)
+          ret = slotarray[getLocalSlot((const Value *)operand_list[1].value)].name;
+      if (operand_list[0].type == OpTypeLocalRef && ret)
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
       else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
       }
       break;
@@ -676,17 +671,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           }
         }
         else {
-          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[1].value);
 #define MAX_CHAR_BUFFER 1000
+          int ind = getLocalSlot((const Value *)operand_list[1].value);
           char temp[MAX_CHAR_BUFFER];
-          sprintf(temp, "%s_%lld", slotarray[FI->second].name, (long long)operand_list[3].value);;
+          sprintf(temp, "%s_%lld", slotarray[ind].name, (long long)operand_list[3].value);;
           ret = strdup(temp);
         }
       }
-      if (operand_list[0].type == OpTypeLocalRef && ret) {
-          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[0].value);
-          slotarray[FI->second].name = strdup(ret);
-      }
+      if (operand_list[0].type == OpTypeLocalRef && ret)
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
       else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
       }
       break;
@@ -734,9 +727,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   for (int i = 0; i < operand_list_index; i++) {
       if (operand_list[i].type == OpTypeLocalRef) {
-          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[i].value);
-          const char *cp = FI->first->getName().str().c_str();
-          printf(" op[%d]=%s/%d/%s;", i, cp, FI->second, slotarray[FI->second].name);
+          int ind = getLocalSlot((const Value *)operand_list[i].value);
+          const char *cp = ((const Value *)operand_list[i].value)->getName().str().c_str();
+          printf(" op[%d]=%s/%d/%s;", i, cp, ind, slotarray[ind].name);
       }
       else if (operand_list[i].type == OpTypeExternalFunction)
           printf(" op[%d]=%d/%s;", i, operand_list[i].type, (const char *)operand_list[i].value);
