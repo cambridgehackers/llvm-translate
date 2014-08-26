@@ -73,16 +73,17 @@ namespace {
 
 #define MAX_SLOTARRAY 1000
 #define MAX_OPERAND_LIST 200
+#define MAX_CHAR_BUFFER 1000
 
 static ExecutionEngine *EE = 0;
 std::map<const Value *, int> slotmap;
 struct {
     const char *name;
 } slotarray[MAX_SLOTARRAY];
-static int slotindex;
+static int slotarray_index;
 
 static uint64_t ***globalThis;
-enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction};
+enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
    int type;
    uint64_t value;
@@ -91,7 +92,7 @@ static int operand_list_index;
 
 void makeLocalSlot(const Value *V)
 {
-  slotmap.insert(std::pair<const Value *, int>(V, slotindex++));
+  slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
 }
 int getLocalSlot(const Value *V)
 {
@@ -107,7 +108,7 @@ int getLocalSlot(const Value *V)
 void clearLocalSlot(void)
 {
   slotmap.clear();
-  slotindex = 0;
+  slotarray_index = 0;
   memset(slotarray, 0, sizeof(slotarray));
 }
 
@@ -119,6 +120,39 @@ void dump_type(Module *Mod, const char *p)
     printf(" tgv %p\n", tgv);
 }
 
+static const char *getPredicateText(unsigned predicate)
+{
+  const char * pred = "unknown";
+  switch (predicate) {
+  case FCmpInst::FCMP_FALSE: pred = "false"; break;
+  case FCmpInst::FCMP_OEQ:   pred = "oeq"; break;
+  case FCmpInst::FCMP_OGT:   pred = "ogt"; break;
+  case FCmpInst::FCMP_OGE:   pred = "oge"; break;
+  case FCmpInst::FCMP_OLT:   pred = "olt"; break;
+  case FCmpInst::FCMP_OLE:   pred = "ole"; break;
+  case FCmpInst::FCMP_ONE:   pred = "one"; break;
+  case FCmpInst::FCMP_ORD:   pred = "ord"; break;
+  case FCmpInst::FCMP_UNO:   pred = "uno"; break;
+  case FCmpInst::FCMP_UEQ:   pred = "ueq"; break;
+  case FCmpInst::FCMP_UGT:   pred = "ugt"; break;
+  case FCmpInst::FCMP_UGE:   pred = "uge"; break;
+  case FCmpInst::FCMP_ULT:   pred = "ult"; break;
+  case FCmpInst::FCMP_ULE:   pred = "ule"; break;
+  case FCmpInst::FCMP_UNE:   pred = "une"; break;
+  case FCmpInst::FCMP_TRUE:  pred = "true"; break;
+  case ICmpInst::ICMP_EQ:    pred = "eq"; break;
+  case ICmpInst::ICMP_NE:    pred = "ne"; break;
+  case ICmpInst::ICMP_SGT:   pred = "sgt"; break;
+  case ICmpInst::ICMP_SGE:   pred = "sge"; break;
+  case ICmpInst::ICMP_SLT:   pred = "slt"; break;
+  case ICmpInst::ICMP_SLE:   pred = "sle"; break;
+  case ICmpInst::ICMP_UGT:   pred = "ugt"; break;
+  case ICmpInst::ICMP_UGE:   pred = "uge"; break;
+  case ICmpInst::ICMP_ULT:   pred = "ult"; break;
+  case ICmpInst::ICMP_ULE:   pred = "ule"; break;
+  }
+  return pred;
+}
 static void WriteConstantInternal(const Constant *CV)
 {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
@@ -340,7 +374,6 @@ void writeOperand(const Value *Operand)
         operand_list[operand_list_index++].value = (uint64_t) Operand->getName().str().c_str();
     }
     else {
-        int Slot = getLocalSlot(Operand);
         operand_list[operand_list_index].type = OpTypeLocalRef;
         operand_list[operand_list_index++].value = (uint64_t) Operand;
     }
@@ -359,11 +392,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //WriteMDNodeBodyInternal(N, TypePrinter, Machine, Context);
       return;
     }
-
-    int Slot = getLocalSlot(Operand);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = (uint64_t) Operand;
-printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
     return;
   }
 
@@ -378,20 +408,30 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     return;
   }
-
-  char Prefix = '%';
-  int Slot = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
   operand_list[operand_list_index++].value = (uint64_t) Operand;
+}
+
+static const char *getparam(int arg)
+{
+   char temp[MAX_CHAR_BUFFER];
+   temp[0] = 0;
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return slotarray[getLocalSlot((const Value *)operand_list[arg].value)].name;
+   else if (operand_list[arg].type == OpTypeExternalFunction)
+       return (const char *)operand_list[arg].value;
+   else if (operand_list[arg].type == OpTypeInt)
+       sprintf(temp, "%lld", (long long)operand_list[arg].value);
+   else if (operand_list[arg].type == OpTypeString)
+       return (const char *)operand_list[arg].value;
+   return strdup(temp);
 }
 
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
-  
   operand_list_index = 0;
   memset(operand_list, 0, sizeof(operand_list));
-
   if (I.hasName()) {
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
@@ -403,7 +443,6 @@ void printInstruction(const Instruction &I)
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = (uint64_t) &I;
     printf("%12d: ",  t);
-//search->second);
   }
   else {
     operand_list_index++;
@@ -424,8 +463,7 @@ void printInstruction(const Instruction &I)
   // Print out optimization information.
   //WriteOptimizationInfo(&I);
   // Print out the compare instruction predicates
-  //if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
-    //printf(' ' << getPredicateText(CI->getPredicate()));
+  //if (const CmpInst *CI = dyn_cast<CmpInst>(&I)) printf("CMP %s", getPredicateText(CI->getPredicate()));
   // Print out the atomicrmw operation
   //if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(&I))
     //writeAtomicRMWOperation(RMWI->getOperation());
@@ -491,7 +529,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Print the calling convention being used.
     if (CI->getCallingConv() != CallingConv::C) {
-      printf(" ");
       //PrintCallingConv(CI->getCallingConv());
     }
     Operand = CI->getCalledValue();
@@ -606,6 +643,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Terminators
   case Instruction::Ret:
       printf("XLAT:           Ret");
+      if (operand_list_index > 1) {
+          operand_list[0].type = OpTypeString;
+          operand_list[0].value = (uint64_t)getparam(1);
+      }
       break;
   //case Instruction::Br:
   //case Instruction::Switch:
@@ -618,8 +659,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   // Standard binary operators...
   case Instruction::Add:
-      printf("XLAT:           Add");
-      break;
   //case Instruction::FAdd:
   //case Instruction::Sub:
   //case Instruction::FSub:
@@ -636,6 +675,16 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //case Instruction::And:
   //case Instruction::Or:
   //case Instruction::Xor:
+      {
+      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = "+";
+      char temp[MAX_CHAR_BUFFER];
+      temp[0] = 0;
+      printf("XLAT:           Add");
+      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
+      if (operand_list[0].type == OpTypeLocalRef)
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(temp);
+      }
+      break;
 
   // Memory instructions...
   //case Instruction::Alloca:
@@ -647,7 +696,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           ret = slotarray[getLocalSlot((const Value *)operand_list[1].value)].name;
       if (operand_list[0].type == OpTypeLocalRef && ret)
           slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
-      else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
       }
       break;
   case Instruction::Store:
@@ -665,22 +713,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (!strcmp(cp, "this")) {
           uint64_t **val = globalThis[1+operand_list[3].value];
           const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
-          if (g) {
+          if (g)
               ret = g->getName().str().c_str();
-              printf(" g='%s'", ret);
-          }
         }
         else {
-#define MAX_CHAR_BUFFER 1000
           int ind = getLocalSlot((const Value *)operand_list[1].value);
           char temp[MAX_CHAR_BUFFER];
-          sprintf(temp, "%s_%lld", slotarray[ind].name, (long long)operand_list[3].value);;
+          sprintf(temp, "%s_%lld", slotarray[ind].name, (long long)operand_list[3].value);
           ret = strdup(temp);
         }
       }
       if (operand_list[0].type == OpTypeLocalRef && ret)
           slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
-      else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
       }
       break;
 
@@ -703,7 +747,17 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   // Other instructions...
   case Instruction::ICmp:
+      {
+      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
+      char temp[MAX_CHAR_BUFFER];
+      temp[0] = 0;
       printf("XLAT:          ICmp");
+      if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
+          opstr = getPredicateText(CI->getPredicate());
+      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
+      if (operand_list[0].type == OpTypeLocalRef)
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(temp);
+      }
       break;
   //case Instruction::FCmp:
   //case Instruction::PHI:
@@ -726,6 +780,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   }
   for (int i = 0; i < operand_list_index; i++) {
+      const char *cp = getparam(i);
+      if (operand_list[i].type != OpTypeNone)
+          printf(" op[%d]=%s;", i, cp);
+#if 0
       if (operand_list[i].type == OpTypeLocalRef) {
           int ind = getLocalSlot((const Value *)operand_list[i].value);
           const char *cp = ((const Value *)operand_list[i].value)->getName().str().c_str();
@@ -737,6 +795,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           printf(" op[%d]=%llx;", i, (long long)operand_list[i].value);
       else if (operand_list[i].type != OpTypeNone)
           printf(" UNKNOWNOPTYPEop[%d]=%d/%llx;", i, operand_list[i].type, (long long)operand_list[i].value);
+#endif
   }
   printf("\n");
 }
