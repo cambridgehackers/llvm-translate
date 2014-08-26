@@ -326,21 +326,6 @@ void writeOperand(const Value *Operand, bool PrintType)
     WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
     return;
   }
-#if 0
-  if (const InlineAsm *IA = dyn_cast<InlineAsm>(Operand)) {
-    printf( "asm ");
-    if (IA->hasSideEffects())
-      printf( "sideeffect ");
-    if (IA->isAlignStack())
-      printf( "alignstack ");
-    // We don't emit the AD_ATT dialect as it's the assumed default.
-    if (IA->getDialect() == InlineAsm::AD_Intel)
-      printf( "inteldialect ");
-    //PrintEscapedString(IA->getAsmString());
-    //PrintEscapedString(IA->getConstraintString());
-    return;
-  }
-#endif
 
   if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -500,13 +485,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
   } else if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(&I)) {
     writeOperand(I.getOperand(0), true);
-    //for (const unsigned *i = EVI->idx_begin(), *e = EVI->idx_end(); i != e; ++i)
-      //printf(", " << *i);
+    for (const unsigned *i = EVI->idx_begin(), *e = EVI->idx_end(); i != e; ++i)
+      printf(", %x", *i);
   } else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(&I)) {
     writeOperand(I.getOperand(0), true);
     writeOperand(I.getOperand(1), true);
-    //for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
-      //printf(", " << *i);
+    for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
+      printf(", %x", *i);
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
     //TypePrinter.print(I.getType());
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -542,16 +527,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // only do this if the first argument is a pointer to a nonvararg function,
     // and if the return type is not a pointer to a function.
     //
-    if (!FTy->isVarArg() &&
-        (!RetTy->isPointerTy() ||
-         !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
+    if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
       //TypePrinter.print(RetTy);
 printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
       RetTy->dump();
-      writeOperand(Operand, false);
-    } else {
-      writeOperand(Operand, true);
     }
+    writeOperand(Operand, true);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
     }
@@ -609,29 +590,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     //TypePrinter.print(I.getType());
   } else if (Operand) {   // Print the normal way.
-#if 0
-    bool PrintAllTypes = false;
-    Type *TheType = Operand->getType();
-    // Select, Store and ShuffleVector always print all types.
-    if (isa<SelectInst>(I) || isa<StoreInst>(I) || isa<ShuffleVectorInst>(I) || isa<ReturnInst>(I)) {
-      PrintAllTypes = true;
-    } else {
-      for (unsigned i = 1, E = I.getNumOperands(); i != E; ++i) {
-        Operand = I.getOperand(i);
-        // note that Operand shouldn't be null, but the test helps make dump()
-        // more tolerant of malformed IR
-        if (Operand && Operand->getType() != TheType) {
-          PrintAllTypes = true;    // We have differing types!  Print them all!
-          break;
-        }
-      }
-    }
-    if (!PrintAllTypes) {
-//printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      //TheType->dump();
-      //TypePrinter.print(TheType);
-    }
-#endif
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
       writeOperand(I.getOperand(i), true);
     }
