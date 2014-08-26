@@ -23,7 +23,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
-//#include "llvm/ADT/ValueMap.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -85,6 +84,23 @@ static int slotindex;
 static uint64_t ***globalThis;
 static uint64_t operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
+
+void makeLocalSlot(const Value *V)
+{
+  memset(&slotarray[slotindex], 0, sizeof(slotarray[slotindex]));
+  slotmap.insert(std::pair<const Value *, int>(V, slotindex++));
+}
+int getLocalSlot(const Value *V)
+{
+  assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!"); 
+  std::map<const Value *, int>::iterator FI = slotmap.find(V);
+  //return FI == slotmap.end() ? -1 : (int)FI->second;
+  if (FI == slotmap.end()) {
+     makeLocalSlot(V);
+     return getLocalSlot(V);
+  }
+  return (int)FI->second;
+}
 
 void dump_type(Module *Mod, const char *p)
 {
@@ -359,9 +375,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     return;
   }
 
-printf("[%s:%d] slot\n", __FUNCTION__, __LINE__);
   char Prefix = '%';
-  int Slot;
+  int Slot = getLocalSlot(Operand);
+printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
 #if 0
   // If we have a SlotTracker, use it.
   if (Machine) {
@@ -404,12 +420,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 }
 
-int getLocalSlot(const Value *V) {
-  assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!"); 
-  std::map<const Value *, int>::iterator FI = slotmap.find(V);
-  return FI == slotmap.end() ? -1 : (int)FI->second;
-}
-
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
@@ -421,13 +431,15 @@ void printInstruction(const Instruction &I)
     printf("%10s: ", I.getName().str().c_str());
   } else if (!I.getType()->isVoidTy()) {
     // Print out the def slot taken.
-    std::map<const Value *, int>::const_iterator search = slotmap.find(&I);
-    if (search == slotmap.end()) {
-      memset(&slotarray[slotindex], 0, sizeof(slotarray[slotindex]));
-      slotmap.insert(std::pair<const Instruction *, int>(&I, slotindex++));
-      search = slotmap.find(&I);
+    int t = getLocalSlot(&I);
+#if 0
+    if (t == -1) {
+      makeLocalSlot(&I);
+      t = getLocalSlot(&I);
     }
-    printf("%10d: ",  search->second);
+#endif
+    printf("%10d: ",  t);
+//search->second);
   }
   else
     printf("          : ");
