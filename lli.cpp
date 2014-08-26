@@ -93,18 +93,6 @@ void dump_type(Module *Mod, const char *p)
     printf(" tgv %p\n", tgv);
 }
 
-void printArgument(const Argument *Arg, AttributeSet Attrs, unsigned Idx) 
-{
-  //TypePrinter.print(Arg->getType());
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      Arg->getType()->dump();
-  //if (Attrs.hasAttributes(Idx))
-    //Attrs.getAsString(Idx);
-  //if (Arg->hasName()) {
-    //PrintLLVMName(Arg);
-  //}
-}
-
 static void WriteConstantInternal(const Constant *CV)
 // TypePrinting &TypePrinter, SlotTracker *Machine, const Module *Context)
 {
@@ -152,7 +140,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
              (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
           // Reparse stringized version!
           if (APFloat(APFloat::IEEEdouble, StrVal).convertToDouble() == Val) {
-            Out << StrVal.str();
+            printf( StrVal.str();
             return;
           }
         }
@@ -169,7 +157,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (!isDouble)
         apf.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
                           &ignored);
-      Out << "0x" <<
+      printf( "0x" <<
               utohex_buffer(uint64_t(apf.bitcastToAPInt().getZExtValue()),
                             Buffer+40);
       return;
@@ -178,12 +166,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // Either half, or some form of long double.
     // These appear as a magic letter identifying the type, then a
     // fixed number of hex digits.
-    Out << "0x";
+    printf( "0x";
     // Bit position, in the current word, of the next nibble to print.
     int shiftcount;
 
     if (&CFP->getValueAPF().getSemantics() == &APFloat::x87DoubleExtended) {
-      Out << 'K';
+      printf( 'K';
       // api needed to prevent premature destruction
       APInt api = CFP->getValueAPF().bitcastToAPInt();
       const uint64_t* p = api.getRawData();
@@ -193,9 +181,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       for (int j=0; j<width; j+=4, shiftcount-=4) {
         unsigned int nibble = (word>>shiftcount) & 15;
         if (nibble < 10)
-          Out << (unsigned char)(nibble + '0');
+          printf( (unsigned char)(nibble + '0');
         else
-          Out << (unsigned char)(nibble - 10 + 'A');
+          printf( (unsigned char)(nibble - 10 + 'A');
         if (shiftcount == 0 && j+4 < width) {
           word = *p;
           shiftcount = 64;
@@ -206,13 +194,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return;
     } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEquad) {
       shiftcount = 60;
-      Out << 'L';
+      printf( 'L';
     } else if (&CFP->getValueAPF().getSemantics() == &APFloat::PPCDoubleDouble) {
       shiftcount = 60;
-      Out << 'M';
+      printf( 'M';
     } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEhalf) {
       shiftcount = 12;
-      Out << 'H';
+      printf( 'H';
     } else
       llvm_unreachable("Unsupported floating point type");
     // api needed to prevent premature destruction
@@ -223,9 +211,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (int j=0; j<width; j+=4, shiftcount-=4) {
       unsigned int nibble = (word>>shiftcount) & 15;
       if (nibble < 10)
-        Out << (unsigned char)(nibble + '0');
+        printf( (unsigned char)(nibble + '0');
       else
-        Out << (unsigned char)(nibble - 10 + 'A');
+        printf( (unsigned char)(nibble - 10 + 'A');
       if (shiftcount == 0 && j+4 < width) {
         word = *(++p);
         shiftcount = 64;
@@ -237,37 +225,37 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   if (isa<ConstantAggregateZero>(CV)) {
-    Out << "zeroinitializer";
+    printf( "zeroinitializer";
     return;
   }
 
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
-    Out << "blockaddress(";
+    printf( "blockaddress(";
     WriteAsOperandInternal(Out, BA->getFunction(), &TypePrinter, Machine,
                            Context);
-    Out << ", ";
+    printf( ", ";
     WriteAsOperandInternal(Out, BA->getBasicBlock(), &TypePrinter, Machine,
                            Context);
-    Out << ")";
+    printf( ")";
     return;
   }
 
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
     Type *ETy = CA->getType()->getElementType();
-    Out << '[';
+    printf( '[';
     TypePrinter.print(ETy, Out);
-    Out << ' ';
+    printf( ' ';
     WriteAsOperandInternal(Out, CA->getOperand(0),
                            &TypePrinter, Machine,
                            Context);
     for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
-      Out << ", ";
+      printf( ", ";
       TypePrinter.print(ETy, Out);
-      Out << ' ';
+      printf( ' ';
       WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
                              Context);
     }
-    Out << ']';
+    printf( ']';
     return;
   }
 
@@ -275,120 +263,116 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // As a special case, print the array as a string if it is an array of
     // i8 with ConstantInt values.
     if (CA->isString()) {
-      Out << "c\"";
+      printf( "c\"";
       PrintEscapedString(CA->getAsString(), Out);
-      Out << '"';
+      printf( '"';
       return;
     }
 
     Type *ETy = CA->getType()->getElementType();
-    Out << '[';
+    printf( '[';
     TypePrinter.print(ETy, Out);
-    Out << ' ';
+    printf( ' ';
     WriteAsOperandInternal(Out, CA->getElementAsConstant(0),
                            &TypePrinter, Machine,
                            Context);
     for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
-      Out << ", ";
+      printf( ", ";
       TypePrinter.print(ETy, Out);
-      Out << ' ';
+      printf( ' ';
       WriteAsOperandInternal(Out, CA->getElementAsConstant(i), &TypePrinter,
                              Machine, Context);
     }
-    Out << ']';
+    printf( ']';
     return;
   }
 
 
   if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     if (CS->getType()->isPacked())
-      Out << '<';
-    Out << '{';
+      printf( '<';
+    printf( '{';
     unsigned N = CS->getNumOperands();
     if (N) {
-      Out << ' ';
+      printf( ' ';
       TypePrinter.print(CS->getOperand(0)->getType(), Out);
-      Out << ' ';
+      printf( ' ';
 
       WriteAsOperandInternal(Out, CS->getOperand(0), &TypePrinter, Machine,
                              Context);
 
       for (unsigned i = 1; i < N; i++) {
-        Out << ", ";
+        printf( ", ";
         TypePrinter.print(CS->getOperand(i)->getType(), Out);
-        Out << ' ';
+        printf( ' ';
 
         WriteAsOperandInternal(Out, CS->getOperand(i), &TypePrinter, Machine,
                                Context);
       }
-      Out << ' ';
+      printf( ' ';
     }
 
-    Out << '}';
+    printf( '}';
     if (CS->getType()->isPacked())
-      Out << '>';
+      printf( '>';
     return;
   }
 
   if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
     Type *ETy = CV->getType()->getVectorElementType();
-    Out << '<';
+    printf( '<';
     TypePrinter.print(ETy, Out);
-    Out << ' ';
+    printf( ' ';
     WriteAsOperandInternal(Out, CV->getAggregateElement(0U), &TypePrinter,
                            Machine, Context);
     for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
-      Out << ", ";
+      printf( ", ";
       TypePrinter.print(ETy, Out);
-      Out << ' ';
+      printf( ' ';
       WriteAsOperandInternal(Out, CV->getAggregateElement(i), &TypePrinter,
                              Machine, Context);
     }
-    Out << '>';
+    printf( '>';
     return;
   }
 
   if (isa<ConstantPointerNull>(CV)) {
-    Out << "null";
+    printf( "null";
     return;
   }
 
   if (isa<UndefValue>(CV)) {
-    Out << "undef";
+    printf( "undef";
     return;
   }
 
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
-    Out << CE->getOpcodeName();
+    //printf( CE->getOpcodeName();
     WriteOptimizationInfo(Out, CE);
-    if (CE->isCompare())
-      Out << ' ' << getPredicateText(CE->getPredicate());
-    Out << " (";
+    //if (CE->isCompare())
+      //printf( ' ' << getPredicateText(CE->getPredicate());
 
     for (User::const_op_iterator OI=CE->op_begin(); OI != CE->op_end(); ++OI) {
       TypePrinter.print((*OI)->getType(), Out);
-      Out << ' ';
-      WriteAsOperandInternal(Out, *OI, &TypePrinter, Machine, Context);
-      if (OI+1 != CE->op_end())
-        Out << ", ";
+      //WriteAsOperandInternal(*OI, &TypePrinter, Machine, Context);
     }
 
     if (CE->hasIndices()) {
       ArrayRef<unsigned> Indices = CE->getIndices();
       for (unsigned i = 0, e = Indices.size(); i != e; ++i)
-        Out << ", " << Indices[i];
+        printf( ", " << Indices[i];
     }
 
     if (CE->isCast()) {
-      Out << " to ";
+      printf( " to ";
       TypePrinter.print(CE->getType(), Out);
     }
 
-    Out << ')';
+    printf( ')';
     return;
   }
 
-  Out << "<placeholder or erroneous Constant>";
+  printf( "<placeholder or erroneous Constant>";
 #endif
 }
 
@@ -412,6 +396,102 @@ void writeOperand(const Value *Operand, bool PrintType)
     return;
   }
 printf("[%s:%d] not int const\n", __FUNCTION__, __LINE__);
+#if 0
+  if (const InlineAsm *IA = dyn_cast<InlineAsm>(Operand)) {
+    printf( "asm ");
+    if (IA->hasSideEffects())
+      printf( "sideeffect ");
+    if (IA->isAlignStack())
+      printf( "alignstack ");
+    // We don't emit the AD_ATT dialect as it's the assumed default.
+    if (IA->getDialect() == InlineAsm::AD_Intel)
+      printf( "inteldialect ");
+    //PrintEscapedString(IA->getAsmString(), Out);
+    //PrintEscapedString(IA->getConstraintString(), Out);
+    return;
+  }
+#endif
+
+#if 1
+  if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    if (N->isFunctionLocal()) {
+      // Print metadata inline, not via slot reference number.
+      //WriteMDNodeBodyInternal(N, TypePrinter, Machine, Context);
+      return;
+    }
+
+#if 0
+    if (!Machine) {
+      if (N->isFunctionLocal())
+        Machine = new SlotTracker(N->getFunction());
+      else
+        Machine = new SlotTracker(Context);
+    }
+    int Slot = Machine->getMetadataSlot(N);
+    if (Slot == -1)
+      printf( "<badref>");
+    else
+      printf( '!' << Slot);
+#endif
+    return;
+  }
+
+  if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //PrintEscapedString(MDS->getString(), Out);
+    return;
+  }
+
+  if (Operand->getValueID() == Value::PseudoSourceValueVal ||
+      Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    return;
+  }
+
+  char Prefix = '%';
+  int Slot;
+#if 0
+  // If we have a SlotTracker, use it.
+  if (Machine) {
+    if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      Slot = Machine->getGlobalSlot(GV);
+      Prefix = '@';
+    } else {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      Slot = Machine->getLocalSlot(Operand);
+
+      // If the local value didn't succeed, then we may be referring to a value
+      // from a different function.  Translate it, as this can happen when using
+      // address of blocks.
+      if (Slot == -1)
+        if ((Machine = createSlotTracker(Operand))) {
+          Slot = Machine->getLocalSlot(Operand);
+          delete Machine;
+        }
+    }
+  } else if ((Machine = createSlotTracker(Operand))) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    // Otherwise, create one to get the # and then destroy it.
+    if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
+      Slot = Machine->getGlobalSlot(GV);
+      Prefix = '@';
+    } else {
+      Slot = Machine->getLocalSlot(Operand);
+    }
+    delete Machine;
+    Machine = 0;
+  } else {
+    Slot = -1;
+  }
+
+  if (Slot != -1)
+    printf( Prefix << Slot);
+  else
+    printf( "<badref>");
+#endif
+#endif
 }
 
 // This member is called for each Instruction in a function..
@@ -844,7 +924,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!F->isDeclaration()) {
     // If this isn't a declaration, print the argument names as well.
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-      printArgument(I, Attrs, Idx);
+      //TypePrinter.print(I->getType());
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      I->getType()->dump();
+      //if (Attrs.hasAttributes(Idx))
+        //Attrs.getAsString(Idx);
+      //if (I->hasName()) {
+        //PrintLLVMName(I);
+      //}
       Idx++;
     }
   } else {
