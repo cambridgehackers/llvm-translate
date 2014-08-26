@@ -384,6 +384,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 }
 
+static uint64_t ***globalThis;
 void writeOperand(const Value *Operand, bool PrintType) 
 {
   if (Operand == 0) {
@@ -395,7 +396,16 @@ Operand->dump();
 printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
   //LLVMContext &getContext() const;
   if (Operand->hasName()) {
-printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, Operand->getName().str().c_str());
+    const char *cp = Operand->getName().str().c_str();
+printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, cp);
+if (!strcmp(cp, "this")) {
+printf("[%s:%d]THIS %p\n", __FUNCTION__, __LINE__, globalThis);
+const GlobalValue *g = EE->getGlobalValueAtAddress(globalThis);
+printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+g = EE->getGlobalValueAtAddress(globalThis[1+1]);
+printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+if (g) g->dump();
+}
     //PrintLLVMName(Operand);
     return;
   }
@@ -769,9 +779,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   slotindex = 0;
 }
 
-void dump_vtab(uint64_t **vtab)
+void dump_vtab(uint64_t ***thisptr)
 {
 int arr_size = 0;
+    globalThis = thisptr;
+    uint64_t **vtab = (uint64_t **)thisptr[0];
     const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
     printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
     if (g) {
@@ -823,13 +835,13 @@ void generate_verilog(Module *Mod)
 
   while (modfirst) { /* loop through all modules */
     printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-    dump_vtab((uint64_t **)modfirst[0]);
+    dump_vtab((uint64_t ***)modfirst);
     t = (uint64_t ***)modfirst[1];        // Module.rfirst
     modfirst = (uint64_t **)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
       printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-      dump_vtab(t[0]);
+      dump_vtab(t);
       t = (uint64_t ***)t[1];             // Rule.next
     }
   }
