@@ -794,7 +794,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
 void printBasicBlock(const BasicBlock *BB) 
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (BB->hasName()) {              // Print out the label if it exists...
     //PrintLLVMName(BB->getName(), LabelPrefix);
   } else if (!BB->use_empty()) {      // Don't print block # of no uses...
@@ -856,9 +855,6 @@ static void processFunction(const Function *F)
   FunctionType *FT = F->getFunctionType();
   //if (Attrs.hasAttributes(AttributeSet::ReturnIndex))
     //printf( Attrs.getAsString(AttributeSet::ReturnIndex) << ' ');
-  //TypePrinter.print(F->getReturnType());
-//printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      //F->getReturnType()->dump();
   //WriteAsOperandInternal(F, &TypePrinter, &Machine, F->getParent());
   //Machine.incorporateFunction(F);
   // Loop over the arguments, printing them...
@@ -896,12 +892,17 @@ static void processFunction(const Function *F)
     printf(" prefix ");
     writeOperand(F->getPrefixData());
   }
-  if (F->isDeclaration()) {
-  } else {
+
+  const char *retstr = "module";
+  if (F->getReturnType()->getTypeID() == Type::IntegerTyID)
+      retstr = "function";
+  printf("%s %s(input IN, output OUT)\n", retstr, F->getName().str().c_str());
+  if (!F->isDeclaration()) {
     for (Function::const_iterator I = F->begin(), E = F->end(); I != E; ++I)
       printBasicBlock(I);
   }
   clearLocalSlot();
+  printf("end%s\n", retstr);
 }
 
 void dump_vtab(uint64_t ***thisptr)
@@ -928,11 +929,10 @@ int arr_size = 0;
        printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(cp) <= 18 || strcmp(cp + (strlen(cp)-18), "setModuleEP6Module")) {
-           //if (1 || !strcmp(cend, "rdEv")) {
-           processFunction(f);
-           printf("FULL:\n");
-           f->dump();
-           printf("\n");
+               processFunction(f);
+               printf("FULL:\n");
+               f->dump();
+               printf("\n");
            }
        }
     }
