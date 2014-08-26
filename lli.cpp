@@ -100,17 +100,334 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //}
 }
 
+static void WriteConstantInternal(const Constant *CV)
+// TypePrinting &TypePrinter, SlotTracker *Machine, const Module *Context)
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+    if (CI->getType()->isIntegerTy(1)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      printf("%s", CI->getZExtValue() ? "true" : "false");
+      return;
+    }
+printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, 0);
+CI->getValue().dump();
+    return;
+  }
+
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+#if 0
+  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
+    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle ||
+        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble) {
+      // We would like to output the FP constant value in exponential notation,
+      // but we cannot do this if doing so will lose precision.  Check here to
+      // make sure that we only output it in exponential format if we can parse
+      // the value back and get the same value.
+      //
+      bool ignored;
+      bool isHalf = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEhalf;
+      bool isDouble = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEdouble;
+      bool isInf = CFP->getValueAPF().isInfinity();
+      bool isNaN = CFP->getValueAPF().isNaN();
+      if (!isHalf && !isInf && !isNaN) {
+        double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
+                                CFP->getValueAPF().convertToFloat();
+        SmallString<128> StrVal;
+        raw_svector_ostream(StrVal) << Val;
+
+        // Check to make sure that the stringized number is not some string like
+        // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
+        // that the string matches the "[-+]?[0-9]" regex.
+        //
+        if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
+            ((StrVal[0] == '-' || StrVal[0] == '+') &&
+             (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
+          // Reparse stringized version!
+          if (APFloat(APFloat::IEEEdouble, StrVal).convertToDouble() == Val) {
+            Out << StrVal.str();
+            return;
+          }
+        }
+      }
+      // Otherwise we could not reparse it to exactly the same value, so we must
+      // output the string in hexadecimal format!  Note that loading and storing
+      // floating point types changes the bits of NaNs on some hosts, notably
+      // x86, so we must not use these types.
+      assert(sizeof(double) == sizeof(uint64_t) &&
+             "assuming that double is 64 bits!");
+      char Buffer[40];
+      APFloat apf = CFP->getValueAPF();
+      // Halves and floats are represented in ASCII IR as double, convert.
+      if (!isDouble)
+        apf.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
+                          &ignored);
+      Out << "0x" <<
+              utohex_buffer(uint64_t(apf.bitcastToAPInt().getZExtValue()),
+                            Buffer+40);
+      return;
+    }
+
+    // Either half, or some form of long double.
+    // These appear as a magic letter identifying the type, then a
+    // fixed number of hex digits.
+    Out << "0x";
+    // Bit position, in the current word, of the next nibble to print.
+    int shiftcount;
+
+    if (&CFP->getValueAPF().getSemantics() == &APFloat::x87DoubleExtended) {
+      Out << 'K';
+      // api needed to prevent premature destruction
+      APInt api = CFP->getValueAPF().bitcastToAPInt();
+      const uint64_t* p = api.getRawData();
+      uint64_t word = p[1];
+      shiftcount = 12;
+      int width = api.getBitWidth();
+      for (int j=0; j<width; j+=4, shiftcount-=4) {
+        unsigned int nibble = (word>>shiftcount) & 15;
+        if (nibble < 10)
+          Out << (unsigned char)(nibble + '0');
+        else
+          Out << (unsigned char)(nibble - 10 + 'A');
+        if (shiftcount == 0 && j+4 < width) {
+          word = *p;
+          shiftcount = 64;
+          if (width-j-4 < 64)
+            shiftcount = width-j-4;
+        }
+      }
+      return;
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEquad) {
+      shiftcount = 60;
+      Out << 'L';
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::PPCDoubleDouble) {
+      shiftcount = 60;
+      Out << 'M';
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEhalf) {
+      shiftcount = 12;
+      Out << 'H';
+    } else
+      llvm_unreachable("Unsupported floating point type");
+    // api needed to prevent premature destruction
+    APInt api = CFP->getValueAPF().bitcastToAPInt();
+    const uint64_t* p = api.getRawData();
+    uint64_t word = *p;
+    int width = api.getBitWidth();
+    for (int j=0; j<width; j+=4, shiftcount-=4) {
+      unsigned int nibble = (word>>shiftcount) & 15;
+      if (nibble < 10)
+        Out << (unsigned char)(nibble + '0');
+      else
+        Out << (unsigned char)(nibble - 10 + 'A');
+      if (shiftcount == 0 && j+4 < width) {
+        word = *(++p);
+        shiftcount = 64;
+        if (width-j-4 < 64)
+          shiftcount = width-j-4;
+      }
+    }
+    return;
+  }
+
+  if (isa<ConstantAggregateZero>(CV)) {
+    Out << "zeroinitializer";
+    return;
+  }
+
+  if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
+    Out << "blockaddress(";
+    WriteAsOperandInternal(Out, BA->getFunction(), &TypePrinter, Machine,
+                           Context);
+    Out << ", ";
+    WriteAsOperandInternal(Out, BA->getBasicBlock(), &TypePrinter, Machine,
+                           Context);
+    Out << ")";
+    return;
+  }
+
+  if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getOperand(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
+                             Context);
+    }
+    Out << ']';
+    return;
+  }
+
+  if (const ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CV)) {
+    // As a special case, print the array as a string if it is an array of
+    // i8 with ConstantInt values.
+    if (CA->isString()) {
+      Out << "c\"";
+      PrintEscapedString(CA->getAsString(), Out);
+      Out << '"';
+      return;
+    }
+
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getElementAsConstant(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getElementAsConstant(i), &TypePrinter,
+                             Machine, Context);
+    }
+    Out << ']';
+    return;
+  }
+
+
+  if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
+    if (CS->getType()->isPacked())
+      Out << '<';
+    Out << '{';
+    unsigned N = CS->getNumOperands();
+    if (N) {
+      Out << ' ';
+      TypePrinter.print(CS->getOperand(0)->getType(), Out);
+      Out << ' ';
+
+      WriteAsOperandInternal(Out, CS->getOperand(0), &TypePrinter, Machine,
+                             Context);
+
+      for (unsigned i = 1; i < N; i++) {
+        Out << ", ";
+        TypePrinter.print(CS->getOperand(i)->getType(), Out);
+        Out << ' ';
+
+        WriteAsOperandInternal(Out, CS->getOperand(i), &TypePrinter, Machine,
+                               Context);
+      }
+      Out << ' ';
+    }
+
+    Out << '}';
+    if (CS->getType()->isPacked())
+      Out << '>';
+    return;
+  }
+
+  if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
+    Type *ETy = CV->getType()->getVectorElementType();
+    Out << '<';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CV->getAggregateElement(0U), &TypePrinter,
+                           Machine, Context);
+    for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CV->getAggregateElement(i), &TypePrinter,
+                             Machine, Context);
+    }
+    Out << '>';
+    return;
+  }
+
+  if (isa<ConstantPointerNull>(CV)) {
+    Out << "null";
+    return;
+  }
+
+  if (isa<UndefValue>(CV)) {
+    Out << "undef";
+    return;
+  }
+
+  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
+    Out << CE->getOpcodeName();
+    WriteOptimizationInfo(Out, CE);
+    if (CE->isCompare())
+      Out << ' ' << getPredicateText(CE->getPredicate());
+    Out << " (";
+
+    for (User::const_op_iterator OI=CE->op_begin(); OI != CE->op_end(); ++OI) {
+      TypePrinter.print((*OI)->getType(), Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, *OI, &TypePrinter, Machine, Context);
+      if (OI+1 != CE->op_end())
+        Out << ", ";
+    }
+
+    if (CE->hasIndices()) {
+      ArrayRef<unsigned> Indices = CE->getIndices();
+      for (unsigned i = 0, e = Indices.size(); i != e; ++i)
+        Out << ", " << Indices[i];
+    }
+
+    if (CE->isCast()) {
+      Out << " to ";
+      TypePrinter.print(CE->getType(), Out);
+    }
+
+    Out << ')';
+    return;
+  }
+
+  Out << "<placeholder or erroneous Constant>";
+#endif
+}
+
+static void WriteAsOperandInternal( const Value *V) //TypePrinting *TypePrinter, SlotTracker *Machine, //const Module *Context)
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  if (V->hasName()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //PrintLLVMName(V);
+    return;
+  }
+
+  const Constant *CV = dyn_cast<Constant>(V);
+  if (CV && !isa<GlobalValue>(CV)) {
+    //assert(TypePrinter && "Constants require TypePrinting!");
+    WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
+    return;
+  }
+}
+
 void writeOperand(const Value *Operand, bool PrintType) 
 {
   if (Operand == 0) {
     return;
   }
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//Operand->dump();
+Operand->getType()->dump();
+printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
+  //const ValueTy &getValue() const { return second; }
+
+//Operand->getValueName()->dump();
+//Operand->getValue().dump();
+//printf("V %x\n", Operand->getValue());
+//printf("K %s\n", Operand->getValueName()->getKey().str().c_str());
+//printf("V %d\n", Operand->getValueName()->getValue()->getValueID());//str().c_str());
+  //LLVMContext &getContext() const;
+  //bool hasName() const { return Name != 0 && SubclassID != MDStringVal; }
+  //ValueName *getValueName() const { return Name; }
+#if 0
   if (PrintType) {
     //TypePrinter.print(Operand->getType());
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      Operand->getType()->dump();
   }
-  //WriteAsOperandInternal(Operand, &TypePrinter, &Machine, TheModule);
+#endif
+  WriteAsOperandInternal(Operand); //&TypePrinter, &Machine, 
+//TheModule);
 }
 
 // This member is called for each Instruction in a function..
@@ -186,13 +503,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       writeOperand(PN->getIncomingValue(op), false);
       writeOperand(PN->getIncomingBlock(op), false);
     }
-  //} else if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(&I)) {
-    //writeOperand(I.getOperand(0), true);
+  } else if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(&I)) {
+    writeOperand(I.getOperand(0), true);
     //for (const unsigned *i = EVI->idx_begin(), *e = EVI->idx_end(); i != e; ++i)
       //printf(", " << *i);
-  //} else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(&I)) {
-    //writeOperand(I.getOperand(0), true);
-    //writeOperand(I.getOperand(1), true);
+  } else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(&I)) {
+    writeOperand(I.getOperand(0), true);
+    writeOperand(I.getOperand(1), true);
     //for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
       //printf(", " << *i);
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
@@ -373,18 +690,20 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //else
       //printf("<badref>");
   }
-  //if (BB->getParent() == 0) {
-    //printf("); Error: Block without parent!");
-  //} else if (BB != &BB->getParent()->getEntryBlock()) {  // Not the entry block?
-    //const_pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
-    //if (PI == PE) {
-    //} else {
-      //writeOperand(*PI, false);
-      //for (++PI; PI != PE; ++PI) {
-        //writeOperand(*PI, false);
-      //}
-    //}
-  //}
+  if (BB->getParent() == 0) {
+    printf("); Error: Block without parent!");
+  } else if (BB != &BB->getParent()->getEntryBlock()) {  // Not the entry block?
+#if 0
+    const_pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
+    if (PI == PE) {
+    } else {
+      writeOperand(*PI, false);
+      for (++PI; PI != PE; ++PI) {
+        writeOperand(*PI, false);
+      }
+    }
+#endif
+  }
   for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
     printInstruction(*I);
   }
