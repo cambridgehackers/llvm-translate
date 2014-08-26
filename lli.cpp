@@ -77,12 +77,12 @@ namespace {
 static ExecutionEngine *EE = 0;
 std::map<const Value *, int> slotmap;
 struct {
-    char *name;
+    const char *name;
 } slotarray[MAX_SLOTARRAY];
 static int slotindex;
 
 static uint64_t ***globalThis;
-enum {OpTypeNone, OpTypeInt, OpTypeObject, OpTypeLocalRef, OpTypeExternalFunction};
+enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction};
 static struct {
    int type;
    uint64_t value;
@@ -91,7 +91,6 @@ static int operand_list_index;
 
 void makeLocalSlot(const Value *V)
 {
-  memset(&slotarray[slotindex], 0, sizeof(slotarray[slotindex]));
   slotmap.insert(std::pair<const Value *, int>(V, slotindex++));
 }
 int getLocalSlot(const Value *V)
@@ -104,6 +103,12 @@ int getLocalSlot(const Value *V)
      return getLocalSlot(V);
   }
   return (int)FI->second;
+}
+void clearLocalSlot(void)
+{
+  slotmap.clear();
+  slotindex = 0;
+  memset(slotarray, 0, sizeof(slotarray));
 }
 
 void dump_type(Module *Mod, const char *p)
@@ -329,24 +334,15 @@ void writeOperand(const Value *Operand)
   if (!Operand) {
     return;
   }
-//printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
   if (Operand->hasName()) {
-    const char *cp = Operand->getName().str().c_str();
-    if (!strcmp(cp, "this")) {
-        operand_list[operand_list_index].type = OpTypeObject;
-        operand_list[operand_list_index++].value = (uint64_t)globalThis;
+    if (isa<Constant>(Operand)) {
+        operand_list[operand_list_index].type = OpTypeExternalFunction;
+        operand_list[operand_list_index++].value = (uint64_t) Operand->getName().str().c_str();
     }
     else {
-      if (isa<Constant>(Operand)) {
-        operand_list[operand_list_index].type = OpTypeExternalFunction;
-        operand_list[operand_list_index++].value = (uint64_t) cp;
-      }
-      else {
         int Slot = getLocalSlot(Operand);
         operand_list[operand_list_index].type = OpTypeLocalRef;
         operand_list[operand_list_index++].value = (uint64_t) Operand;
-      }
-        //printf("[%s:%d]name %s/%d\n", __FUNCTION__, __LINE__, cp, Slot);
     }
     return;
   }
@@ -364,24 +360,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return;
     }
 
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     int Slot = getLocalSlot(Operand);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = (uint64_t) Operand;
 printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
-#if 0
-    if (!Machine) {
-      if (N->isFunctionLocal())
-        Machine = new SlotTracker(N->getFunction());
-      else
-        Machine = new SlotTracker(Context);
-    }
-    int Slot = Machine->getMetadataSlot(N);
-    if (Slot == -1)
-      printf( "<badref>");
-    else
-      printf( '!' << Slot);
-#endif
     return;
   }
 
@@ -401,47 +383,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   int Slot = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
   operand_list[operand_list_index++].value = (uint64_t) Operand;
-//printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
-#if 0
-  // If we have a SlotTracker, use it.
-  if (Machine) {
-    if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      Slot = Machine->getGlobalSlot(GV);
-      Prefix = '@';
-    } else {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      Slot = Machine->getLocalSlot(Operand);
-
-      // If the local value didn't succeed, then we may be referring to a value
-      // from a different function.  Translate it, as this can happen when using
-      // address of blocks.
-      if (Slot == -1)
-        if ((Machine = createSlotTracker(Operand))) {
-          Slot = Machine->getLocalSlot(Operand);
-          delete Machine;
-        }
-    }
-  } else if ((Machine = createSlotTracker(Operand))) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    // Otherwise, create one to get the # and then destroy it.
-    if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
-      Slot = Machine->getGlobalSlot(GV);
-      Prefix = '@';
-    } else {
-      Slot = Machine->getLocalSlot(Operand);
-    }
-    delete Machine;
-    Machine = 0;
-  } else {
-    Slot = -1;
-  }
-
-  if (Slot != -1)
-    printf( Prefix << Slot);
-  else
-    printf( "<badref>");
-#endif
 }
 
 // This member is called for each Instruction in a function..
@@ -699,7 +640,20 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Memory instructions...
   //case Instruction::Alloca:
   case Instruction::Load:
+      {
       printf("XLAT:          Load");
+      const char *ret = NULL;
+      if (operand_list[1].type == OpTypeLocalRef) {
+//int getLocalSlot(const Value *V)
+          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[1].value);
+          ret = slotarray[FI->second].name;
+      }
+      if (operand_list[0].type == OpTypeLocalRef && ret) {
+          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[0].value);
+          slotarray[FI->second].name = strdup(ret);
+      }
+      else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
+      }
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
@@ -710,14 +664,30 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::GetElementPtr:
       {
       printf("XLAT: GetElementPtr");
-      if (operand_list_index >= 3 && operand_list[1].type == OpTypeObject) {
-          uint64_t *val = *(uint64_t **)(operand_list[1].value + 8 * (1+operand_list[3].value + operand_list[4].value));
-          const GlobalValue *g = EE->getGlobalValueAtAddress(val);
-          //printf(" g=%p", g);
-          if (g)
-              printf(" g='%s'", g->getName().str().c_str());
-          //if (g) g->dump();
+      const char *ret = NULL;
+      if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
+        const char *cp = ((const Value *)operand_list[1].value)->getName().str().c_str();
+        if (!strcmp(cp, "this")) {
+          uint64_t **val = globalThis[1+operand_list[3].value];
+          const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
+          if (g) {
+              ret = g->getName().str().c_str();
+              printf(" g='%s'", ret);
+          }
+        }
+        else {
+          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[1].value);
+#define MAX_CHAR_BUFFER 1000
+          char temp[MAX_CHAR_BUFFER];
+          sprintf(temp, "%s_%lld", slotarray[FI->second].name, (long long)operand_list[3].value);;
+          ret = strdup(temp);
+        }
       }
+      if (operand_list[0].type == OpTypeLocalRef && ret) {
+          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[0].value);
+          slotarray[FI->second].name = strdup(ret);
+      }
+      else printf("[%s:%d] destnot localref %d\n", __FUNCTION__, __LINE__, operand_list[0].type);
       }
       break;
 
@@ -766,12 +736,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (operand_list[i].type == OpTypeLocalRef) {
           std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[i].value);
           const char *cp = FI->first->getName().str().c_str();
-          printf(" op[%d]=%s/%d;", i, cp, FI->second);
+          printf(" op[%d]=%s/%d/%s;", i, cp, FI->second, slotarray[FI->second].name);
       }
       else if (operand_list[i].type == OpTypeExternalFunction)
           printf(" op[%d]=%d/%s;", i, operand_list[i].type, (const char *)operand_list[i].value);
-      else
-          printf(" op[%d]=%d/%llx;", i, operand_list[i].type, (long long)operand_list[i].value);
+      else if (operand_list[i].type == OpTypeInt)
+          printf(" op[%d]=%llx;", i, (long long)operand_list[i].value);
+      else if (operand_list[i].type != OpTypeNone)
+          printf(" UNKNOWNOPTYPEop[%d]=%d/%llx;", i, operand_list[i].type, (long long)operand_list[i].value);
   }
   printf("\n");
 }
@@ -810,7 +782,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
 static void processFunction(const Function *F) 
 {
-
   //if (F->isMaterializable())
     //printf("); Materializable\n";
   const AttributeSet &Attrs = F->getAttributes();
@@ -831,10 +802,7 @@ static void processFunction(const Function *F)
     //if (!AttrStr.empty())
       //printf("); Function Attrs: " << AttrStr << '\n';
   }
-  if (F->isDeclaration())
-    printf("declare ");
-  else
-    printf("define ");
+  //if (F->isDeclaration()) printf("declare "); else printf("define ");
   //PrintLinkage(F->getLinkage());
   //PrintVisibility(F->getVisibility());
   // Print the calling convention.
@@ -868,8 +836,8 @@ static void processFunction(const Function *F)
     // Otherwise, print the types from the function type.
     for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
       //TypePrinter.print(FT->getParamType(i));
-printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      FT->getParamType(i)->dump();
+//printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
+      //FT->getParamType(i)->dump();
       //if (Attrs.hasAttributes(i+1))
         //printf(' ' << Attrs.getAsString(i+1));
     }
@@ -877,13 +845,9 @@ printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
   // Finish printing arguments...
   if (FT->isVarArg()) {
   }
-  if (F->hasUnnamedAddr())
-    printf(" unnamed_addr");
-  //if (Attrs.hasAttributes(AttributeSet::FunctionIndex))
-    //printf(" #" << Machine.getAttributeGroupSlot(Attrs.getFnAttributes()));
-  if (F->hasSection()) {
-    //PrintEscapedString(F->getSection());
-  }
+  //if (F->hasUnnamedAddr()) printf(" unnamed_addr");
+  //if (Attrs.hasAttributes(AttributeSet::FunctionIndex)) //printf(" #" << Machine.getAttributeGroupSlot(Attrs.getFnAttributes()));
+  //if (F->hasSection()) { //PrintEscapedString(F->getSection()); }
   if (F->hasPrefixData()) {
     printf(" prefix ");
     writeOperand(F->getPrefixData());
@@ -893,9 +857,7 @@ printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
     for (Function::const_iterator I = F->begin(), E = F->end(); I != E; ++I)
       printBasicBlock(I);
   }
-
-  slotmap.clear();
-  slotindex = 0;
+  clearLocalSlot();
 }
 
 void dump_vtab(uint64_t ***thisptr)
@@ -921,7 +883,8 @@ int arr_size = 0;
        const char *cend = cp + (strlen(cp)-4);
        printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
-           if (1 || !strcmp(cend, "rdEv")) {
+           if (strlen(cp) <= 18 || strcmp(cp + (strlen(cp)-18), "setModuleEP6Module")) {
+           //if (1 || !strcmp(cend, "rdEv")) {
            processFunction(f);
            printf("FULL:\n");
            f->dump();
