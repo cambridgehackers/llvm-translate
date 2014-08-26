@@ -82,7 +82,11 @@ struct {
 static int slotindex;
 
 static uint64_t ***globalThis;
-static uint64_t operand_list[MAX_OPERAND_LIST];
+enum {OpTypeNone, OpTypeInt, OpTypeObject, OpTypeLocalRef, OpTypeExternalFunction};
+static struct {
+   int type;
+   uint64_t value;
+} operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
 
 void makeLocalSlot(const Value *V)
@@ -113,7 +117,8 @@ void dump_type(Module *Mod, const char *p)
 static void WriteConstantInternal(const Constant *CV)
 {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-    operand_list[operand_list_index++] = CI->getZExtValue();
+    operand_list[operand_list_index].type = OpTypeInt;
+    operand_list[operand_list_index++].value = CI->getZExtValue();
     return;
   }
 
@@ -327,10 +332,22 @@ void writeOperand(const Value *Operand)
 //printf("[%s:%d] id %d \n", __FUNCTION__, __LINE__, Operand->getValueID());
   if (Operand->hasName()) {
     const char *cp = Operand->getName().str().c_str();
-    if (!strcmp(cp, "this"))
-        operand_list[operand_list_index++] = (uint64_t)globalThis;
-    else
-        printf("[%s:%d]name %s\n", __FUNCTION__, __LINE__, cp);
+    if (!strcmp(cp, "this")) {
+        operand_list[operand_list_index].type = OpTypeObject;
+        operand_list[operand_list_index++].value = (uint64_t)globalThis;
+    }
+    else {
+      if (isa<Constant>(Operand)) {
+        operand_list[operand_list_index].type = OpTypeExternalFunction;
+        operand_list[operand_list_index++].value = (uint64_t) cp;
+      }
+      else {
+        int Slot = getLocalSlot(Operand);
+        operand_list[operand_list_index].type = OpTypeLocalRef;
+        operand_list[operand_list_index++].value = (uint64_t) Operand;
+      }
+        //printf("[%s:%d]name %s/%d\n", __FUNCTION__, __LINE__, cp, Slot);
+    }
     return;
   }
   const Constant *CV = dyn_cast<Constant>(Operand);
@@ -347,6 +364,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return;
     }
 
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    int Slot = getLocalSlot(Operand);
+    operand_list[operand_list_index].type = OpTypeLocalRef;
+    operand_list[operand_list_index++].value = (uint64_t) Operand;
+printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
 #if 0
     if (!Machine) {
       if (N->isFunctionLocal())
@@ -377,7 +399,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   char Prefix = '%';
   int Slot = getLocalSlot(Operand);
-printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
+  operand_list[operand_list_index].type = OpTypeLocalRef;
+  operand_list[operand_list_index++].value = (uint64_t) Operand;
+//printf("[%s:%d] slot %d\n", __FUNCTION__, __LINE__, Slot);
 #if 0
   // If we have a SlotTracker, use it.
   if (Machine) {
@@ -428,21 +452,22 @@ void printInstruction(const Instruction &I)
   memset(operand_list, 0, sizeof(operand_list));
 
   if (I.hasName()) {
-    printf("%10s: ", I.getName().str().c_str());
+    int t = getLocalSlot(&I);
+    operand_list[operand_list_index].type = OpTypeLocalRef;
+    operand_list[operand_list_index++].value = (uint64_t) &I;
+    printf("%10s/%d: ", I.getName().str().c_str(), t);
   } else if (!I.getType()->isVoidTy()) {
     // Print out the def slot taken.
     int t = getLocalSlot(&I);
-#if 0
-    if (t == -1) {
-      makeLocalSlot(&I);
-      t = getLocalSlot(&I);
-    }
-#endif
-    printf("%10d: ",  t);
+    operand_list[operand_list_index].type = OpTypeLocalRef;
+    operand_list[operand_list_index++].value = (uint64_t) &I;
+    printf("%12d: ",  t);
 //search->second);
   }
-  else
-    printf("          : ");
+  else {
+    operand_list_index++;
+    printf("            : ");
+  }
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
   // If this is an atomic load or store, print out the atomic marker.
@@ -639,7 +664,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   switch (I.getOpcode()) {
   // Terminators
   case Instruction::Ret:
-      printf("XLAT: Ret");
+      printf("XLAT:           Ret");
       break;
   //case Instruction::Br:
   //case Instruction::Switch:
@@ -647,12 +672,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //case Instruction::Invoke:
   //case Instruction::Resume:
   case Instruction::Unreachable:
-      printf("XLAT: Unreachable");
+      printf("XLAT:   Unreachable");
       break;
 
   // Standard binary operators...
   case Instruction::Add:
-      printf("XLAT: Add");
+      printf("XLAT:           Add");
       break;
   //case Instruction::FAdd:
   //case Instruction::Sub:
@@ -674,10 +699,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Memory instructions...
   //case Instruction::Alloca:
   case Instruction::Load:
-      printf("XLAT: Load");
+      printf("XLAT:          Load");
       break;
   case Instruction::Store:
-      printf("XLAT: Store");
+      printf("XLAT:         Store");
       break;
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
@@ -685,8 +710,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::GetElementPtr:
       {
       printf("XLAT: GetElementPtr");
-      if (operand_list_index >= 3 && operand_list[0]) {
-          uint64_t *val = *(uint64_t **)(operand_list[0] + 8 * (1+operand_list[2] + operand_list[3]));
+      if (operand_list_index >= 3 && operand_list[1].type == OpTypeObject) {
+          uint64_t *val = *(uint64_t **)(operand_list[1].value + 8 * (1+operand_list[3].value + operand_list[4].value));
           const GlobalValue *g = EE->getGlobalValueAtAddress(val);
           //printf(" g=%p", g);
           if (g)
@@ -709,19 +734,19 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //case Instruction::IntToPtr:
   //case Instruction::PtrToInt:
   case Instruction::BitCast:
-      printf("XLAT: BitCast");
+      printf("XLAT:       BitCast");
       break;
   //case Instruction::AddrSpaceCast:
 
   // Other instructions...
   case Instruction::ICmp:
-      printf("XLAT: ICmp");
+      printf("XLAT:          ICmp");
       break;
   //case Instruction::FCmp:
   //case Instruction::PHI:
   //case Instruction::Select:
   case Instruction::Call:
-      printf("XLAT: Call");
+      printf("XLAT:          Call");
       break;
   //case Instruction::Shl:
   //case Instruction::LShr:
@@ -738,7 +763,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   }
   for (int i = 0; i < operand_list_index; i++) {
-      printf(" op[%d]=%llx;", i, (long long)operand_list[i]);
+      if (operand_list[i].type == OpTypeLocalRef) {
+          std::map<const Value *, int>::iterator FI = slotmap.find((const Value *)operand_list[i].value);
+          const char *cp = FI->first->getName().str().c_str();
+          printf(" op[%d]=%s/%d;", i, cp, FI->second);
+      }
+      else if (operand_list[i].type == OpTypeExternalFunction)
+          printf(" op[%d]=%d/%s;", i, operand_list[i].type, (const char *)operand_list[i].value);
+      else
+          printf(" op[%d]=%d/%llx;", i, operand_list[i].type, (long long)operand_list[i].value);
   }
   printf("\n");
 }
@@ -812,8 +845,8 @@ static void processFunction(const Function *F)
   //if (Attrs.hasAttributes(AttributeSet::ReturnIndex))
     //printf( Attrs.getAsString(AttributeSet::ReturnIndex) << ' ');
   //TypePrinter.print(F->getReturnType());
-printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      F->getReturnType()->dump();
+//printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
+      //F->getReturnType()->dump();
   //WriteAsOperandInternal(F, &TypePrinter, &Machine, F->getParent());
   //Machine.incorporateFunction(F);
   // Loop over the arguments, printing them...
@@ -822,8 +855,8 @@ printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
     // If this isn't a declaration, print the argument names as well.
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
       //TypePrinter.print(I->getType());
-      printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      I->getType()->dump();
+      //printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
+      //I->getType()->dump();
       //if (Attrs.hasAttributes(Idx))
         //Attrs.getAsString(Idx);
       //if (I->hasName()) {
@@ -888,7 +921,7 @@ int arr_size = 0;
        const char *cend = cp + (strlen(cp)-4);
        printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
-           if (!strcmp(cend, "rdEv")) {
+           if (1 || !strcmp(cend, "rdEv")) {
            processFunction(f);
            printf("FULL:\n");
            f->dump();
