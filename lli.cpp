@@ -638,6 +638,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
   }
   int opcode = I.getOpcode();
+  char vout[MAX_CHAR_BUFFER];
+  vout[0] = 0;
   printf("    ");
   switch (I.getOpcode()) {
   // Terminators
@@ -646,6 +648,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
+          sprintf(vout, "return %s;", getparam(1));
       }
       break;
   //case Instruction::Br:
@@ -700,6 +703,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
+      sprintf(vout, "%s = %s;", getparam(2), getparam(1));
       break;
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
@@ -780,24 +784,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   }
   for (int i = 0; i < operand_list_index; i++) {
-      const char *cp = getparam(i);
       if (operand_list[i].type != OpTypeNone)
-          printf(" op[%d]=%s;", i, cp);
-#if 0
-      if (operand_list[i].type == OpTypeLocalRef) {
-          int ind = getLocalSlot((const Value *)operand_list[i].value);
-          const char *cp = ((const Value *)operand_list[i].value)->getName().str().c_str();
-          printf(" op[%d]=%s/%d/%s;", i, cp, ind, slotarray[ind].name);
-      }
-      else if (operand_list[i].type == OpTypeExternalFunction)
-          printf(" op[%d]=%d/%s;", i, operand_list[i].type, (const char *)operand_list[i].value);
-      else if (operand_list[i].type == OpTypeInt)
-          printf(" op[%d]=%llx;", i, (long long)operand_list[i].value);
-      else if (operand_list[i].type != OpTypeNone)
-          printf(" UNKNOWNOPTYPEop[%d]=%d/%llx;", i, operand_list[i].type, (long long)operand_list[i].value);
-#endif
+          printf(" op[%d]=%s;", i, getparam(i));
   }
   printf("\n");
+  if (strlen(vout))
+     printf("VERILOG:                 %s\n", vout);
 }
 
 void printBasicBlock(const BasicBlock *BB) 
