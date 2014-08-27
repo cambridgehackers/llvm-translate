@@ -83,6 +83,8 @@ struct {
 static int slotarray_index;
 
 static uint64_t ***globalThis;
+static const char *globalName;
+static FILE *outputFile;
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
    int type;
@@ -648,7 +650,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
-          sprintf(vout, "return %s;", getparam(1));
+          sprintf(vout, "%s = %s && %s_enable;", globalName, getparam(1), globalName);
       }
       break;
   //case Instruction::Br:
@@ -789,7 +791,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   printf("\n");
   if (strlen(vout))
-     printf("VERILOG:                 %s\n", vout);
+     fprintf(outputFile, "        %s\n", vout);
 }
 
 void printBasicBlock(const BasicBlock *BB) 
@@ -893,16 +895,21 @@ static void processFunction(const Function *F)
     writeOperand(F->getPrefixData());
   }
 
-  const char *retstr = "module";
-  if (F->getReturnType()->getTypeID() == Type::IntegerTyID)
-      retstr = "function";
-  printf("%s %s(input IN, output OUT)\n", retstr, F->getName().str().c_str());
+  //if (F->getReturnType()->getTypeID() == Type::IntegerTyID)
+  int updateFlag = strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv");
+  char temp[MAX_CHAR_BUFFER];
+  strcpy(temp, globalName);
+  if (updateFlag) {
+      strcat(temp + strlen(globalName) - 8, "guardEv");
+      fprintf(outputFile, "if (%s) then begin\n", temp);
+  }
   if (!F->isDeclaration()) {
     for (Function::const_iterator I = F->begin(), E = F->end(); I != E; ++I)
       printBasicBlock(I);
   }
   clearLocalSlot();
-  printf("end%s\n", retstr);
+  if (updateFlag)
+      fprintf(outputFile, "end;\n");
 }
 
 void dump_vtab(uint64_t ***thisptr)
@@ -924,11 +931,12 @@ int arr_size = 0;
     }
     for (int i = 0; i < arr_size-2; i++) {
        Function *f = (Function *)(vtab[i]);
-       const char *cp = f->getName().str().c_str();
-       const char *cend = cp + (strlen(cp)-4);
-       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], cp);
+       globalName = strdup(f->getName().str().c_str());
+       const char *cend = globalName + (strlen(globalName)-4);
+       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], globalName);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
-           if (strlen(cp) <= 18 || strcmp(cp + (strlen(cp)-18), "setModuleEP6Module")) {
+           if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
+               fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
                processFunction(f);
                printf("FULL:\n");
                f->dump();
@@ -971,15 +979,6 @@ void generate_verilog(Module *Mod)
       t = (uint64_t ***)t[1];             // Rule.next
     }
   }
-#if 0
-  const Function *guard = Mod->getFunction("_ZN5Count5count5guardEv"); //Count::done::guard");
-  printf("[%s:%d] guard %p\n", __FUNCTION__, __LINE__, guard);
-  if (guard) {
-     processFunction(guard);
-     printf("FULL:\n");
-     guard->dump();
-  }
-#endif
 }
 
 int main(int argc, char **argv, char * const *envp)
@@ -989,6 +988,7 @@ int main(int argc, char **argv, char * const *envp)
   int Result;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
+  outputFile = fopen("output.tmp", "w");
   if (dump_interpret)
       DebugFlag = true;
   sys::PrintStackTraceOnErrorSignal();
