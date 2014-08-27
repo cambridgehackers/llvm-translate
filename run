@@ -2,3 +2,4 @@
 set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.exe.bc
+./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
