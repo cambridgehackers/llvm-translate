@@ -1,19 +1,29 @@
-//===- lli.cpp - LLVM Interpreter / Dynamic compiler ----------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
+/* Copyright (c) 2014 Quanta Research Cambridge, Inc
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This utility provides a simple wrapper around the LLVM Execution Engines,
-// which allow the direct execution of LLVM programs through a Just-In-Time
-// compiler, or through an interpreter if no JIT is available for this platform.
-//
-//===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "lli"
+#define DEBUG_TYPE "llvm-translate"
+
+#include <stdio.h>
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
@@ -26,22 +36,10 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/Format.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/Support/Memory.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Process.h"
-#include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation.h"
-#include <cerrno>
 
 int dump_ir;// = 1;
 int dump_interpret;// = 1;
@@ -165,102 +163,7 @@ static void WriteConstantInternal(const Constant *CV)
 
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
-    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle ||
-        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble) {
-      // We would like to output the FP constant value in exponential notation,
-      // but we cannot do this if doing so will lose precision.  Check here to
-      // make sure that we only output it in exponential format if we can parse
-      // the value back and get the same value.
-      //
-      bool ignored;
-      bool isHalf = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEhalf;
-      bool isDouble = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEdouble;
-      bool isInf = CFP->getValueAPF().isInfinity();
-      bool isNaN = CFP->getValueAPF().isNaN();
-      if (!isHalf && !isInf && !isNaN) {
-        double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
-                                CFP->getValueAPF().convertToFloat();
-        SmallString<128> StrVal;
-        raw_svector_ostream(StrVal) << Val;
-
-        // Check to make sure that the stringized number is not some string like
-        // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
-        // that the string matches the "[-+]?[0-9]" regex.
-        //
-        if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
-            ((StrVal[0] == '-' || StrVal[0] == '+') &&
-             (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
-          // Reparse stringized version!
-          if (APFloat(APFloat::IEEEdouble, StrVal).convertToDouble() == Val) {
-            printf("%s", StrVal.str().str().c_str());
-            return;
-          }
-        }
-      }
-      assert(sizeof(double) == sizeof(uint64_t) && "assuming that double is 64 bits!");
-      //char Buffer[40];
-      APFloat apf = CFP->getValueAPF();
-      // Halves and floats are represented in ASCII IR as double, convert.
-      if (!isDouble)
-        apf.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &ignored);
-      //printf( "0x%s", utohex_buffer(uint64_t(apf.bitcastToAPInt().getZExtValue()), Buffer+40));
-      return;
-    }
-
-    // Either half, or some form of long double.
-    // These appear as a magic letter identifying the type, then a
-    // fixed number of hex digits.
-    printf( "0x");
-    // Bit position, in the current word, of the next nibble to print.
-    int shiftcount;
-
-    if (&CFP->getValueAPF().getSemantics() == &APFloat::x87DoubleExtended) {
-      // api needed to prevent premature destruction
-      APInt api = CFP->getValueAPF().bitcastToAPInt();
-      const uint64_t* p = api.getRawData();
-      uint64_t word = p[1];
-      shiftcount = 12;
-      int width = api.getBitWidth();
-      for (int j=0; j<width; j+=4, shiftcount-=4) {
-        unsigned int nibble = (word>>shiftcount) & 15;
-        if (nibble < 10)
-          printf("%c", (unsigned char)(nibble + '0'));
-        else
-          printf("%c", (unsigned char)(nibble - 10 + 'A'));
-        if (shiftcount == 0 && j+4 < width) {
-          word = *p;
-          shiftcount = 64;
-          if (width-j-4 < 64)
-            shiftcount = width-j-4;
-        }
-      }
-      return;
-    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEquad) {
-      shiftcount = 60;
-    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::PPCDoubleDouble) {
-      shiftcount = 60;
-    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEhalf) {
-      shiftcount = 12;
-    } else
-      llvm_unreachable("Unsupported floating point type");
-    // api needed to prevent premature destruction
-    APInt api = CFP->getValueAPF().bitcastToAPInt();
-    const uint64_t* p = api.getRawData();
-    uint64_t word = *p;
-    int width = api.getBitWidth();
-    for (int j=0; j<width; j+=4, shiftcount-=4) {
-      unsigned int nibble = (word>>shiftcount) & 15;
-      if (nibble < 10)
-        printf("%c", (unsigned char)(nibble + '0'));
-      else
-        printf("%c", (unsigned char)(nibble - 10 + 'A'));
-      if (shiftcount == 0 && j+4 < width) {
-        word = *(++p);
-        shiftcount = 64;
-        if (width-j-4 < 64)
-          shiftcount = width-j-4;
-      }
-    }
+    printf("[%s:%d] floating point\n", __FUNCTION__, __LINE__);
     return;
   }
 
@@ -361,7 +264,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     return;
   }
-
   printf( "<placeholder or erroneous Constant>");
 }
 
@@ -452,23 +354,10 @@ void printInstruction(const Instruction &I)
   }
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
-  // If this is an atomic load or store, print out the atomic marker.
-  if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isAtomic()) ||
-      (isa<StoreInst>(I) && cast<StoreInst>(I).isAtomic()))
-    printf(" atomic");
-  // If this is a volatile operation, print out the volatile marker.
-  if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isVolatile()) ||
-      (isa<StoreInst>(I) && cast<StoreInst>(I).isVolatile()) ||
-      (isa<AtomicCmpXchgInst>(I) && cast<AtomicCmpXchgInst>(I).isVolatile()) ||
-      (isa<AtomicRMWInst>(I) && cast<AtomicRMWInst>(I).isVolatile()))
-    printf(" volatile");
   // Print out optimization information.
   //WriteOptimizationInfo(&I);
   // Print out the compare instruction predicates
   //if (const CmpInst *CI = dyn_cast<CmpInst>(&I)) printf("CMP %s", getPredicateText(CI->getPredicate()));
-  // Print out the atomicrmw operation
-  //if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(&I))
-    //writeAtomicRMWOperation(RMWI->getOperation());
   // Print out the type of the operands...
   const Value *Operand = I.getNumOperands() ? I.getOperand(0) : 0;
   // Special case conditional branches to swizzle the condition out to the front
@@ -526,8 +415,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         printf("          filter ");
       writeOperand(LPI->getClause(i));
     }
-  } else if (isa<ReturnInst>(I) && !Operand) {
-    printf(" void");
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Print the calling convention being used.
     if (CI->getCallingConv() != CallingConv::C) {
@@ -605,24 +492,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       writeOperand(I.getOperand(i));
     }
   }
-  // Print atomic ordering/alignment for memory operations
-  //if (const LoadInst *LI = dyn_cast<LoadInst>(&I)) {
-    //if (LI->isAtomic())
-      //writeAtomic(LI->getOrdering(), LI->getSynchScope());
-    //if (LI->getAlignment())
-      //printf(", align " << LI->getAlignment());
-  //} else if (const StoreInst *SI = dyn_cast<StoreInst>(&I)) {
-    //if (SI->isAtomic())
-      //writeAtomic(SI->getOrdering(), SI->getSynchScope());
-    //if (SI->getAlignment())
-      //printf(", align " << SI->getAlignment());
-  //} else if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(&I)) {
-    //writeAtomic(CXI->getOrdering(), CXI->getSynchScope());
-  //} else if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(&I)) {
-    //writeAtomic(RMWI->getOrdering(), RMWI->getSynchScope());
-  //} else if (const FenceInst *FI = dyn_cast<FenceInst>(&I)) {
-    //writeAtomic(FI->getOrdering(), FI->getSynchScope());
-  //}
   // Print Metadata info.
   SmallVector<std::pair<unsigned, MDNode*>, 4> InstMD;
   I.getAllMetadata(InstMD);
@@ -1007,8 +876,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
-      errs() << argv[0] << ": bitcode didn't read correctly.\n";
-      errs() << "Reason: " << ErrorMsg << "\n";
+      printf("%s: bitcode didn't read correctly.\n", argv[0]);
+      printf("Reason: %s\n", ErrorMsg.c_str());
       exit(1);
     }
 
@@ -1038,9 +907,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   EE = builder.create();
   if (!EE) {
     if (!ErrorMsg.empty())
-      errs() << argv[0] << ": error creating EE: " << ErrorMsg << "\n";
+      printf("%s: error creating EE: %s\n", argv[0], ErrorMsg.c_str());
     else
-      errs() << argv[0] << ": unknown error creating EE!\n";
+      printf("%s: unknown error creating EE!\n", argv[0]);
     exit(1);
   }
 
@@ -1065,7 +934,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   //
   Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn) {
-    errs() << "\'main\' function not found in module.\n";
+    printf("'main' function not found in module.\n");
     return -1;
   }
   // Run static constructors.
