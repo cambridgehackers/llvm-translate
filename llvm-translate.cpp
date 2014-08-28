@@ -40,6 +40,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Transforms/Instrumentation.h"
+#include "llvm/DebugInfo.h"
 
 int dump_ir;// = 1;
 int dump_interpret;// = 1;
@@ -47,8 +48,9 @@ int dump_interpret;// = 1;
 using namespace llvm;
 
 namespace {
-  cl::opt<std::string>
-  InputFile(cl::desc("<input bitcode>"), cl::Positional, cl::init("-"));
+  cl::list<std::string>
+  InputFile(cl::desc("<input bitcode>"), cl::Positional, cl::OneOrMore);
+//cl::init("-"));
 
   cl::list<std::string>
   InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
@@ -82,6 +84,7 @@ static int slotarray_index;
 
 static uint64_t ***globalThis;
 static const char *globalName;
+static const char *globalClassName;
 static FILE *outputFile;
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
@@ -302,7 +305,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
     //PrintEscapedString(MDS->getString());
     return;
   }
@@ -499,12 +502,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     SmallVector<StringRef, 8> MDNames;
     I.getType()->getContext().getMDKindNames(MDNames);
     for (unsigned i = 0, e = InstMD.size(); i != e; ++i) {
-      //unsigned Kind = InstMD[i].first;
-       //if (Kind < MDNames.size()) {
-         //printf(", !" << MDNames[Kind]);
-       //} else {
-         //printf(", !<unknown kind #" << Kind << ">");
-       //}
+      unsigned Kind = InstMD[i].first;
+       if (Kind < MDNames.size()) {
+         printf(", !%s", MDNames[Kind].str().c_str());
+       } else {
+         printf(", !<unknown kind #%d>", Kind);
+       }
+      InstMD[i].second->dump();
       //WriteAsOperandInternal(InstMD[i].second, &TypePrinter, &Machine, TheModule);
     }
   }
@@ -585,11 +589,17 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       const char *ret = NULL;
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
         const char *cp = ((const Value *)operand_list[1].value)->getName().str().c_str();
+        char temp[MAX_CHAR_BUFFER];
         if (!strcmp(cp, "this")) {
           uint64_t **val = globalThis[1+operand_list[3].value];
           const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
+printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, globalClassName);
           if (g)
               ret = g->getName().str().c_str();
+          else {
+              sprintf(temp, "%s_%lld", globalClassName, (long long)operand_list[3].value);
+              ret = temp;
+          }
         }
         else {
           int ind = getLocalSlot((const Value *)operand_list[1].value);
@@ -787,8 +797,10 @@ int arr_size = 0;
     globalThis = thisptr;
     uint64_t **vtab = (uint64_t **)thisptr[0];
     const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
+    globalClassName = NULL;
     printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
     if (g) {
+        globalClassName = strdup(g->getName().str().c_str());
         if (g->getType()->getTypeID() == Type::PointerTyID) {
            Type *ty = g->getType()->getElementType();
            if (ty->getTypeID() == Type::ArrayTyID) {
@@ -868,7 +880,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
   // Load the bitcode...
-  Module *Mod = ParseIRFile(InputFile, Err, Context);
+  Module *Mod = ParseIRFile(InputFile[0], Err, Context);
   if (!Mod) {
     Err.print(argv[0], errs());
     return 1;
@@ -904,7 +916,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   builder.setTargetOptions(Options);
 
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   EE = builder.create();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!EE) {
     if (!ErrorMsg.empty())
       printf("%s: error creating EE: %s\n", argv[0], ErrorMsg.c_str());
@@ -913,6 +927,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     exit(1);
   }
 
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Load any additional modules specified on the command line.
   for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
     Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
@@ -925,7 +940,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   EE->DisableLazyCompilation(true);
 
   // Add the module's name to the start of the vector of arguments to main().
-  InputArgv.insert(InputArgv.begin(), InputFile);
+  InputArgv.insert(InputArgv.begin(), InputFile[0]);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   // Call the main function from M as if its signature were:
   //   int main (int argc, char **argv, const char **envp)
@@ -935,8 +951,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn) {
     printf("'main' function not found in module.\n");
+goto debug_label;
     return -1;
   }
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Run static constructors.
   EE->runStaticConstructorsDestructors(false);
 
@@ -955,6 +973,108 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   generate_verilog(Mod);
 
+debug_label:;
+#if 1
+//void DebugInfoFinder::processModule(const Module &M)
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  DITypeIdentifierMap TypeIdentifierMap;
+  //InitializeTypeMap(Mod);
+  if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
+      TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
+  }
+  if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+      DICompileUnit CU(CU_Nodes->getOperand(i));
+      //addCompileUnit(CU);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      DIArray GVs = CU.getGlobalVariables();
+      for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+        DIGlobalVariable DIG(GVs.getElement(i));
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        //if (addGlobalVariable(DIG)) {
+          //processScope(DIG.getContext());
+          //processType(DIG.getType());
+        //}
+      }
+      DIArray SPs = CU.getSubprograms();
+      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        //processSubprogram(DISubprogram(SPs.getElement(i)));
+      }
+      DIArray EnumTypes = CU.getEnumTypes();
+      for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        //processType(DIType(EnumTypes.getElement(i)));
+      }
+      DIArray RetainedTypes = CU.getRetainedTypes();
+      for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        //processType(DIType(RetainedTypes.getElement(i)));
+      }
+      DIArray Imports = CU.getImportedEntities();
+      for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
+        DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
+        DIDescriptor Entity = Import.getEntity();
+        if (Entity.isType()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          //processType(DIType(Entity));
+        }
+        else if (Entity.isSubprogram()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          //processSubprogram(DISubprogram(Entity));
+        }
+        else if (Entity.isNameSpace()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          //processScope(DINameSpace(Entity).getContext());
+        }
+      }
+    }
+  }
+}
+#endif
+#if 0
+//void DwarfDebug::beginModule() 
+{
+  // If module has named metadata anchors then use them, otherwise scan the
+  // module using debug info finder to collect debug info.
+  NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, CU_Nodes);
+  if (!CU_Nodes)
+    goto ll1;
+  TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
+
+  for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+    DICompileUnit CUNode(CU_Nodes->getOperand(i));
+    CompileUnit *CU = constructCompileUnit(CUNode);
+    DIArray ImportedEntities = CUNode.getImportedEntities();
+    for (unsigned i = 0, e = ImportedEntities.getNumElements(); i != e; ++i)
+      ScopesWithImportedEntities.push_back(std::make_pair(
+          DIImportedEntity(ImportedEntities.getElement(i)).getContext(),
+          ImportedEntities.getElement(i)));
+    std::sort(ScopesWithImportedEntities.begin(),
+              ScopesWithImportedEntities.end(), less_first());
+    DIArray GVs = CUNode.getGlobalVariables();
+    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i)
+      CU->createGlobalVariableDIE(DIGlobalVariable(GVs.getElement(i)));
+    DIArray SPs = CUNode.getSubprograms();
+    for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i)
+      constructSubprogramDIE(CU, SPs.getElement(i));
+    DIArray EnumTypes = CUNode.getEnumTypes();
+    for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i)
+      CU->getOrCreateTypeDIE(EnumTypes.getElement(i));
+    DIArray RetainedTypes = CUNode.getRetainedTypes();
+    for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i)
+      CU->getOrCreateTypeDIE(RetainedTypes.getElement(i));
+    // Emit imported_modules last so that the relevant context is already
+    // available.
+    for (unsigned i = 0, e = ImportedEntities.getNumElements(); i != e; ++i)
+      constructImportedEntityDIE(CU, ImportedEntities.getElement(i));
+  }
+ll1:;
+}
+#endif
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
