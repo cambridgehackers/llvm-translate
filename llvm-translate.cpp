@@ -43,7 +43,6 @@
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
 
-int dump_ir;// = 1;
 int dump_interpret;// = 1;
 
 using namespace llvm;
@@ -913,10 +912,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
-  if (dump_ir) {
-    ModulePass *DebugIRPass = createDebugIRPass();
-    DebugIRPass->runOnModule(*Mod);
-  }
+  ModulePass *DebugIRPass = createDebugIRPass();
+  DebugIRPass->runOnModule(*Mod);
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -992,46 +989,108 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Run main.
   Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-  generate_verilog(Mod);
+  //generate_verilog(Mod);
 
 debug_label:;
 #if 1
-//void DebugInfoFinder::processModule(const Module &M)
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  DITypeIdentifierMap TypeIdentifierMap;
-  //InitializeTypeMap(Mod);
   if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
-      TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
-  }
-  if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] before generateDI\n", __FUNCTION__, __LINE__);
+  DITypeIdentifierMap TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
+  SmallVector<MDNode *, 8> CUs;    // Compile Units
+  SmallVector<MDNode *, 8> SPs;    // Subprograms
+  SmallVector<MDNode *, 8> GVs;    // Global Variables;
+  SmallVector<MDNode *, 8> TYs;    // Types
+  SmallVector<MDNode *, 8> Scopes; // Scopes
+  SmallPtrSet<MDNode *, 64> NodesSeen;
+
     for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
       DICompileUnit CU(CU_Nodes->getOperand(i));
       //addCompileUnit(CU);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] add compileunit\n", __FUNCTION__, __LINE__);
       DIArray GVs = CU.getGlobalVariables();
       for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
         DIGlobalVariable DIG(GVs.getElement(i));
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        //if (addGlobalVariable(DIG)) {
+printf("[%s:%d]globalvar\n", __FUNCTION__, __LINE__);
+DIG.dump();
+DIG.getType().dump();
+
+  if (NodesSeen.insert(DIG)) { //if (addGlobalVariable(DIG)) 
+          //GVs.push_back(DIG);
           //processScope(DIG.getContext());
+DIScope Scope = DIG.getContext();
+  if (Scope.isType()) {
+    DIType Ty(Scope);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processType(Ty);
+    //return;
+  }
+  if (Scope.isCompileUnit()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //addCompileUnit(DICompileUnit(Scope));
+    //return;
+  }
+  if (Scope.isSubprogram()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processSubprogram(DISubprogram(Scope));
+    //return;
+  }
+  //if (!addScope(Scope))
+    //return;
+  if (Scope.isLexicalBlock()) {
+    DILexicalBlock LB(Scope);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processScope(LB.getContext());
+  } else if (Scope.isLexicalBlockFile()) {
+    DILexicalBlockFile LBF = DILexicalBlockFile(Scope);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processScope(LBF.getScope());
+  } else if (Scope.isNameSpace()) {
+    DINameSpace NS(Scope);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processScope(NS.getContext());
+  }
           //processType(DIG.getType());
-        //}
+DIType DT = DIG.getType();
+  //if (!addType(DT))
+    //return;
+  //processScope(DT.getContext().resolve(TypeIdentifierMap));
+  if (DT.isCompositeType()) {
+    DICompositeType DCT(DT);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processType(DCT.getTypeDerivedFrom().resolve(TypeIdentifierMap));
+    //DIArray DA = DCT.getTypeArray();
+    //for (unsigned i = 0, e = DA.getNumElements(); i != e; ++i) {
+      //DIDescriptor D = DA.getElement(i);
+      //if (D.isType())
+        //processType(DIType(D));
+      //else if (D.isSubprogram())
+        //processSubprogram(DISubprogram(D));
+    //}
+  } else if (DT.isDerivedType()) {
+    DIDerivedType DDT(DT);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //processType(DDT.getTypeDerivedFrom().resolve(TypeIdentifierMap));
+  }
+        }
       }
       DIArray SPs = CU.getSubprograms();
       for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+// dump methods
+//printf("[%s:%d]methods\n", __FUNCTION__, __LINE__);
+//SPs.getElement(i)->dump();
         //processSubprogram(DISubprogram(SPs.getElement(i)));
       }
       DIArray EnumTypes = CU.getEnumTypes();
       for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
+DIType(EnumTypes.getElement(i)).dump();
         //processType(DIType(EnumTypes.getElement(i)));
       }
       DIArray RetainedTypes = CU.getRetainedTypes();
       for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
+DIType(RetainedTypes.getElement(i)).dump();
         //processType(DIType(RetainedTypes.getElement(i)));
       }
       DIArray Imports = CU.getImportedEntities();
@@ -1040,14 +1099,17 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         DIDescriptor Entity = Import.getEntity();
         if (Entity.isType()) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DIType(Entity)->dump();
           //processType(DIType(Entity));
         }
         else if (Entity.isSubprogram()) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DISubprogram(Entity)->dump();
           //processSubprogram(DISubprogram(Entity));
         }
         else if (Entity.isNameSpace()) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DINameSpace(Entity).getContext()->dump();
           //processScope(DINameSpace(Entity).getContext());
         }
       }
