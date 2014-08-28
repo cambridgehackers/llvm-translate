@@ -994,6 +994,52 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 debug_label:;
 #if 1
 {
+    DebugInfoFinder Finder;
+//  public:
+    //ModuleDebugInfoPrinter() : ModulePass(ID) {
+      //initializeModuleDebugInfoPrinterPass(*PassRegistry::getPassRegistry());
+    //}
+    //virtual bool runOnModule(Module &M);
+    //virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      //AU.setPreservesAll();
+    //}
+//ModulePass *llvm::createModuleDebugInfoPrinterPass() {
+  //return new ModuleDebugInfoPrinter();
+//}
+//bool ModuleDebugInfoPrinter::runOnModule(Module &M) {
+  Finder.processModule(*Mod);
+  //return false;
+//}
+//void ModuleDebugInfoPrinter::print(raw_ostream &errs(), const Module *M) const {
+  for (DebugInfoFinder::iterator I = Finder.compile_unit_begin(),
+       E = Finder.compile_unit_end(); I != E; ++I) {
+    errs() << "Compile Unit: ";
+    DICompileUnit(*I).print(errs());
+    errs() << '\n';
+  }
+  for (DebugInfoFinder::iterator I = Finder.subprogram_begin(),
+       E = Finder.subprogram_end(); I != E; ++I) {
+    errs() << "Subprogram: ";
+    DISubprogram(*I).print(errs());
+    errs() << '\n';
+  }
+  for (DebugInfoFinder::iterator I = Finder.global_variable_begin(),
+       E = Finder.global_variable_end(); I != E; ++I) {
+    errs() << "GlobalVariable: ";
+    DIGlobalVariable(*I).print(errs());
+    errs() << '\n';
+  }
+  for (DebugInfoFinder::iterator I = Finder.type_begin(),
+       E = Finder.type_end(); I != E; ++I) {
+    errs() << "Type: ";
+    DIType(*I).print(errs());
+    errs() << '\n';
+  }
+//}
+}
+#endif
+#if 0
+{
   if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
 printf("[%s:%d] before generateDI\n", __FUNCTION__, __LINE__);
   DITypeIdentifierMap TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
