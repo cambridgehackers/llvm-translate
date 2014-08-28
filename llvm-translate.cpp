@@ -41,6 +41,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
+#include "llvm/Linker.h"
 
 int dump_ir;// = 1;
 int dump_interpret;// = 1;
@@ -49,11 +50,11 @@ using namespace llvm;
 
 namespace {
   cl::list<std::string>
-  InputFile(cl::desc("<input bitcode>"), cl::Positional, cl::OneOrMore);
+  InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
 //cl::init("-"));
 
-  cl::list<std::string>
-  InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
+  //cl::list<std::string>
+  //InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
 
   cl::opt<std::string>
   MArch("march",
@@ -862,6 +863,16 @@ void generate_verilog(Module *Mod)
   }
 }
 
+static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
+{
+  SMDiagnostic Err;
+  printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
+  Module* Result = ParseIRFile(FN, Err, Context);
+  if (!Result)
+      Err.print(argv0, errs());
+  return Result;
+}
+
 int main(int argc, char **argv, char * const *envp)
 {
   SMDiagnostic Err;
@@ -880,10 +891,19 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
   // Load the bitcode...
-  Module *Mod = ParseIRFile(InputFile[0], Err, Context);
+  Module *Mod = LoadFile(argv[0], InputFile[0], Context);
   if (!Mod) {
-    Err.print(argv[0], errs());
+    errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
     return 1;
+  }
+  Linker L(Mod);
+  for (unsigned i = 1; i < InputFile.size(); ++i) {
+    std::string ErrorMessage;
+    Module *M = LoadFile(argv[0], InputFile[i], Context);
+    if (!M || L.linkInModule(M, &ErrorMessage)) {
+      errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMessage << "\n";
+      return 1;
+    }
   }
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
@@ -916,7 +936,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   builder.setTargetOptions(Options);
 
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] before builder.create\n", __FUNCTION__, __LINE__);
   EE = builder.create();
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!EE) {
@@ -940,6 +960,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   EE->DisableLazyCompilation(true);
 
   // Add the module's name to the start of the vector of arguments to main().
+  std::vector<std::string> InputArgv;
   InputArgv.insert(InputArgv.begin(), InputFile[0]);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
