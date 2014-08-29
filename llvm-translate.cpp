@@ -79,6 +79,7 @@ static ExecutionEngine *EE = 0;
 std::map<const Value *, int> slotmap;
 struct {
     const char *name;
+    int ignore_debug_info;
 } slotarray[MAX_SLOTARRAY];
 static int slotarray_index;
 
@@ -336,23 +337,25 @@ static const char *getparam(int arg)
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
+  int opcode = I.getOpcode();
+  char instruction_label[MAX_CHAR_BUFFER];
   operand_list_index = 0;
   memset(operand_list, 0, sizeof(operand_list));
   if (I.hasName()) {
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = (uint64_t) &I;
-    printf("%10s/%d: ", I.getName().str().c_str(), t);
+    sprintf(instruction_label, "%10s/%d: ", I.getName().str().c_str(), t);
   } else if (!I.getType()->isVoidTy()) {
     // Print out the def slot taken.
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = (uint64_t) &I;
-    printf("%12d: ",  t);
+    sprintf(instruction_label, "%12d: ",  t);
   }
   else {
     operand_list_index++;
-    printf("            : ");
+    sprintf(instruction_label, "            : ");
   }
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
@@ -410,11 +413,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Operand = CI->getCalledValue();
     PointerType *PTy = cast<PointerType>(Operand->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    Type *RetTy = FTy->getReturnType();
-    if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
-      RetTy->dump();
-    }
+    //Type *RetTy = FTy->getReturnType();
+    //if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
+//printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
+      //RetTy->dump();
+    //}
     writeOperand(Operand);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
@@ -461,19 +464,35 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (unsigned i = 0, e = InstMD.size(); i != e; ++i) {
       unsigned Kind = InstMD[i].first;
        if (Kind < MDNames.size()) {
-         printf(", !%s", MDNames[Kind].str().c_str());
+         //printf(", !%s", MDNames[Kind].str().c_str());
        } else {
-         printf(", !<unknown kind #%d>", Kind);
+         //printf(", !<unknown kind #%d>", Kind);
        }
-      InstMD[i].second->dump();
+      //InstMD[i].second->dump();
       //WriteAsOperandInternal(InstMD[i].second, &TypePrinter, &Machine, TheModule);
     }
   }
-  int opcode = I.getOpcode();
   char vout[MAX_CHAR_BUFFER];
   vout[0] = 0;
-  printf("    ");
-  switch (I.getOpcode()) {
+  switch (opcode) {
+  case Instruction::Alloca:
+      if (operand_list[0].type == OpTypeLocalRef)
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].ignore_debug_info = 1;
+      return;  // ignore
+  case Instruction::Call:
+      if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "llvm.dbg.declare"))
+          return;  // ignore
+      if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "printf"))
+          return;  // ignore for now
+      break;
+  };
+  for (int i = 0; i < operand_list_index; i++) {
+      if (operand_list[i].type == OpTypeLocalRef
+       &&  slotarray[getLocalSlot((const Value *)operand_list[i].value)].ignore_debug_info)
+          return; // ignore all instructions that touch 'debug-only' memory
+  }
+  printf("%s    ", instruction_label);
+  switch (opcode) {
   // Terminators
   case Instruction::Ret:
       printf("XLAT:           Ret");
@@ -522,7 +541,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
 
   // Memory instructions...
-  //case Instruction::Alloca:
+  //case Instruction::Alloca: // ignore
   case Instruction::Load:
       {
       printf("XLAT:          Load");
@@ -572,7 +591,9 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
 
   // Convert instructions...
   //case Instruction::Trunc:
-  //case Instruction::ZExt:
+  case Instruction::ZExt:
+      printf("XLAT:          Zext");
+      break;
   //case Instruction::SExt:
   //case Instruction::FPTrunc:
   //case Instruction::FPExt:
