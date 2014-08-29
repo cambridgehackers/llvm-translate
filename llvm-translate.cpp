@@ -998,85 +998,17 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
   generate_verilog(Mod);
-#if 0
-{
-  DebugInfoFinder Finder;
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  Finder.processModule(*Mod);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  for (DebugInfoFinder::iterator I = Finder.compile_unit_begin(),
-       E = Finder.compile_unit_end(); I != E; ++I) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//DW_TAG_compile_unit
-//fprintf(stderr, "[%s:%d] Compileunit:", __FUNCTION__, __LINE__);
-    //DICompileUnit(*I).dump();
-  }
-  for (DebugInfoFinder::iterator I = Finder.subprogram_begin(),
-       E = Finder.subprogram_end(); I != E; ++I) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//fprintf(stderr, "[%s:%d] Subprogram:", __FUNCTION__, __LINE__);
-    //DISubprogram(*I).dump();
-  }
-  for (DebugInfoFinder::iterator I = Finder.global_variable_begin(),
-       E = Finder.global_variable_end(); I != E; ++I) {
-fprintf(stderr, "[%s:%d] GlobalVar:", __FUNCTION__, __LINE__);
-    DIGlobalVariable(*I).dump();
-  }
-  for (DebugInfoFinder::iterator I = Finder.type_begin(),
-       E = Finder.type_end(); I != E; ++I) {
-    DIType DT = DIType(*I);
-    if (DT.getTag() == dwarf::DW_TAG_subroutine_type)
-       continue;
-    fprintf(stderr, "[%s:%d] Type:", __FUNCTION__, __LINE__);
-    fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
-    StringRef Res = DT.getName();
-    if (!Res.empty())
-      errs() << " [" << Res << "]";
-    errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits()
-       << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
-    if (DT.isBasicType())
-      if (const char *Enc =
-              dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
-        errs() << ", enc " << Enc;
-    errs() << "]";
-    if (DT.isPrivate()) errs() << " [private]";
-    else if (DT.isProtected()) errs() << " [protected]";
-    if (DT.isArtificial()) errs() << " [artificial]";
-    if (DT.isForwardDecl()) errs() << " [decl]";
-    else if (DT.getTag() == dwarf::DW_TAG_structure_type ||
-             DT.getTag() == dwarf::DW_TAG_union_type ||
-             DT.getTag() == dwarf::DW_TAG_enumeration_type ||
-             DT.getTag() == dwarf::DW_TAG_class_type)
-      errs() << " [def]";
-    if (DT.isVector()) errs() << " [vector]";
-    if (DT.isStaticMember()) errs() << " [static]";
-    if (DT.isDerivedType()) {
-       errs() << " [from ";
-       errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
-       errs() << ']';
-    }
-    fprintf(stderr, "\n");
-    if (DT.getTag() == dwarf::DW_TAG_structure_type) {
-DICompositeType CTy = DICompositeType(DT);
- StringRef Name = CTy.getName();
-    DIArray Elements = CTy.getTypeArray();
-    for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
-      DIDescriptor Element = Elements.getElement(i);
-fprintf(stderr, "struct elt:");
-Element.dump();
-    }
-    }
-  }
-}
-#else
+
   if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
     printf("[%s:%d] before generateDI\n", __FUNCTION__, __LINE__);
     //DITypeIdentifierMap TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
     for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
       DICompileUnit CU(CU_Nodes->getOperand(i));
       //addCompileUnit(CU);
-      printf("[%s:%d] add compileunit\n", __FUNCTION__, __LINE__);
-      CU->dump();
+      printf("[%s:%d] add compileunit %d:%s %s\n", __FUNCTION__, __LINE__, CU.getLanguage(),
+//DIScope
+ CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
+      //CU->dump();
       DIArray GVs = CU.getGlobalVariables();
       for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
         DIGlobalVariable DIG(GVs.getElement(i));
@@ -1169,7 +1101,6 @@ Element.dump();
       }
      }
   }
-#endif
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
