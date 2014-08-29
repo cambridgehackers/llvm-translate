@@ -48,7 +48,8 @@
 #include "llvm/Assembly/Parser.h"
 
 static int dump_interpret;// = 1;
-static int output_stdout;// = 1;
+static int output_stdout = 1;
+static const char *trace_break_name = "_ZN4Echo7respond5guardEv";
 
 using namespace llvm;
 
@@ -80,6 +81,7 @@ static ExecutionEngine *EE = 0;
 std::map<const Value *, int> slotmap;
 struct {
     const char *name;
+    int ignore_debug_info;
     uint64_t ***value;
 } slotarray[MAX_SLOTARRAY];
 static int slotarray_index;
@@ -88,6 +90,9 @@ static uint64_t ***globalThis;
 static const char *globalName;
 static const char *globalClassName;
 static FILE *outputFile;
+static const Function *globalFunction;
+static int already_printed_header;
+
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
    int type;
@@ -339,6 +344,13 @@ static const char *getparam(int arg)
    return strdup(temp);
 }
 
+static void print_header()
+{
+    if (!already_printed_header)
+        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
+    already_printed_header = 1;
+}
+
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
 {
@@ -425,11 +437,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Operand = CI->getCalledValue();
     PointerType *PTy = cast<PointerType>(Operand->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    //Type *RetTy = FTy->getReturnType();
-    //if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-//printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
-      //RetTy->dump();
-    //}
+    Type *RetTy = FTy->getReturnType();
+    if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
+printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
+      RetTy->dump();
+    }
     writeOperand(Operand);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
@@ -488,6 +500,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   vout[0] = 0;
   switch (opcode) {
   case Instruction::Alloca:
+      if (operand_list[0].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value].ignore_debug_info = 1;
       return;  // ignore
   case Instruction::Call:
       if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "llvm.dbg.declare"))
@@ -500,11 +514,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   switch (opcode) {
   // Terminators
   case Instruction::Ret:
+      {
       printf("XLAT:           Ret");
-      if (operand_list_index > 1) {
+printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->getTypeID());
+      if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
           sprintf(vout, "%s = %s && %s_enable;", globalName, getparam(1), globalName);
+      }
       }
       break;
   //case Instruction::Br:
@@ -554,7 +571,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
-      sprintf(vout, "%s = %s;", getparam(2), getparam(1));
+      if (operand_list[2].type != OpTypeLocalRef || !slotarray[operand_list[2].value].ignore_debug_info)
+          sprintf(vout, "%s = %s;", getparam(2), getparam(1));
       if (operand_list[1].type == OpTypeLocalRef && operand_list[2].type == OpTypeLocalRef)
           slotarray[operand_list[1].value] = slotarray[operand_list[2].value];
       break;
@@ -607,6 +625,8 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
   //case Instruction::PtrToInt:
   case Instruction::BitCast:
       printf("XLAT:       BitCast");
+      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AddrSpaceCast:
 
@@ -657,13 +677,15 @@ printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
   }
   for (int i = 0; i < operand_list_index; i++) {
       if (operand_list[i].type == OpTypeLocalRef)
-          printf(" op[%d]L=%d:%p:%s;", i, operand_list[i].value, slotarray[operand_list[i].value].value, slotarray[operand_list[i].value].name);
+          printf(" op[%d]L=%lld:%p:%s;", i, (long long)operand_list[i].value, slotarray[operand_list[i].value].value, slotarray[operand_list[i].value].name);
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
   printf("\n");
-  if (strlen(vout))
+  if (strlen(vout)) {
+     print_header();
      fprintf(outputFile, "        %s\n", vout);
+  }
 }
 
 void printBasicBlock(const BasicBlock *BB) 
@@ -699,6 +721,8 @@ void printBasicBlock(const BasicBlock *BB)
 
 static void processFunction(const Function *F) 
 {
+  globalFunction = F;
+  already_printed_header = 0;
   //if (F->isMaterializable())
     //printf("); Materializable\n";
   const AttributeSet &Attrs = F->getAttributes();
@@ -772,6 +796,7 @@ static void processFunction(const Function *F)
   char temp[MAX_CHAR_BUFFER];
   strcpy(temp, globalName);
   if (updateFlag) {
+      print_header();
       strcat(temp + strlen(globalName) - 8, "guardEv");
       fprintf(outputFile, "if (%s) then begin\n", temp);
   }
@@ -780,8 +805,10 @@ static void processFunction(const Function *F)
       printBasicBlock(I);
   }
   clearLocalSlot();
-  if (updateFlag)
+  if (updateFlag) {
+      print_header();
       fprintf(outputFile, "end;\n");
+  }
 }
 
 void dump_vtab(uint64_t ***thisptr)
@@ -810,11 +837,14 @@ int arr_size = 0;
        printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, globalThis);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
-               fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
                processFunction(f);
                printf("FULL:\n");
                f->dump();
                printf("\n");
+if (!strcmp(globalName, trace_break_name)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+}
            }
        }
     }
