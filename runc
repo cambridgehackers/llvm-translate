@@ -1,0 +1,3 @@
+#!/bin/bash
+set -x
+./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc.ll 
