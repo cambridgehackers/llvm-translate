@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 set -x
-#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.exe.bc
+#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc.ll
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
 ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 

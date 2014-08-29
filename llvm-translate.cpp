@@ -47,7 +47,8 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Assembly/Parser.h"
 
-int dump_interpret;// = 1;
+static int dump_interpret;// = 1;
+static int output_stdout;// = 1;
 
 using namespace llvm;
 
@@ -79,7 +80,7 @@ static ExecutionEngine *EE = 0;
 std::map<const Value *, int> slotmap;
 struct {
     const char *name;
-    int ignore_debug_info;
+    uint64_t ***value;
 } slotarray[MAX_SLOTARRAY];
 static int slotarray_index;
 
@@ -100,7 +101,7 @@ void makeLocalSlot(const Value *V)
 }
 int getLocalSlot(const Value *V)
 {
-  assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!"); 
+  //assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!"); 
   std::map<const Value *, int>::iterator FI = slotmap.find(V);
   //return FI == slotmap.end() ? -1 : (int)FI->second;
   if (FI == slotmap.end()) {
@@ -272,6 +273,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
 void writeOperand(const Value *Operand)
 {
+  int slotindex;
+  const Constant *CV;
   if (!Operand) {
     return;
   }
@@ -280,13 +283,11 @@ void writeOperand(const Value *Operand)
         operand_list[operand_list_index].type = OpTypeExternalFunction;
         operand_list[operand_list_index++].value = (uint64_t) Operand->getName().str().c_str();
     }
-    else {
-        operand_list[operand_list_index].type = OpTypeLocalRef;
-        operand_list[operand_list_index++].value = (uint64_t) Operand;
-    }
+    else
+        goto locallab;
     return;
   }
-  const Constant *CV = dyn_cast<Constant>(Operand);
+  CV = dyn_cast<Constant>(Operand);
   if (CV && !isa<GlobalValue>(CV)) {
     WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
     return;
@@ -299,9 +300,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //WriteMDNodeBodyInternal(N, TypePrinter, Machine, Context);
       return;
     }
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = (uint64_t) Operand;
-    return;
+    goto locallab;
   }
 
   if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
@@ -315,18 +314,22 @@ printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     return;
   }
+locallab:
+  slotindex = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
-  operand_list[operand_list_index++].value = (uint64_t) Operand;
+  operand_list[operand_list_index++].value = slotindex;
+  if (!slotarray[slotindex].value) {
+      slotarray[slotindex].value = (uint64_t ***) Operand;
+      slotarray[slotindex].name = strdup(Operand->getName().str().c_str());
+  }
 }
 
 static const char *getparam(int arg)
 {
    char temp[MAX_CHAR_BUFFER];
    temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef) {
-       int slotindex = getLocalSlot((const Value *)operand_list[arg].value);
-       sprintf(temp, "%llx=[%d.] %p=%s", (long long)operand_list[arg].value, slotindex, slotarray[slotindex].name, slotarray[slotindex].name);
-   }
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return (slotarray[operand_list[arg].value].name);
    else if (operand_list[arg].type == OpTypeExternalFunction)
        return (const char *)operand_list[arg].value;
    else if (operand_list[arg].type == OpTypeInt)
@@ -346,14 +349,21 @@ void printInstruction(const Instruction &I)
   if (I.hasName()) {
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = (uint64_t) &I;
-    sprintf(instruction_label, "%10s/%d: ", I.getName().str().c_str(), t);
+    operand_list[operand_list_index++].value = t;
+    slotarray[t].value = (uint64_t ***) &I;
+    slotarray[t].name = strdup(I.getName().str().c_str());
+    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   } else if (!I.getType()->isVoidTy()) {
+    char temp[MAX_CHAR_BUFFER];
     // Print out the def slot taken.
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = (uint64_t) &I;
-    sprintf(instruction_label, "%12d: ",  t);
+    operand_list[operand_list_index++].value = t;
+    sprintf(temp, "%%%d", t);
+    slotarray[t].value = (uint64_t ***) &I;
+    slotarray[t].name = strdup(temp);
+    //sprintf(instruction_label, "%12d: ",  t);
+    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   }
   else {
     operand_list_index++;
@@ -478,8 +488,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   vout[0] = 0;
   switch (opcode) {
   case Instruction::Alloca:
-      if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].ignore_debug_info = 1;
       return;  // ignore
   case Instruction::Call:
       if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "llvm.dbg.declare"))
@@ -488,13 +496,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           return;  // ignore for now
       break;
   };
-#if 0
-  for (int i = 0; i < operand_list_index; i++) {
-      if (operand_list[i].type == OpTypeLocalRef
-       &&  slotarray[getLocalSlot((const Value *)operand_list[i].value)].ignore_debug_info)
-          return; // ignore all instructions that touch 'debug-only' memory
-  }
-#endif
   printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
@@ -540,32 +541,22 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("XLAT:           Add");
       sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
       if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(temp);
+          slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
 
   // Memory instructions...
   //case Instruction::Alloca: // ignore
   case Instruction::Load:
-      {
       printf("XLAT:          Load");
-      const char *ret = NULL;
-      if (operand_list[1].type == OpTypeLocalRef)
-          ret = slotarray[getLocalSlot((const Value *)operand_list[1].value)].name;
-      if (operand_list[0].type == OpTypeLocalRef && ret)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = ret;
-      }
+      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   case Instruction::Store:
-      {
       printf("XLAT:         Store");
       sprintf(vout, "%s = %s;", getparam(2), getparam(1));
-      const char *ret = NULL;
-      if (operand_list[2].type == OpTypeLocalRef)
-          ret = slotarray[getLocalSlot((const Value *)operand_list[2].value)].name;
-      if (operand_list[1].type == OpTypeLocalRef && ret)
-          slotarray[getLocalSlot((const Value *)operand_list[1].value)].name = ret;
-      }
+      if (operand_list[1].type == OpTypeLocalRef && operand_list[2].type == OpTypeLocalRef)
+          slotarray[operand_list[1].value] = slotarray[operand_list[2].value];
       break;
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
@@ -575,8 +566,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("XLAT: GetElementPtr");
       const char *ret = NULL;
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
-        const char *cp = ((const Value *)operand_list[1].value)->getName().str().c_str();
         char temp[MAX_CHAR_BUFFER];
+        const char *cp = slotarray[operand_list[1].value].name;
+printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, cp);
         if (!strcmp(cp, "this")) {
           uint64_t **val = globalThis[1+operand_list[3].value];
           const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
@@ -589,14 +581,13 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
           }
         }
         else {
-          int ind = getLocalSlot((const Value *)operand_list[1].value);
           char temp[MAX_CHAR_BUFFER];
-          sprintf(temp, "%s_%lld", slotarray[ind].name, (long long)operand_list[3].value);
+          sprintf(temp, "%s_%lld", cp, (long long)operand_list[3].value);
           ret = strdup(temp);
         }
       }
       if (operand_list[0].type == OpTypeLocalRef && ret)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
+          slotarray[operand_list[0].value].name = strdup(ret);
       }
       break;
 
@@ -630,7 +621,7 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
           opstr = getPredicateText(CI->getPredicate());
       sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
       if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(temp);
+          slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
   //case Instruction::FCmp:
@@ -639,7 +630,7 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
   case Instruction::Call:
       printf("XLAT:          Call");
       if (operand_list[1].type == OpTypeLocalRef) {
-          uint64_t ***t = (uint64_t ***)operand_list[1].value;
+          uint64_t ***t = (uint64_t ***)slotarray[operand_list[1].value].value;
           printf ("[op %p %p %p]", t, *t, **t);
           const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
 printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
@@ -665,7 +656,9 @@ printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
       break;
   }
   for (int i = 0; i < operand_list_index; i++) {
-      if (operand_list[i].type != OpTypeNone)
+      if (operand_list[i].type == OpTypeLocalRef)
+          printf(" op[%d]L=%d:%p:%s;", i, operand_list[i].value, slotarray[operand_list[i].value].value, slotarray[operand_list[i].value].name);
+      else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
   printf("\n");
@@ -993,6 +986,8 @@ int main(int argc, char **argv, char * const *envp)
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   outputFile = fopen("output.tmp", "w");
+  if (output_stdout)
+      outputFile = stdout;
   if (dump_interpret)
       DebugFlag = true;
   sys::PrintStackTraceOnErrorSignal();
