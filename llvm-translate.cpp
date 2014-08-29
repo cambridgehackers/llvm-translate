@@ -54,10 +54,6 @@ using namespace llvm;
 namespace {
   cl::list<std::string>
   InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
-//cl::init("-"));
-
-  //cl::list<std::string>
-  //InputArgv(cl::ConsumeAfter, cl::desc("<program arguments>..."));
 
   cl::opt<std::string>
   MArch("march",
@@ -215,7 +211,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     return;
   }
 
-
   if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     unsigned N = CS->getNumOperands();
     if (N) {
@@ -361,13 +356,7 @@ void printInstruction(const Instruction &I)
   }
   if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     printf("tail ");
-  // Print out optimization information.
-  //WriteOptimizationInfo(&I);
-  // Print out the compare instruction predicates
-  //if (const CmpInst *CI = dyn_cast<CmpInst>(&I)) printf("CMP %s", getPredicateText(CI->getPredicate()));
-  // Print out the type of the operands...
   const Value *Operand = I.getNumOperands() ? I.getOperand(0) : 0;
-  // Special case conditional branches to swizzle the condition out to the front
   if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
     const BranchInst &BI(cast<BranchInst>(I));
     writeOperand(BI.getCondition());
@@ -375,22 +364,18 @@ void printInstruction(const Instruction &I)
     writeOperand(BI.getSuccessor(1));
   } else if (isa<SwitchInst>(I)) {
     const SwitchInst& SI(cast<SwitchInst>(I));
-    // Special case switch instruction to get formatting nice and correct.
     writeOperand(SI.getCondition());
     writeOperand(SI.getDefaultDest());
-    printf(" [");
     for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
       writeOperand(i.getCaseValue());
       writeOperand(i.getCaseSuccessor());
     }
   } else if (isa<IndirectBrInst>(I)) {
-    // Special case indirectbr instruction to get formatting nice and correct.
     writeOperand(Operand);
     for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
       writeOperand(I.getOperand(i));
     }
   } else if (const PHINode *PN = dyn_cast<PHINode>(&I)) {
-    //TypePrinter.print(I.getType());
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       I.getType()->dump();
     for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
@@ -407,7 +392,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
       printf(", %x", *i);
   } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
-    //TypePrinter.print(I.getType());
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       I.getType()->dump();
     printf(" personality ");
@@ -423,23 +407,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       writeOperand(LPI->getClause(i));
     }
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
-    // Print the calling convention being used.
-    if (CI->getCallingConv() != CallingConv::C) {
-      //PrintCallingConv(CI->getCallingConv());
-    }
     Operand = CI->getCalledValue();
     PointerType *PTy = cast<PointerType>(Operand->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     Type *RetTy = FTy->getReturnType();
-    //const AttributeSet &PAL = CI->getAttributes();
-    //if (PAL.hasAttributes(AttributeSet::ReturnIndex))
-      //printf(' ' << PAL.getAsString(AttributeSet::ReturnIndex));
-    // If possible, print out the short form of the call instruction.  We can
-    // only do this if the first argument is a pointer to a nonvararg function,
-    // and if the return type is not a pointer to a function.
-    //
     if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-      //TypePrinter.print(RetTy);
 printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
       RetTy->dump();
     }
@@ -447,28 +419,14 @@ printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
     }
-    //if (PAL.hasAttributes(AttributeSet::FunctionIndex))
-      //printf(" #" < < Machine.getAttributeGroupSlot(PAL.getFnAttributes()));
   } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
     Operand = II->getCalledValue();
     PointerType *PTy = cast<PointerType>(Operand->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     Type *RetTy = FTy->getReturnType();
-    //const AttributeSet &PAL = II->getAttributes();
-    // Print the calling convention being used.
-    if (II->getCallingConv() != CallingConv::C) {
-      //PrintCallingConv(II->getCallingConv());
-    }
-    //if (PAL.hasAttributes(AttributeSet::ReturnIndex))
-      //printf(' ' < < PAL.getAsString(AttributeSet::ReturnIndex));
-    // If possible, print out the short form of the invoke instruction. We can
-    // only do this if the first argument is a pointer to a nonvararg function,
-    // and if the return type is not a pointer to a function.
-    //
     if (!FTy->isVarArg() &&
         (!RetTy->isPointerTy() ||
          !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-      //TypePrinter.print(RetTy);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       RetTy->dump();
     }
@@ -476,8 +434,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (unsigned op = 0, Eop = II->getNumArgOperands(); op < Eop; ++op) {
       //writeParamOperand(II->getArgOperand(op), PAL, op + 1);
     }
-    //if (PAL.hasAttributes(AttributeSet::FunctionIndex))
-      //printf(" #" < < Machine.getAttributeGroupSlot(PAL.getFnAttributes()));
     writeOperand(II->getNormalDest());
     writeOperand(II->getUnwindDest());
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
@@ -485,9 +441,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (!AI->getArraySize() || AI->isArrayAllocation()) {
       writeOperand(AI->getArraySize());
     }
-    //if (AI->getAlignment()) {
-      //printf(", align " << AI->getAlignment());
-    //}
   } else if (isa<CastInst>(I)) {
     writeOperand(Operand);
     //TypePrinter.print(I.getType());
@@ -887,6 +840,108 @@ printf("[%s:%d] get %x DEB %x\n", __FUNCTION__, __LINE__, getDebugMetadataVersio
   return Result;
 }
 
+void format_type(DIType DT)
+{
+    //if (DT.getTag() == dwarf::DW_TAG_subroutine_type)
+       //return;
+    fprintf(stderr, "    %s:", __FUNCTION__);
+    fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
+    StringRef Res = DT.getName();
+    if (!Res.empty())
+      errs() << " [" << Res << "]";
+    errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits()
+       << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
+    if (DT.isBasicType())
+      if (const char *Enc =
+              dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
+        errs() << ", enc " << Enc;
+    errs() << "]";
+    if (DT.isPrivate()) errs() << " [private]";
+    else if (DT.isProtected()) errs() << " [protected]";
+    if (DT.isArtificial()) errs() << " [artificial]";
+    if (DT.isForwardDecl()) errs() << " [decl]";
+    else if (DT.getTag() == dwarf::DW_TAG_structure_type ||
+             DT.getTag() == dwarf::DW_TAG_union_type ||
+             DT.getTag() == dwarf::DW_TAG_enumeration_type ||
+             DT.getTag() == dwarf::DW_TAG_class_type)
+      errs() << " [def]";
+    if (DT.isVector()) errs() << " [vector]";
+    if (DT.isStaticMember()) errs() << " [static]";
+    if (DT.isDerivedType()) {
+       errs() << " [from ";
+       errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
+       errs() << ']';
+    }
+    fprintf(stderr, "\n");
+    if (DT.getTag() == dwarf::DW_TAG_structure_type) {
+DICompositeType CTy = DICompositeType(DT);
+ StringRef Name = CTy.getName();
+    DIArray Elements = CTy.getTypeArray();
+    for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
+      DIDescriptor Element = Elements.getElement(i);
+fprintf(stderr, "struct elt:");
+Element.dump();
+    }
+    }
+}
+
+void dump_metadata(Module *Mod)
+{
+  NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+
+  if (!CU_Nodes)
+    return;
+  for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+    DICompileUnit CU(CU_Nodes->getOperand(i));
+    printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
+         // from DIScope:
+         CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
+    DIArray GVs = CU.getGlobalVariables();
+    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+      DIGlobalVariable DIG(GVs.getElement(i));
+      printf("[%s:%d]globalvar\n", __FUNCTION__, __LINE__);
+      DIG.dump();
+      format_type(DIG.getType());
+    }
+    DIArray SPs = CU.getSubprograms();
+    for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+      // dump methods
+      //printf("[%s:%d]methods\n", __FUNCTION__, __LINE__);
+      //SPs.getElement(i)->dump();
+      //processSubprogram(DISubprogram(SPs.getElement(i)));
+    }
+    DIArray EnumTypes = CU.getEnumTypes();
+    for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
+      printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
+      format_type(DIType(EnumTypes.getElement(i)));
+    }
+    DIArray RetainedTypes = CU.getRetainedTypes();
+    for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
+      printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
+      format_type(DIType(RetainedTypes.getElement(i)));
+    }
+    DIArray Imports = CU.getImportedEntities();
+    for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
+      DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
+      DIDescriptor Entity = Import.getEntity();
+      if (Entity.isType()) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        format_type(DIType(Entity));
+      }
+      else if (Entity.isSubprogram()) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        DISubprogram(Entity)->dump();
+      }
+      else if (Entity.isNameSpace()) {
+        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        //DINameSpace(Entity).getContext()->dump();
+      }
+      else
+        printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
+    }
+  }
+}
+
 int main(int argc, char **argv, char * const *envp)
 {
   SMDiagnostic Err;
@@ -999,108 +1054,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   generate_verilog(Mod);
 
-  if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
-    printf("[%s:%d] before generateDI\n", __FUNCTION__, __LINE__);
-    //DITypeIdentifierMap TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      DICompileUnit CU(CU_Nodes->getOperand(i));
-      //addCompileUnit(CU);
-      printf("[%s:%d] add compileunit %d:%s %s\n", __FUNCTION__, __LINE__, CU.getLanguage(),
-//DIScope
- CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
-      //CU->dump();
-      DIArray GVs = CU.getGlobalVariables();
-      for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-        DIGlobalVariable DIG(GVs.getElement(i));
-        printf("[%s:%d]globalvar\n", __FUNCTION__, __LINE__);
-        DIG.dump();
-        //DIG.getType().dump();
-#if 1
-    DIType DT = DIType(DIG.getType());
-    if (DT.getTag() == dwarf::DW_TAG_subroutine_type)
-       continue;
-    fprintf(stderr, "[%s:%d] Type:", __FUNCTION__, __LINE__);
-    fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
-    StringRef Res = DT.getName();
-    if (!Res.empty())
-      errs() << " [" << Res << "]";
-    errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits()
-       << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
-    if (DT.isBasicType())
-      if (const char *Enc =
-              dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
-        errs() << ", enc " << Enc;
-    errs() << "]";
-    if (DT.isPrivate()) errs() << " [private]";
-    else if (DT.isProtected()) errs() << " [protected]";
-    if (DT.isArtificial()) errs() << " [artificial]";
-    if (DT.isForwardDecl()) errs() << " [decl]";
-    else if (DT.getTag() == dwarf::DW_TAG_structure_type ||
-             DT.getTag() == dwarf::DW_TAG_union_type ||
-             DT.getTag() == dwarf::DW_TAG_enumeration_type ||
-             DT.getTag() == dwarf::DW_TAG_class_type)
-      errs() << " [def]";
-    if (DT.isVector()) errs() << " [vector]";
-    if (DT.isStaticMember()) errs() << " [static]";
-    if (DT.isDerivedType()) {
-       errs() << " [from ";
-       errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
-       errs() << ']';
-    }
-    fprintf(stderr, "\n");
-    if (DT.getTag() == dwarf::DW_TAG_structure_type) {
-DICompositeType CTy = DICompositeType(DT);
- StringRef Name = CTy.getName();
-    DIArray Elements = CTy.getTypeArray();
-    for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
-      DIDescriptor Element = Elements.getElement(i);
-fprintf(stderr, "struct elt:");
-Element.dump();
-    }
-    }
-#endif
-      }
-      DIArray SPs = CU.getSubprograms();
-      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-        // dump methods
-        //printf("[%s:%d]methods\n", __FUNCTION__, __LINE__);
-        //SPs.getElement(i)->dump();
-        //processSubprogram(DISubprogram(SPs.getElement(i)));
-      }
-      DIArray EnumTypes = CU.getEnumTypes();
-      for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
-        printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
-        DIType(EnumTypes.getElement(i)).dump();
-        //processType(DIType(EnumTypes.getElement(i)));
-      }
-      DIArray RetainedTypes = CU.getRetainedTypes();
-      for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
-        printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
-        DIType(RetainedTypes.getElement(i)).dump();
-        //processType(DIType(RetainedTypes.getElement(i)));
-      }
-      DIArray Imports = CU.getImportedEntities();
-      for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
-        DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
-        DIDescriptor Entity = Import.getEntity();
-        if (Entity.isType()) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          DIType(Entity)->dump();
-          //processType(DIType(Entity));
-        }
-        else if (Entity.isSubprogram()) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          DISubprogram(Entity)->dump();
-          //processSubprogram(DISubprogram(Entity));
-        }
-        else if (Entity.isNameSpace()) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          DINameSpace(Entity).getContext()->dump();
-          //processScope(DINameSpace(Entity).getContext());
-        }
-      }
-     }
-  }
+  dump_metadata(Mod);
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
