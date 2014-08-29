@@ -39,9 +39,13 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Assembly/Parser.h"
 
 int dump_interpret;// = 1;
 
@@ -862,13 +866,24 @@ void generate_verilog(Module *Mod)
   }
 }
 
+static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename, File)) {
+    Err = SMDiagnostic(Filename, SourceMgr::DK_Error, "Could not open input file: " + ec.message());
+    return 0;
+  }
+  Module *M = new Module(Filename, Context);
+  M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+  return ParseAssembly(File.take(), M, Err, Context);
+}
 static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
 {
   SMDiagnostic Err;
   printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
-  Module* Result = ParseIRFile(FN, Err, Context);
+  Module* Result = llvm_ParseIRFile(FN, Err, Context);
   if (!Result)
       Err.print(argv0, errs());
+printf("[%s:%d] get %x DEB %x\n", __FUNCTION__, __LINE__, getDebugMetadataVersionFromModule(*Result), DEBUG_METADATA_VERSION);
   return Result;
 }
 
@@ -889,7 +904,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
-  // Load the bitcode...
+  // load the bitcode...
   Module *Mod = LoadFile(argv[0], InputFile[0], Context);
   if (!Mod) {
     errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
@@ -912,8 +927,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       exit(1);
     }
 
+#if 0
+printf("[%s:%d] before createDebugIRPass\n", __FUNCTION__, __LINE__);
   ModulePass *DebugIRPass = createDebugIRPass();
   DebugIRPass->runOnModule(*Mod);
+printf("[%s:%d] after createDebugIRPass\n", __FUNCTION__, __LINE__);
+#endif
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -944,10 +963,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
   }
 
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  // Load any additional modules specified on the command line.
+  // load any additional modules specified on the command line.
   for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
-    Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
+    Module *XMod = llvm_ParseIRFile(ExtraModules[i], Err, Context);
     if (!XMod) {
       Err.print(argv[0], errs());
       return 1;
@@ -959,7 +977,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Add the module's name to the start of the vector of arguments to main().
   std::vector<std::string> InputArgv;
   InputArgv.insert(InputArgv.begin(), InputFile[0]);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   // Call the main function from M as if its signature were:
   //   int main (int argc, char **argv, const char **envp)
@@ -972,7 +989,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 goto debug_label;
     return -1;
   }
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Run static constructors.
   EE->runStaticConstructorsDestructors(false);
 
@@ -988,18 +1004,34 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   // Run main.
   Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+#if 0
+{
+#include "xx.names"
+const char **p = names;
+names[0] = "fooglobal";
+while(*p) {
+  //Function *foo = Mod->getFunction(*p);
+  GlobalValue *gv = Mod->getNamedValue(*p);
+  GenericValue *foo = (GenericValue *)EE->getPointerToGlobal(gv);
+  MDNode *mdmain = MDNode::getIfExists(Context, gv);
+  printf("[%s:%d] mdmain name (%s %p:%p) = %p\n", __FUNCTION__, __LINE__, *p, gv, foo, mdmain);
+  p++;
+}
+}
+#endif
 
   //generate_verilog(Mod);
 
 debug_label:;
-#if 1
+#if 0
 {
   DebugInfoFinder Finder;
   Finder.processModule(*Mod);
   for (DebugInfoFinder::iterator I = Finder.compile_unit_begin(),
        E = Finder.compile_unit_end(); I != E; ++I) {
-fprintf(stderr, "[%s:%d] Compileunit:", __FUNCTION__, __LINE__);
-    DICompileUnit(*I).dump();
+//DW_TAG_compile_unit
+//fprintf(stderr, "[%s:%d] Compileunit:", __FUNCTION__, __LINE__);
+    //DICompileUnit(*I).dump();
   }
   for (DebugInfoFinder::iterator I = Finder.subprogram_begin(),
        E = Finder.subprogram_end(); I != E; ++I) {
@@ -1017,7 +1049,6 @@ fprintf(stderr, "[%s:%d] GlobalVar:", __FUNCTION__, __LINE__);
     if (DT.getTag() == dwarf::DW_TAG_subroutine_type)
        continue;
     fprintf(stderr, "[%s:%d] Type:", __FUNCTION__, __LINE__);
-    //DT.dump();
     fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
     StringRef Res = DT.getName();
     if (!Res.empty())
@@ -1029,31 +1060,94 @@ fprintf(stderr, "[%s:%d] GlobalVar:", __FUNCTION__, __LINE__);
               dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
         errs() << ", enc " << Enc;
     errs() << "]";
-    if (DT.isPrivate())
-      errs() << " [private]";
-    else if (DT.isProtected())
-      errs() << " [protected]";
-    if (DT.isArtificial())
-      errs() << " [artificial]";
-    if (DT.isForwardDecl())
-      errs() << " [decl]";
+    if (DT.isPrivate()) errs() << " [private]";
+    else if (DT.isProtected()) errs() << " [protected]";
+    if (DT.isArtificial()) errs() << " [artificial]";
+    if (DT.isForwardDecl()) errs() << " [decl]";
     else if (DT.getTag() == dwarf::DW_TAG_structure_type ||
              DT.getTag() == dwarf::DW_TAG_union_type ||
              DT.getTag() == dwarf::DW_TAG_enumeration_type ||
              DT.getTag() == dwarf::DW_TAG_class_type)
       errs() << " [def]";
-    if (DT.isVector())
-      errs() << " [vector]";
-    if (DT.isStaticMember())
-      errs() << " [static]";
+    if (DT.isVector()) errs() << " [vector]";
+    if (DT.isStaticMember()) errs() << " [static]";
     if (DT.isDerivedType()) {
        errs() << " [from ";
        errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
        errs() << ']';
     }
     fprintf(stderr, "\n");
+    if (DT.getTag() == dwarf::DW_TAG_structure_type) {
+DICompositeType CTy = DICompositeType(DT);
+ StringRef Name = CTy.getName();
+    DIArray Elements = CTy.getTypeArray();
+    for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
+      DIDescriptor Element = Elements.getElement(i);
+fprintf(stderr, "struct elt:");
+Element.dump();
+    }
+    }
   }
 }
+#endif
+#if 1
+{
+  if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
+printf("[%s:%d] before generateDI\n", __FUNCTION__, __LINE__);
+  DITypeIdentifierMap TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
+    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+      DICompileUnit CU(CU_Nodes->getOperand(i));
+      //addCompileUnit(CU);
+printf("[%s:%d] add compileunit\n", __FUNCTION__, __LINE__);
+      DIArray GVs = CU.getGlobalVariables();
+      for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+        DIGlobalVariable DIG(GVs.getElement(i));
+printf("[%s:%d]globalvar\n", __FUNCTION__, __LINE__);
+DIG.dump();
+DIG.getType().dump();
+      }
+      DIArray SPs = CU.getSubprograms();
+      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+// dump methods
+//printf("[%s:%d]methods %s\n", __FUNCTION__, __LINE__, SPs.getElement(i)->getName().str().c_str());
+//SPs.getElement(i)->dump();
+        //processSubprogram(DISubprogram(SPs.getElement(i)));
+      }
+      DIArray EnumTypes = CU.getEnumTypes();
+      for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
+printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
+DIType(EnumTypes.getElement(i)).dump();
+        //processType(DIType(EnumTypes.getElement(i)));
+      }
+      DIArray RetainedTypes = CU.getRetainedTypes();
+      for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
+printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
+DIType(RetainedTypes.getElement(i)).dump();
+        //processType(DIType(RetainedTypes.getElement(i)));
+      }
+      DIArray Imports = CU.getImportedEntities();
+      for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
+        DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
+        DIDescriptor Entity = Import.getEntity();
+        if (Entity.isType()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DIType(Entity)->dump();
+          //processType(DIType(Entity));
+        }
+        else if (Entity.isSubprogram()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DISubprogram(Entity)->dump();
+          //processSubprogram(DISubprogram(Entity));
+        }
+        else if (Entity.isNameSpace()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+DINameSpace(Entity).getContext()->dump();
+          //processScope(DINameSpace(Entity).getContext());
+        }
+      }
+     }
+   }
+ }
 #endif
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
