@@ -323,8 +323,10 @@ static const char *getparam(int arg)
 {
    char temp[MAX_CHAR_BUFFER];
    temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[getLocalSlot((const Value *)operand_list[arg].value)].name;
+   if (operand_list[arg].type == OpTypeLocalRef) {
+       int slotindex = getLocalSlot((const Value *)operand_list[arg].value);
+       sprintf(temp, "%llx=[%d.] %p=%s", (long long)operand_list[arg].value, slotindex, slotarray[slotindex].name, slotarray[slotindex].name);
+   }
    else if (operand_list[arg].type == OpTypeExternalFunction)
        return (const char *)operand_list[arg].value;
    else if (operand_list[arg].type == OpTypeInt)
@@ -486,11 +488,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           return;  // ignore for now
       break;
   };
+#if 0
   for (int i = 0; i < operand_list_index; i++) {
       if (operand_list[i].type == OpTypeLocalRef
        &&  slotarray[getLocalSlot((const Value *)operand_list[i].value)].ignore_debug_info)
           return; // ignore all instructions that touch 'debug-only' memory
   }
+#endif
   printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
@@ -549,12 +553,19 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (operand_list[1].type == OpTypeLocalRef)
           ret = slotarray[getLocalSlot((const Value *)operand_list[1].value)].name;
       if (operand_list[0].type == OpTypeLocalRef && ret)
-          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = strdup(ret);
+          slotarray[getLocalSlot((const Value *)operand_list[0].value)].name = ret;
       }
       break;
   case Instruction::Store:
+      {
       printf("XLAT:         Store");
       sprintf(vout, "%s = %s;", getparam(2), getparam(1));
+      const char *ret = NULL;
+      if (operand_list[2].type == OpTypeLocalRef)
+          ret = slotarray[getLocalSlot((const Value *)operand_list[2].value)].name;
+      if (operand_list[1].type == OpTypeLocalRef && ret)
+          slotarray[getLocalSlot((const Value *)operand_list[1].value)].name = ret;
+      }
       break;
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
@@ -627,6 +638,17 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
   //case Instruction::Select:
   case Instruction::Call:
       printf("XLAT:          Call");
+      if (operand_list[1].type == OpTypeLocalRef) {
+          uint64_t ***t = (uint64_t ***)operand_list[1].value;
+          printf ("[op %p %p %p]", t, *t, **t);
+          const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
+printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+          g = EE->getGlobalValueAtAddress(*t-2);
+printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+          g = EE->getGlobalValueAtAddress(**t-2);
+printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+      }
+//jca
       break;
   //case Instruction::Shl:
   //case Instruction::LShr:
@@ -792,7 +814,7 @@ int arr_size = 0;
        Function *f = (Function *)(vtab[i]);
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
-       printf("[%s:%d] [%d] p %p: %s\n", __FUNCTION__, __LINE__, i, vtab[i], globalName);
+       printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, globalThis);
        if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
                fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
