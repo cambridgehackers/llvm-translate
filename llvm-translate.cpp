@@ -627,25 +627,21 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       {
       printf("XLAT: GetElementPtr");
       const char *ret = NULL;
+      char temp[MAX_CHAR_BUFFER];
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
-        char temp[MAX_CHAR_BUFFER];
         const char *cp = slotarray[operand_list[1].value].name;
-printf(" name %s;", cp);
+//printf(" name %s;", cp);
         if (!strcmp(cp, "this")) {
           uint64_t **val = globalThis[1+operand_list[3].value];
           const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
-printf("[%s:%d] glo %p g %p gcn %s;", __FUNCTION__, __LINE__, globalThis, g, globalClassName);
+printf("GGglo %p g %p gcn %s;", globalThis, g, globalClassName);
           if (g)
               ret = g->getName().str().c_str();
-          else {
-              sprintf(temp, "%s_%lld", globalClassName, (long long)operand_list[3].value);
-              ret = temp;
-          }
+          cp = globalClassName;
         }
-        else {
-          char temp[MAX_CHAR_BUFFER];
+        if (!ret) {
           sprintf(temp, "%s_%lld", cp, (long long)operand_list[3].value);
-          ret = strdup(temp);
+          ret = temp;
         }
       }
       if (operand_list[0].type == OpTypeLocalRef && ret)
@@ -888,19 +884,17 @@ int arr_size = 0;
        const char *cend = globalName + (strlen(globalName)-4);
        printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, globalThis);
        int rettype = f->getReturnType()->getTypeID(); 
-       if (rettype != Type::IntegerTyID && rettype != Type::VoidTyID) {
-           printf("RETTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT=%d\n", rettype);
-       }
-       else if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
+       if ((rettype == Type::IntegerTyID || rettype == Type::VoidTyID)
+        && strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
                processFunction(f);
                printf("FULL:\n");
                f->dump();
                printf("\n");
-if (trace_break_name && !strcmp(globalName, trace_break_name)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
+               if (trace_break_name && !strcmp(globalName, trace_break_name)) {
+                   printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                   exit(1);
+               }
            }
        }
     }
