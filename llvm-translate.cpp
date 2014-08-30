@@ -49,7 +49,7 @@
 
 static int dump_interpret;// = 1;
 static int output_stdout = 1;
-static const char *trace_break_name = "_ZN4Echo7respond5guardEv";
+static const char *trace_break_name;// = "_ZN4Echo7respond5guardEv";
 
 using namespace llvm;
 
@@ -350,6 +350,48 @@ static void print_header()
         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
     already_printed_header = 1;
 }
+static const char *opstr(unsigned opcode)
+{
+    switch (opcode) {
+    case Instruction::Add:
+    case Instruction::FAdd: return "+";
+    case Instruction::Sub:
+    case Instruction::FSub: return "-";
+    case Instruction::Mul:
+    case Instruction::FMul: return "*";
+    case Instruction::UDiv:
+    case Instruction::SDiv:
+    case Instruction::FDiv: return "/";
+    case Instruction::URem:
+    case Instruction::SRem:
+    case Instruction::FRem: return "%";
+    case Instruction::And:  return "&";
+    case Instruction::Or:   return "|";
+    case Instruction::Xor:  return "^";
+    }
+    return NULL;
+}
+static const char *opstr_print(unsigned opcode)
+{
+    switch (opcode) {
+    case Instruction::Add:
+    case Instruction::FAdd: return "Add";
+    case Instruction::Sub:
+    case Instruction::FSub: return "Sub";
+    case Instruction::Mul:
+    case Instruction::FMul: return "Mul";
+    case Instruction::UDiv:
+    case Instruction::SDiv:
+    case Instruction::FDiv: return "Div";
+    case Instruction::URem:
+    case Instruction::SRem:
+    case Instruction::FRem: return "Rem";
+    case Instruction::And:  return "And";
+    case Instruction::Or:   return "Or";
+    case Instruction::Xor:  return "Xor";
+    }
+    return NULL;
+}
 
 // This member is called for each Instruction in a function..
 void printInstruction(const Instruction &I) 
@@ -435,13 +477,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
     Operand = CI->getCalledValue();
-    PointerType *PTy = cast<PointerType>(Operand->getType());
-    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    Type *RetTy = FTy->getReturnType();
-    if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
-      RetTy->dump();
-    }
+    //PointerType *PTy = cast<PointerType>(Operand->getType());
+    //FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+    //Type *RetTy = FTy->getReturnType();
+    //if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
+//printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
+      //RetTy->dump();
+    //}
     writeOperand(Operand);
     for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
       ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
@@ -516,7 +558,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::Ret:
       {
       printf("XLAT:           Ret");
-printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->getTypeID());
+      printf(" ret=%d/%d;", globalFunction->getReturnType()->getTypeID(), operand_list_index);
       if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
@@ -524,7 +566,9 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->
       }
       }
       break;
-  //case Instruction::Br:
+  case Instruction::Br:
+      printf("XLAT:            Br");
+      break;
   //case Instruction::Switch:
   //case Instruction::IndirectBr:
   //case Instruction::Invoke:
@@ -535,28 +579,28 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->
 
   // Standard binary operators...
   case Instruction::Add:
-  //case Instruction::FAdd:
-  //case Instruction::Sub:
-  //case Instruction::FSub:
-  //case Instruction::Mul:
-  //case Instruction::FMul:
-  //case Instruction::UDiv:
-  //case Instruction::SDiv:
-  //case Instruction::FDiv:
-  //case Instruction::URem:
-  //case Instruction::SRem:
-  //case Instruction::FRem:
+  case Instruction::FAdd:
+  case Instruction::Sub:
+  case Instruction::FSub:
+  case Instruction::Mul:
+  case Instruction::FMul:
+  case Instruction::UDiv:
+  case Instruction::SDiv:
+  case Instruction::FDiv:
+  case Instruction::URem:
+  case Instruction::SRem:
+  case Instruction::FRem:
 
   // Logical operators...
-  //case Instruction::And:
-  //case Instruction::Or:
-  //case Instruction::Xor:
+  case Instruction::And:
+  case Instruction::Or:
+  case Instruction::Xor:
       {
-      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = "+";
+      const char *op1 = getparam(1), *op2 = getparam(2);
       char temp[MAX_CHAR_BUFFER];
       temp[0] = 0;
-      printf("XLAT:           Add");
-      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
+      printf("XLAT:%14s", opstr_print(opcode));
+      sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
       if (operand_list[0].type == OpTypeLocalRef)
           slotarray[operand_list[0].value].name = strdup(temp);
       }
@@ -573,8 +617,8 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->
       printf("XLAT:         Store");
       if (operand_list[2].type != OpTypeLocalRef || !slotarray[operand_list[2].value].ignore_debug_info)
           sprintf(vout, "%s = %s;", getparam(2), getparam(1));
-      if (operand_list[1].type == OpTypeLocalRef && operand_list[2].type == OpTypeLocalRef)
-          slotarray[operand_list[1].value] = slotarray[operand_list[2].value];
+      if (operand_list[2].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+          slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
@@ -586,11 +630,11 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, globalFunction->getReturnType()->
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
         char temp[MAX_CHAR_BUFFER];
         const char *cp = slotarray[operand_list[1].value].name;
-printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, cp);
+printf(" name %s;", cp);
         if (!strcmp(cp, "this")) {
           uint64_t **val = globalThis[1+operand_list[3].value];
           const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
-printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, globalClassName);
+printf("[%s:%d] glo %p g %p gcn %s;", __FUNCTION__, __LINE__, globalThis, g, globalClassName);
           if (g)
               ret = g->getName().str().c_str();
           else {
@@ -610,9 +654,15 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
       break;
 
   // Convert instructions...
-  //case Instruction::Trunc:
+  case Instruction::Trunc:
+      printf("XLAT:         Trunc");
+      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      break;
   case Instruction::ZExt:
       printf("XLAT:          Zext");
+      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::SExt:
   //case Instruction::FPTrunc:
@@ -645,7 +695,9 @@ printf("[%s:%d] glo %p g %p gcn %s\n", __FUNCTION__, __LINE__, globalThis, g, gl
       }
       break;
   //case Instruction::FCmp:
-  //case Instruction::PHI:
+  case Instruction::PHI:
+      printf("XLAT:           PHI");
+      break;
   //case Instruction::Select:
   case Instruction::Call:
       printf("XLAT:          Call");
@@ -835,13 +887,17 @@ int arr_size = 0;
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
        printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, globalThis);
-       if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
+       int rettype = f->getReturnType()->getTypeID(); 
+       if (rettype != Type::IntegerTyID && rettype != Type::VoidTyID) {
+           printf("RETTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT=%d\n", rettype);
+       }
+       else if (strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
                processFunction(f);
                printf("FULL:\n");
                f->dump();
                printf("\n");
-if (!strcmp(globalName, trace_break_name)) {
+if (trace_break_name && !strcmp(globalName, trace_break_name)) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 exit(1);
 }
