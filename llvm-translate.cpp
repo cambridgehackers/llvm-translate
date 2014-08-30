@@ -1326,12 +1326,14 @@ bool PartialInliner::runOnModule(Module& M)
 {
   std::vector<Function*> worklist;
   worklist.reserve(M.size());
-  for (Module::iterator FI = M.begin(), FE = M.end(); FI != FE; ++FI)
+  for (Module::iterator FI = M.begin(), FE = M.end(); FI != FE; ++FI) {
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, FI->getName().str().c_str());
     if (!FI->use_empty() && !FI->isDeclaration())
       worklist.push_back(&*FI); 
+  }
   bool changed = false;
   while (!worklist.empty()) {
-printf("[%s:%d] process worklist\n", __FUNCTION__, __LINE__);
+//printf("[%s:%d] process worklist\n", __FUNCTION__, __LINE__);
     Function* currFunc = worklist.back();
     worklist.pop_back();
     if (currFunc->use_empty()) continue;
@@ -1391,7 +1393,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
       printf("%s: bitcode didn't read correctly.\n", argv[0]);
       printf("Reason: %s\n", ErrorMsg.c_str());
-      exit(1);
+      return 1;
     }
 
   //ModulePass *DebugIRPass = createDebugIRPass();
