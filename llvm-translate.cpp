@@ -750,110 +750,11 @@ printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
   }
 }
 
-void printBasicBlock(const BasicBlock *BB)
-{
-  if (BB->hasName()) {              // Print out the label if it exists...
-    //PrintLLVMName(BB->getName(), LabelPrefix);
-  } else if (!BB->use_empty()) {      // Don't print block # of no uses...
-    //printf("\n); <label>:";
-    //int Slot = Machine.getLocalSlot(BB);
-    //if (Slot != -1)
-      //printf(Slot);
-    //else
-      //printf("<badref>");
-  }
-  if (BB->getParent() == 0) {
-    printf("); Error: Block without parent!");
-  } else if (BB != &BB->getParent()->getEntryBlock()) {  // Not the entry block?
-#if 0
-    const_pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
-    if (PI == PE) {
-    } else {
-      writeOperand(*PI);
-      for (++PI; PI != PE; ++PI) {
-        writeOperand(*PI);
-      }
-    }
-#endif
-  }
-  for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
-    printInstruction(*I);
-  }
-}
-
 static void processFunction(Function *F)
 {
   globalFunction = F;
   already_printed_header = 0;
-  //if (F->isMaterializable())
-    //printf("); Materializable\n";
-  const AttributeSet &Attrs = F->getAttributes();
-  if (Attrs.hasAttributes(AttributeSet::FunctionIndex)) {
-    AttributeSet AS = Attrs.getFnAttributes();
-    std::string AttrStr;
-    unsigned Idx = 0;
-    for (unsigned E = AS.getNumSlots(); Idx != E; ++Idx)
-      if (AS.getSlotIndex(Idx) == AttributeSet::FunctionIndex)
-        break;
-    for (AttributeSet::iterator I = AS.begin(Idx), E = AS.end(Idx); I != E; ++I) {
-      Attribute Attr = *I;
-      if (!Attr.isStringAttribute()) {
-        if (!AttrStr.empty()) AttrStr += ' ';
-        AttrStr += Attr.getAsString();
-      }
-    }
-    //if (!AttrStr.empty())
-      //printf("); Function Attrs: " << AttrStr << '\n';
-  }
-  //if (F->isDeclaration()) printf("declare "); else printf("define ");
-  //PrintLinkage(F->getLinkage());
-  //PrintVisibility(F->getVisibility());
-  // Print the calling convention.
-  if (F->getCallingConv() != CallingConv::C) {
-    //PrintCallingConv(F->getCallingConv());
-  }
   FunctionType *FT = F->getFunctionType();
-  //if (Attrs.hasAttributes(AttributeSet::ReturnIndex))
-    //printf( Attrs.getAsString(AttributeSet::ReturnIndex) << ' ');
-  //WriteAsOperandInternal(F, &TypePrinter, &Machine, F->getParent());
-  //Machine.incorporateFunction(F);
-  // Loop over the arguments, printing them...
-  unsigned Idx = 1;
-  if (!F->isDeclaration()) {
-    // If this isn't a declaration, print the argument names as well.
-    for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-      //TypePrinter.print(I->getType());
-      //printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      //I->getType()->dump();
-      //if (Attrs.hasAttributes(Idx))
-        //Attrs.getAsString(Idx);
-      //if (I->hasName()) {
-        //PrintLLVMName(I);
-      //}
-      Idx++;
-    }
-  } else {
-    // Otherwise, print the types from the function type.
-    for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
-      //TypePrinter.print(FT->getParamType(i));
-//printf("[%s:%d] dumptype\n", __FUNCTION__, __LINE__);
-      //FT->getParamType(i)->dump();
-      //if (Attrs.hasAttributes(i+1))
-        //printf(' ' << Attrs.getAsString(i+1));
-    }
-  }
-  // Finish printing arguments...
-  if (FT->isVarArg()) {
-  }
-  //if (F->hasUnnamedAddr()) printf(" unnamed_addr");
-  //if (Attrs.hasAttributes(AttributeSet::FunctionIndex)) //printf(" #" << Machine.getAttributeGroupSlot(Attrs.getFnAttributes()));
-  //if (F->hasSection()) { //PrintEscapedString(F->getSection()); }
-  if (F->hasPrefixData()) {
-    printf(" prefix ");
-    writeOperand(F->getPrefixData());
-  }
-
-  //if (F->getReturnType()->getTypeID() == Type::IntegerTyID)
   int updateFlag = strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv");
   char temp[MAX_CHAR_BUFFER];
   strcpy(temp, globalName);
@@ -865,7 +766,9 @@ static void processFunction(Function *F)
   if (!F->isDeclaration()) {
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
       optimize_block_item->runOnBasicBlock(*I);
-      printBasicBlock(I);
+      for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins) {
+        printInstruction(*ins);
+      }
     }
   }
   clearLocalSlot();
