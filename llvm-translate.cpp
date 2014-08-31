@@ -220,16 +220,25 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
                    DenseSet<ValuePair> &LoadMoveSetPairs); 
   void moveUsesOfIAfterJ(BasicBlock &BB, DenseSet<ValuePair> &LoadMoveSetPairs, Instruction *&InsertionPt, Instruction *I, Instruction *J); 
   void combineMetadata(Instruction *K, const Instruction *J); 
-  bool vectorizeBB(BasicBlock &BB) {
+  virtual bool runOnBasicBlock(BasicBlock &BB)
+#if 0
+  {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //AA = &getAnalysis<AliasAnalysis>(); //DT = &getAnalysis<DominatorTree>();
+    //SE = &getAnalysis<ScalarEvolution>(); //TD = getAnalysisIfAvailable<DataLayout>();
+    //TTI = IgnoreTargetInfo ? 0 : &getAnalysis<TargetTransformInfo>(); 
+    return vectorizeBB(BB);
+  } 
+  bool vectorizeBB(BasicBlock &BB) 
+#endif
+  {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #undef DEBUG
 #define DEBUG(A) A
-    DEBUG(if (TTI) dbgs() << "BBV: using target information\n");
-
+    DEBUG(if (TTI) dbgs() << "BBV: using target information\n"); 
     bool changed = false;
     // Iterate a sufficient number of times to merge types of size 1 bit,
-    // then 2 bits, then 4, etc. up to half of the target vector width of the
-    // target vector register.
+    // then 2 bits, then 4, etc. up to half of the target vector width of the // target vector register.
     unsigned n = 1;
     for (unsigned v = 2; (TTI || v <= Config.VectorBits) && (!Config.MaxIter || n <= Config.MaxIter); v *= 2, ++n) {
       DEBUG(dbgs() << "BBV: fusing loop #" << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
@@ -237,8 +246,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         changed = true;
       else
         break;
-    }
-
+    } 
     if (changed ) {
       ++n;
       for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
@@ -249,20 +257,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     DEBUG(dbgs() << "BBV: done!\n");
     return changed;
   } 
-  virtual bool runOnBasicBlock(BasicBlock &BB)
-  {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //AA = &getAnalysis<AliasAnalysis>(); //DT = &getAnalysis<DominatorTree>();
-    //SE = &getAnalysis<ScalarEvolution>(); //TD = getAnalysisIfAvailable<DataLayout>();
-    //TTI = IgnoreTargetInfo ? 0 : &getAnalysis<TargetTransformInfo>(); 
-    return vectorizeBB(BB);
-  } 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const
   {
     BasicBlockPass::getAnalysisUsage(AU);
-    //AU.addRequired<AliasAnalysis>(); //AU.addRequired<DominatorTree>();
-    //AU.addRequired<ScalarEvolution>(); //AU.addRequired<TargetTransformInfo>();
-    //AU.addPreserved<AliasAnalysis>(); //AU.addPreserved<DominatorTree>(); //AU.addPreserved<ScalarEvolution>();
     AU.setPreservesCFG();
   }
 
@@ -326,13 +323,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // while still tracking dependency chains that flow through those
     // instructions.
     if (isa<InsertElementInst>(V) || isa<ExtractElementInst>(V))
-      return 0;
-
+      return 0; 
     // Give a load or store half of the required depth so that load/store
     // pairs will vectorize.
     if (!Config.NoMemOpBoost && (isa<LoadInst>(V) || isa<StoreInst>(V)))
-      return Config.ReqChainDepth/2;
-
+      return Config.ReqChainDepth/2; 
     return 1;
   }
 
@@ -343,8 +338,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     default: break;
     case Instruction::GetElementPtr:
       // We mark this instruction as zero-cost because scalar GEPs are usually
-      // lowered to the instruction addressing mode. At the moment we don't
-      // generate vector GEPs.
+      // lowered to the instruction addressing mode. At the moment we don't // generate vector GEPs.
       return 0;
     case Instruction::Br:
       return TTI->getCFInstrCost(Opcode);
@@ -363,19 +357,16 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     case Instruction::SIToFP: case Instruction::UIToFP: case Instruction::Trunc:
     case Instruction::FPTrunc: case Instruction::BitCast: case Instruction::ShuffleVector:
       return TTI->getCastInstrCost(Opcode, T1, T2);
-    }
-
+    } 
     return 1;
   }
 
   // This determines the relative offset of two loads or stores, returning
   // true if the offset could be determined to be some constant value.
   // For example, if OffsetInElmts == 1, then J accesses the memory directly
-  // after I; if OffsetInElmts == -1 then I accesses the memory
-  // directly after J.
+  // after I; if OffsetInElmts == -1 then I accesses the memory // directly after J.
   bool getPairPtrInfo(Instruction *I, Instruction *J,
-      Value *&IPtr, Value *&JPtr, unsigned &IAlignment, unsigned &JAlignment,
-      unsigned &IAddressSpace, unsigned &JAddressSpace,
+      Value *&IPtr, Value *&JPtr, unsigned &IAlignment, unsigned &JAlignment, unsigned &IAddressSpace, unsigned &JAddressSpace,
       int64_t &OffsetInElmts, bool ComputeOffset = true) {
     OffsetInElmts = 0;
     if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
@@ -394,38 +385,30 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       JAlignment = SJ->getAlignment();
       IAddressSpace = SI->getPointerAddressSpace();
       JAddressSpace = SJ->getPointerAddressSpace();
-    }
-
+    } 
     if (!ComputeOffset)
-      return true;
-
+      return true; 
 #if 0
     const SCEV *IPtrSCEV = SE->getSCEV(IPtr);
-    const SCEV *JPtrSCEV = SE->getSCEV(JPtr);
-
+    const SCEV *JPtrSCEV = SE->getSCEV(JPtr); 
     // If this is a trivial offset, then we'll get something like
-    // 1*sizeof(type). With target data, which we need anyway, this will get
-    // constant folded into a number.
+    // 1*sizeof(type). With target data, which we need anyway, this will get // constant folded into a number.
     const SCEV *OffsetSCEV = SE->getMinusSCEV(JPtrSCEV, IPtrSCEV);
     if (const SCEVConstant *ConstOffSCEV = dyn_cast<SCEVConstant>(OffsetSCEV)) {
       ConstantInt *IntOff = ConstOffSCEV->getValue();
-      int64_t Offset = IntOff->getSExtValue();
-
+      int64_t Offset = IntOff->getSExtValue(); 
       Type *VTy = IPtr->getType()->getPointerElementType();
-      int64_t VTyTSS = (int64_t) TD->getTypeStoreSize(VTy);
-
+      int64_t VTyTSS = (int64_t) TD->getTypeStoreSize(VTy); 
       Type *VTy2 = JPtr->getType()->getPointerElementType();
       if (VTy != VTy2 && Offset < 0) {
         int64_t VTy2TSS = (int64_t) TD->getTypeStoreSize(VTy2);
         OffsetInElmts = Offset/VTy2TSS;
         return (abs64(Offset) % VTy2TSS) == 0;
-      }
-
+      } 
       OffsetInElmts = Offset/VTyTSS;
       return (abs64(Offset) % VTyTSS) == 0;
     }
-#endif
-
+#endif 
     return false;
   } 
   // Returns true if the provided CallInst represents an intrinsic that can // be vectorized.
@@ -444,8 +427,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     case Intrinsic::fma: case Intrinsic::fmuladd:
       return Config.VectorizeFMA;
     }
-  }
-
+  } 
   bool isPureIEChain(InsertElementInst *IE) {
     InsertElementInst *IENext = IE;
     do {
@@ -457,8 +439,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 };
 
-// This function implements one vectorization iteration on the provided
-// basic block. It returns true if the block is changed.
+// implements one vectorization iteration on the provided // basic block. It returns true if the block is changed.
 bool BBVectorize::vectorizePairs(BasicBlock &BB, bool NonPow2Len)
 {
   bool ShouldContinue;
