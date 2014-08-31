@@ -138,8 +138,6 @@ void clearLocalSlot(void)
 
 //  ../lib/CodeGen/PeepholeOptimizer.cpp
 #if 1
-#define BBV_NAME "bb-vectorize"
-
 static cl::opt<bool>
 IgnoreTargetInfo("bb-vectorize-ignore-target-info",  cl::init(false),
   cl::Hidden, cl::desc("Ignore target information"));
@@ -281,13 +279,11 @@ namespace {
 
     const VectorizeConfig Config;
 
-    BBVectorize(const VectorizeConfig &C = VectorizeConfig())
-      : BasicBlockPass(ID), Config(C) {
+    BBVectorize(const VectorizeConfig &C = VectorizeConfig()) : BasicBlockPass(ID), Config(C) {
       initializeBBVectorizePass(*PassRegistry::getPassRegistry());
     }
 
-    BBVectorize(Pass *P, const VectorizeConfig &C)
-      : BasicBlockPass(ID), Config(C) {
+    BBVectorize(Pass *P, const VectorizeConfig &C) : BasicBlockPass(ID), Config(C) {
       //AA = &P->getAnalysis<AliasAnalysis>();
       //DT = &P->getAnalysis<DominatorTree>();
       //SE = &P->getAnalysis<ScalarEvolution>();
@@ -321,11 +317,7 @@ namespace {
     // FIXME: The current implementation does not account for pairs that
     // are connected in multiple ways. For example:
     //   C1 = A1 / A2; C2 = A2 / A1 (which may be both direct and a swap)
-    enum PairConnectionType {
-      PairConnectionDirect,
-      PairConnectionSwap,
-      PairConnectionSplat
-    };
+    enum PairConnectionType { PairConnectionDirect, PairConnectionSwap, PairConnectionSplat };
 
     void computeConnectedPairs(
              DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
@@ -479,13 +471,6 @@ namespace {
 
     bool vectorizeBB(BasicBlock &BB) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //if (!DT->isReachableFromEntry(&BB)) {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        //DEBUG(dbgs() << "BBV: skipping unreachable " << BB.getName() <<
-              //" in " << BB.getParent()->getName() << "\n");
-        //return false;
-      //}
-
 #undef DEBUG
 #define DEBUG(A) A
       DEBUG(if (TTI) dbgs() << "BBV: using target information\n");
@@ -495,13 +480,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       // then 2 bits, then 4, etc. up to half of the target vector width of the
       // target vector register.
       unsigned n = 1;
-      for (unsigned v = 2;
-           (TTI || v <= Config.VectorBits) &&
-           (!Config.MaxIter || n <= Config.MaxIter);
-           v *= 2, ++n) {
-        DEBUG(dbgs() << "BBV: fusing loop #" << n <<
-              " for " << BB.getName() << " in " <<
-              BB.getParent()->getName() << "...\n");
+      for (unsigned v = 2; (TTI || v <= Config.VectorBits) && (!Config.MaxIter || n <= Config.MaxIter); v *= 2, ++n) {
+        DEBUG(dbgs() << "BBV: fusing loop #" << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
         if (vectorizePairs(BB))
           changed = true;
         else
@@ -522,7 +502,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return changed;
     }
 
-    virtual bool runOnBasicBlock(BasicBlock &BB) {
+    virtual bool runOnBasicBlock(BasicBlock &BB)
+    {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //AA = &getAnalysis<AliasAnalysis>();
       //DT = &getAnalysis<DominatorTree>();
@@ -533,7 +514,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return vectorizeBB(BB);
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const
+    {
       BasicBlockPass::getAnalysisUsage(AU);
       //AU.addRequired<AliasAnalysis>();
       //AU.addRequired<DominatorTree>();
@@ -545,7 +527,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       AU.setPreservesCFG();
     }
 
-    static inline VectorType *getVecTypeForPair(Type *ElemTy, Type *Elem2Ty) {
+    static inline VectorType *getVecTypeForPair(Type *ElemTy, Type *Elem2Ty)
+    {
       assert(ElemTy->getScalarType() == Elem2Ty->getScalarType() &&
              "Cannot form vector from incompatible scalar types");
       Type *STy = ElemTy->getScalarType();
@@ -566,7 +549,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return VectorType::get(STy, numElem);
     }
 
-    static inline void getInstructionTypes(Instruction *I, Type *&T1, Type *&T2) {
+    static inline void getInstructionTypes(Instruction *I, Type *&T1, Type *&T2)
+    {
       if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
         // For stores, it is the value type, not the pointer type that matters
         // because the value is what will come from a vector register.
@@ -1919,10 +1903,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                 }
 
                 DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" <<
-                  *Q.second.first << " <-> " << *Q.second.second <<
-                    "} -> {" <<
-                  *S->first << " <-> " << *S->second << "} = " <<
-                   ESContrib << "\n");
+                  *Q.second.first << " <-> " << *Q.second.second << "} -> {" <<
+                  *S->first << " <-> " << *S->second << "} = " << ESContrib << "\n");
                 EffSize -= ESContrib;
               }
             }
@@ -1932,8 +1914,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           // to shuffles, inserts or extracts can be merged, and so contribute
           // no additional cost.
           if (!S->first->getType()->isVoidTy()) {
-            Type *Ty1 = S->first->getType(),
-                 *Ty2 = S->second->getType();
+            Type *Ty1 = S->first->getType(), *Ty2 = S->second->getType();
             Type *VTy = getVecTypeForPair(Ty1, Ty2);
 
             bool NeedsExtraction = false;
@@ -1955,16 +1936,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             if (NeedsExtraction) {
               int ESContrib;
               if (Ty1->isVectorTy()) {
-                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
-                                               Ty1, VTy);
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector, Ty1, VTy);
                 ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
                   TargetTransformInfo::SK_ExtractSubvector, VTy, 0, Ty1));
               } else
-                ESContrib = (int) TTI->getVectorInstrCost(
-                                    Instruction::ExtractElement, VTy, 0);
-
-              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" <<
-                *S->first << "} = " << ESContrib << "\n");
+                ESContrib = (int) TTI->getVectorInstrCost( Instruction::ExtractElement, VTy, 0); 
+              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *S->first << "} = " << ESContrib << "\n");
               EffSize -= ESContrib;
             }
 
@@ -2066,46 +2043,32 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               if (IncomingPairs.count(VP)) {
                 continue;
               } else if (IncomingPairs.count(VPR)) {
-                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
-                                               VTy, VTy);
-
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector, VTy, VTy); 
                 if (VTy->getVectorNumElements() == 2)
                   ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
                     TargetTransformInfo::SK_Reverse, VTy));
               } else if (!Ty1->isVectorTy() && !Ty2->isVectorTy()) {
-                ESContrib = (int) TTI->getVectorInstrCost(
-                                    Instruction::InsertElement, VTy, 0);
-                ESContrib += (int) TTI->getVectorInstrCost(
-                                     Instruction::InsertElement, VTy, 1);
+                ESContrib = (int) TTI->getVectorInstrCost( Instruction::InsertElement, VTy, 0);
+                ESContrib += (int) TTI->getVectorInstrCost( Instruction::InsertElement, VTy, 1);
               } else if (!Ty1->isVectorTy()) {
                 // O1 needs to be inserted into a vector of size O2, and then
                 // both need to be shuffled together.
-                ESContrib = (int) TTI->getVectorInstrCost(
-                                    Instruction::InsertElement, Ty2, 0);
-                ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
-                                                VTy, Ty2);
+                ESContrib = (int) TTI->getVectorInstrCost( Instruction::InsertElement, Ty2, 0);
+                ESContrib += (int) getInstrCost(Instruction::ShuffleVector, VTy, Ty2);
               } else if (!Ty2->isVectorTy()) {
                 // O2 needs to be inserted into a vector of size O1, and then
                 // both need to be shuffled together.
-                ESContrib = (int) TTI->getVectorInstrCost(
-                                    Instruction::InsertElement, Ty1, 0);
-                ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
-                                                VTy, Ty1);
+                ESContrib = (int) TTI->getVectorInstrCost( Instruction::InsertElement, Ty1, 0);
+                ESContrib += (int) getInstrCost(Instruction::ShuffleVector, VTy, Ty1);
               } else {
                 Type *TyBig = Ty1, *TySmall = Ty2;
                 if (Ty2->getVectorNumElements() > Ty1->getVectorNumElements())
-                  std::swap(TyBig, TySmall);
-
-                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
-                                               VTy, TyBig);
+                  std::swap(TyBig, TySmall); 
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector, VTy, TyBig);
                 if (TyBig != TySmall)
-                  ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
-                                                  TyBig, TySmall);
-              }
-
-              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {"
-                     << *O1 << " <-> " << *O2 << "} = " <<
-                     ESContrib << "\n");
+                  ESContrib += (int) getInstrCost(Instruction::ShuffleVector, TyBig, TySmall);
+              } 
+              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *O1 << " <-> " << *O2 << "} = " << ESContrib << "\n");
               EffSize -= ESContrib;
               IncomingPairs.insert(VP);
             }
@@ -2113,25 +2076,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         }
 
         if (!HasNontrivialInsts) {
-          DEBUG(if (DebugPairSelection) dbgs() <<
-                "\tNo non-trivial instructions in DAG;"
-                " override to zero effective size\n");
+          DEBUG(if (DebugPairSelection) dbgs() << "\tNo non-trivial instructions in DAG;" " override to zero effective size\n");
           EffSize = 0;
         }
       } else {
-        for (DenseSet<ValuePair>::iterator S = PrunedDAG.begin(),
-             E = PrunedDAG.end(); S != E; ++S)
+        for (DenseSet<ValuePair>::iterator S = PrunedDAG.begin(), E = PrunedDAG.end(); S != E; ++S)
           EffSize += (int) getDepthFactor(S->first);
       }
 
       DEBUG(if (DebugPairSelection)
-             dbgs() << "BBV: found pruned DAG for pair {"
-             << *IJ.first << " <-> " << *IJ.second << "} of depth " <<
-             MaxDepth << " and size " << PrunedDAG.size() <<
-            " (effective size: " << EffSize << ")\n");
-      if (((TTI && !UseChainDepthWithTI) ||
-            MaxDepth >= Config.ReqChainDepth) &&
-          EffSize > 0 && EffSize > BestEffSize) {
+             dbgs() << "BBV: found pruned DAG for pair {" << *IJ.first << " <-> " << *IJ.second << "} of depth " <<
+             MaxDepth << " and size " << PrunedDAG.size() << " (effective size: " << EffSize << ")\n");
+      if (((TTI && !UseChainDepthWithTI) || MaxDepth >= Config.ReqChainDepth) && EffSize > 0 && EffSize > BestEffSize) {
         BestMaxDepth = MaxDepth;
         BestEffSize = EffSize;
         BestDAG = PrunedDAG;
@@ -2193,88 +2149,64 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       // chosen, then this instruction, I, cannot be paired (and is no longer
       // considered).
 
-      DEBUG(dbgs() << "BBV: selected pairs in the best DAG for: "
-                   << *cast<Instruction>(*I) << "\n");
-
-      for (DenseSet<ValuePair>::iterator S = BestDAG.begin(),
-           SE2 = BestDAG.end(); S != SE2; ++S) {
+      DEBUG(dbgs() << "BBV: selected pairs in the best DAG for: " << *cast<Instruction>(*I) << "\n"); 
+      for (DenseSet<ValuePair>::iterator S = BestDAG.begin(), SE2 = BestDAG.end(); S != SE2; ++S) {
         // Insert the members of this dag into the list of chosen pairs.
         ChosenPairs.insert(ValuePair(S->first, S->second));
-        DEBUG(dbgs() << "BBV: selected pair: " << *S->first << " <-> " <<
-               *S->second << "\n");
-
+        DEBUG(dbgs() << "BBV: selected pair: " << *S->first << " <-> " << *S->second << "\n"); 
         // Remove all candidate pairs that have values in the chosen dag.
         std::vector<Value *> &KK = CandidatePairs[S->first];
-        for (std::vector<Value *>::iterator K = KK.begin(), KE = KK.end();
-             K != KE; ++K) {
+        for (std::vector<Value *>::iterator K = KK.begin(), KE = KK.end(); K != KE; ++K) {
           if (*K == S->second)
-            continue;
-
+            continue; 
           CandidatePairsSet.erase(ValuePair(S->first, *K));
-        }
-
+        } 
         std::vector<Value *> &LL = CandidatePairs2[S->second];
-        for (std::vector<Value *>::iterator L = LL.begin(), LE = LL.end();
-             L != LE; ++L) {
+        for (std::vector<Value *>::iterator L = LL.begin(), LE = LL.end(); L != LE; ++L) {
           if (*L == S->first)
-            continue;
-
+            continue; 
           CandidatePairsSet.erase(ValuePair(*L, S->second));
-        }
-
+        } 
         std::vector<Value *> &MM = CandidatePairs[S->second];
-        for (std::vector<Value *>::iterator M = MM.begin(), ME = MM.end();
-             M != ME; ++M) {
+        for (std::vector<Value *>::iterator M = MM.begin(), ME = MM.end(); M != ME; ++M) {
           assert(*M != S->first && "Flipped pair in candidate list?");
           CandidatePairsSet.erase(ValuePair(S->second, *M));
         }
 
         std::vector<Value *> &NN = CandidatePairs2[S->first];
-        for (std::vector<Value *>::iterator N = NN.begin(), NE = NN.end();
-             N != NE; ++N) {
+        for (std::vector<Value *>::iterator N = NN.begin(), NE = NN.end(); N != NE; ++N) {
           assert(*N != S->second && "Flipped pair in candidate list?");
           CandidatePairsSet.erase(ValuePair(*N, S->first));
         }
       }
-    }
-
+    } 
     DEBUG(dbgs() << "BBV: selected " << ChosenPairs.size() << " pairs.\n");
   }
 
-  std::string getReplacementName(Instruction *I, bool IsInput, unsigned o,
-                     unsigned n = 0) {
+  std::string getReplacementName(Instruction *I, bool IsInput, unsigned o, unsigned n = 0) {
     if (!I->hasName())
-      return "";
-
-    return (I->getName() + (IsInput ? ".v.i" : ".v.r") + utostr(o) +
-             (n > 0 ? "." + utostr(n) : "")).str();
+      return ""; 
+    return (I->getName() + (IsInput ? ".v.i" : ".v.r") + utostr(o) + (n > 0 ? "." + utostr(n) : "")).str();
   }
 
   // Returns the value that is to be used as the pointer input to the vector
   // instruction that fuses I with J.
-  Value *BBVectorize::getReplacementPointerInput(LLVMContext& Context,
-                     Instruction *I, Instruction *J, unsigned o) {
+  Value *BBVectorize::getReplacementPointerInput(LLVMContext& Context, Instruction *I, Instruction *J, unsigned o) {
     Value *IPtr, *JPtr;
     unsigned IAlignment, JAlignment, IAddressSpace, JAddressSpace;
     int64_t OffsetInElmts;
 
     // Note: the analysis might fail here, that is why the pair order has
     // been precomputed (OffsetInElmts must be unused here).
-    (void) getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment,
-                          IAddressSpace, JAddressSpace,
-                          OffsetInElmts, false);
-
+    (void) getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment, IAddressSpace, JAddressSpace, OffsetInElmts, false); 
     // The pointer value is taken to be the one with the lowest offset.
     Value *VPtr = IPtr;
 
     Type *ArgTypeI = IPtr->getType()->getPointerElementType();
     Type *ArgTypeJ = JPtr->getType()->getPointerElementType();
     Type *VArgType = getVecTypeForPair(ArgTypeI, ArgTypeJ);
-    Type *VArgPtrType
-      = PointerType::get(VArgType,
-                         IPtr->getType()->getPointerAddressSpace());
-    return new BitCastInst(VPtr, VArgPtrType, getReplacementName(I, true, o),
-                        /* insert before */ I);
+    Type *VArgPtrType = PointerType::get(VArgType, IPtr->getType()->getPointerAddressSpace());
+    return new BitCastInst(VPtr, VArgPtrType, getReplacementName(I, true, o), /* insert before */ I);
   }
 
   void BBVectorize::fillNewShuffleMask(LLVMContext& Context, Instruction *J,
@@ -2289,10 +2221,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       } else {
         unsigned mm = m + (int) IdxOffset;
         if (m >= (int) NumInElem1)
-          mm += (int) NumInElem;
-
-        Mask[v+MaskOffset] =
-          ConstantInt::get(Type::getInt32Ty(Context), mm);
+          mm += (int) NumInElem; 
+        Mask[v+MaskOffset] = ConstantInt::get(Type::getInt32Ty(Context), mm);
       }
     }
   }
@@ -2330,13 +2260,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // in J.
 
     // For the mask from the first pair...
-    fillNewShuffleMask(Context, I, 0,        NumInElemJ, NumInElemI,
-                       0,          Mask);
+    fillNewShuffleMask(Context, I, 0,        NumInElemJ, NumInElemI, 0,          Mask);
 
     // For the mask from the second pair...
-    fillNewShuffleMask(Context, J, NumElemI, NumInElemI, NumInElemJ,
-                       NumInElemI, Mask);
-
+    fillNewShuffleMask(Context, J, NumElemI, NumInElemI, NumInElemJ, NumInElemI, Mask); 
     return ConstantVector::get(Mask);
   }
 
@@ -2354,21 +2281,16 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           UndefValue::get(ArgTypeL->getScalarType()));
         InsertElementInst *LIENext = LIE;
         do {
-          unsigned Idx =
-            cast<ConstantInt>(LIENext->getOperand(2))->getSExtValue();
+          unsigned Idx = cast<ConstantInt>(LIENext->getOperand(2))->getSExtValue();
           VectElemts[Idx] = LIENext->getOperand(1);
-        } while ((LIENext =
-                   dyn_cast<InsertElementInst>(LIENext->getOperand(0))));
-
+        } while ((LIENext = dyn_cast<InsertElementInst>(LIENext->getOperand(0)))); 
         LIENext = 0;
         Value *LIEPrev = UndefValue::get(ArgTypeH);
         for (unsigned i = 0; i < numElemL; ++i) {
           if (isa<UndefValue>(VectElemts[i])) continue;
           LIENext = InsertElementInst::Create(LIEPrev, VectElemts[i],
-                             ConstantInt::get(Type::getInt32Ty(Context),
-                                              i + IdxOff),
-                             getReplacementName(IBeforeJ ? I : J,
-                                                true, o, i+1));
+                             ConstantInt::get(Type::getInt32Ty(Context), i + IdxOff),
+                             getReplacementName(IBeforeJ ? I : J, true, o, i+1));
           LIENext->insertBefore(IBeforeJ ? J : I);
           LIEPrev = LIENext;
         }
@@ -2542,11 +2464,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               Mask[i] = ConstantInt::get(Type::getInt32Ty(Context), Idx);
           }
 
-          Instruction *S =
-            new ShuffleVectorInst(I1, UndefValue::get(I1T),
+          Instruction *S = new ShuffleVectorInst(I1, UndefValue::get(I1T),
                                   ConstantVector::get(Mask),
-                                  getReplacementName(IBeforeJ ? I : J,
-                                                     true, o));
+                                  getReplacementName(IBeforeJ ? I : J, true, o));
           S->insertBefore(IBeforeJ ? J : I);
           return S;
         }
@@ -2566,10 +2486,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             Mask[v] = UndefValue::get(Type::getInt32Ty(Context));
 
           Instruction *NewI1 =
-            new ShuffleVectorInst(I1, UndefValue::get(I1T),
-                                  ConstantVector::get(Mask),
-                                  getReplacementName(IBeforeJ ? I : J,
-                                                     true, o, 1));
+            new ShuffleVectorInst(I1, UndefValue::get(I1T), ConstantVector::get(Mask),
+                                  getReplacementName(IBeforeJ ? I : J, true, o, 1));
           NewI1->insertBefore(IBeforeJ ? J : I);
           I1 = NewI1;
           I1T = I2T;
@@ -2583,10 +2501,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             Mask[v] = UndefValue::get(Type::getInt32Ty(Context));
 
           Instruction *NewI2 =
-            new ShuffleVectorInst(I2, UndefValue::get(I2T),
-                                  ConstantVector::get(Mask),
-                                  getReplacementName(IBeforeJ ? I : J,
-                                                     true, o, 1));
+            new ShuffleVectorInst(I2, UndefValue::get(I2T), ConstantVector::get(Mask),
+                                  getReplacementName(IBeforeJ ? I : J, true, o, 1));
           NewI2->insertBefore(IBeforeJ ? J : I);
           I2 = NewI2;
           I2T = I1T;
@@ -2605,8 +2521,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           }
         }
 
-        Instruction *NewOp =
-          new ShuffleVectorInst(I1, I2, ConstantVector::get(Mask),
+        Instruction *NewOp = new ShuffleVectorInst(I1, I2, ConstantVector::get(Mask),
                                 getReplacementName(IBeforeJ ? I : J, true, o));
         NewOp->insertBefore(IBeforeJ ? J : I);
         return NewOp;
@@ -2641,12 +2556,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     
           NLOp = new ShuffleVectorInst(LOp, UndefValue::get(ArgTypeL),
                                        ConstantVector::get(Mask),
-                                       getReplacementName(IBeforeJ ? I : J,
-                                                          true, o, 1));
+                                       getReplacementName(IBeforeJ ? I : J, true, o, 1));
         } else {
           NLOp = InsertElementInst::Create(UndefValue::get(ArgTypeH), LOp, CV0,
-                                           getReplacementName(IBeforeJ ? I : J,
-                                                              true, o, 1));
+                                           getReplacementName(IBeforeJ ? I : J, true, o, 1));
         }
   
         NLOp->insertBefore(IBeforeJ ? J : I);
@@ -2655,18 +2568,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
       ArgType = ArgTypeH;
     } else if (numElemL > numElemH) {
-      if (numElemH == 1 && expandIEChain(Context, I, J, o, LOp, numElemL,
-                                         ArgTypeH, VArgType, IBeforeJ)) {
-        Instruction *S =
-          InsertElementInst::Create(LOp, HOp, 
-                                    ConstantInt::get(Type::getInt32Ty(Context),
-                                                     numElemL),
-                                    getReplacementName(IBeforeJ ? I : J,
-                                                       true, o));
+      if (numElemH == 1 && expandIEChain(Context, I, J, o, LOp, numElemL, ArgTypeH, VArgType, IBeforeJ)) {
+        Instruction *S = InsertElementInst::Create(LOp, HOp, 
+                                    ConstantInt::get(Type::getInt32Ty(Context), numElemL),
+                                    getReplacementName(IBeforeJ ? I : J, true, o));
         S->insertBefore(IBeforeJ ? J : I);
         return S;
-      } else if (!expandIEChain(Context, I, J, o, HOp, numElemH, ArgTypeH,
-                                ArgTypeL, IBeforeJ)) {
+      } else if (!expandIEChain(Context, I, J, o, HOp, numElemH, ArgTypeH, ArgTypeL, IBeforeJ)) {
         Instruction *NHOp;
         if (numElemH > 1) {
           std::vector<Constant *> Mask(numElemL);
@@ -2676,14 +2584,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           for (; v < numElemL; ++v)
             Mask[v] = UndefValue::get(Type::getInt32Ty(Context));
     
-          NHOp = new ShuffleVectorInst(HOp, UndefValue::get(ArgTypeH),
-                                       ConstantVector::get(Mask),
-                                       getReplacementName(IBeforeJ ? I : J,
-                                                          true, o, 1));
+          NHOp = new ShuffleVectorInst(HOp, UndefValue::get(ArgTypeH), ConstantVector::get(Mask),
+                                       getReplacementName(IBeforeJ ? I : J, true, o, 1));
         } else {
           NHOp = InsertElementInst::Create(UndefValue::get(ArgTypeL), HOp, CV0,
-                                           getReplacementName(IBeforeJ ? I : J,
-                                                              true, o, 1));
+                                           getReplacementName(IBeforeJ ? I : J, true, o, 1));
         }
 
         NHOp->insertBefore(IBeforeJ ? J : I);
@@ -2703,31 +2608,25 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         Mask[v] = ConstantInt::get(Type::getInt32Ty(Context), Idx);
       }
 
-      Instruction *BV = new ShuffleVectorInst(LOp, HOp,
-                          ConstantVector::get(Mask),
+      Instruction *BV = new ShuffleVectorInst(LOp, HOp, ConstantVector::get(Mask),
                           getReplacementName(IBeforeJ ? I : J, true, o));
       BV->insertBefore(IBeforeJ ? J : I);
       return BV;
     }
 
-    Instruction *BV1 = InsertElementInst::Create(
-                                          UndefValue::get(VArgType), LOp, CV0,
-                                          getReplacementName(IBeforeJ ? I : J,
-                                                             true, o, 1));
+    Instruction *BV1 = InsertElementInst::Create( UndefValue::get(VArgType), LOp, CV0,
+                                          getReplacementName(IBeforeJ ? I : J, true, o, 1));
     BV1->insertBefore(IBeforeJ ? J : I);
     Instruction *BV2 = InsertElementInst::Create(BV1, HOp, CV1,
-                                          getReplacementName(IBeforeJ ? I : J,
-                                                             true, o, 2));
+                                          getReplacementName(IBeforeJ ? I : J, true, o, 2));
     BV2->insertBefore(IBeforeJ ? J : I);
     return BV2;
   }
 
   // This function creates an array of values that will be used as the inputs
   // to the vector instruction that fuses I with J.
-  void BBVectorize::getReplacementInputsForPair(LLVMContext& Context,
-                     Instruction *I, Instruction *J,
-                     SmallVectorImpl<Value *> &ReplacedOperands,
-                     bool IBeforeJ) {
+  void BBVectorize::getReplacementInputsForPair(LLVMContext& Context, Instruction *I, Instruction *J,
+                     SmallVectorImpl<Value *> &ReplacedOperands, bool IBeforeJ) {
     unsigned NumOperands = I->getNumOperands();
 
     for (unsigned p = 0, o = NumOperands-1; p < NumOperands; ++p, --o) {
@@ -2761,8 +2660,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       } else if (isa<ShuffleVectorInst>(I) && o == NumOperands-1) {
         ReplacedOperands[o] = getReplacementShuffleMask(Context, I, J);
         continue;
-      }
-
+      } 
       ReplacedOperands[o] = getReplacementInput(Context, I, J, o, IBeforeJ);
     }
   }
@@ -2772,9 +2670,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // or extracts. In many cases, these will end up being unused and, thus,
   // eliminated by later passes.
   void BBVectorize::replaceOutputsOfPair(LLVMContext& Context, Instruction *I,
-                     Instruction *J, Instruction *K,
-                     Instruction *&InsertionPt,
-                     Instruction *&K1, Instruction *&K2) {
+                     Instruction *J, Instruction *K, Instruction *&InsertionPt, Instruction *&K1, Instruction *&K2) {
     if (isa<StoreInst>(I)) {
       //AA->replaceWithNewValue(I, K);
       //AA->replaceWithNewValue(J, K);
@@ -2795,13 +2691,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           Mask2[v] = ConstantInt::get(Type::getInt32Ty(Context), numElemJ+v);
         }
 
-        K1 = new ShuffleVectorInst(K, UndefValue::get(VType),
-                                   ConstantVector::get( Mask1),
+        K1 = new ShuffleVectorInst(K, UndefValue::get(VType), ConstantVector::get( Mask1),
                                    getReplacementName(K, false, 1));
       } else {
         Value *CV0 = ConstantInt::get(Type::getInt32Ty(Context), 0);
-        K1 = ExtractElementInst::Create(K, CV0,
-                                          getReplacementName(K, false, 1));
+        K1 = ExtractElementInst::Create(K, CV0, getReplacementName(K, false, 1));
       }
 
       if (JType->isVectorTy()) {
@@ -2811,13 +2705,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           Mask2[v] = ConstantInt::get(Type::getInt32Ty(Context), numElemI+v);
         }
 
-        K2 = new ShuffleVectorInst(K, UndefValue::get(VType),
-                                   ConstantVector::get( Mask2),
-                                   getReplacementName(K, false, 2));
+        K2 = new ShuffleVectorInst(K, UndefValue::get(VType), ConstantVector::get( Mask2), getReplacementName(K, false, 2));
       } else {
         Value *CV1 = ConstantInt::get(Type::getInt32Ty(Context), numElem-1);
-        K2 = ExtractElementInst::Create(K, CV1,
-                                          getReplacementName(K, false, 2));
+        K2 = ExtractElementInst::Create(K, CV1, getReplacementName(K, false, 2));
       }
 
       K1->insertAfter(K);
@@ -2827,8 +2718,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   // Move all uses of the function I (including pairing-induced uses) after J.
-  bool BBVectorize::canMoveUsesOfIAfterJ(BasicBlock &BB,
-                     DenseSet<ValuePair> &LoadMoveSetPairs,
+  bool BBVectorize::canMoveUsesOfIAfterJ(BasicBlock &BB, DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
     BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
@@ -2848,24 +2738,19 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   // Move all uses of the function I (including pairing-induced uses) after J.
-  void BBVectorize::moveUsesOfIAfterJ(BasicBlock &BB,
-                     DenseSet<ValuePair> &LoadMoveSetPairs,
-                     Instruction *&InsertionPt,
-                     Instruction *I, Instruction *J) {
+  void BBVectorize::moveUsesOfIAfterJ(BasicBlock &BB, DenseSet<ValuePair> &LoadMoveSetPairs,
+                     Instruction *&InsertionPt, Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
-    BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
-
+    BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I)); 
     DenseSet<Value *> Users;
     //AliasSetTracker WriteSet(*AA);
-    //if (I->mayWriteToMemory()) WriteSet.add(I);
-
+    //if (I->mayWriteToMemory()) WriteSet.add(I); 
     for (; cast<Instruction>(L) != J;) {
       //if (trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs)) {
         // Move this instruction
         Instruction *InstToMove = L; ++L;
 
-        DEBUG(dbgs() << "BBV: moving: " << *InstToMove <<
-                        " to after " << *InsertionPt << "\n");
+        DEBUG(dbgs() << "BBV: moving: " << *InstToMove << " to after " << *InsertionPt << "\n");
         InstToMove->removeFromParent();
         InstToMove->insertAfter(InsertionPt);
         InsertionPt = InstToMove;
@@ -2878,11 +2763,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Collect all load instruction that are in the move set of a given first
   // pair member.  These loads depend on the first instruction, I, and so need
   // to be moved after J (the second instruction) when the pair is fused.
-  void BBVectorize::collectPairLoadMoveSet(BasicBlock &BB,
-                     DenseMap<Value *, Value *> &ChosenPairs,
+  void BBVectorize::collectPairLoadMoveSet(BasicBlock &BB, DenseMap<Value *, Value *> &ChosenPairs,
                      DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
-                     DenseSet<ValuePair> &LoadMoveSetPairs,
-                     Instruction *I) {
+                     DenseSet<ValuePair> &LoadMoveSetPairs, Instruction *I) {
     // Skip to the first instruction past I.
     BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
 
@@ -2910,8 +2793,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // relies on finding the same use dags here as were found earlier, we'll
   // need to precompute the necessary aliasing information here and then
   // manually update it during the fusion process.
-  void BBVectorize::collectLoadMoveSet(BasicBlock &BB,
-                     std::vector<Value *> &PairableInsts,
+  void BBVectorize::collectLoadMoveSet(BasicBlock &BB, std::vector<Value *> &PairableInsts,
                      DenseMap<Value *, Value *> &ChosenPairs,
                      DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
                      DenseSet<ValuePair> &LoadMoveSetPairs) {
@@ -2921,8 +2803,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (P == ChosenPairs.end()) continue;
 
       Instruction *I = cast<Instruction>(P->first);
-      collectPairLoadMoveSet(BB, ChosenPairs, LoadMoveSet,
-                             LoadMoveSetPairs, I);
+      collectPairLoadMoveSet(BB, ChosenPairs, LoadMoveSet, LoadMoveSetPairs, I);
     }
   }
 
@@ -2979,11 +2860,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
     DenseMap<Value *, std::vector<Value *> > LoadMoveSet;
     DenseSet<ValuePair> LoadMoveSetPairs;
-    collectLoadMoveSet(BB, PairableInsts, ChosenPairs,
-                       LoadMoveSet, LoadMoveSetPairs);
+    collectLoadMoveSet(BB, PairableInsts, ChosenPairs, LoadMoveSet, LoadMoveSetPairs);
 
-    DEBUG(dbgs() << "BBV: initial: \n" << BB << "\n");
-
+    DEBUG(dbgs() << "BBV: initial: \n" << BB << "\n"); 
     for (BasicBlock::iterator PI = BB.getFirstInsertionPt(); PI != BB.end();) {
       DenseMap<Value *, Value *>::iterator P = ChosenPairs.find(PI);
       if (P == ChosenPairs.end()) {
@@ -3003,9 +2882,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       Instruction *I = cast<Instruction>(P->first),
         *J = cast<Instruction>(P->second);
 
-      DEBUG(dbgs() << "BBV: fusing: " << *I <<
-             " <-> " << *J << "\n");
-
+      DEBUG(dbgs() << "BBV: fusing: " << *I << " <-> " << *J << "\n"); 
       // Remove the pair and flipped pair from the list.
       DenseMap<Value *, Value *>::iterator FP = ChosenPairs.find(P->second);
       assert(FP != ChosenPairs.end() && "Flipped pair not found in list");
@@ -3013,9 +2890,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       ChosenPairs.erase(P);
 
       if (!canMoveUsesOfIAfterJ(BB, LoadMoveSetPairs, I, J)) {
-        DEBUG(dbgs() << "BBV: fusion of: " << *I <<
-               " <-> " << *J <<
-               " aborted because of non-trivial dependency cycle\n");
+        DEBUG(dbgs() << "BBV: fusion of: " << *I << " <-> " << *J << " aborted because of non-trivial dependency cycle\n");
         //--NumFusedOps;
         ++PI;
         continue;
@@ -3038,13 +2913,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
         if (IJ != ConnectedPairDeps.end()) {
           unsigned NumDepsDirect = 0, NumDepsSwap = 0;
-          for (std::vector<ValuePair>::iterator T = IJ->second.begin(),
-               TE = IJ->second.end(); T != TE; ++T) {
+          for (std::vector<ValuePair>::iterator T = IJ->second.begin(), TE = IJ->second.end(); T != TE; ++T) {
             VPPair Q(IJ->first, *T);
-            DenseMap<VPPair, unsigned>::iterator R =
-              PairConnectionTypes.find(VPPair(Q.second, Q.first));
-            assert(R != PairConnectionTypes.end() &&
-                   "Cannot find pair connection type");
+            DenseMap<VPPair, unsigned>::iterator R = PairConnectionTypes.find(VPPair(Q.second, Q.first));
+            assert(R != PairConnectionTypes.end() && "Cannot find pair connection type");
             if (R->second == PairConnectionDirect)
               ++NumDepsDirect;
             else if (R->second == PairConnectionSwap)
@@ -3056,8 +2928,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
           if (NumDepsSwap > NumDepsDirect) {
             FlipPairOrder = true;
-            DEBUG(dbgs() << "BBV: reordering pair: " << *I <<
-                            " <-> " << *J << "\n");
+            DEBUG(dbgs() << "BBV: reordering pair: " << *I << " <-> " << *J << "\n");
           }
         }
       }
@@ -3086,17 +2957,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       bool LBeforeH = !FlipPairOrder;
       unsigned NumOperands = I->getNumOperands();
       SmallVector<Value *, 3> ReplacedOperands(NumOperands);
-      getReplacementInputsForPair(Context, L, H, ReplacedOperands,
-                                  LBeforeH);
-
+      getReplacementInputsForPair(Context, L, H, ReplacedOperands, LBeforeH); 
       // Make a copy of the original operation, change its type to the vector
       // type and replace its operands with the vector operands.
       Instruction *K = L->clone();
       if (L->hasName())
         K->takeName(L);
       else if (H->hasName())
-        K->takeName(H);
-
+        K->takeName(H); 
       if (!isa<StoreInst>(K))
         K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
 
@@ -3135,25 +3003,19 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       // yet-to-be-fused pair. The loads in question are the keys of the map.
       if (I->mayReadFromMemory()) {
         std::vector<ValuePair> NewSetMembers;
-        DenseMap<Value *, std::vector<Value *> >::iterator II =
-          LoadMoveSet.find(I);
+        DenseMap<Value *, std::vector<Value *> >::iterator II = LoadMoveSet.find(I);
         if (II != LoadMoveSet.end())
-          for (std::vector<Value *>::iterator N = II->second.begin(),
-               NE = II->second.end(); N != NE; ++N)
+          for (std::vector<Value *>::iterator N = II->second.begin(), NE = II->second.end(); N != NE; ++N)
             NewSetMembers.push_back(ValuePair(K, *N));
-        DenseMap<Value *, std::vector<Value *> >::iterator JJ =
-          LoadMoveSet.find(J);
+        DenseMap<Value *, std::vector<Value *> >::iterator JJ = LoadMoveSet.find(J);
         if (JJ != LoadMoveSet.end())
-          for (std::vector<Value *>::iterator N = JJ->second.begin(),
-               NE = JJ->second.end(); N != NE; ++N)
+          for (std::vector<Value *>::iterator N = JJ->second.begin(), NE = JJ->second.end(); N != NE; ++N)
             NewSetMembers.push_back(ValuePair(K, *N));
-        for (std::vector<ValuePair>::iterator A = NewSetMembers.begin(),
-             AE = NewSetMembers.end(); A != AE; ++A) {
+        for (std::vector<ValuePair>::iterator A = NewSetMembers.begin(), AE = NewSetMembers.end(); A != AE; ++A) {
           LoadMoveSet[A->first].push_back(A->second);
           LoadMoveSetPairs.insert(*A);
         }
-      }
-
+      } 
       // Before removing I, set the iterator to the next instruction.
       PI = llvm::next(BasicBlock::iterator(I));
       if (cast<Instruction>(PI) == J)
@@ -3162,17 +3024,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       SE->forgetValue(I);
       SE->forgetValue(J);
       I->eraseFromParent();
-      J->eraseFromParent();
-
-      DEBUG(if (PrintAfterEveryPair) dbgs() << "BBV: block is now: \n" <<
-                                               BB << "\n");
-    }
-
+      J->eraseFromParent(); 
+      DEBUG(if (PrintAfterEveryPair) dbgs() << "BBV: block is now: \n" << BB << "\n");
+    } 
     DEBUG(dbgs() << "BBV: final: \n" << BB << "\n");
   }
 }
 
 char BBVectorize::ID = 0;
+#define BBV_NAME "bb-vectorize"
 static const char bb_vectorize_name[] = "Basic-Block Vectorization";
 INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
@@ -3181,18 +3041,19 @@ INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 
-BasicBlockPass *llvm::createBBVectorizePass(const VectorizeConfig &C) {
+BasicBlockPass *llvm::createBBVectorizePass(const VectorizeConfig &C)
+{
   return new BBVectorize(C);
 }
 
 bool
-llvm::vectorizeBasicBlock(Pass *P, BasicBlock &BB, const VectorizeConfig &C) {
+llvm::vectorizeBasicBlock(Pass *P, BasicBlock &BB, const VectorizeConfig &C)
+{
   BBVectorize BBVectorizer(P, C);
   return BBVectorizer.vectorizeBB(BB);
 }
-
-//===----------------------------------------------------------------------===//
-VectorizeConfig::VectorizeConfig() {
+VectorizeConfig::VectorizeConfig()
+{
   VectorBits = ::VectorBits;
   VectorizeBools = !::NoBools;
   VectorizeInts = !::NoInts;
