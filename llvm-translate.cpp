@@ -124,39 +124,6 @@ void clearLocalSlot(void)
 
 //  ../lib/CodeGen/PeepholeOptimizer.cpp
 #if 1
-static cl::opt<bool> IgnoreTargetInfo("bb-vectorize-ignore-target-info",  cl::init(false), cl::Hidden, cl::desc("Ignore target information")); 
-static cl::opt<unsigned> ReqChainDepth("bb-vectorize-req-chain-depth", cl::init(6), cl::Hidden, cl::desc("The required chain depth for vectorization")); 
-static cl::opt<bool> UseChainDepthWithTI("bb-vectorize-use-chain-depth",  cl::init(false), cl::Hidden, cl::desc("Use the chain depth requirement with" " target information")); 
-static cl::opt<unsigned> SearchLimit("bb-vectorize-search-limit", cl::init(400), cl::Hidden, cl::desc("The maximum search distance for instruction pairs")); 
-static cl::opt<bool> SplatBreaksChain("bb-vectorize-splat-breaks-chain", cl::init(false), cl::Hidden, cl::desc("Replicating one element to a pair breaks the chain")); 
-static cl::opt<unsigned> VectorBits("bb-vectorize-vector-bits", cl::init(128), cl::Hidden, cl::desc("The size of the native vector registers")); 
-static cl::opt<unsigned> MaxIter("bb-vectorize-max-iter", cl::init(0), cl::Hidden, cl::desc("The maximum number of pairing iterations")); 
-static cl::opt<bool> Pow2LenOnly("bb-vectorize-pow2-len-only", cl::init(false), cl::Hidden, cl::desc("Don't try to form non-2^n-length vectors")); 
-static cl::opt<unsigned> MaxInsts("bb-vectorize-max-instr-per-group", cl::init(500), cl::Hidden, cl::desc("The maximum number of pairable instructions per group")); 
-static cl::opt<unsigned> MaxPairs("bb-vectorize-max-pairs-per-group", cl::init(3000), cl::Hidden, cl::desc("The maximum number of candidate instruction pairs per group")); 
-static cl::opt<unsigned> MaxCandPairsForCycleCheck("bb-vectorize-max-cycle-check-pairs", cl::init(200), cl::Hidden, cl::desc("The maximum number of candidate pairs with which to use" " a full cycle check"));
-static cl::opt<bool> NoBools("bb-vectorize-no-bools", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize boolean (i1) values"));
-static cl::opt<bool> NoInts("bb-vectorize-no-ints", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize integer values")); 
-static cl::opt<bool> NoFloats("bb-vectorize-no-floats", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point values")); 
-// FIXME: This should default to false once pointer vector support works.
-static cl::opt<bool> NoPointers("bb-vectorize-no-pointers", cl::init(/*false*/ true), cl::Hidden, cl::desc("Don't try to vectorize pointer values")); 
-static cl::opt<bool> NoCasts("bb-vectorize-no-casts", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize casting (conversion) operations")); 
-static cl::opt<bool> NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point math intrinsics")); 
-static cl::opt<bool> NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize the fused-multiply-add intrinsic")); 
-static cl::opt<bool> NoSelect("bb-vectorize-no-select", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize select instructions")); 
-static cl::opt<bool> NoCmp("bb-vectorize-no-cmp", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize comparison instructions")); 
-static cl::opt<bool> NoGEP("bb-vectorize-no-gep", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize getelementptr instructions")); 
-static cl::opt<bool> NoMemOps("bb-vectorize-no-mem-ops", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize loads and stores")); 
-static cl::opt<bool> AlignedOnly("bb-vectorize-aligned-only", cl::init(false), cl::Hidden, cl::desc("Only generate aligned loads and stores")); 
-static cl::opt<bool> NoMemOpBoost("bb-vectorize-no-mem-op-boost", cl::init(false), cl::Hidden, cl::desc("Don't boost the chain-depth contribution of loads and stores")); 
-static cl::opt<bool> FastDep("bb-vectorize-fast-dep", cl::init(false), cl::Hidden, cl::desc("Use a fast instruction dependency analysis")); 
-#ifndef NDEBUG
-static cl::opt<bool> DebugInstructionExamination("bb-vectorize-debug-instruction-examination", cl::init(false), cl::Hidden, cl::desc("When debugging is enabled, output information on the" " instruction-examination process"));
-static cl::opt<bool> DebugCandidateSelection("bb-vectorize-debug-candidate-selection", cl::init(false), cl::Hidden, cl::desc("When debugging is enabled, output information on the" " candidate-selection process"));
-static cl::opt<bool> DebugPairSelection("bb-vectorize-debug-pair-selection", cl::init(false), cl::Hidden, cl::desc("When debugging is enabled, output information on the" " pair-selection process"));
-static cl::opt<bool> DebugCycleCheck("bb-vectorize-debug-cycle-check", cl::init(false), cl::Hidden, cl::desc("When debugging is enabled, output information on the" " cycle-checking process")); 
-static cl::opt<bool> PrintAfterEveryPair("bb-vectorize-debug-print-after-every-pair", cl::init(false), cl::Hidden, cl::desc("When debugging is enabled, dump the basic block after" " every pair is fused"));
-#endif
 
 //STATISTIC(NumFusedOps, "Number of operations fused by bb-vectorize");
 static BasicBlockPass *optimize_block_item;
@@ -286,7 +253,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         break;
     }
 
-    if (changed && !Pow2LenOnly) {
+    if (changed ) {
       ++n;
       for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
         DEBUG(dbgs() << "BBV: fusing for non-2^n-length vectors loop #: " << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
@@ -482,10 +449,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #endif
 
     return false;
-  }
-
-  // Returns true if the provided CallInst represents an intrinsic that can
-  // be vectorized.
+  } 
+  // Returns true if the provided CallInst represents an intrinsic that can // be vectorized.
   bool isVectorizableIntrinsic(CallInst* I) {
     Function *F = I->getCalledFunction();
     if (!F) return false;
@@ -745,7 +710,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 // in the use dag of I.
 bool BBVectorize::areInstsCompatible(Instruction *I, Instruction *J, bool IsSimpleLoadStore, bool NonPow2Len, int &CostSavings, int &FixedOrder)
 {
-  DEBUG(if (DebugInstructionExamination) dbgs() << "BBV: looking at " << *I << " <-> " << *J << "\n"); 
+  dbgs() << "BBV: looking at " << *I << " <-> " << *J << "\n"; 
   CostSavings = 0;
   FixedOrder = 0;
 
@@ -1032,7 +997,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         IAfterStart = JAfterStart = false;
       }
 
-      DEBUG(if (DebugCandidateSelection) dbgs() << "BBV: candidate pair " << *I << " <-> " << *J << " (cost savings: " << CostSavings << ")\n");
+      dbgs() << "BBV: candidate pair " << *I << " <-> " << *J << " (cost savings: " << CostSavings << ")\n";
 
       // If we have already found too many pairs, break here and this function
       // will be called again starting after the last instruction selected
@@ -1201,10 +1166,8 @@ void BBVectorize::buildDepMap( BasicBlock &BB,
 // Returns true if an input to pair P is an output of pair Q and also an
 // input of pair Q is an output of pair P. If this is the case, then these
 // two pairs cannot be simultaneously fused.
-bool BBVectorize::pairsConflict(ValuePair P, ValuePair Q,
-           DenseSet<ValuePair> &PairableInstUsers,
-           DenseMap<ValuePair, std::vector<ValuePair> > *PairableInstUserMap,
-           DenseSet<VPPair> *PairableInstUserPairSet)
+bool BBVectorize::pairsConflict(ValuePair P, ValuePair Q, DenseSet<ValuePair> &PairableInstUsers,
+           DenseMap<ValuePair, std::vector<ValuePair> > *PairableInstUserMap, DenseSet<VPPair> *PairableInstUserPairSet)
 {
   // Two pairs are in conflict if they are mutual Users of eachother.
   bool QUsesP = PairableInstUsers.count(ValuePair(P.first,  Q.first))  ||
@@ -1238,8 +1201,7 @@ bool BBVectorize::pairWillFormCycle(ValuePair P,
            DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
            DenseSet<ValuePair> &CurrentPairs)
 {
-  DEBUG(if (DebugCycleCheck)
-          dbgs() << "BBV: starting cycle check for : " << *P.first << " <-> " << *P.second << "\n");
+          dbgs() << "BBV: starting cycle check for : " << *P.first << " <-> " << *P.second << "\n";
   // A lookup table of visisted pairs is kept because the PairableInstUserMap
   // contains non-direct associations.
   DenseSet<ValuePair> Visited;
@@ -1250,8 +1212,7 @@ bool BBVectorize::pairWillFormCycle(ValuePair P,
     ValuePair QTop = Q.pop_back_val();
     Visited.insert(QTop);
 
-    DEBUG(if (DebugCycleCheck)
-            dbgs() << "BBV: cycle check visiting: " << *QTop.first << " <-> " << *QTop.second << "\n");
+            dbgs() << "BBV: cycle check visiting: " << *QTop.first << " <-> " << *QTop.second << "\n";
     DenseMap<ValuePair, std::vector<ValuePair> >::iterator QQ = PairableInstUserMap.find(QTop);
     if (QQ == PairableInstUserMap.end())
       continue;
@@ -1475,21 +1436,15 @@ void BBVectorize::pruneDAGFor(
 
 // This function finds the best dag of mututally-compatible connected
 // pairs, given the choice of root pairs as an iterator range.
-void BBVectorize::findBestDAGFor(
-            DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
-            DenseSet<ValuePair> &CandidatePairsSet,
-            DenseMap<ValuePair, int> &CandidatePairCostSavings,
-            std::vector<Value *> &PairableInsts,
-            DenseSet<ValuePair> &FixedOrderPairs,
+void BBVectorize::findBestDAGFor( DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+            DenseSet<ValuePair> &CandidatePairsSet, DenseMap<ValuePair, int> &CandidatePairCostSavings,
+            std::vector<Value *> &PairableInsts, DenseSet<ValuePair> &FixedOrderPairs,
             DenseMap<VPPair, unsigned> &PairConnectionTypes,
             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
-            DenseSet<ValuePair> &PairableInstUsers,
-            DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
-            DenseSet<VPPair> &PairableInstUserPairSet,
-            DenseMap<Value *, Value *> &ChosenPairs,
-            DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth,
-            int &BestEffSize, Value *II, std::vector<Value *>&JJ,
+            DenseSet<ValuePair> &PairableInstUsers, DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+            DenseSet<VPPair> &PairableInstUserPairSet, DenseMap<Value *, Value *> &ChosenPairs,
+            DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth, int &BestEffSize, Value *II, std::vector<Value *>&JJ,
             bool UseCycleCheck)
 {
   for (std::vector<Value *>::iterator J = JJ.begin(), JE = JJ.end(); J != JE; ++J) {
@@ -1526,14 +1481,13 @@ void BBVectorize::findBestDAGFor(
     // depth is still the same in the unpruned DAG.
     size_t MaxDepth = DAG.lookup(IJ);
 
-    DEBUG(if (DebugPairSelection) dbgs() << "BBV: found DAG for pair {" << *IJ.first << " <-> " << *IJ.second << "} of depth " << MaxDepth << " and size " << DAG.size() << "\n");
+    dbgs() << "BBV: found DAG for pair {" << *IJ.first << " <-> " << *IJ.second << "} of depth " << MaxDepth << " and size " << DAG.size() << "\n";
 
     // At this point the DAG has been constructed, but, may contain
     // contradictory children (meaning that different children of
     // some dag node may be attempting to fuse the same instruction).
     // So now we walk the dag again, in the case of a conflict,
-    // keep only the child with the largest depth. To break a tie,
-    // favor the first child.
+    // keep only the child with the largest depth. To break a tie, // favor the first child.
 
     DenseSet<ValuePair> PrunedDAG;
     pruneDAGFor(CandidatePairs, PairableInsts, ConnectedPairs, PairableInstUsers, PairableInstUserMap,
@@ -1564,7 +1518,7 @@ void BBVectorize::findBestDAGFor(
 
         if (getDepthFactor(S->first)) {
           int ESContrib = CandidatePairCostSavings.find(*S)->second;
-          DEBUG(if (DebugPairSelection) dbgs() << "\tweight {" << *S->first << " <-> " << *S->second << "} = " << ESContrib << "\n");
+          dbgs() << "\tweight {" << *S->first << " <-> " << *S->second << "} = " << ESContrib << "\n";
           EffSize += ESContrib;
         }
 
@@ -1608,7 +1562,7 @@ void BBVectorize::findBestDAGFor(
                   ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost( TargetTransformInfo::SK_Reverse, VTy));
               }
 
-              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *Q.second.first << " <-> " << *Q.second.second << "} -> {" << *S->first << " <-> " << *S->second << "} = " << ESContrib << "\n");
+              dbgs() << "\tcost {" << *Q.second.first << " <-> " << *Q.second.second << "} -> {" << *S->first << " <-> " << *S->second << "} = " << ESContrib << "\n";
               EffSize -= ESContrib;
             }
           }
@@ -1644,7 +1598,7 @@ void BBVectorize::findBestDAGFor(
                 TargetTransformInfo::SK_ExtractSubvector, VTy, 0, Ty1));
             } else
               ESContrib = (int) TTI->getVectorInstrCost( Instruction::ExtractElement, VTy, 0); 
-            DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *S->first << "} = " << ESContrib << "\n");
+            dbgs() << "\tcost {" << *S->first << "} = " << ESContrib << "\n";
             EffSize -= ESContrib;
           }
 
@@ -1671,7 +1625,7 @@ void BBVectorize::findBestDAGFor(
                 TargetTransformInfo::SK_ExtractSubvector, VTy, Ty1->isVectorTy() ? Ty1->getVectorNumElements() : 1, Ty2));
             } else
               ESContrib = (int) TTI->getVectorInstrCost( Instruction::ExtractElement, VTy, 1);
-            DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *S->second << "} = " << ESContrib << "\n");
+            dbgs() << "\tcost {" << *S->second << "} = " << ESContrib << "\n";
             EffSize -= ESContrib;
           }
         }
@@ -1761,7 +1715,7 @@ void BBVectorize::findBestDAGFor(
               if (TyBig != TySmall)
                 ESContrib += (int) getInstrCost(Instruction::ShuffleVector, TyBig, TySmall);
             } 
-            DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" << *O1 << " <-> " << *O2 << "} = " << ESContrib << "\n");
+            dbgs() << "\tcost {" << *O1 << " <-> " << *O2 << "} = " << ESContrib << "\n";
             EffSize -= ESContrib;
             IncomingPairs.insert(VP);
           }
@@ -1769,7 +1723,7 @@ void BBVectorize::findBestDAGFor(
       }
 
       if (!HasNontrivialInsts) {
-        DEBUG(if (DebugPairSelection) dbgs() << "\tNo non-trivial instructions in DAG;" " override to zero effective size\n");
+        dbgs() << "\tNo non-trivial instructions in DAG;" " override to zero effective size\n";
         EffSize = 0;
       }
     } else {
@@ -1777,9 +1731,8 @@ void BBVectorize::findBestDAGFor(
         EffSize += (int) getDepthFactor(S->first);
     }
 
-    DEBUG(if (DebugPairSelection)
-           dbgs() << "BBV: found pruned DAG for pair {" << *IJ.first << " <-> " << *IJ.second << "} of depth " << MaxDepth << " and size " << PrunedDAG.size() << " (effective size: " << EffSize << ")\n");
-    if (((TTI && !UseChainDepthWithTI) || MaxDepth >= Config.ReqChainDepth) && EffSize > 0 && EffSize > BestEffSize) {
+           dbgs() << "BBV: found pruned DAG for pair {" << *IJ.first << " <-> " << *IJ.second << "} of depth " << MaxDepth << " and size " << PrunedDAG.size() << " (effective size: " << EffSize << ")\n";
+    if ((MaxDepth >= Config.ReqChainDepth) && EffSize > 0 && EffSize > BestEffSize) {
       BestMaxDepth = MaxDepth;
       BestEffSize = EffSize;
       BestDAG = PrunedDAG;
@@ -1789,17 +1742,14 @@ void BBVectorize::findBestDAGFor(
 
 // Given the list of candidate pairs, this function selects those
 // that will be fused into vector instructions.
-void BBVectorize::choosePairs(
-              DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+void BBVectorize::choosePairs( DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
               DenseSet<ValuePair> &CandidatePairsSet,
               DenseMap<ValuePair, int> &CandidatePairCostSavings,
-              std::vector<Value *> &PairableInsts,
-              DenseSet<ValuePair> &FixedOrderPairs,
+              std::vector<Value *> &PairableInsts, DenseSet<ValuePair> &FixedOrderPairs,
               DenseMap<VPPair, unsigned> &PairConnectionTypes,
               DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
               DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
-              DenseSet<ValuePair> &PairableInstUsers,
-              DenseMap<Value *, Value *>& ChosenPairs)
+              DenseSet<ValuePair> &PairableInstUsers, DenseMap<Value *, Value *>& ChosenPairs)
 {
   bool UseCycleCheck = CandidatePairsSet.size() <= Config.MaxCandPairsForCycleCheck; 
   DenseMap<Value *, std::vector<Value *> > CandidatePairs2;
@@ -1879,8 +1829,7 @@ std::string getReplacementName(Instruction *I, bool IsInput, unsigned o, unsigne
   return (I->getName() + (IsInput ? ".v.i" : ".v.r") + utostr(o) + (n > 0 ? "." + utostr(n) : "")).str();
 }
 
-// Returns the value that is to be used as the pointer input to the vector
-// instruction that fuses I with J.
+// Returns the value that is to be used as the pointer input to the vector // instruction that fuses I with J.
 Value *BBVectorize::getReplacementPointerInput(LLVMContext& Context, Instruction *I, Instruction *J, unsigned o)
 {
   Value *IPtr, *JPtr;
@@ -1919,8 +1868,7 @@ void BBVectorize::fillNewShuffleMask(LLVMContext& Context, Instruction *J,
   }
 }
 
-// Returns the value that is to be used as the vector-shuffle mask to the
-// vector instruction that fuses I with J.
+// Returns the value that is to be used as the vector-shuffle mask to the // vector instruction that fuses I with J.
 Value *BBVectorize::getReplacementShuffleMask(LLVMContext& Context,
                    Instruction *I, Instruction *J)
 {
@@ -1934,8 +1882,7 @@ Value *BBVectorize::getReplacementShuffleMask(LLVMContext& Context,
   unsigned NumElemI = ArgTypeI->getVectorNumElements();
 
   // Get the total number of elements in the fused vector type.
-  // By definition, this must equal the number of elements in
-  // the final mask.
+  // By definition, this must equal the number of elements in // the final mask.
   unsigned NumElem = VArgType->getVectorNumElements();
   std::vector<Constant*> Mask(NumElem);
 
@@ -2005,8 +1952,7 @@ static unsigned getNumScalarElements(Type *Ty)
 
 // Returns the value to be used as the specified operand of the vector
 // instruction that fuses I with J.
-Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
-                   Instruction *J, unsigned o, bool IBeforeJ)
+Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I, Instruction *J, unsigned o, bool IBeforeJ)
 {
   Value *CV0 = ConstantInt::get(Type::getInt32Ty(Context), 0);
   Value *CV1 = ConstantInt::get(Type::getInt32Ty(Context), 1);
@@ -2112,16 +2058,13 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
             Idx -= HOpElem;
             INum = HSV->getOperand(1) == I1 ? 0 : 1;
           }
-        }
-
+        } 
         II[i + numElemL] = std::pair<int, int>(Idx, INum);
-      }
-
+      } 
       // We now have an array which tells us from which index of which
       // input vector each element of the operand comes.
       VectorType *I1T = cast<VectorType>(I1->getType());
-      unsigned I1Elem = I1T->getNumElements();
-
+      unsigned I1Elem = I1T->getNumElements(); 
       if (!I2) {
         // In this case there is only one underlying vector input. Check for
         // the trivial case where we can use the input directly.
@@ -2132,12 +2075,10 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
               ElemInOrder = false;
               break;
             }
-          }
-
+          } 
           if (ElemInOrder)
             return I1;
-        }
-
+        } 
         // A shuffle is needed.
         std::vector<Constant *> Mask(numElem);
         for (unsigned i = 0; i < numElem; ++i) {
@@ -2146,8 +2087,7 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
             Mask[i] = UndefValue::get(Type::getInt32Ty(Context));
           else
             Mask[i] = ConstantInt::get(Type::getInt32Ty(Context), Idx);
-        }
-
+        } 
         Instruction *S = new ShuffleVectorInst(I1, UndefValue::get(I1T), ConstantVector::get(Mask),
                                 getReplacementName(IBeforeJ ? I : J, true, o));
         S->insertBefore(IBeforeJ ? J : I);
@@ -2166,8 +2106,7 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
         for (; v < I1Elem; ++v)
           Mask[v] = ConstantInt::get(Type::getInt32Ty(Context), v);
         for (; v < I2Elem; ++v)
-          Mask[v] = UndefValue::get(Type::getInt32Ty(Context));
-
+          Mask[v] = UndefValue::get(Type::getInt32Ty(Context)); 
         Instruction *NewI1 = new ShuffleVectorInst(I1, UndefValue::get(I1T), ConstantVector::get(Mask),
                                 getReplacementName(IBeforeJ ? I : J, true, o, 1));
         NewI1->insertBefore(IBeforeJ ? J : I);
@@ -2180,8 +2119,7 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
         for (; v < I2Elem; ++v)
           Mask[v] = ConstantInt::get(Type::getInt32Ty(Context), v);
         for (; v < I1Elem; ++v)
-          Mask[v] = UndefValue::get(Type::getInt32Ty(Context));
-
+          Mask[v] = UndefValue::get(Type::getInt32Ty(Context)); 
         Instruction *NewI2 = new ShuffleVectorInst(I2, UndefValue::get(I2T), ConstantVector::get(Mask),
                                 getReplacementName(IBeforeJ ? I : J, true, o, 1));
         NewI2->insertBefore(IBeforeJ ? J : I);
@@ -2285,24 +2223,19 @@ Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
       if (v >= numElemL && numElemH > numElemL)
         Idx += (numElemH - numElemL);
       Mask[v] = ConstantInt::get(Type::getInt32Ty(Context), Idx);
-    }
-
+    } 
     Instruction *BV = new ShuffleVectorInst(LOp, HOp, ConstantVector::get(Mask), getReplacementName(IBeforeJ ? I : J, true, o));
     BV->insertBefore(IBeforeJ ? J : I);
     return BV;
-  }
-
-  Instruction *BV1 = InsertElementInst::Create( UndefValue::get(VArgType), LOp, CV0,
-                                        getReplacementName(IBeforeJ ? I : J, true, o, 1));
+  } 
+  Instruction *BV1 = InsertElementInst::Create( UndefValue::get(VArgType), LOp, CV0, getReplacementName(IBeforeJ ? I : J, true, o, 1));
   BV1->insertBefore(IBeforeJ ? J : I);
-  Instruction *BV2 = InsertElementInst::Create(BV1, HOp, CV1,
-                                        getReplacementName(IBeforeJ ? I : J, true, o, 2));
+  Instruction *BV2 = InsertElementInst::Create(BV1, HOp, CV1, getReplacementName(IBeforeJ ? I : J, true, o, 2));
   BV2->insertBefore(IBeforeJ ? J : I);
   return BV2;
 }
 
-// This function creates an array of values that will be used as the inputs
-// to the vector instruction that fuses I with J.
+// This function creates an array of values that will be used as the inputs // to the vector instruction that fuses I with J.
 void BBVectorize::getReplacementInputsForPair(LLVMContext& Context, Instruction *I, Instruction *J,
                    SmallVectorImpl<Value *> &ReplacedOperands, bool IBeforeJ)
 {
@@ -2519,14 +2452,10 @@ void BBVectorize::combineMetadata(Instruction *K, const Instruction *J)
 // taking care preserve any needed scalar outputs and, then, it reorders the
 // remaining instructions as needed (users of the first member of the pair
 // need to be moved to after the location of the second member of the pair
-// because the vector instruction is inserted in the location of the pair's
-// second member).
-void BBVectorize::fuseChosenPairs(BasicBlock &BB,
-           std::vector<Value *> &PairableInsts,
-           DenseMap<Value *, Value *> &ChosenPairs,
-           DenseSet<ValuePair> &FixedOrderPairs,
-           DenseMap<VPPair, unsigned> &PairConnectionTypes,
-           DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+// because the vector instruction is inserted in the location of the pair's // second member).
+void BBVectorize::fuseChosenPairs(BasicBlock &BB, std::vector<Value *> &PairableInsts,
+           DenseMap<Value *, Value *> &ChosenPairs, DenseSet<ValuePair> &FixedOrderPairs,
+           DenseMap<VPPair, unsigned> &PairConnectionTypes, DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
            DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps)
 {
   LLVMContext& Context = BB.getContext();
@@ -2538,20 +2467,17 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB,
   for (DenseMap<Value *, Value *>::iterator P = ChosenPairs.begin(), E = ChosenPairs.end(); P != E; ++P)
     FlippedPairs.insert(ValuePair(P->second, P->first));
   for (DenseSet<ValuePair>::iterator P = FlippedPairs.begin(), E = FlippedPairs.end(); P != E; ++P)
-    ChosenPairs.insert(*P);
-
+    ChosenPairs.insert(*P); 
   DenseMap<Value *, std::vector<Value *> > LoadMoveSet;
   DenseSet<ValuePair> LoadMoveSetPairs;
-  collectLoadMoveSet(BB, PairableInsts, ChosenPairs, LoadMoveSet, LoadMoveSetPairs);
-
+  collectLoadMoveSet(BB, PairableInsts, ChosenPairs, LoadMoveSet, LoadMoveSetPairs); 
   DEBUG(dbgs() << "BBV: initial: \n" << BB << "\n"); 
   for (BasicBlock::iterator PI = BB.getFirstInsertionPt(); PI != BB.end();) {
     DenseMap<Value *, Value *>::iterator P = ChosenPairs.find(PI);
     if (P == ChosenPairs.end()) {
       ++PI;
       continue;
-    }
-
+    } 
     if (getDepthFactor(P->first) == 0) {
       // These instructions are not really fused, but are tracked as though
       // they are. Any case in which it would be interesting to fuse them
@@ -2559,11 +2485,8 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB,
       //--NumFusedOps;
       ++PI;
       continue;
-    }
-
-    Instruction *I = cast<Instruction>(P->first),
-      *J = cast<Instruction>(P->second);
-
+    } 
+    Instruction *I = cast<Instruction>(P->first), *J = cast<Instruction>(P->second); 
     DEBUG(dbgs() << "BBV: fusing: " << *I << " <-> " << *J << "\n"); 
     // Remove the pair and flipped pair from the list.
     DenseMap<Value *, Value *>::iterator FP = ChosenPairs.find(P->second);
@@ -2644,16 +2567,12 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB,
     else if (H->hasName())
       K->takeName(H); 
     if (!isa<StoreInst>(K))
-      K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
-
+      K->mutateType(getVecTypeForPair(L->getType(), H->getType())); 
     combineMetadata(K, H);
-    K->intersectOptionalDataWith(H);
-
+    K->intersectOptionalDataWith(H); 
     for (unsigned o = 0; o < NumOperands; ++o)
-      K->setOperand(o, ReplacedOperands[o]);
-
-    K->insertAfter(J);
-
+      K->setOperand(o, ReplacedOperands[o]); 
+    K->insertAfter(J); 
     // Instruction insertion point:
     Instruction *InsertionPt = K;
     Instruction *K1 = 0, *K2 = 0;
@@ -2664,8 +2583,7 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB,
     // first instruction is disjoint from the input dag of the second
     // (by definition), and so commutes with it.
 
-    moveUsesOfIAfterJ(BB, LoadMoveSetPairs, InsertionPt, I, J);
-
+    moveUsesOfIAfterJ(BB, LoadMoveSetPairs, InsertionPt, I, J); 
     if (!isa<StoreInst>(I)) {
       L->replaceAllUsesWith(K1);
       H->replaceAllUsesWith(K2);
@@ -2697,13 +2615,12 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB,
     // Before removing I, set the iterator to the next instruction.
     PI = llvm::next(BasicBlock::iterator(I));
     if (cast<Instruction>(PI) == J)
-      ++PI;
-
+      ++PI; 
     SE->forgetValue(I);
     SE->forgetValue(J);
     I->eraseFromParent();
     J->eraseFromParent(); 
-    DEBUG(if (PrintAfterEveryPair) dbgs() << "BBV: block is now: \n" << BB << "\n");
+    DEBUG(dbgs() << "BBV: block is now: \n" << BB << "\n");
   } 
   DEBUG(dbgs() << "BBV: final: \n" << BB << "\n");
 }
@@ -2717,17 +2634,29 @@ INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 //INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 //INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
-//
-//BasicBlockPass *llvm::createBBVectorizePass(const VectorizeConfig &C)
-//{
-  //return new BBVectorize(C);
-//}
-
-//bool llvm::vectorizeBasicBlock(Pass *P, BasicBlock &BB, const VectorizeConfig &C)
-//{
-  //BBVectorize BBVectorizer(P, C);
-  //return BBVectorizer.vectorizeBB(BB);
-//}
+static cl::opt<unsigned> ReqChainDepth("bb-vectorize-req-chain-depth", cl::init(6), cl::Hidden, cl::desc("The required chain depth for vectorization")); 
+static cl::opt<unsigned> SearchLimit("bb-vectorize-search-limit", cl::init(400), cl::Hidden, cl::desc("The maximum search distance for instruction pairs")); 
+static cl::opt<bool> SplatBreaksChain("bb-vectorize-splat-breaks-chain", cl::init(false), cl::Hidden, cl::desc("Replicating one element to a pair breaks the chain")); 
+static cl::opt<unsigned> VectorBits("bb-vectorize-vector-bits", cl::init(128), cl::Hidden, cl::desc("The size of the native vector registers")); 
+static cl::opt<unsigned> MaxIter("bb-vectorize-max-iter", cl::init(0), cl::Hidden, cl::desc("The maximum number of pairing iterations")); 
+static cl::opt<unsigned> MaxInsts("bb-vectorize-max-instr-per-group", cl::init(500), cl::Hidden, cl::desc("The maximum number of pairable instructions per group")); 
+static cl::opt<unsigned> MaxPairs("bb-vectorize-max-pairs-per-group", cl::init(3000), cl::Hidden, cl::desc("The maximum number of candidate instruction pairs per group")); 
+static cl::opt<unsigned> MaxCandPairsForCycleCheck("bb-vectorize-max-cycle-check-pairs", cl::init(200), cl::Hidden, cl::desc("The maximum number of candidate pairs with which to use" " a full cycle check"));
+static cl::opt<bool> NoBools("bb-vectorize-no-bools", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize boolean (i1) values"));
+static cl::opt<bool> NoInts("bb-vectorize-no-ints", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize integer values")); 
+static cl::opt<bool> NoFloats("bb-vectorize-no-floats", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point values")); 
+// FIXME: This should default to false once pointer vector support works.
+static cl::opt<bool> NoPointers("bb-vectorize-no-pointers", cl::init(/*false*/ true), cl::Hidden, cl::desc("Don't try to vectorize pointer values")); 
+static cl::opt<bool> NoCasts("bb-vectorize-no-casts", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize casting (conversion) operations")); 
+static cl::opt<bool> NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point math intrinsics")); 
+static cl::opt<bool> NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize the fused-multiply-add intrinsic")); 
+static cl::opt<bool> NoSelect("bb-vectorize-no-select", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize select instructions")); 
+static cl::opt<bool> NoCmp("bb-vectorize-no-cmp", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize comparison instructions")); 
+static cl::opt<bool> NoGEP("bb-vectorize-no-gep", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize getelementptr instructions")); 
+static cl::opt<bool> NoMemOps("bb-vectorize-no-mem-ops", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize loads and stores")); 
+static cl::opt<bool> AlignedOnly("bb-vectorize-aligned-only", cl::init(false), cl::Hidden, cl::desc("Only generate aligned loads and stores")); 
+static cl::opt<bool> NoMemOpBoost("bb-vectorize-no-mem-op-boost", cl::init(false), cl::Hidden, cl::desc("Don't boost the chain-depth contribution of loads and stores")); 
+static cl::opt<bool> FastDep("bb-vectorize-fast-dep", cl::init(false), cl::Hidden, cl::desc("Use a fast instruction dependency analysis")); 
 
 VectorizeConfig::VectorizeConfig()
 {
@@ -2751,7 +2680,6 @@ VectorizeConfig::VectorizeConfig()
   MaxInsts = ::MaxInsts;
   MaxPairs = ::MaxPairs;
   MaxIter = ::MaxIter;
-  Pow2LenOnly = ::Pow2LenOnly;
   NoMemOpBoost = ::NoMemOpBoost;
   FastDep = ::FastDep;
 }
