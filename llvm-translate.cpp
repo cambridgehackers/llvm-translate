@@ -670,13 +670,24 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
     while(1) {
         BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
         int opcode = I->getOpcode();
-        const Value *retv = (const Value *)I;
+        Value *retv = (Value *)I;
         //printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
         //for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
             //printf(" %p", I->getOperand(i));
         //}
         //printf("\n");
         switch (opcode) {
+        case Instruction::Load:
+            {
+            const char *cp = I->getOperand(0)->getName().str().c_str();
+            //printf("[%s:%d] Load %s ret %p\n", __FUNCTION__, __LINE__, cp, retv);
+            if (!strcmp(cp, "this")) {
+                retv->replaceAllUsesWith(I->getOperand(0));
+                I->eraseFromParent(); // delete "Load 'this'" instruction
+                changed = true;
+            }
+            }
+            break;
         case Instruction::Alloca:
             if (I->hasName()) {
                 Value *newt = NULL;
