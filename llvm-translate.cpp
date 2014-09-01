@@ -146,11 +146,11 @@ struct BBVectorize : public BasicBlockPass {
   ScalarEvolution *SE;
   const TargetTransformInfo *TTI; 
   // FIXME: const correct?  
-  bool vectorizePairs(BasicBlock &BB, bool NonPow2Len = false); 
+  bool vectorizePairs(BasicBlock &BB); 
   bool getCandidatePairs(BasicBlock &BB, BasicBlock::iterator &Start,
                      DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
                      DenseSet<ValuePair> &FixedOrderPairs, DenseMap<ValuePair, int> &CandidatePairCostSavings,
-                     std::vector<Value *> &PairableInsts, bool NonPow2Len); 
+                     std::vector<Value *> &PairableInsts); 
   // FIXME: The current implementation does not account for pairs that
   // are connected in multiple ways. For example:
   //   C1 = A1 / A2; C2 = A2 / A1 (which may be both direct and a swap)
@@ -180,13 +180,8 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
            DenseSet<ValuePair> &CandidatePairsSet, std::vector<Value *> &PairableInsts,
            DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs, DenseMap<VPPair, unsigned> &PairConnectionTypes, ValuePair P);
 
-  bool pairsConflict(ValuePair P, ValuePair Q, DenseSet<ValuePair> &PairableInstUsers,
-           DenseMap<ValuePair, std::vector<ValuePair> > *PairableInstUserMap = 0, DenseSet<VPPair> *PairableInstUserPairSet = 0); 
-  bool pairWillFormCycle(ValuePair P, DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUsers,
-           DenseSet<ValuePair> &CurrentPairs); 
   void pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &CandidatePairs, std::vector<Value *> &PairableInsts,
            DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs, DenseSet<ValuePair> &PairableInstUsers,
-           DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap, DenseSet<VPPair> &PairableInstUserPairSet,
            DenseMap<Value *, Value *> &ChosenPairs, DenseMap<ValuePair, size_t> &DAG,
            DenseSet<ValuePair> &PrunedDAG, ValuePair J); 
   void buildInitialDAGFor( DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
@@ -198,7 +193,6 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
            std::vector<Value *> &PairableInsts, DenseSet<ValuePair> &FixedOrderPairs,
            DenseMap<VPPair, unsigned> &PairConnectionTypes, DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
            DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps, DenseSet<ValuePair> &PairableInstUsers,
-           DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap, DenseSet<VPPair> &PairableInstUserPairSet,
            DenseMap<Value *, Value *> &ChosenPairs, DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth,
            int &BestEffSize, Value *II, std::vector<Value *>&JJ); 
   Value *getReplacementPointerInput(LLVMContext& Context, Instruction *I, Instruction *J, unsigned o); 
@@ -251,7 +245,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       ++n;
       for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
         DEBUG(dbgs() << "BBV: fusing for non-2^n-length vectors loop #: " << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
-        if (!vectorizePairs(BB, true)) break;
+        if (!vectorizePairs(BB)) break;
       }
     } 
     DEBUG(dbgs() << "BBV: done!\n");
@@ -326,7 +320,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       return 0; 
     // Give a load or store half of the required depth so that load/store
     // pairs will vectorize.
-    if (!Config.NoMemOpBoost && (isa<LoadInst>(V) || isa<StoreInst>(V)))
+    if (isa<LoadInst>(V) || isa<StoreInst>(V))
       return Config.ReqChainDepth/2; 
     return 1;
   }
@@ -440,7 +434,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 };
 
 // implements one vectorization iteration on the provided // basic block. It returns true if the block is changed.
-bool BBVectorize::vectorizePairs(BasicBlock &BB, bool NonPow2Len)
+bool BBVectorize::vectorizePairs(BasicBlock &BB)
 {
   bool ShouldContinue;
   BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
@@ -454,7 +448,7 @@ bool BBVectorize::vectorizePairs(BasicBlock &BB, bool NonPow2Len)
     DenseMap<Value *, std::vector<Value *> > CandidatePairs;
     DenseSet<ValuePair> FixedOrderPairs;
     DenseMap<ValuePair, int> CandidatePairCostSavings;
-    ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs, FixedOrderPairs, CandidatePairCostSavings, PairableInsts, NonPow2Len);
+    ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs, FixedOrderPairs, CandidatePairCostSavings, PairableInsts);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (PairableInsts.empty()) continue;
 
@@ -637,7 +631,7 @@ bool BBVectorize::trackUsesOfI(DenseSet<Value *> &Users, AliasSetTracker &WriteS
 // basic block and collects all candidate pairs for vectorization.
 bool BBVectorize::getCandidatePairs(BasicBlock &BB, BasicBlock::iterator &Start,
       DenseMap<Value *, std::vector<Value *> > &CandidatePairs, DenseSet<ValuePair> &FixedOrderPairs,
-      DenseMap<ValuePair, int> &CandidatePairCostSavings, std::vector<Value *> &PairableInsts, bool NonPow2Len)
+      DenseMap<ValuePair, int> &CandidatePairCostSavings, std::vector<Value *> &PairableInsts)
 {
   size_t TotalPairs = 0;
   BasicBlock::iterator E = BB.end();
@@ -728,7 +722,6 @@ void BBVectorize::computePairsConnectedTo( DenseMap<Value *, std::vector<Value *
         PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSwap));
       }
     } 
-    if (Config.SplatBreaksChain) continue;
     // Look for cases where just the first value in the pair is used by // both members of another pair (splatting).
     for (Value::use_iterator J = P.first->use_begin(); J != E; ++J) {
       if ((SJ = dyn_cast<StoreInst>(*J)) && P.first == SJ->getPointerOperand())
@@ -740,7 +733,6 @@ void BBVectorize::computePairsConnectedTo( DenseMap<Value *, std::vector<Value *
       }
     }
   } 
-  if (Config.SplatBreaksChain) return;
   // Look for cases where just the second value in the pair is used by // both members of another pair (splatting).
   for (Value::use_iterator I = P.second->use_begin(), E = P.second->use_end(); I != E; ++I) {
     if (isa<LoadInst>(*I))
@@ -809,67 +801,7 @@ void BBVectorize::buildDepMap( BasicBlock &BB, DenseMap<Value *, std::vector<Val
   }
 }
 
-// Returns true if an input to pair P is an output of pair Q and also an
-// input of pair Q is an output of pair P. If this is the case, then these
-// two pairs cannot be simultaneously fused.
-bool BBVectorize::pairsConflict(ValuePair P, ValuePair Q, DenseSet<ValuePair> &PairableInstUsers,
-           DenseMap<ValuePair, std::vector<ValuePair> > *PairableInstUserMap, DenseSet<VPPair> *PairableInstUserPairSet)
-{
-  // Two pairs are in conflict if they are mutual Users of eachother.
-  bool QUsesP = PairableInstUsers.count(ValuePair(P.first,  Q.first))  || PairableInstUsers.count(ValuePair(P.first,  Q.second)) ||
-                PairableInstUsers.count(ValuePair(P.second, Q.first))  || PairableInstUsers.count(ValuePair(P.second, Q.second));
-  bool PUsesQ = PairableInstUsers.count(ValuePair(Q.first,  P.first))  || PairableInstUsers.count(ValuePair(Q.first,  P.second)) ||
-                PairableInstUsers.count(ValuePair(Q.second, P.first))  || PairableInstUsers.count(ValuePair(Q.second, P.second));
-  if (PairableInstUserMap) {
-    // FIXME: The expensive part of the cycle check is not so much the cycle
-    // check itself but this edge insertion procedure. This needs some
-    // profiling and probably a different data structure.
-    if (PUsesQ) {
-      if (PairableInstUserPairSet->insert(VPPair(Q, P)).second)
-        (*PairableInstUserMap)[Q].push_back(P);
-    }
-    if (QUsesP) {
-      if (PairableInstUserPairSet->insert(VPPair(P, Q)).second)
-        (*PairableInstUserMap)[P].push_back(Q);
-    }
-  } 
-  return (QUsesP && PUsesQ);
-}
-
-// This function walks the use graph of current pairs to see if, starting
-// from P, the walk returns to P.
-bool BBVectorize::pairWillFormCycle(ValuePair P,
-           DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap, DenseSet<ValuePair> &CurrentPairs)
-{
-  dbgs() << "BBV: starting cycle check for : " << *P.first << " <-> " << *P.second << "\n";
-  // A lookup table of visisted pairs is kept because the PairableInstUserMap
-  // contains non-direct associations.
-  DenseSet<ValuePair> Visited;
-  SmallVector<ValuePair, 32> Q;
-  // General depth-first post-order traversal:
-  Q.push_back(P);
-  do {
-    ValuePair QTop = Q.pop_back_val();
-    Visited.insert(QTop); 
-    dbgs() << "BBV: cycle check visiting: " << *QTop.first << " <-> " << *QTop.second << "\n";
-    DenseMap<ValuePair, std::vector<ValuePair> >::iterator QQ = PairableInstUserMap.find(QTop);
-    if (QQ == PairableInstUserMap.end())
-      continue; 
-    for (std::vector<ValuePair>::iterator C = QQ->second.begin(), CE = QQ->second.end(); C != CE; ++C) {
-      if (*C == P) {
-        DEBUG(dbgs() << "BBV: rejected to prevent non-trivial cycle formation: " << QTop.first << " <-> " << C->second << "\n");
-        return true;
-      } 
-      if (CurrentPairs.count(*C) && !Visited.count(*C))
-        Q.push_back(*C);
-    }
-  } while (!Q.empty());
-
-  return false;
-}
-
-// This function builds the initial dag of connected pairs with the
-// pair J at the root.
+// This function builds the initial dag of connected pairs with the // pair J at the root.
 void BBVectorize::buildInitialDAGFor( DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
                 DenseSet<ValuePair> &CandidatePairsSet, std::vector<Value *> &PairableInsts,
                 DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs, DenseSet<ValuePair> &PairableInstUsers,
@@ -913,8 +845,8 @@ void BBVectorize::buildInitialDAGFor( DenseMap<Value *, std::vector<Value *> > &
 // that cannot be simultaneously chosen for vectorization).
 void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
             std::vector<Value *> &PairableInsts, DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
-            DenseSet<ValuePair> &PairableInstUsers, DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
-            DenseSet<VPPair> &PairableInstUserPairSet, DenseMap<Value *, Value *> &ChosenPairs,
+            DenseSet<ValuePair> &PairableInstUsers,
+            DenseMap<Value *, Value *> &ChosenPairs,
             DenseMap<ValuePair, size_t> &DAG, DenseSet<ValuePair> &PrunedDAG, ValuePair J)
 {
   SmallVector<ValuePairWithDepth, 32> Q;
@@ -957,8 +889,7 @@ void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &Candida
       bool CanAdd = true;
       for (SmallVectorImpl<ValuePairWithDepth>::iterator C2 = BestChildren.begin(), E2 = BestChildren.end(); C2 != E2; ++C2) {
         if (C2->first.first == C->first.first || C2->first.first == C->first.second ||
-            C2->first.second == C->first.first || C2->first.second == C->first.second ||
-            pairsConflict(C2->first, C->first, PairableInstUsers, 0, 0)) {
+            C2->first.second == C->first.first || C2->first.second == C->first.second) {
           if (C2->second >= C->second) {
             CanAdd = false;
             break;
@@ -971,8 +902,7 @@ void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &Candida
       // selected for the DAG. If that is the case, ignore this child.
       for (DenseSet<ValuePair>::iterator T = PrunedDAG.begin(), E2 = PrunedDAG.end(); T != E2; ++T) {
         if (T->first == C->first.first || T->first == C->first.second ||
-            T->second == C->first.first || T->second == C->first.second ||
-            pairsConflict(*T, C->first, PairableInstUsers, 0, 0)) {
+            T->second == C->first.first || T->second == C->first.second) {
           CanAdd = false;
           break;
         } 
@@ -982,8 +912,7 @@ void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &Candida
       // And check the queue too...
       for (SmallVectorImpl<ValuePairWithDepth>::iterator C2 = Q.begin(), E2 = Q.end(); C2 != E2; ++C2) {
         if (C2->first.first == C->first.first || C2->first.first == C->first.second ||
-            C2->first.second == C->first.first || C2->first.second == C->first.second ||
-            pairsConflict(C2->first, C->first, PairableInstUsers, 0, 0)) {
+            C2->first.second == C->first.first || C2->first.second == C->first.second) {
           CanAdd = false;
           break;
         } 
@@ -992,10 +921,6 @@ void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &Candida
       if (!CanAdd) continue; 
       // Last but not least, check for a conflict with any of the // already-chosen pairs.
       for (DenseMap<Value *, Value *>::iterator C2 = ChosenPairs.begin(), E2 = ChosenPairs.end(); C2 != E2; ++C2) {
-        if (pairsConflict(*C2, C->first, PairableInstUsers, 0, 0)) {
-          CanAdd = false;
-          break;
-        } 
         CurrentPairs.insert(*C2);
       }
       if (!CanAdd) continue; 
@@ -1006,8 +931,7 @@ void BBVectorize::pruneDAGFor( DenseMap<Value *, std::vector<Value *> > &Candida
       // before adding this one in its place.
       for (SmallVectorImpl<ValuePairWithDepth>::iterator C2 = BestChildren.begin(); C2 != BestChildren.end();) {
         if (C2->first.first == C->first.first || C2->first.first == C->first.second ||
-            C2->first.second == C->first.first || C2->first.second == C->first.second ||
-            pairsConflict(C2->first, C->first, PairableInstUsers))
+            C2->first.second == C->first.first || C2->first.second == C->first.second)
           C2 = BestChildren.erase(C2);
         else
           ++C2;
@@ -1028,8 +952,7 @@ void BBVectorize::findBestDAGFor( DenseMap<Value *, std::vector<Value *> > &Cand
             std::vector<Value *> &PairableInsts, DenseSet<ValuePair> &FixedOrderPairs,
             DenseMap<VPPair, unsigned> &PairConnectionTypes, DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
-            DenseSet<ValuePair> &PairableInstUsers, DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
-            DenseSet<VPPair> &PairableInstUserPairSet, DenseMap<Value *, Value *> &ChosenPairs,
+            DenseSet<ValuePair> &PairableInstUsers, DenseMap<Value *, Value *> &ChosenPairs,
             DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth, int &BestEffSize, Value *II, std::vector<Value *>&JJ)
 {
   for (std::vector<Value *>::iterator J = JJ.begin(), JE = JJ.end(); J != JE; ++J) {
@@ -1041,10 +964,6 @@ void BBVectorize::findBestDAGFor( DenseMap<Value *, std::vector<Value *> > &Cand
     DenseSet<ValuePair> ChosenPairSet;
     bool DoesConflict = false;
     for (DenseMap<Value *, Value *>::iterator C = ChosenPairs.begin(), E = ChosenPairs.end(); C != E; ++C) {
-      if (pairsConflict(*C, IJ, PairableInstUsers, 0, 0)) {
-        DoesConflict = true;
-        break;
-      } 
       ChosenPairSet.insert(*C);
     }
     if (DoesConflict) continue; 
@@ -1058,8 +977,8 @@ void BBVectorize::findBestDAGFor( DenseMap<Value *, std::vector<Value *> > &Cand
     // some dag node may be attempting to fuse the same instruction).  // So now we walk the dag again, in the case of a conflict,
     // keep only the child with the largest depth. To break a tie, // favor the first child.  
     DenseSet<ValuePair> PrunedDAG;
-    pruneDAGFor(CandidatePairs, PairableInsts, ConnectedPairs, PairableInstUsers, PairableInstUserMap,
-                 PairableInstUserPairSet, ChosenPairs, DAG, PrunedDAG, IJ); 
+    pruneDAGFor(CandidatePairs, PairableInsts, ConnectedPairs, PairableInstUsers,
+                 ChosenPairs, DAG, PrunedDAG, IJ); 
     int EffSize = 0;
     if (TTI) {
       DenseSet<Value *> PrunedDAGInstrs;
@@ -1289,8 +1208,6 @@ void BBVectorize::choosePairs( DenseMap<Value *, std::vector<Value *> > &Candida
     if (JJ.empty()) JJ.reserve(32);
     JJ.push_back(I->first);
   } 
-  DenseMap<ValuePair, std::vector<ValuePair> > PairableInstUserMap;
-  DenseSet<VPPair> PairableInstUserPairSet;
   for (std::vector<Value *>::iterator I = PairableInsts.begin(), E = PairableInsts.end(); I != E; ++I) {
     // The number of possible pairings for this variable:
     size_t NumChoices = CandidatePairs.lookup(*I).size();
@@ -1302,7 +1219,7 @@ void BBVectorize::choosePairs( DenseMap<Value *, std::vector<Value *> > &Candida
     DenseSet<ValuePair> BestDAG;
     findBestDAGFor(CandidatePairs, CandidatePairsSet, CandidatePairCostSavings,
                     PairableInsts, FixedOrderPairs, PairConnectionTypes, ConnectedPairs, ConnectedPairDeps,
-                    PairableInstUsers, PairableInstUserMap, PairableInstUserPairSet, ChosenPairs,
+                    PairableInstUsers, ChosenPairs,
                     BestDAG, BestMaxDepth, BestEffSize, *I, JJ); 
     if (BestDAG.empty())
       continue; 
@@ -2063,52 +1980,27 @@ INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 static cl::opt<unsigned> ReqChainDepth("bb-vectorize-req-chain-depth", cl::init(6), cl::Hidden, cl::desc("The required chain depth for vectorization")); 
 static cl::opt<unsigned> SearchLimit("bb-vectorize-search-limit", cl::init(400), cl::Hidden, cl::desc("The maximum search distance for instruction pairs")); 
-static cl::opt<bool> SplatBreaksChain("bb-vectorize-splat-breaks-chain", cl::init(false), cl::Hidden, cl::desc("Replicating one element to a pair breaks the chain")); 
 static cl::opt<unsigned> VectorBits("bb-vectorize-vector-bits", cl::init(128), cl::Hidden, cl::desc("The size of the native vector registers")); 
 static cl::opt<unsigned> MaxIter("bb-vectorize-max-iter", cl::init(0), cl::Hidden, cl::desc("The maximum number of pairing iterations")); 
 static cl::opt<unsigned> MaxInsts("bb-vectorize-max-instr-per-group", cl::init(500), cl::Hidden, cl::desc("The maximum number of pairable instructions per group")); 
 static cl::opt<unsigned> MaxPairs("bb-vectorize-max-pairs-per-group", cl::init(3000), cl::Hidden, cl::desc("The maximum number of candidate instruction pairs per group")); 
-static cl::opt<unsigned> MaxCandPairsForCycleCheck("bb-vectorize-max-cycle-check-pairs", cl::init(200), cl::Hidden, cl::desc("The maximum number of candidate pairs with which to use" " a full cycle check"));
-static cl::opt<bool> NoBools("bb-vectorize-no-bools", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize boolean (i1) values"));
-static cl::opt<bool> NoInts("bb-vectorize-no-ints", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize integer values")); 
-static cl::opt<bool> NoFloats("bb-vectorize-no-floats", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point values")); 
-// FIXME: This should default to false once pointer vector support works.
-static cl::opt<bool> NoPointers("bb-vectorize-no-pointers", cl::init(/*false*/ true), cl::Hidden, cl::desc("Don't try to vectorize pointer values")); 
-static cl::opt<bool> NoCasts("bb-vectorize-no-casts", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize casting (conversion) operations")); 
-static cl::opt<bool> NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize floating-point math intrinsics")); 
-static cl::opt<bool> NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize the fused-multiply-add intrinsic")); 
-static cl::opt<bool> NoSelect("bb-vectorize-no-select", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize select instructions")); 
-static cl::opt<bool> NoCmp("bb-vectorize-no-cmp", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize comparison instructions")); 
-static cl::opt<bool> NoGEP("bb-vectorize-no-gep", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize getelementptr instructions")); 
-static cl::opt<bool> NoMemOps("bb-vectorize-no-mem-ops", cl::init(false), cl::Hidden, cl::desc("Don't try to vectorize loads and stores")); 
-static cl::opt<bool> AlignedOnly("bb-vectorize-aligned-only", cl::init(false), cl::Hidden, cl::desc("Only generate aligned loads and stores")); 
-static cl::opt<bool> NoMemOpBoost("bb-vectorize-no-mem-op-boost", cl::init(false), cl::Hidden, cl::desc("Don't boost the chain-depth contribution of loads and stores")); 
-static cl::opt<bool> FastDep("bb-vectorize-fast-dep", cl::init(false), cl::Hidden, cl::desc("Use a fast instruction dependency analysis")); 
+static cl::opt<bool> NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden, cl::desc("Don't floating-point math intrinsics")); 
+static cl::opt<bool> NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden, cl::desc("Don't the fused-multiply-add intrinsic")); 
+static cl::opt<bool> NoSelect("bb-vectorize-no-select", cl::init(false), cl::Hidden, cl::desc("Don't select instructions")); 
+static cl::opt<bool> NoCmp("bb-vectorize-no-cmp", cl::init(false), cl::Hidden, cl::desc("Don't comparison instructions")); 
 
 VectorizeConfig::VectorizeConfig()
 {
   VectorBits = ::VectorBits;
-  VectorizeBools = !::NoBools;
-  VectorizeInts = !::NoInts;
-  VectorizeFloats = !::NoFloats;
-  VectorizePointers = !::NoPointers;
-  VectorizeCasts = !::NoCasts;
   VectorizeMath = !::NoMath;
   VectorizeFMA = !::NoFMA;
   VectorizeSelect = !::NoSelect;
   VectorizeCmp = !::NoCmp;
-  VectorizeGEP = !::NoGEP;
-  VectorizeMemOps = !::NoMemOps;
-  AlignedOnly = ::AlignedOnly;
   ReqChainDepth= ::ReqChainDepth;
   SearchLimit = ::SearchLimit;
-  MaxCandPairsForCycleCheck = ::MaxCandPairsForCycleCheck;
-  SplatBreaksChain = ::SplatBreaksChain;
   MaxInsts = ::MaxInsts;
   MaxPairs = ::MaxPairs;
   MaxIter = ::MaxIter;
-  NoMemOpBoost = ::NoMemOpBoost;
-  FastDep = ::FastDep;
 }
 #endif
 
