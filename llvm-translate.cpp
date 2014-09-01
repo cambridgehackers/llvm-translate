@@ -469,16 +469,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     writeOperand(Operand);
     writeOperand(II->getNormalDest());
     writeOperand(II->getUnwindDest());
-#if 0
-  } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
-    if (!AI->getArraySize() || AI->isArrayAllocation()) {
-      writeOperand(AI->getArraySize());
-    }
-  } else if (isa<CastInst>(I)) {
-    writeOperand(Operand);
-  } else if (isa<VAArgInst>(I)) {
-    writeOperand(Operand);
-#endif
   } else if (Operand) {   // Print the normal way.
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
       writeOperand(I.getOperand(i));
@@ -868,14 +858,11 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
   Module* Result = llvm_ParseIRFile(FN, Err, Context);
   if (!Result)
       Err.print(argv0, errs());
-printf("[%s:%d] get %x DEB %x\n", __FUNCTION__, __LINE__, getDebugMetadataVersionFromModule(*Result), DEBUG_METADATA_VERSION);
   return Result;
 }
 
 void format_type(DIType DT)
 {
-    //if (DT.getTag() == dwarf::DW_TAG_subroutine_type)
-       //return;
     fprintf(stderr, "    %s:", __FUNCTION__);
     fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
     StringRef Res = DT.getName();
@@ -902,14 +889,14 @@ void format_type(DIType DT)
     }
     fprintf(stderr, "\n");
     if (DT.getTag() == dwarf::DW_TAG_structure_type) {
-DICompositeType CTy = DICompositeType(DT);
- //StringRef Name = CTy.getName();
-    DIArray Elements = CTy.getTypeArray();
-    for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
-      DIDescriptor Element = Elements.getElement(i);
-fprintf(stderr, "struct elt:");
-Element.dump();
-    }
+        DICompositeType CTy = DICompositeType(DT);
+        //StringRef Name = CTy.getName();
+        DIArray Elements = CTy.getTypeArray();
+        for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
+            DIDescriptor Element = Elements.getElement(i);
+            fprintf(stderr, "struct elt:");
+            Element.dump();
+        }
     }
 }
 
@@ -1005,15 +992,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
-    if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
+  if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
       printf("%s: bitcode didn't read correctly.\n", argv[0]);
       printf("Reason: %s\n", ErrorMsg.c_str());
       return 1;
-    }
+  }
 
   //ModulePass *DebugIRPass = createDebugIRPass();
   //DebugIRPass->runOnModule(*Mod);
-  //peepPass->runOnModule(*Mod);
 
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
@@ -1053,20 +1039,15 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
   EE->DisableLazyCompilation(true);
 
-  // Add the module's name to the start of the vector of arguments to main().
   std::vector<std::string> InputArgv;
   InputArgv.insert(InputArgv.begin(), InputFile[0]);
 
-  // Call the main function from M as if its signature were:
-  //   int main (int argc, char **argv, const char **envp)
-  // using the contents of Args to determine argc & argv, and the contents of
-  // EnvVars to determine envp.
-  //
   Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn) {
     printf("'main' function not found in module.\n");
-    return -1;
+    return 1;
   }
+
   // Run static constructors.
   EE->runStaticConstructorsDestructors(false);
 
