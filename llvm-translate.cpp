@@ -134,20 +134,14 @@ struct BBVectorize : public BasicBlockPass {
   BBVectorize(const VectorizeConfig &C = VectorizeConfig()) : BasicBlockPass(ID), Config(C) {
     initializeBBVectorizePass(*PassRegistry::getPassRegistry());
   } 
-  BBVectorize(Pass *P, const VectorizeConfig &C) : BasicBlockPass(ID), Config(C) {
-    //AA = &P->getAnalysis<AliasAnalysis>(); //DT = &P->getAnalysis<DominatorTree>();
-    //SE = &P->getAnalysis<ScalarEvolution>(); //TD = P->getAnalysisIfAvailable<DataLayout>();
-    //TTI = IgnoreTargetInfo ? 0 : &P->getAnalysis<TargetTransformInfo>();
-  } 
+  BBVectorize(Pass *P, const VectorizeConfig &C) : BasicBlockPass(ID), Config(C) { } 
   typedef std::pair<Value *, Value *> ValuePair;
   typedef std::pair<ValuePair, int> ValuePairWithCost;
   typedef std::pair<ValuePair, size_t> ValuePairWithDepth;
   typedef std::pair<ValuePair, ValuePair> VPPair; // A ValuePair pair
   typedef std::pair<VPPair, unsigned> VPPairWithType; 
-  //AliasAnalysis *AA; //DominatorTree *DT; //DataLayout *TD;
   ScalarEvolution *SE;
   const TargetTransformInfo *TTI; 
-  // FIXME: const correct?  
   bool vectorizePairs(BasicBlock &BB); 
   bool getCandidatePairs(BasicBlock &BB, BasicBlock::iterator &Start,
                      DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
@@ -220,23 +214,16 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
   {
 printf("[%s:%d] BEGIN\n", __FUNCTION__, __LINE__);
     bool changed = false;
-    // Iterate a sufficient number of times to merge types of size 1 bit,
-    // then 2 bits, then 4, etc. up to half of the target vector width of the // target vector register.
-    unsigned n = 1;
-    //for (unsigned v = 2; (TTI || v <= Config.VectorBits) && (!Config.MaxIter || n <= Config.MaxIter); v *= 2, ++n) {
-      //DEBUG(dbgs() << "BBV: fusing loop #" << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
-      if (vectorizePairs(BB))
+    //unsigned n = 1;
+    if (vectorizePairs(BB))
         changed = true;
-      //else
-        //break;
+    //if (changed ) {
+      //++n;
+      //for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
+        //DEBUG(dbgs() << "BBV: fusing for non-2^n-length vectors loop #: " << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
+        //if (!vectorizePairs(BB)) break;
+      //}
     //} 
-    if (changed ) {
-      ++n;
-      for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
-        DEBUG(dbgs() << "BBV: fusing for non-2^n-length vectors loop #: " << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
-        if (!vectorizePairs(BB)) break;
-      }
-    } 
 printf("[%s:%d] END %d\n", __FUNCTION__, __LINE__, changed);
     return changed;
   } 
