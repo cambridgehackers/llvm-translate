@@ -2545,29 +2545,30 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
         switch (opcode) {
         case Instruction::Alloca:
             {
-            Value *newt;
-            if (PI->getOpcode() == Instruction::Store) {
+            Value *newt = NULL;
+            //if (PI->getOpcode() == Instruction::Store) {
             printf("[%s:%d] Alloca\n", __FUNCTION__, __LINE__);
             if (I->hasName()) {
                 const char *cp = I->getName().str().c_str();
                 printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, cp);
-                for (unsigned i = 0; i < PI->getNumOperands(); ++i) {
-                    printf("[%s:%d] [%d] Op %p\n", __FUNCTION__, __LINE__, i, PI->getOperand(i));
-                }
-                if (retv == PI->getOperand(1)) {
+                //for (unsigned i = 0; i < PI->getNumOperands(); ++i) {
+                    //printf("[%s:%d] [%d] Op %p\n", __FUNCTION__, __LINE__, i, PI->getOperand(i));
+                //}
+                //if (retv == PI->getOperand(1)) {
                     printf("[%s:%d] ALLOC MATCHED\n", __FUNCTION__, __LINE__);
-                    PI->getOperand(0)->dump();
-                    PI->getOperand(1)->dump();
+                    //PI->getOperand(0)->dump();
+                    //PI->getOperand(1)->dump();
                     //PI->getOperand(1)->replaceAllUsesWith(PI->getOperand(0));
                     BasicBlock::iterator PN = PI;
-                    Value *oldt = PI->getOperand(1);
-                    newt = PI->getOperand(0);
+                    //newt = PI->getOperand(0);
                     while (PN != E) {
+                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
+                            newt = PN->getOperand(0);
                         printf("[%s:%d] ROP %d: ", __FUNCTION__, __LINE__, PN->getOpcode());
                         for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
                             Value *val = *OI;
                             printf(" %p", val);
-                            if (val == retv) {
+                            if (val == retv && newt) {
                                 printf(" REPLACEOP");
                                 *OI = newt;
                             }
@@ -2577,9 +2578,9 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
                     }
                     I->eraseFromParent(); // delete this instruction
                     changed = true;
-                }
+                //}
             }
-            }
+            //}
             }
         case Instruction::Call:
             {
@@ -2762,7 +2763,7 @@ void format_type(DIType DT)
     fprintf(stderr, "\n");
     if (DT.getTag() == dwarf::DW_TAG_structure_type) {
 DICompositeType CTy = DICompositeType(DT);
- StringRef Name = CTy.getName();
+ //StringRef Name = CTy.getName();
     DIArray Elements = CTy.getTypeArray();
     for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
       DIDescriptor Element = Elements.getElement(i);
