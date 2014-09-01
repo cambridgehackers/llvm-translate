@@ -2525,6 +2525,47 @@ printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
   }
 }
 
+bool opt_runOnBasicBlock(BasicBlock &BB)
+{
+    bool changed = false;
+    BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
+    BasicBlock::iterator E = BB.end();
+    if (Start == E) return false; 
+    BasicBlock::iterator I = Start++;
+    while(1) {
+        bool lastrun = (I == E);
+        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
+        int opcode = I->getOpcode();
+        switch (opcode) {
+#if 0
+        case Instruction::Alloca:
+            if (operand_list[0].type == OpTypeLocalRef)
+                slotarray[operand_list[0].value].ignore_debug_info = 1;
+            return;  // ignore
+#endif
+        case Instruction::Call:
+            {
+            if (const CallInst *CI = dyn_cast<CallInst>(I)) {
+              const Value *Operand = CI->getCalledValue();
+                if (Operand->hasName() && isa<Constant>(Operand)) {
+                  const char *cp = Operand->getName().str().c_str();
+                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "printf")) {
+                      //printf("[%s:%d] ERASE\n", __FUNCTION__, __LINE__);
+                      I->eraseFromParent(); // delete this instruction
+                      changed = true;
+                  }
+                }
+            }
+            }
+            break;
+        };
+        I = PI;
+        if (lastrun)
+            break;
+    }
+    return changed;
+}
+
 static void processFunction(Function *F)
 {
   globalFunction = F;
@@ -2540,10 +2581,12 @@ static void processFunction(Function *F)
   }
   if (!F->isDeclaration()) {
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-      optimize_block_item->runOnBasicBlock(*I);
-      for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins) {
-        printInstruction(*ins);
-      }
+printf("[%s:%d] NEXT FUN\n", __FUNCTION__, __LINE__);
+//printf("[%s:%d] BBI %p E %p\n", __FUNCTION__, __LINE__, I, E);
+      //optimize_block_item->runOnBasicBlock(*I);
+      opt_runOnBasicBlock(*I);
+      for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
+          printInstruction(*ins);
     }
   }
   clearLocalSlot();
