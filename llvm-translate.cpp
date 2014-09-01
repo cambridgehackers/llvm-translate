@@ -123,6 +123,8 @@ void clearLocalSlot(void)
 }
 
 #if 1
+#undef DEBUG
+#define DEBUG(A) A
 //STATISTIC(NumFusedOps, "Number of operations fused by bb-vectorize");
 static BasicBlockPass *optimize_block_item;
 
@@ -212,35 +214,22 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
   void collectLoadMoveSet(BasicBlock &BB, std::vector<Value *> &PairableInsts,
                    DenseMap<Value *, Value *> &ChosenPairs, DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
                    DenseSet<ValuePair> &LoadMoveSetPairs); 
-  void moveUsesOfIAfterJ(BasicBlock &BB, DenseSet<ValuePair> &LoadMoveSetPairs, Instruction *&InsertionPt, Instruction *I, Instruction *J); 
+  void moveUsesOfIAfterJ(BasicBlock &BB, Instruction *&InsertionPt, Instruction *I, Instruction *J); 
   void combineMetadata(Instruction *K, const Instruction *J); 
   virtual bool runOnBasicBlock(BasicBlock &BB)
-#if 0
   {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //AA = &getAnalysis<AliasAnalysis>(); //DT = &getAnalysis<DominatorTree>();
-    //SE = &getAnalysis<ScalarEvolution>(); //TD = getAnalysisIfAvailable<DataLayout>();
-    //TTI = IgnoreTargetInfo ? 0 : &getAnalysis<TargetTransformInfo>(); 
-    return vectorizeBB(BB);
-  } 
-  bool vectorizeBB(BasicBlock &BB) 
-#endif
-  {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-#undef DEBUG
-#define DEBUG(A) A
-    DEBUG(if (TTI) dbgs() << "BBV: using target information\n"); 
+printf("[%s:%d] BEGIN\n", __FUNCTION__, __LINE__);
     bool changed = false;
     // Iterate a sufficient number of times to merge types of size 1 bit,
     // then 2 bits, then 4, etc. up to half of the target vector width of the // target vector register.
     unsigned n = 1;
-    for (unsigned v = 2; (TTI || v <= Config.VectorBits) && (!Config.MaxIter || n <= Config.MaxIter); v *= 2, ++n) {
-      DEBUG(dbgs() << "BBV: fusing loop #" << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
+    //for (unsigned v = 2; (TTI || v <= Config.VectorBits) && (!Config.MaxIter || n <= Config.MaxIter); v *= 2, ++n) {
+      //DEBUG(dbgs() << "BBV: fusing loop #" << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
       if (vectorizePairs(BB))
         changed = true;
-      else
-        break;
-    } 
+      //else
+        //break;
+    //} 
     if (changed ) {
       ++n;
       for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
@@ -248,7 +237,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (!vectorizePairs(BB)) break;
       }
     } 
-    DEBUG(dbgs() << "BBV: done!\n");
+printf("[%s:%d] END %d\n", __FUNCTION__, __LINE__, changed);
     return changed;
   } 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const
@@ -382,27 +371,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     } 
     if (!ComputeOffset)
       return true; 
-#if 0
-    const SCEV *IPtrSCEV = SE->getSCEV(IPtr);
-    const SCEV *JPtrSCEV = SE->getSCEV(JPtr); 
-    // If this is a trivial offset, then we'll get something like
-    // 1*sizeof(type). With target data, which we need anyway, this will get // constant folded into a number.
-    const SCEV *OffsetSCEV = SE->getMinusSCEV(JPtrSCEV, IPtrSCEV);
-    if (const SCEVConstant *ConstOffSCEV = dyn_cast<SCEVConstant>(OffsetSCEV)) {
-      ConstantInt *IntOff = ConstOffSCEV->getValue();
-      int64_t Offset = IntOff->getSExtValue(); 
-      Type *VTy = IPtr->getType()->getPointerElementType();
-      int64_t VTyTSS = (int64_t) TD->getTypeStoreSize(VTy); 
-      Type *VTy2 = JPtr->getType()->getPointerElementType();
-      if (VTy != VTy2 && Offset < 0) {
-        int64_t VTy2TSS = (int64_t) TD->getTypeStoreSize(VTy2);
-        OffsetInElmts = Offset/VTy2TSS;
-        return (abs64(Offset) % VTy2TSS) == 0;
-      } 
-      OffsetInElmts = Offset/VTyTSS;
-      return (abs64(Offset) % VTyTSS) == 0;
-    }
-#endif 
     return false;
   } 
   // Returns true if the provided CallInst represents an intrinsic that can // be vectorized.
@@ -1219,8 +1187,7 @@ void BBVectorize::choosePairs( DenseMap<Value *, std::vector<Value *> > &Candida
     DenseSet<ValuePair> BestDAG;
     findBestDAGFor(CandidatePairs, CandidatePairsSet, CandidatePairCostSavings,
                     PairableInsts, FixedOrderPairs, PairConnectionTypes, ConnectedPairs, ConnectedPairDeps,
-                    PairableInstUsers, ChosenPairs,
-                    BestDAG, BestMaxDepth, BestEffSize, *I, JJ); 
+                    PairableInstUsers, ChosenPairs, BestDAG, BestMaxDepth, BestEffSize, *I, JJ); 
     if (BestDAG.empty())
       continue; 
     // A dag has been chosen (or not) at this point. If no dag was
@@ -1710,25 +1677,18 @@ void BBVectorize::replaceOutputsOfPair(LLVMContext& Context, Instruction *I,
 }
 
 // Move all uses of the function I (including pairing-induced uses) after J.
-void BBVectorize::moveUsesOfIAfterJ(BasicBlock &BB, DenseSet<ValuePair> &LoadMoveSetPairs,
-                   Instruction *&InsertionPt, Instruction *I, Instruction *J)
+void BBVectorize::moveUsesOfIAfterJ(BasicBlock &BB, Instruction *&InsertionPt, Instruction *I, Instruction *J)
 {
   // Skip to the first instruction past I.
   BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I)); 
   DenseSet<Value *> Users;
-  //AliasSetTracker WriteSet(*AA);
-  //if (I->mayWriteToMemory()) WriteSet.add(I); 
   for (; cast<Instruction>(L) != J;) {
-    //if (trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs)) {
       // Move this instruction
       Instruction *InstToMove = L; ++L; 
       DEBUG(dbgs() << "BBV: moving: " << *InstToMove << " to after " << *InsertionPt << "\n");
       InstToMove->removeFromParent();
       InstToMove->insertAfter(InsertionPt);
       InsertionPt = InstToMove;
-    //} else {
-      //++L;
-    //}
   }
 }
 
@@ -1844,8 +1804,6 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB, std::vector<Value *> &Pairable
     assert(FP != ChosenPairs.end() && "Flipped pair not found in list");
     ChosenPairs.erase(FP);
     ChosenPairs.erase(P);
-
-    // If the pair must have the other order, then flip it.
     bool FlipPairOrder = FixedOrderPairs.count(ValuePair(J, I));
     if (!FlipPairOrder && !FixedOrderPairs.count(ValuePair(I, J))) {
       // This pair does not have a fixed order, and so we might want to
@@ -1857,8 +1815,7 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB, std::vector<Value *> &Pairable
       if (IJ == ConnectedPairDeps.end()) {
         IJ = ConnectedPairDeps.find(ValuePair(J, I));
         OrigOrder = false;
-      }
-
+      } 
       if (IJ != ConnectedPairDeps.end()) {
         unsigned NumDepsDirect = 0, NumDepsSwap = 0;
         for (std::vector<ValuePair>::iterator T = IJ->second.begin(), TE = IJ->second.end(); T != TE; ++T) {
@@ -1879,8 +1836,7 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB, std::vector<Value *> &Pairable
           DEBUG(dbgs() << "BBV: reordering pair: " << *I << " <-> " << *J << "\n");
         }
       }
-    }
-
+    } 
     Instruction *L = I, *H = J;
     if (FlipPairOrder)
       std::swap(H, L);
@@ -1927,7 +1883,7 @@ void BBVectorize::fuseChosenPairs(BasicBlock &BB, std::vector<Value *> &Pairable
     // first instruction is disjoint from the input dag of the second
     // (by definition), and so commutes with it.
 
-    moveUsesOfIAfterJ(BB, LoadMoveSetPairs, InsertionPt, I, J); 
+    moveUsesOfIAfterJ(BB, InsertionPt, I, J); 
     if (!isa<StoreInst>(I)) {
       L->replaceAllUsesWith(K1);
       H->replaceAllUsesWith(K2);
