@@ -226,23 +226,23 @@ printf("[%s:%d] BEGIN\n", __FUNCTION__, __LINE__);
     DenseMap<Value *, std::vector<Value *> > CandidatePairs;
     DenseSet<ValuePair> FixedOrderPairs;
     DenseMap<ValuePair, int> CandidatePairCostSavings;
+    DenseSet<ValuePair> CandidatePairsSet;
+    DenseMap<ValuePair, std::vector<ValuePair> > ConnectedPairs, ConnectedPairDeps;
+    DenseMap<VPPair, unsigned> PairConnectionTypes;
+    DenseSet<ValuePair> PairableInstUsers;
+
     ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs, FixedOrderPairs, CandidatePairCostSavings, PairableInsts);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (PairableInsts.empty()) continue;
     // Build the candidate pair set for faster lookups.
-    DenseSet<ValuePair> CandidatePairsSet;
     for (DenseMap<Value *, std::vector<Value *> >::iterator I = CandidatePairs.begin(), E = CandidatePairs.end(); I != E; ++I)
       for (std::vector<Value *>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
         CandidatePairsSet.insert(ValuePair(I->first, *J));
     // Now we have a map of all of the pairable instructions and we need to
     // select the best possible pairing. A good pairing is one such that the
     // users of the pair are also paired. This defines a (directed) forest
-    // over the pairs such that two pairs are connected iff the second pair
-    // uses the first.
-    // Note that it only matters that both members of the second pair use some
-    // element of the first pair (to allow for splatting).
-    DenseMap<ValuePair, std::vector<ValuePair> > ConnectedPairs, ConnectedPairDeps;
-    DenseMap<VPPair, unsigned> PairConnectionTypes;
+    // over the pairs such that two pairs are connected iff the second pair // uses the first.
+    // Note that it only matters that both members of the second pair use some // element of the first pair (to allow for splatting).
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     computeConnectedPairs(CandidatePairs, CandidatePairsSet, PairableInsts, ConnectedPairs, PairConnectionTypes);
     if (ConnectedPairs.empty()) continue;
@@ -250,14 +250,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       for (std::vector<ValuePair>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
         ConnectedPairDeps[*J].push_back(I->first);
     // Build the pairable-instruction dependency map
-    DenseSet<ValuePair> PairableInstUsers;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     buildDepMap(BB, CandidatePairs, PairableInsts, PairableInstUsers);
     // There is now a graph of the connected pairs. For each variable, pick
     // the pairing with the largest dag meeting the depth requirement on at
     // least one branch. Then select all pairings that are part of that dag
-    // and remove them from the list of available pairings and pairable
-    // variables.
+    // and remove them from the list of available pairings and pairable // variables.
     DenseMap<Value *, Value *> ChosenPairs;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     choosePairs(CandidatePairs, CandidatePairsSet, CandidatePairCostSavings,
@@ -267,8 +265,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     AllPairableInsts.insert(AllPairableInsts.end(), PairableInsts.begin(), PairableInsts.end());
     AllChosenPairs.insert(ChosenPairs.begin(), ChosenPairs.end());
     // Only for the chosen pairs, propagate information on fixed-order pairs,
-    // pair connections, and their types to the data structures used by the
-    // pair fusion procedures.
+    // pair connections, and their types to the data structures used by the // pair fusion procedures.
     for (DenseMap<Value *, Value *>::iterator I = ChosenPairs.begin(), IE = ChosenPairs.end(); I != IE; ++I) {
       if (FixedOrderPairs.count(*I))
         AllFixedOrderPairs.insert(*I);
@@ -276,13 +273,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         AllFixedOrderPairs.insert(ValuePair(I->second, I->first));
       for (DenseMap<Value *, Value *>::iterator J = ChosenPairs.begin(); J != IE; ++J) {
         DenseMap<VPPair, unsigned>::iterator K = PairConnectionTypes.find(VPPair(*I, *J));
-        if (K != PairConnectionTypes.end()) {
-          AllPairConnectionTypes.insert(*K);
-        } else {
+        if (K == PairConnectionTypes.end()) {
           K = PairConnectionTypes.find(VPPair(*J, *I));
-          if (K != PairConnectionTypes.end())
-            AllPairConnectionTypes.insert(*K);
         }
+        if (K != PairConnectionTypes.end())
+            AllPairConnectionTypes.insert(*K);
       }
     }
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
