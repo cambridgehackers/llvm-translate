@@ -466,16 +466,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     writeOperand(Operand);
   } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
     Operand = II->getCalledValue();
-    //PointerType *PTy = cast<PointerType>(Operand->getType());
-    //FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    //Type *RetTy = FTy->getReturnType();
-    //if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //RetTy->dump();
-    //}
     writeOperand(Operand);
     writeOperand(II->getNormalDest());
     writeOperand(II->getUnwindDest());
+#if 0
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
     if (!AI->getArraySize() || AI->isArrayAllocation()) {
       writeOperand(AI->getArraySize());
@@ -484,6 +478,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     writeOperand(Operand);
   } else if (isa<VAArgInst>(I)) {
     writeOperand(Operand);
+#endif
   } else if (Operand) {   // Print the normal way.
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
       writeOperand(I.getOperand(i));
@@ -747,30 +742,36 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
 //H->replaceAllUsesWith(K2);
 //AA->replaceWithNewValue(L, K1);
 
-static void processFunction(Function *F)
+static void verilogFunction(Function *F)
 {
-  globalFunction = F;
-  already_printed_header = 0;
   FunctionType *FT = F->getFunctionType();
   int updateFlag = strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv");
   char temp[MAX_CHAR_BUFFER];
+
+  globalFunction = F;
+  already_printed_header = 0;
   strcpy(temp, globalName);
   if (updateFlag) {
       print_header();
       strcat(temp + strlen(globalName) - 8, "guardEv");
       fprintf(outputFile, "if (%s) then begin\n", temp);
   }
-  if (!F->isDeclaration()) {
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-      opt_runOnBasicBlock(*I);
+  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
-    }
-  }
   clearLocalSlot();
   if (updateFlag) {
       print_header();
       fprintf(outputFile, "end;\n");
+  }
+}
+
+static void processFunction(Function *F)
+{
+  if (!F->isDeclaration()) {
+      for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+          opt_runOnBasicBlock(*I);
+      verilogFunction(F);
   }
 }
 
