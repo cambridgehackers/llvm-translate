@@ -142,7 +142,6 @@ struct BBVectorize : public BasicBlockPass {
   typedef std::pair<VPPair, unsigned> VPPairWithType; 
   ScalarEvolution *SE;
   const TargetTransformInfo *TTI; 
-  bool vectorizePairs(BasicBlock &BB); 
   bool getCandidatePairs(BasicBlock &BB, BasicBlock::iterator &Start,
                      DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
                      DenseSet<ValuePair> &FixedOrderPairs, DenseMap<ValuePair, int> &CandidatePairCostSavings,
@@ -212,18 +211,102 @@ void computePairsConnectedTo( DenseMap<Value *, std::vector<Value *> > &Candidat
   void combineMetadata(Instruction *K, const Instruction *J); 
   virtual bool runOnBasicBlock(BasicBlock &BB)
   {
-printf("[%s:%d] BEGIN\n", __FUNCTION__, __LINE__);
     bool changed = false;
-    //unsigned n = 1;
-    if (vectorizePairs(BB))
-        changed = true;
-    //if (changed ) {
-      //++n;
-      //for (; !Config.MaxIter || n <= Config.MaxIter; ++n) {
-        //DEBUG(dbgs() << "BBV: fusing for non-2^n-length vectors loop #: " << n << " for " << BB.getName() << " in " << BB.getParent()->getName() << "...\n");
-        //if (!vectorizePairs(BB)) break;
-      //}
-    //} 
+  bool ShouldContinue;
+  BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
+  std::vector<Value *> AllPairableInsts;
+  DenseMap<Value *, Value *> AllChosenPairs;
+  DenseSet<ValuePair> AllFixedOrderPairs;
+  DenseMap<VPPair, unsigned> AllPairConnectionTypes;
+  DenseMap<ValuePair, std::vector<ValuePair> > AllConnectedPairs, AllConnectedPairDeps; 
+
+printf("[%s:%d] BEGIN\n", __FUNCTION__, __LINE__);
+  do {
+    std::vector<Value *> PairableInsts;
+    DenseMap<Value *, std::vector<Value *> > CandidatePairs;
+    DenseSet<ValuePair> FixedOrderPairs;
+    DenseMap<ValuePair, int> CandidatePairCostSavings;
+    ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs, FixedOrderPairs, CandidatePairCostSavings, PairableInsts);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    if (PairableInsts.empty()) continue;
+    // Build the candidate pair set for faster lookups.
+    DenseSet<ValuePair> CandidatePairsSet;
+    for (DenseMap<Value *, std::vector<Value *> >::iterator I = CandidatePairs.begin(), E = CandidatePairs.end(); I != E; ++I)
+      for (std::vector<Value *>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
+        CandidatePairsSet.insert(ValuePair(I->first, *J));
+    // Now we have a map of all of the pairable instructions and we need to
+    // select the best possible pairing. A good pairing is one such that the
+    // users of the pair are also paired. This defines a (directed) forest
+    // over the pairs such that two pairs are connected iff the second pair
+    // uses the first.
+    // Note that it only matters that both members of the second pair use some
+    // element of the first pair (to allow for splatting).
+    DenseMap<ValuePair, std::vector<ValuePair> > ConnectedPairs, ConnectedPairDeps;
+    DenseMap<VPPair, unsigned> PairConnectionTypes;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    computeConnectedPairs(CandidatePairs, CandidatePairsSet, PairableInsts, ConnectedPairs, PairConnectionTypes);
+    if (ConnectedPairs.empty()) continue;
+    for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator I = ConnectedPairs.begin(), IE = ConnectedPairs.end(); I != IE; ++I)
+      for (std::vector<ValuePair>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
+        ConnectedPairDeps[*J].push_back(I->first);
+    // Build the pairable-instruction dependency map
+    DenseSet<ValuePair> PairableInstUsers;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    buildDepMap(BB, CandidatePairs, PairableInsts, PairableInstUsers);
+    // There is now a graph of the connected pairs. For each variable, pick
+    // the pairing with the largest dag meeting the depth requirement on at
+    // least one branch. Then select all pairings that are part of that dag
+    // and remove them from the list of available pairings and pairable
+    // variables.
+    DenseMap<Value *, Value *> ChosenPairs;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    choosePairs(CandidatePairs, CandidatePairsSet, CandidatePairCostSavings,
+      PairableInsts, FixedOrderPairs, PairConnectionTypes, ConnectedPairs, ConnectedPairDeps, PairableInstUsers, ChosenPairs); 
+    if (ChosenPairs.empty()) continue;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    AllPairableInsts.insert(AllPairableInsts.end(), PairableInsts.begin(), PairableInsts.end());
+    AllChosenPairs.insert(ChosenPairs.begin(), ChosenPairs.end());
+    // Only for the chosen pairs, propagate information on fixed-order pairs,
+    // pair connections, and their types to the data structures used by the
+    // pair fusion procedures.
+    for (DenseMap<Value *, Value *>::iterator I = ChosenPairs.begin(), IE = ChosenPairs.end(); I != IE; ++I) {
+      if (FixedOrderPairs.count(*I))
+        AllFixedOrderPairs.insert(*I);
+      else if (FixedOrderPairs.count(ValuePair(I->second, I->first)))
+        AllFixedOrderPairs.insert(ValuePair(I->second, I->first));
+      for (DenseMap<Value *, Value *>::iterator J = ChosenPairs.begin(); J != IE; ++J) {
+        DenseMap<VPPair, unsigned>::iterator K = PairConnectionTypes.find(VPPair(*I, *J));
+        if (K != PairConnectionTypes.end()) {
+          AllPairConnectionTypes.insert(*K);
+        } else {
+          K = PairConnectionTypes.find(VPPair(*J, *I));
+          if (K != PairConnectionTypes.end())
+            AllPairConnectionTypes.insert(*K);
+        }
+      }
+    }
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator I = ConnectedPairs.begin(), IE = ConnectedPairs.end(); I != IE; ++I)
+      for (std::vector<ValuePair>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
+        if (AllPairConnectionTypes.count(VPPair(I->first, *J))) {
+          AllConnectedPairs[I->first].push_back(*J);
+          AllConnectedPairDeps[*J].push_back(I->first);
+        }
+  } while (ShouldContinue);
+  if (!AllChosenPairs.empty()) {
+      changed = true;
+      // A set of pairs has now been selected. It is now necessary to replace the
+      // paired instructions with vector instructions. For this procedure each
+      // operand must be replaced with a vector operand. This vector is formed
+      // by using build_vector on the old operands. The replaced values are then
+      // replaced with a vector_extract on the result.  Subsequent optimization
+      // passes should coalesce the build/extract combinations.
+      fuseChosenPairs(BB, AllPairableInsts, AllChosenPairs, AllFixedOrderPairs, AllPairConnectionTypes, AllConnectedPairs, AllConnectedPairDeps); 
+      // It is important to cleanup here so that future iterations of this // function have less work to do.
+#if 0
+      (void) SimplifyInstructionsInBlock(&BB, TD, AA->getTargetLibraryInfo());
+#endif
+  }
 printf("[%s:%d] END %d\n", __FUNCTION__, __LINE__, changed);
     return changed;
   } 
@@ -387,118 +470,6 @@ printf("[%s:%d] END %d\n", __FUNCTION__, __LINE__, changed);
     return true;
   }
 };
-
-// implements one vectorization iteration on the provided // basic block. It returns true if the block is changed.
-bool BBVectorize::vectorizePairs(BasicBlock &BB)
-{
-  bool ShouldContinue;
-  BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
-  std::vector<Value *> AllPairableInsts;
-  DenseMap<Value *, Value *> AllChosenPairs;
-  DenseSet<ValuePair> AllFixedOrderPairs;
-  DenseMap<VPPair, unsigned> AllPairConnectionTypes;
-  DenseMap<ValuePair, std::vector<ValuePair> > AllConnectedPairs, AllConnectedPairDeps; 
-  do {
-    std::vector<Value *> PairableInsts;
-    DenseMap<Value *, std::vector<Value *> > CandidatePairs;
-    DenseSet<ValuePair> FixedOrderPairs;
-    DenseMap<ValuePair, int> CandidatePairCostSavings;
-    ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs, FixedOrderPairs, CandidatePairCostSavings, PairableInsts);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    if (PairableInsts.empty()) continue;
-
-    // Build the candidate pair set for faster lookups.
-    DenseSet<ValuePair> CandidatePairsSet;
-    for (DenseMap<Value *, std::vector<Value *> >::iterator I = CandidatePairs.begin(), E = CandidatePairs.end(); I != E; ++I)
-      for (std::vector<Value *>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
-        CandidatePairsSet.insert(ValuePair(I->first, *J));
-
-    // Now we have a map of all of the pairable instructions and we need to
-    // select the best possible pairing. A good pairing is one such that the
-    // users of the pair are also paired. This defines a (directed) forest
-    // over the pairs such that two pairs are connected iff the second pair
-    // uses the first.
-
-    // Note that it only matters that both members of the second pair use some
-    // element of the first pair (to allow for splatting).
-
-    DenseMap<ValuePair, std::vector<ValuePair> > ConnectedPairs, ConnectedPairDeps;
-    DenseMap<VPPair, unsigned> PairConnectionTypes;
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    computeConnectedPairs(CandidatePairs, CandidatePairsSet, PairableInsts, ConnectedPairs, PairConnectionTypes);
-    if (ConnectedPairs.empty()) continue;
-
-    for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator I = ConnectedPairs.begin(), IE = ConnectedPairs.end(); I != IE; ++I)
-      for (std::vector<ValuePair>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
-        ConnectedPairDeps[*J].push_back(I->first);
-
-    // Build the pairable-instruction dependency map
-    DenseSet<ValuePair> PairableInstUsers;
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    buildDepMap(BB, CandidatePairs, PairableInsts, PairableInstUsers);
-
-    // There is now a graph of the connected pairs. For each variable, pick
-    // the pairing with the largest dag meeting the depth requirement on at
-    // least one branch. Then select all pairings that are part of that dag
-    // and remove them from the list of available pairings and pairable
-    // variables.
-
-    DenseMap<Value *, Value *> ChosenPairs;
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    choosePairs(CandidatePairs, CandidatePairsSet, CandidatePairCostSavings,
-      PairableInsts, FixedOrderPairs, PairConnectionTypes, ConnectedPairs, ConnectedPairDeps, PairableInstUsers, ChosenPairs); 
-    if (ChosenPairs.empty()) continue;
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    AllPairableInsts.insert(AllPairableInsts.end(), PairableInsts.begin(), PairableInsts.end());
-    AllChosenPairs.insert(ChosenPairs.begin(), ChosenPairs.end());
-
-    // Only for the chosen pairs, propagate information on fixed-order pairs,
-    // pair connections, and their types to the data structures used by the
-    // pair fusion procedures.
-    for (DenseMap<Value *, Value *>::iterator I = ChosenPairs.begin(), IE = ChosenPairs.end(); I != IE; ++I) {
-      if (FixedOrderPairs.count(*I))
-        AllFixedOrderPairs.insert(*I);
-      else if (FixedOrderPairs.count(ValuePair(I->second, I->first)))
-        AllFixedOrderPairs.insert(ValuePair(I->second, I->first));
-
-      for (DenseMap<Value *, Value *>::iterator J = ChosenPairs.begin(); J != IE; ++J) {
-        DenseMap<VPPair, unsigned>::iterator K = PairConnectionTypes.find(VPPair(*I, *J));
-        if (K != PairConnectionTypes.end()) {
-          AllPairConnectionTypes.insert(*K);
-        } else {
-          K = PairConnectionTypes.find(VPPair(*J, *I));
-          if (K != PairConnectionTypes.end())
-            AllPairConnectionTypes.insert(*K);
-        }
-      }
-    }
-
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator I = ConnectedPairs.begin(), IE = ConnectedPairs.end(); I != IE; ++I)
-      for (std::vector<ValuePair>::iterator J = I->second.begin(), JE = I->second.end(); J != JE; ++J)
-        if (AllPairConnectionTypes.count(VPPair(I->first, *J))) {
-          AllConnectedPairs[I->first].push_back(*J);
-          AllConnectedPairDeps[*J].push_back(I->first);
-        }
-  } while (ShouldContinue);
-
-  if (AllChosenPairs.empty()) return false;
-  //NumFusedOps += AllChosenPairs.size();
-
-  // A set of pairs has now been selected. It is now necessary to replace the
-  // paired instructions with vector instructions. For this procedure each
-  // operand must be replaced with a vector operand. This vector is formed
-  // by using build_vector on the old operands. The replaced values are then
-  // replaced with a vector_extract on the result.  Subsequent optimization
-  // passes should coalesce the build/extract combinations.
-
-  fuseChosenPairs(BB, AllPairableInsts, AllChosenPairs, AllFixedOrderPairs, AllPairConnectionTypes, AllConnectedPairs, AllConnectedPairDeps); 
-  // It is important to cleanup here so that future iterations of this // function have less work to do.
-#if 0
-  (void) SimplifyInstructionsInBlock(&BB, TD, AA->getTargetLibraryInfo());
-#endif
-  return true;
-}
 
 // if the two provided instructions are compatible (meaning that they can be fused into a vector instruction). This assumes
 // that I has already been determined to be vectorizable and that J is not // in the use dag of I.
