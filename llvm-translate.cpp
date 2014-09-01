@@ -382,8 +382,7 @@ static const char *opstr_print(unsigned opcode)
     return NULL;
 }
 
-// This member is called for each Instruction in a function..
-void printInstruction(const Instruction &I)
+void translateVerilog(const Instruction &I)
 {
   int opcode = I.getOpcode();
   char instruction_label[MAX_CHAR_BUFFER];
@@ -398,14 +397,12 @@ void printInstruction(const Instruction &I)
     sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   } else if (!I.getType()->isVoidTy()) {
     char temp[MAX_CHAR_BUFFER];
-    // Print out the def slot taken.
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = t;
     sprintf(temp, "%%%d", t);
     slotarray[t].value = (uint64_t ***) &I;
     slotarray[t].name = strdup(temp);
-    //sprintf(instruction_label, "%12d: ",  t);
     sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   }
   else {
@@ -466,79 +463,34 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
     Operand = CI->getCalledValue();
+    writeOperand(Operand);
+  } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
+    Operand = II->getCalledValue();
     //PointerType *PTy = cast<PointerType>(Operand->getType());
     //FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     //Type *RetTy = FTy->getReturnType();
     //if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-//printf("[%s:%d] shortformcall dumpreturntype\n", __FUNCTION__, __LINE__);
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //RetTy->dump();
     //}
     writeOperand(Operand);
-    for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
-      ///writeParamOperand(CI->getArgOperand(op), PAL, op + 1);
-    }
-  } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
-    Operand = II->getCalledValue();
-    PointerType *PTy = cast<PointerType>(Operand->getType());
-    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    Type *RetTy = FTy->getReturnType();
-    if (!FTy->isVarArg() && (!RetTy->isPointerTy() || !cast<PointerType>(RetTy)->getElementType()->isFunctionTy())) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      RetTy->dump();
-    }
-    writeOperand(Operand);
-    for (unsigned op = 0, Eop = II->getNumArgOperands(); op < Eop; ++op) {
-      //writeParamOperand(II->getArgOperand(op), PAL, op + 1);
-    }
     writeOperand(II->getNormalDest());
     writeOperand(II->getUnwindDest());
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
-    //TypePrinter.print(AI->getAllocatedType());
     if (!AI->getArraySize() || AI->isArrayAllocation()) {
       writeOperand(AI->getArraySize());
     }
   } else if (isa<CastInst>(I)) {
     writeOperand(Operand);
-    //TypePrinter.print(I.getType());
   } else if (isa<VAArgInst>(I)) {
     writeOperand(Operand);
-    //TypePrinter.print(I.getType());
   } else if (Operand) {   // Print the normal way.
     for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
       writeOperand(I.getOperand(i));
     }
   }
-  // Print Metadata info.
-  SmallVector<std::pair<unsigned, MDNode*>, 4> InstMD;
-  I.getAllMetadata(InstMD);
-  if (!InstMD.empty()) {
-    SmallVector<StringRef, 8> MDNames;
-    I.getType()->getContext().getMDKindNames(MDNames);
-    for (unsigned i = 0, e = InstMD.size(); i != e; ++i) {
-      unsigned Kind = InstMD[i].first;
-       if (Kind < MDNames.size()) {
-         //printf(", !%s", MDNames[Kind].str().c_str());
-       } else {
-         //printf(", !<unknown kind #%d>", Kind);
-       }
-      //InstMD[i].second->dump();
-      //WriteAsOperandInternal(InstMD[i].second, &TypePrinter, &Machine, TheModule);
-    }
-  }
   char vout[MAX_CHAR_BUFFER];
   vout[0] = 0;
-  switch (opcode) {
-  case Instruction::Alloca:
-      if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value].ignore_debug_info = 1;
-      return;  // ignore
-  case Instruction::Call:
-      if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "llvm.dbg.declare"))
-          return;  // ignore
-      if (operand_list[1].type == OpTypeExternalFunction && !strcmp((const char *)operand_list[1].value, "printf"))
-          return;  // ignore for now
-      break;
-  };
   printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
@@ -734,40 +686,40 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
         BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
         int opcode = I->getOpcode();
         const Value *retv = (const Value *)I;
-        printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
-        for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
-            printf(" %p", I->getOperand(i));
-        }
-        printf("\n");
+        //printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
+        //for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
+            //printf(" %p", I->getOperand(i));
+        //}
+        //printf("\n");
         switch (opcode) {
         case Instruction::Alloca:
             if (I->hasName()) {
                 Value *newt = NULL;
-                const char *cp = I->getName().str().c_str();
-                printf("[%s:%d] Alloca %s\n", __FUNCTION__, __LINE__, cp);
+                //const char *cp = I->getName().str().c_str();
+                //printf("[%s:%d] Alloca %s\n", __FUNCTION__, __LINE__, cp);
                 BasicBlock::iterator PN = PI;
                 while (PN != E) {
                     BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
                     if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
                         newt = PN->getOperand(0);
-                    printf("[%s:%d] ROP %d: ", __FUNCTION__, __LINE__, PN->getOpcode());
+                    //printf("[%s:%d] ROP %d: ", __FUNCTION__, __LINE__, PN->getOpcode());
                     for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
                         Value *val = *OI;
-                        printf(" %p", val);
+                        //printf(" %p", val);
                         if (val == retv && newt) {
-                            printf(" REPLACEOP");
+                            //printf(" REPLACEOP");
                             *OI = newt;
                         }
                     }
-                    printf("\n");
+                    //printf("\n");
                     if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
                         if (PI == PN)
                             PI = PNN;
-                        PN->eraseFromParent(); // delete this instruction
+                        PN->eraseFromParent(); // delete Store instruction
                     }
                     PN = PNN;
                 }
-                I->eraseFromParent(); // delete this instruction
+                I->eraseFromParent(); // delete Alloca instruction
                 changed = true;
             }
             break;
@@ -795,7 +747,6 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
 //H->replaceAllUsesWith(K2);
 //AA->replaceWithNewValue(L, K1);
 
-
 static void processFunction(Function *F)
 {
   globalFunction = F;
@@ -811,11 +762,9 @@ static void processFunction(Function *F)
   }
   if (!F->isDeclaration()) {
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-printf("[%s:%d] NEXT FUN\n", __FUNCTION__, __LINE__);
-//printf("[%s:%d] BBI %p E %p\n", __FUNCTION__, __LINE__, I, E);
       opt_runOnBasicBlock(*I);
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
-          printInstruction(*ins);
+          translateVerilog(*ins);
     }
   }
   clearLocalSlot();
