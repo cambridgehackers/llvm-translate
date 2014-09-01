@@ -48,6 +48,8 @@
 #include "llvm/Linker.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Assembly/Parser.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/ScalarEvolutionExpander.h"
 
 using namespace llvm;
 
@@ -382,6 +384,207 @@ static const char *opstr_print(unsigned opcode)
     return NULL;
 }
 
+#if 0
+/// expandAddToGEP - Expand an addition expression with a pointer type into
+/// a GEP instead of using ptrtoint+arithmetic+inttoptr. This helps
+/// BasicAliasAnalysis and other passes analyze the result. See the rules /// for getelementptr vs. inttoptr in
+/// http://llvm.org/docs/LangRef.html#pointeraliasing /// for details.
+///
+/// Design note: The correctness of using getelementptr here depends on
+/// ScalarEvolution not recognizing inttoptr and ptrtoint operators, as
+/// they may introduce pointer arithmetic which may not be safely converted /// into getelementptr.
+///
+/// Design note: It might seem desirable for this function to be more
+/// loop-aware. If some of the indices are loop-invariant while others
+/// aren't, it might seem desirable to emit multiple GEPs, keeping the
+/// loop-invariant portions of the overall computation outside the loop.
+/// However, there are a few reasons this is not done here. Hoisting simple
+/// arithmetic is a low-level optimization that often isn't very
+/// important until late in the optimization process. In fact, passes
+/// like InstructionCombining will combine GEPs, even if it means
+/// pushing loop-invariant computation down into loops, so even if the
+/// GEPs were split here, the work would quickly be undone. The
+/// LoopStrengthReduction pass, which is usually run quite late (and
+/// after the last InstructionCombining pass), takes care of hoisting
+/// loop-invariant portions of expressions, after considering what /// can be folded using target addressing modes.
+Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin, const SCEV *const *op_end, PointerType *PTy, Type *Ty, Value *V)
+{
+  Type *ElTy = PTy->getElementType();
+  SmallVector<Value *, 4> GepIndices;
+  SmallVector<const SCEV *, 8> Ops(op_begin, op_end);
+  bool AnyNonZeroIndices = false;
+
+  // Split AddRecs up into parts as either of the parts may be usable // without the other.
+  SplitAddRecs(Ops, Ty, SE); 
+  Type *IntPtrTy = SE.TD ? SE.TD->getIntPtrType(PTy) : Type::getInt64Ty(PTy->getContext()); 
+  // Descend down the pointer's type and attempt to convert the other
+  // operands into GEP indices, at each level. The first index in a GEP
+  // indexes into the array implied by the pointer operand; the rest of
+  // the indices index into the element or field type selected by the // preceding index.
+  for (;;) {
+    // If the scale size is not 0, attempt to factor out a scale for
+    // array indexing.
+    SmallVector<const SCEV *, 8> ScaledOps;
+    if (ElTy->isSized()) {
+      const SCEV *ElSize = SE.getSizeOfExpr(IntPtrTy, ElTy);
+      if (!ElSize->isZero()) {
+        SmallVector<const SCEV *, 8> NewOps;
+        for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
+          const SCEV *Op = Ops[i];
+          const SCEV *Remainder = SE.getConstant(Ty, 0);
+          if (FactorOutConstant(Op, Remainder, ElSize, SE, SE.TD)) {
+            // Op now has ElSize factored out.
+            ScaledOps.push_back(Op);
+            if (!Remainder->isZero())
+              NewOps.push_back(Remainder);
+            AnyNonZeroIndices = true;
+          } else {
+            // The operand was not divisible, so add it to the list of operands // we'll scan next iteration.
+            NewOps.push_back(Ops[i]);
+          }
+        }
+        // If we made any changes, update Ops.
+        if (!ScaledOps.empty()) {
+          Ops = NewOps;
+          SimplifyAddOperands(Ops, Ty, SE);
+        }
+      }
+    }
+
+    // Record the scaled array index for this level of the type. If
+    // we didn't find any operands that could be factored, tentatively
+    // assume that element zero was selected (since the zero offset // would obviously be folded away).
+    Value *Scaled = ScaledOps.empty() ?  Constant::getNullValue(Ty) : expandCodeFor(SE.getAddExpr(ScaledOps), Ty);
+    GepIndices.push_back(Scaled); 
+    // Collect struct field index operands.
+    while (StructType *STy = dyn_cast<StructType>(ElTy)) {
+      bool FoundFieldNo = false;
+      // An empty struct has no fields.
+      if (STy->getNumElements() == 0) break;
+      if (SE.TD) {
+        // With DataLayout, field offsets are known. See if a constant offset
+        // falls within any of the struct fields.
+        if (Ops.empty()) break;
+        if (const SCEVConstant *C = dyn_cast<SCEVConstant>(Ops[0]))
+          if (SE.getTypeSizeInBits(C->getType()) <= 64) {
+            const StructLayout &SL = *SE.TD->getStructLayout(STy);
+            uint64_t FullOffset = C->getValue()->getZExtValue();
+            if (FullOffset < SL.getSizeInBytes()) {
+              unsigned ElIdx = SL.getElementContainingOffset(FullOffset);
+              GepIndices.push_back( ConstantInt::get(Type::getInt32Ty(Ty->getContext()), ElIdx));
+              ElTy = STy->getTypeAtIndex(ElIdx);
+              Ops[0] = SE.getConstant(Ty, FullOffset - SL.getElementOffset(ElIdx));
+              AnyNonZeroIndices = true;
+              FoundFieldNo = true;
+            }
+          }
+      } else {
+        // Without DataLayout, just check for an offsetof expression of the
+        // appropriate struct type.
+        for (unsigned i = 0, e = Ops.size(); i != e; ++i)
+          if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(Ops[i])) {
+            Type *CTy;
+            Constant *FieldNo;
+            if (U->isOffsetOf(CTy, FieldNo) && CTy == STy) {
+              GepIndices.push_back(FieldNo);
+              ElTy = STy->getTypeAtIndex(cast<ConstantInt>(FieldNo)->getZExtValue());
+              Ops[i] = SE.getConstant(Ty, 0);
+              AnyNonZeroIndices = true;
+              FoundFieldNo = true;
+              break;
+            }
+          }
+      }
+      // If no struct field offsets were found, tentatively assume that
+      // field zero was selected (since the zero offset would obviously
+      // be folded away).
+      if (!FoundFieldNo) {
+        ElTy = STy->getTypeAtIndex(0u);
+        GepIndices.push_back( Constant::getNullValue(Type::getInt32Ty(Ty->getContext())));
+      }
+    } 
+    if (ArrayType *ATy = dyn_cast<ArrayType>(ElTy))
+      ElTy = ATy->getElementType();
+    else
+      break;
+  } 
+  // If none of the operands were convertible to proper GEP indices, cast
+  // the base to i8* and do an ugly getelementptr with that. It's still
+  // better than ptrtoint+arithmetic+inttoptr at least.
+  if (!AnyNonZeroIndices) {
+    // Cast the base to i8*.
+    V = InsertNoopCastOfTo(V, Type::getInt8PtrTy(Ty->getContext(), PTy->getAddressSpace())); 
+    assert(!isa<Instruction>(V) || SE.DT->dominates(cast<Instruction>(V), Builder.GetInsertPoint())); 
+    // Expand the operands for a plain byte offset.
+    Value *Idx = expandCodeFor(SE.getAddExpr(Ops), Ty); 
+    // Fold a GEP with constant operands.
+    if (Constant *CLHS = dyn_cast<Constant>(V))
+      if (Constant *CRHS = dyn_cast<Constant>(Idx))
+        return ConstantExpr::getGetElementPtr(CLHS, CRHS); 
+    // Do a quick scan to see if we have this GEP nearby.  If so, reuse it.
+    unsigned ScanLimit = 6;
+    BasicBlock::iterator BlockBegin = Builder.GetInsertBlock()->begin();
+    // Scanning starts from the last instruction before the insertion point.
+    BasicBlock::iterator IP = Builder.GetInsertPoint();
+    if (IP != BlockBegin) {
+      --IP;
+      for (; ScanLimit; --IP, --ScanLimit) {
+        // Don't count dbg.value against the ScanLimit, to avoid perturbing the // generated code.
+        if (isa<DbgInfoIntrinsic>(IP))
+          ScanLimit++;
+        if (IP->getOpcode() == Instruction::GetElementPtr &&
+            IP->getOperand(0) == V && IP->getOperand(1) == Idx)
+          return IP;
+        if (IP == BlockBegin) break;
+      }
+    } 
+    // Save the original insertion point so we can restore it when we're done.
+    BuilderType::InsertPointGuard Guard(Builder); 
+    // Move the insertion point out of as many loops as we can.
+    while (const Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock())) {
+      if (!L->isLoopInvariant(V) || !L->isLoopInvariant(Idx)) break;
+      BasicBlock *Preheader = L->getLoopPreheader();
+      if (!Preheader) break; 
+      // Ok, move up a level.
+      Builder.SetInsertPoint(Preheader, Preheader->getTerminator());
+    } 
+    // Emit a GEP.
+    Value *GEP = Builder.CreateGEP(V, Idx, "uglygep");
+    rememberInstruction(GEP); 
+    return GEP;
+  } 
+  // Save the original insertion point so we can restore it when we're done.
+  BuilderType::InsertPoint SaveInsertPt = Builder.saveIP(); 
+  // Move the insertion point out of as many loops as we can.
+  while (const Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock())) {
+    if (!L->isLoopInvariant(V)) break; 
+    bool AnyIndexNotLoopInvariant = false;
+    for (SmallVectorImpl<Value *>::const_iterator I = GepIndices.begin(), E = GepIndices.end(); I != E; ++I)
+      if (!L->isLoopInvariant(*I)) {
+        AnyIndexNotLoopInvariant = true;
+        break;
+      }
+    if (AnyIndexNotLoopInvariant)
+      break; 
+    BasicBlock *Preheader = L->getLoopPreheader();
+    if (!Preheader) break; 
+    // Ok, move up a level.
+    Builder.SetInsertPoint(Preheader, Preheader->getTerminator());
+  } 
+  // Insert a pretty getelementptr. Note that this GEP is not marked inbounds,
+  // because ScalarEvolution may have changed the address arithmetic to
+  // compute a value which is beyond the end of the allocated object.
+  Value *Casted = V;
+  if (V->getType() != PTy)
+    Casted = InsertNoopCastOfTo(Casted, PTy);
+  Value *GEP = Builder.CreateGEP(Casted, GepIndices, "scevgep");
+  Ops.push_back(SE.getUnknown(GEP));
+  rememberInstruction(GEP); 
+  // Restore the original insert point.
+  Builder.restoreIP(SaveInsertPt); 
+  return expand(SE.getAddExpr(Ops));
+}
+#endif
 void translateVerilog(const Instruction &I)
 {
   int opcode = I.getOpcode();
