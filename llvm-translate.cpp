@@ -2533,16 +2533,54 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
     if (Start == E) return false; 
     BasicBlock::iterator I = Start++;
     while(1) {
-        bool lastrun = (I == E);
         BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
+        bool lastrun = (PI == E);
         int opcode = I->getOpcode();
+        const Value *retv = (const Value *)I;
+        printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
+        for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
+            printf(" %p", I->getOperand(i));
+        }
+        printf("\n");
         switch (opcode) {
-#if 0
         case Instruction::Alloca:
-            if (operand_list[0].type == OpTypeLocalRef)
-                slotarray[operand_list[0].value].ignore_debug_info = 1;
-            return;  // ignore
-#endif
+            {
+            Value *newt;
+            if (PI->getOpcode() == Instruction::Store) {
+            printf("[%s:%d] Alloca\n", __FUNCTION__, __LINE__);
+            if (I->hasName()) {
+                const char *cp = I->getName().str().c_str();
+                printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, cp);
+                for (unsigned i = 0; i < PI->getNumOperands(); ++i) {
+                    printf("[%s:%d] [%d] Op %p\n", __FUNCTION__, __LINE__, i, PI->getOperand(i));
+                }
+                if (retv == PI->getOperand(1)) {
+                    printf("[%s:%d] ALLOC MATCHED\n", __FUNCTION__, __LINE__);
+                    PI->getOperand(0)->dump();
+                    PI->getOperand(1)->dump();
+                    //PI->getOperand(1)->replaceAllUsesWith(PI->getOperand(0));
+                    BasicBlock::iterator PN = PI;
+                    Value *oldt = PI->getOperand(1);
+                    newt = PI->getOperand(0);
+                    while (PN != E) {
+                        printf("[%s:%d] ROP %d: ", __FUNCTION__, __LINE__, PN->getOpcode());
+                        for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
+                            Value *val = *OI;
+                            printf(" %p", val);
+                            if (val == retv) {
+                                printf(" REPLACEOP");
+                                *OI = newt;
+                            }
+                        }
+                        printf("\n");
+                        PN = llvm::next(BasicBlock::iterator(PN));
+                    }
+                    I->eraseFromParent(); // delete this instruction
+                    changed = true;
+                }
+            }
+            }
+            }
         case Instruction::Call:
             {
             if (const CallInst *CI = dyn_cast<CallInst>(I)) {
@@ -2559,9 +2597,9 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
             }
             break;
         };
-        I = PI;
         if (lastrun)
             break;
+        I = PI;
     }
     return changed;
 }
