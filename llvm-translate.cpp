@@ -420,6 +420,30 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
   } 
   return Total;
 }
+static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
+{
+  memcpy(Dst, Src, LoadBytes);
+}
+static uint64_t LoadValueFromMemory(GenericValue *Ptr, Type *Ty)
+{
+  const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
+  uint64_t rv = 0;
+
+//printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
+  switch (Ty->getTypeID()) {
+  case Type::IntegerTyID:
+    LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
+    break;
+  case Type::PointerTyID:
+    rv = (uint64_t) *((PointerTy*)Ptr);
+    break;
+  default:
+    errs() << "Cannot load value of type " << *Ty << "!";
+    exit(1);
+  }
+//printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
+  return rv;
+}
 void translateVerilog(const Instruction &I)
 {
   int opcode = I.getOpcode();
@@ -569,10 +593,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   // Memory instructions...
   //case Instruction::Alloca: // ignore
   case Instruction::Load:
+      {
       printf("XLAT:          Load");
-      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef) {
-          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-          slotarray[operand_list[0].value].svalue = (uint8_t *)*(uint64_t *)slotarray[operand_list[1].value].svalue;
+      GenericValue *Ptr = (GenericValue*)slotarray[operand_list[1].value].svalue;
+      if (operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
       }
       break;
   case Instruction::Store:
@@ -590,27 +619,25 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("XLAT: GetElementPtr");
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER];
-//I.getOperand(0),
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       printf(" GEP Index %lld;", (long long)Total);
-if (!slotarray[operand_list[1].value].svalue) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
+      if (!slotarray[operand_list[1].value].svalue) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
       const char *cp = slotarray[operand_list[1].value].name;
 printf(" name %s;", cp);
       if (!strcmp(cp, "this")) {
           const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-printf("GGglo %p g %p gcn %s;", globalThis, g, globalClassName);
           g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
-printf("g2=%p;", g);
+//printf("g2=%p;", g);
           if (g)
               ret = g->getName().str().c_str();
           cp = globalClassName;
       }
       if (!ret) {
-          sprintf(temp, "%s_%lld", cp, (long long)Total);
+          sprintf(temp, "%s.%lld", cp, (long long)Total);
           ret = temp;
       }
       if (ret)
@@ -668,16 +695,14 @@ printf("g2=%p;", g);
   case Instruction::Call:
       printf("XLAT:          Call");
       if (operand_list[1].type == OpTypeLocalRef) {
-          uint64_t ***t = (uint64_t ***)slotarray[operand_list[1].value].svalue;
-          printf ("[op %p %p %p]", t, *t, **t);
-          const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
-          g = EE->getGlobalValueAtAddress(*t-2);
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
-          g = EE->getGlobalValueAtAddress(**t-2);
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
+          const Instruction *t = (const Instruction *)slotarray[operand_list[1].value].svalue;
+          printf ("[%p=%s]", t, t->getName().str().c_str());
+          //t->dump();
       }
-//jca
+else {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+}
       break;
   //case Instruction::Shl:
   //case Instruction::LShr:
