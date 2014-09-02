@@ -753,6 +753,43 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::GetElementPtr:
       {
       printf("XLAT: GetElementPtr");
+#if 0
+GenericValue Interpreter::executeGEPOperation(Value *Ptr, gep_type_iterator I, gep_type_iterator E, ExecutionContext &SF)
+{
+  assert(Ptr->getType()->isPointerTy() && "Cannot getElementOffset of a nonpointer type!"); 
+  uint64_t Total = 0; 
+  for (; I != E; ++I) {
+    if (StructType *STy = dyn_cast<StructType>(*I)) {
+      const StructLayout *SLO = TD.getStructLayout(STy); 
+      const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
+      unsigned Index = unsigned(CPU->getZExtValue()); 
+      Total += SLO->getElementOffset(Index);
+    } else {
+      SequentialType *ST = cast<SequentialType>(*I);
+      // Get the index number for the array... which must be long type...
+      GenericValue IdxGV = getOperandValue(I.getOperand(), SF); 
+      int64_t Idx;
+      unsigned BitWidth = cast<IntegerType>(I.getOperand()->getType())->getBitWidth();
+      if (BitWidth == 32)
+        Idx = (int64_t)(int32_t)IdxGV.IntVal.getZExtValue();
+      else {
+        assert(BitWidth == 64 && "Invalid index type for getelementptr");
+        Idx = (int64_t)IdxGV.IntVal.getZExtValue();
+      }
+      Total += TD.getTypeAllocSize(ST->getElementType())*Idx;
+    }
+  } 
+  GenericValue Result;
+  Result.PointerVal = ((char*)getOperandValue(Ptr, SF).PointerVal) + Total;
+  DEBUG(dbgs() << "GEP Index " << Total << " bytes.\n");
+  return Result;
+}
+
+void Interpreter::visitGetElementPtrInst(GetElementPtrInst &I) {
+  ExecutionContext &SF = ECStack.back();
+  SetValue(&I, executeGEPOperation(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), SF), SF);
+}
+#endif
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER];
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
