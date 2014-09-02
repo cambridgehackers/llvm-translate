@@ -93,6 +93,24 @@ static struct {
 } operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
 
+static void memdump(unsigned char *p, int len, const char *title)
+{
+int i;
+
+    i = 0;
+    while (len > 0) {
+        if (!(i & 0xf)) {
+            if (i > 0)
+                printf("\n");
+            printf("%s: ",title);
+        }
+        printf("%02x ", *p++);
+        i++;
+        len--;
+    }
+    printf("\n");
+}
+
 void makeLocalSlot(const Value *V)
 {
   slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
@@ -318,8 +336,10 @@ locallab:
   operand_list[operand_list_index++].value = slotindex;
   if (!slotarray[slotindex].svalue && !slotarray[slotindex].name) {
       slotarray[slotindex].name = strdup(Operand->getName().str().c_str());
-      if (!strcmp(slotarray[slotindex].name, "this"))
+      if (!strcmp(slotarray[slotindex].name, "this")) {
+           slotarray[slotindex].name = globalClassName;
            slotarray[slotindex].svalue = (uint8_t *)globalThis;
+      }
   }
 }
 
@@ -548,7 +568,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
-          sprintf(vout, "%s = %s && %s" SEPARATOR "enable;", globalName, getparam(1), globalName);
+          if (strlen(globalName) > 7 && !strcmp(globalName + strlen(globalName) - 7, "guardEv"))
+              sprintf(vout, "%s = %s && %s" SEPARATOR "enable;", globalName, getparam(1), globalName);
+          else
+              sprintf(vout, "%s = %s;", globalName, getparam(1));
       }
       }
       break;
@@ -600,7 +623,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
+      Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
+      slotarray[operand_list[0].value].svalue = (uint8_t *)value;
+      const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
+      printf("g2=%p;", g);
+printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
+      if (g)  // remember the name of where this value came from
+          slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
       }
       break;
   case Instruction::Store:
@@ -624,14 +653,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
       const char *cp = slotarray[operand_list[1].value].name;
       printf(" name %s;", cp);
-      if (!strcmp(cp, "this")) {
+      //if (!strcmp(cp, "this")) {
           const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-          g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
+          //g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
           //printf("g2=%p;", g);
           if (g)
               ret = g->getName().str().c_str();
-          cp = globalClassName;
-      }
+          //cp = globalClassName;
+      //}
       if (!ret) {
           sprintf(temp, "%s" SEPARATOR "%lld", cp, (long long)Total);
           ret = temp;
@@ -845,11 +874,24 @@ static void processFunction(Function *F)
 void dump_vtab(uint64_t ***thisptr)
 {
 int arr_size = 0;
+    const GlobalValue *g;
     globalThis = thisptr;
     uint64_t **vtab = (uint64_t **)thisptr[0];
-    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
+
+    for (int i = 0; i < 16; i++) {
+         g = EE->getGlobalValueAtAddress(thisptr -8 + i);
+if (g)
+printf("[%s:%d] %d g %p name %s\n", __FUNCTION__, __LINE__, -8 + i, g, g->getName().str().c_str());
+    }
+    for (int i = 0; i < 16; i++) {
+         g = EE->getGlobalValueAtAddress(vtab - 8 + i);
+if (g)
+printf("[%s:%d]v %d g %p name %s\n", __FUNCTION__, __LINE__, - 8 + i, g, g->getName().str().c_str());
+    }
+    g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
+memdump(((unsigned char *)globalThis), 64, "THIS");
     if (g) {
         globalClassName = strdup(g->getName().str().c_str());
         if (g->getType()->getTypeID() == Type::PointerTyID) {
@@ -859,7 +901,8 @@ int arr_size = 0;
                arr_size = aty->getNumElements();
            }
         }
-        //g->getType()->dump();
+        g->getType()->dump();
+fprintf(stderr, "\n");
     }
     for (int i = 0; i < arr_size-2; i++) {
        Function *f = (Function *)(vtab[i]);
@@ -986,6 +1029,39 @@ void dump_metadata(Module *Mod)
   if (!CU_Nodes)
     return;
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+class DITemp : public DIDescriptor {
+  friend class DIDescriptor;
+public:
+  explicit DITemp(const MDNode *N = 0) : DIDescriptor(N) {}
+/////////////////////////
+  StringRef lgetStringField(unsigned Elt) const { return  getStringField(Elt); }
+  uint64_t lgetUInt64Field(unsigned Elt) const { return  getUInt64Field(Elt); }
+  int64_t lgetInt64Field(unsigned Elt) const { return  getInt64Field(Elt); }
+  DIDescriptor lgetDescriptorField(unsigned Elt) const { return  getDescriptorField(Elt); }
+  //template <typename DescTy> DescTy getFieldAs(unsigned Elt) const {
+    //return DescTy(getDescriptorField(Elt));
+  //}
+  //GlobalVariable *getGlobalVariableField(unsigned Elt) const;
+  //Constant *getConstantField(unsigned Elt) const;
+  //Function *getFunctionField(unsigned Elt) const;
+  //void replaceFunctionField(unsigned Elt, Function *F);
+/////////////////////////
+};
+
+DITemp foo(CU_Nodes->getOperand(i));
+for (int i = 0; i < 10; i++) {
+printf("[%s:%d] %d %llx\n", __FUNCTION__, __LINE__, i, (long long)foo.lgetUInt64Field(i));
+printf("[%s:%d] %d '%s'\n", __FUNCTION__, __LINE__, i, foo.lgetStringField(i).str().c_str());
+}
+DITemp foo9(foo.lgetDescriptorField(9));
+for (int j = 40; j < 46; j++) {
+    DITemp foo9_1(foo9.lgetDescriptorField(j));
+    for (int i = 0; i < 10; i++) {
+        printf("[%s:%d]9_1 %d/%d %llx = '%s'\n", __FUNCTION__, __LINE__, j, i, (long long)foo9_1.lgetUInt64Field(i), foo9_1.lgetStringField(i).str().c_str());
+    }
+}
+//->dump();
+ continue;
     DICompileUnit CU(CU_Nodes->getOperand(i));
     printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
          // from DIScope:
