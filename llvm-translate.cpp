@@ -387,18 +387,18 @@ static const char *opstr_print(unsigned opcode)
 
 uint64_t getOperandValue(const Value *Operand)
 {
-  static uint64_t foo = 0;
+  static uint64_t rv = 0;
   const Constant *CV = dyn_cast<Constant>(Operand);
   const ConstantInt *CI;
 
   if (CV && !isa<GlobalValue>(CV) && (CI = dyn_cast<ConstantInt>(CV)))
-      foo = CI->getZExtValue();
+      rv = CI->getZExtValue();
   else {
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
   }
-  //printf("[%s:%d] const %lld\n", __FUNCTION__, __LINE__, (long long)foo);
-  return foo;
+  //printf("[%s:%d] const %lld\n", __FUNCTION__, __LINE__, (long long)rv);
+  return rv;
 }
 
 static DataLayout *TD;
@@ -409,12 +409,12 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
     if (StructType *STy = dyn_cast<StructType>(*I)) {
       const StructLayout *SLO = TD->getStructLayout(STy); 
       const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
-      unsigned Index = unsigned(CPU->getZExtValue()); 
-      Total += SLO->getElementOffset(Index);
+      Total += SLO->getElementOffset(CPU->getZExtValue()); 
     } else {
       SequentialType *ST = cast<SequentialType>(*I);
       // Get the index number for the array... which must be long type...
-      Total += TD->getTypeAllocSize(ST->getElementType())*getOperandValue(I.getOperand());
+      Total += TD->getTypeAllocSize(ST->getElementType())
+               * getOperandValue(I.getOperand());
     }
   } 
   return Total;
@@ -589,17 +589,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("XLAT: GetElementPtr");
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER];
-  //GenericValue Result 
-  uint64_t Total = executeGEPOperation(//I.getOperand(0),
-gep_type_begin(I), gep_type_end(I));
-printf(" GEP Index %lld;", (long long)Total);
+//I.getOperand(0),
+      uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
+      printf(" GEP Index %lld;", (long long)Total);
       if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
         const char *cp = slotarray[operand_list[1].value].name;
 printf(" name %s;", cp);
         if (!strcmp(cp, "this")) {
-          uint64_t **val = globalThis[1+operand_list[3].value];
-          const GlobalValue *g = EE->getGlobalValueAtAddress((void *)val);
+          char *ptr = ((char *)globalThis) + Total;
+          const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
 printf("GGglo %p g %p gcn %s;", globalThis, g, globalClassName);
+          g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
+printf("g2=%p;", g);
           if (g)
               ret = g->getName().str().c_str();
           cp = globalClassName;
