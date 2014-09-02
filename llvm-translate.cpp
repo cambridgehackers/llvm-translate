@@ -74,7 +74,7 @@ std::map<const Value *, int> slotmap;
 struct {
     const char *name;
     int ignore_debug_info;
-    uint64_t ***value;
+    uint8_t *svalue;
 } slotarray[MAX_SLOTARRAY];
 static int slotarray_index;
 
@@ -315,9 +315,10 @@ locallab:
   slotindex = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
   operand_list[operand_list_index++].value = slotindex;
-  if (!slotarray[slotindex].value) {
-      slotarray[slotindex].value = (uint64_t ***) Operand;
+  if (!slotarray[slotindex].svalue) {
       slotarray[slotindex].name = strdup(Operand->getName().str().c_str());
+      if (!strcmp(slotarray[slotindex].name, "this"))
+           slotarray[slotindex].svalue = (uint8_t *)globalThis;
   }
 }
 
@@ -429,7 +430,6 @@ void translateVerilog(const Instruction &I)
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = t;
-    slotarray[t].value = (uint64_t ***) &I;
     slotarray[t].name = strdup(I.getName().str().c_str());
     sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   } else if (!I.getType()->isVoidTy()) {
@@ -438,7 +438,6 @@ void translateVerilog(const Instruction &I)
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = t;
     sprintf(temp, "%%%d", t);
-    slotarray[t].value = (uint64_t ***) &I;
     slotarray[t].name = strdup(temp);
     sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   }
@@ -571,8 +570,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   //case Instruction::Alloca: // ignore
   case Instruction::Load:
       printf("XLAT:          Load");
-      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef) {
           slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+          slotarray[operand_list[0].value].svalue = (uint8_t *)*(uint64_t *)slotarray[operand_list[1].value].svalue;
+      }
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
@@ -592,11 +593,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 //I.getOperand(0),
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       printf(" GEP Index %lld;", (long long)Total);
-      if (operand_list_index >= 3 && operand_list[1].type == OpTypeLocalRef) {
-        const char *cp = slotarray[operand_list[1].value].name;
+if (!slotarray[operand_list[1].value].svalue) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+}
+      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+      const char *cp = slotarray[operand_list[1].value].name;
 printf(" name %s;", cp);
-        if (!strcmp(cp, "this")) {
-          char *ptr = ((char *)globalThis) + Total;
+      if (!strcmp(cp, "this")) {
           const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
 printf("GGglo %p g %p gcn %s;", globalThis, g, globalClassName);
           g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
@@ -604,14 +608,14 @@ printf("g2=%p;", g);
           if (g)
               ret = g->getName().str().c_str();
           cp = globalClassName;
-        }
-        if (!ret) {
-          sprintf(temp, "%s_%lld", cp, (long long)operand_list[3].value);
-          ret = temp;
-        }
       }
-      if (operand_list[0].type == OpTypeLocalRef && ret)
+      if (!ret) {
+          sprintf(temp, "%s_%lld", cp, (long long)Total);
+          ret = temp;
+      }
+      if (ret)
           slotarray[operand_list[0].value].name = strdup(ret);
+      slotarray[operand_list[0].value].svalue = ptr;
       }
       break;
 
@@ -664,7 +668,7 @@ printf("g2=%p;", g);
   case Instruction::Call:
       printf("XLAT:          Call");
       if (operand_list[1].type == OpTypeLocalRef) {
-          uint64_t ***t = (uint64_t ***)slotarray[operand_list[1].value].value;
+          uint64_t ***t = (uint64_t ***)slotarray[operand_list[1].value].svalue;
           printf ("[op %p %p %p]", t, *t, **t);
           const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
 printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
@@ -691,7 +695,7 @@ printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
   }
   for (int i = 0; i < operand_list_index; i++) {
       if (operand_list[i].type == OpTypeLocalRef)
-          printf(" op[%d]L=%lld:%p:%s;", i, (long long)operand_list[i].value, slotarray[operand_list[i].value].value, slotarray[operand_list[i].value].name);
+          printf(" op[%d]L=%lld:%p:%s;", i, (long long)operand_list[i].value, slotarray[operand_list[i].value].svalue, slotarray[operand_list[i].value].name);
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
