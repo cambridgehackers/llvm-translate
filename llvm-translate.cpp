@@ -57,6 +57,7 @@ using namespace llvm;
 static int dump_interpret;// = 1;
 static int output_stdout = 1;
 static const char *trace_break_name;// = "_ZN4Echo7respond5guardEv";
+#define SEPARATOR ":"
 
 namespace {
   cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>")); 
@@ -315,7 +316,7 @@ locallab:
   slotindex = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
   operand_list[operand_list_index++].value = slotindex;
-  if (!slotarray[slotindex].svalue) {
+  if (!slotarray[slotindex].svalue && !slotarray[slotindex].name) {
       slotarray[slotindex].name = strdup(Operand->getName().str().c_str());
       if (!strcmp(slotarray[slotindex].name, "this"))
            slotarray[slotindex].svalue = (uint8_t *)globalThis;
@@ -422,14 +423,15 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 }
 static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
 {
+  assert(LoadBytes <= sizeof(*Dst));
   memcpy(Dst, Src, LoadBytes);
 }
-static uint64_t LoadValueFromMemory(GenericValue *Ptr, Type *Ty)
+static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 {
   const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
   uint64_t rv = 0;
 
-//printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
+printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
     LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
@@ -441,7 +443,7 @@ static uint64_t LoadValueFromMemory(GenericValue *Ptr, Type *Ty)
     errs() << "Cannot load value of type " << *Ty << "!";
     exit(1);
   }
-//printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
+printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
 void translateVerilog(const Instruction &I)
@@ -546,7 +548,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
-          sprintf(vout, "%s = %s && %s_enable;", globalName, getparam(1), globalName);
+          sprintf(vout, "%s = %s && %s" SEPARATOR "enable;", globalName, getparam(1), globalName);
       }
       }
       break;
@@ -585,8 +587,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       temp[0] = 0;
       printf("XLAT:%14s", opstr_print(opcode));
       sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
-      if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value].name = strdup(temp);
+      assert (operand_list[0].type == OpTypeLocalRef);
+      slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
 
@@ -595,11 +597,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::Load:
       {
       printf("XLAT:          Load");
-      GenericValue *Ptr = (GenericValue*)slotarray[operand_list[1].value].svalue;
-      if (operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
+      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
+      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
       }
@@ -621,27 +620,23 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       char temp[MAX_CHAR_BUFFER];
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       printf(" GEP Index %lld;", (long long)Total);
-      if (!slotarray[operand_list[1].value].svalue) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
+      assert (slotarray[operand_list[1].value].svalue);
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
       const char *cp = slotarray[operand_list[1].value].name;
-printf(" name %s;", cp);
+      printf(" name %s;", cp);
       if (!strcmp(cp, "this")) {
           const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
           g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
-//printf("g2=%p;", g);
+          //printf("g2=%p;", g);
           if (g)
               ret = g->getName().str().c_str();
           cp = globalClassName;
       }
       if (!ret) {
-          sprintf(temp, "%s.%lld", cp, (long long)Total);
+          sprintf(temp, "%s" SEPARATOR "%lld", cp, (long long)Total);
           ret = temp;
       }
-      if (ret)
-          slotarray[operand_list[0].value].name = strdup(ret);
+      slotarray[operand_list[0].value].name = strdup(ret);
       slotarray[operand_list[0].value].svalue = ptr;
       }
       break;
@@ -649,13 +644,13 @@ printf(" name %s;", cp);
   // Convert instructions...
   case Instruction::Trunc:
       printf("XLAT:         Trunc");
-      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   case Instruction::ZExt:
       printf("XLAT:          Zext");
-      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::SExt:
   //case Instruction::FPTrunc:
@@ -668,8 +663,8 @@ printf(" name %s;", cp);
   //case Instruction::PtrToInt:
   case Instruction::BitCast:
       printf("XLAT:       BitCast");
-      if (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      assert (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AddrSpaceCast:
 
@@ -685,6 +680,10 @@ printf(" name %s;", cp);
       sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
       if (operand_list[0].type == OpTypeLocalRef)
           slotarray[operand_list[0].value].name = strdup(temp);
+      else {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       }
       break;
   //case Instruction::FCmp:
@@ -693,16 +692,13 @@ printf(" name %s;", cp);
       break;
   //case Instruction::Select:
   case Instruction::Call:
+      {
       printf("XLAT:          Call");
-      if (operand_list[1].type == OpTypeLocalRef) {
-          const Instruction *t = (const Instruction *)slotarray[operand_list[1].value].svalue;
-          printf ("[%p=%s]", t, t->getName().str().c_str());
-          //t->dump();
+      assert (operand_list[1].type == OpTypeLocalRef);
+      const Instruction *t = (const Instruction *)slotarray[operand_list[1].value].svalue;
+      printf ("[%p=%s]", t, t->getName().str().c_str());
+      //t->dump();
       }
-else {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
       break;
   //case Instruction::Shl:
   //case Instruction::LShr:
@@ -716,11 +712,13 @@ exit(1);
   //case Instruction::LandingPad:
   default:
       printf("XLAT: Other opcode %d.=%s", opcode, I.getOpcodeName());
+      exit(1);
       break;
   }
   for (int i = 0; i < operand_list_index; i++) {
+      int t = operand_list[i].value;
       if (operand_list[i].type == OpTypeLocalRef)
-          printf(" op[%d]L=%lld:%p:%s;", i, (long long)operand_list[i].value, slotarray[operand_list[i].value].svalue, slotarray[operand_list[i].value].name);
+          printf(" op[%d]L=%d:%p:[%p=%s];", i, t, slotarray[t].svalue, slotarray[t].name, slotarray[t].name);
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
@@ -810,9 +808,6 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
     }
     return changed;
 }
-//?
-//H->replaceAllUsesWith(K2);
-//AA->replaceWithNewValue(L, K1);
 
 static void verilogFunction(Function *F)
 {
