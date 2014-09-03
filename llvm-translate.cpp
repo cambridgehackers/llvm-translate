@@ -1022,6 +1022,268 @@ void format_type(DIType DT)
     }
 }
 
+#if 0
+class DISubrange : public DIDescriptor {
+  int64_t getLo() const { return getInt64Field(1); }
+  int64_t getCount() const { return getInt64Field(2); }
+};
+class DIArray : public DIDescriptor {
+  unsigned getNumElements() const;
+  DIDescriptor getElement(unsigned Idx) const { return getDescriptorField(Idx); }
+};
+class DIEnumerator : public DIDescriptor {
+  StringRef getName() const { return getStringField(1); }
+  int64_t getEnumValue() const { return getInt64Field(2); }
+};
+class DIScope : public DIDescriptor {
+  DIScopeRef getContext() const;
+  StringRef getName() const;
+  StringRef getFilename() const;
+  StringRef getDirectory() const;
+  DIScopeRef getRef() const;
+};
+class DIType : public DIScope {
+  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(2); }
+  StringRef getName() const { return getStringField(3); }
+  unsigned getLineNumber() const { return getUnsignedField(4); }
+  uint64_t getSizeInBits() const { return getUInt64Field(5); }
+  uint64_t getAlignInBits() const { return getUInt64Field(6); }
+  uint64_t getOffsetInBits() const { return getUInt64Field(7); }
+  unsigned getFlags() const { return getUnsignedField(8); }
+  bool isPrivate() const { return (getFlags() & FlagPrivate) != 0; }
+  bool isProtected() const { return (getFlags() & FlagProtected) != 0; }
+  bool isForwardDecl() const { return (getFlags() & FlagFwdDecl) != 0; }
+  bool isAppleBlockExtension() const { return (getFlags() & FlagAppleBlock) != 0; }
+  bool isBlockByrefStruct() const { return (getFlags() & FlagBlockByrefStruct) != 0; }
+  bool isVirtual() const { return (getFlags() & FlagVirtual) != 0; }
+  bool isArtificial() const { return (getFlags() & FlagArtificial) != 0; }
+  bool isObjectPointer() const { return (getFlags() & FlagObjectPointer) != 0; }
+  bool isObjcClassComplete() const { return (getFlags() & FlagObjcClassComplete) != 0; }
+  bool isVector() const { return (getFlags() & FlagVector) != 0; }
+  bool isStaticMember() const { return (getFlags() & FlagStaticMember) != 0; }
+};
+class DIBasicType : public DIType {
+  unsigned getEncoding() const { return getUnsignedField(9); }
+};
+class DIDerivedType : public DIType {
+  DITypeRef getTypeDerivedFrom() const { return getFieldAs<DITypeRef>(9); }
+  MDNode *getObjCProperty() const;
+  DITypeRef getClassType() const { return getFieldAs<DITypeRef>(10); }
+  Constant *getConstant() const { return getConstantField(10); }
+};
+class DICompositeType : public DIDerivedType {
+  DIArray getTypeArray() const { return getFieldAs<DIArray>(10); }
+  void setTypeArray(DIArray Elements, DIArray TParams = DIArray());
+  void addMember(DIDescriptor D);
+  unsigned getRunTimeLang() const { return getUnsignedField(11); }
+  DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
+  void setContainingType(DICompositeType ContainingType);
+  DIArray getTemplateParams() const { return getFieldAs<DIArray>(13); }
+  MDString *getIdentifier() const;
+};
+class DIFile : public DIScope {
+  MDNode *getFileNode() const;
+};
+class DICompileUnit : public DIScope {
+  unsigned getLanguage() const { return getUnsignedField(2); }
+  StringRef getProducer() const { return getStringField(3); }
+  bool isOptimized() const { return getUnsignedField(4) != 0; }
+  StringRef getFlags() const { return getStringField(5); }
+  unsigned getRunTimeVersion() const { return getUnsignedField(6); }
+  DIArray getEnumTypes() const;
+  DIArray getRetainedTypes() const;
+  DIArray getSubprograms() const;
+  DIArray getGlobalVariables() const;
+  DIArray getImportedEntities() const;
+  StringRef getSplitDebugFilename() const { return getStringField(12); }
+};
+class DISubprogram : public DIScope {
+  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(2); }
+  StringRef getName() const { return getStringField(3); }
+  StringRef getDisplayName() const { return getStringField(4); }
+  StringRef getLinkageName() const { return getStringField(5); }
+  unsigned getLineNumber() const { return getUnsignedField(6); }
+  DICompositeType getType() const { return getFieldAs<DICompositeType>(7); }
+  unsigned isLocalToUnit() const { return getUnsignedField(8); }
+  unsigned isDefinition() const { return getUnsignedField(9); }
+  unsigned getVirtuality() const { return getUnsignedField(10); }
+  unsigned getVirtualIndex() const { return getUnsignedField(11); }
+  DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
+  unsigned getFlags() const { return getUnsignedField(13); }
+  unsigned isOptimized() const;
+  bool describes(const Function *F);
+  Function *getFunction() const { return getFunctionField(15); }
+  void replaceFunction(Function *F) { replaceFunctionField(15, F); }
+  DIArray getTemplateParams() const { return getFieldAs<DIArray>(16); }
+  DISubprogram getFunctionDeclaration() const { return getFieldAs<DISubprogram>(17); }
+  MDNode *getVariablesNodes() const;
+  DIArray getVariables() const;
+  unsigned getScopeLineNumber() const { return getUnsignedField(19); }
+};
+class DILexicalBlock : public DIScope {
+  DIScope getContext() const { return getFieldAs<DIScope>(2); }
+  unsigned getLineNumber() const { return getUnsignedField(3); }
+  unsigned getColumnNumber() const { return getUnsignedField(4); }
+};
+class DILexicalBlockFile : public DIScope {
+  DIScope getContext() const { if (getScope().isSubprogram()) return getScope(); return getScope().getContext(); }
+  unsigned getLineNumber() const { return getScope().getLineNumber(); }
+  unsigned getColumnNumber() const { return getScope().getColumnNumber(); }
+  DILexicalBlock getScope() const { return getFieldAs<DILexicalBlock>(2); }
+};
+class DINameSpace : public DIScope {
+  DIScope getContext() const { return getFieldAs<DIScope>(2); }
+  StringRef getName() const { return getStringField(3); }
+  unsigned getLineNumber() const { return getUnsignedField(4); }
+};
+class DITemplateTypeParameter : public DIDescriptor {
+  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(1); }
+  StringRef getName() const { return getStringField(2); }
+  DITypeRef getType() const { return getFieldAs<DITypeRef>(3); }
+  StringRef getFilename() const { return getFieldAs<DIFile>(4).getFilename(); }
+  StringRef getDirectory() const { return getFieldAs<DIFile>(4).getDirectory(); }
+  unsigned getLineNumber() const { return getUnsignedField(5); }
+  unsigned getColumnNumber() const { return getUnsignedField(6); }
+};
+class DITemplateValueParameter : public DIDescriptor {
+  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(1); }
+  StringRef getName() const { return getStringField(2); }
+  DITypeRef getType() const { return getFieldAs<DITypeRef>(3); }
+  StringRef getFilename() const { return getFieldAs<DIFile>(5).getFilename(); }
+  StringRef getDirectory() const { return getFieldAs<DIFile>(5).getDirectory(); }
+  unsigned getLineNumber() const { return getUnsignedField(6); }
+  unsigned getColumnNumber() const { return getUnsignedField(7); }
+};
+class DIGlobalVariable : public DIDescriptor {
+  DIScope getContext() const { return getFieldAs<DIScope>(2); }
+  StringRef getName() const { return getStringField(3); }
+  StringRef getDisplayName() const { return getStringField(4); }
+  StringRef getLinkageName() const { return getStringField(5); }
+  StringRef getFilename() const { return getFieldAs<DIFile>(6).getFilename(); }
+  StringRef getDirectory() const { return getFieldAs<DIFile>(6).getDirectory(); }
+  unsigned getLineNumber() const { return getUnsignedField(7); }
+  DIType getType() const { return getFieldAs<DIType>(8); }
+  unsigned isLocalToUnit() const { return getUnsignedField(9); }
+  unsigned isDefinition() const { return getUnsignedField(10); }
+  GlobalVariable *getGlobal() const { return getGlobalVariableField(11); }
+  Constant *getConstant() const { return getConstantField(11); }
+  DIDerivedType getStaticDataMemberDeclaration() const { return getFieldAs<DIDerivedType>(12); }
+};
+class DIVariable : public DIDescriptor {
+  DIScope getContext() const { return getFieldAs<DIScope>(1); }
+  StringRef getName() const { return getStringField(2); }
+  DIFile getFile() const { return getFieldAs<DIFile>(3); }
+  unsigned getLineNumber() const { return (getUnsignedField(4) << 8) >> 8; }
+  unsigned getArgNumber() const { unsigned L = getUnsignedField(4); return L >> 24; }
+  DIType getType() const { return getFieldAs<DIType>(5); }
+  bool isArtificial() const { return (getUnsignedField(6) & FlagArtificial) != 0; }
+  bool isObjectPointer() const { return (getUnsignedField(6) & FlagObjectPointer) != 0; }
+  bool isIndirect() const { return (getUnsignedField(6) & FlagIndirectVariable) != 0; }
+  MDNode *getInlinedAt() const;
+  bool hasComplexAddress() const { return getNumAddrElements() > 0; }
+  unsigned getNumAddrElements() const;
+  uint64_t getAddrElement(unsigned Idx) const { return getUInt64Field(Idx + 8); }
+  bool isBlockByrefVariable() const { return getType().isBlockByrefStruct(); }
+  bool isInlinedFnArgument(const Function *CurFn);
+  void printExtendedName(raw_ostream &OS) const;
+};
+class DILocation : public DIDescriptor {
+  unsigned getLineNumber() const { return getUnsignedField(0); }
+  unsigned getColumnNumber() const { return getUnsignedField(1); }
+  DIScope getScope() const { return getFieldAs<DIScope>(2); }
+  DILocation getOrigLocation() const { return getFieldAs<DILocation>(3); }
+  StringRef getFilename() const { return getScope().getFilename(); }
+  StringRef getDirectory() const { return getScope().getDirectory(); }
+};
+class DIObjCProperty : public DIDescriptor {
+  StringRef getObjCPropertyName() const { return getStringField(1); }
+  DIFile getFile() const { return getFieldAs<DIFile>(2); }
+  unsigned getLineNumber() const { return getUnsignedField(3); }
+  StringRef getObjCPropertyGetterName() const { return getStringField(4); }
+  StringRef getObjCPropertySetterName() const { return getStringField(5); }
+  DIType getType() const { return getFieldAs<DIType>(7); }
+};
+class DIImportedEntity : public DIDescriptor {
+  DIScope getContext() const { return getFieldAs<DIScope>(1); }
+  DIDescriptor getEntity() const { return getFieldAs<DIDescriptor>(2); }
+  unsigned getLineNumber() const { return getUnsignedField(3); }
+  StringRef getName() const { return getStringField(4); }
+};
+#endif
+class DITemp : public DIDescriptor {
+  friend class DIDescriptor;
+public:
+  explicit DITemp(const MDNode *N = 0) : DIDescriptor(N) {}
+  StringRef lgetStringField(unsigned Elt) const { return  getStringField(Elt); }
+  uint64_t lgetUInt64Field(unsigned Elt) const { return  getUInt64Field(Elt); }
+  int64_t lgetInt64Field(unsigned Elt) const { return  getInt64Field(Elt); }
+  DIDescriptor lgetDescriptorField(unsigned Elt) const { return  getDescriptorField(Elt); }
+  GlobalVariable *getGlobalVariableField(unsigned Elt) const { return getGlobalVariableField(Elt); }
+  Constant *getConstantField(unsigned Elt) const { return getConstantField(Elt); }
+  Function *getFunctionField(unsigned Elt) const { return getFunctionField(Elt); }
+};
+void processSubprogram(DISubprogram sub)
+{
+  //DIScopeRef getContext()->dump();
+  printf(" %s", sub.getName().str().c_str());
+  printf(" %s", sub.getDisplayName().str().c_str());
+  printf(" %s", sub.getLinkageName().str().c_str());
+  printf(" %d", sub.getLineNumber());
+  DICompositeType CTy(sub.getType());
+  printf(" %d", sub.isLocalToUnit());
+  printf(" %d", sub.isDefinition());
+  printf(" %d", sub.getVirtuality());
+  printf(" %d", sub.getVirtualIndex());
+  DITypeRef tref(sub.getContainingType());
+  printf(" %d", sub.getFlags());
+  //printf(" %d", sub.isOptimized());
+  //bool describes(const Function *F);
+  DIArray tparam(sub.getTemplateParams());
+  //MDNode *vnod = sub.getVariablesNodes();
+  printf(" %d\n", sub.getScopeLineNumber());
+  printf("\n");
+if (MDNode *Temp = sub.getVariablesNodes()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      DIType vn(Temp);
+      vn.dump();
+}
+//tref->dump();
+  DIArray variab(sub.getVariables());
+printf("CTy:\n");
+        printf("name %s\n", CTy.getName().str().c_str());
+        DIArray Elements = CTy.getTypeArray();
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
+            DIType Element(Elements.getElement(k));
+            fprintf(stderr, "struct elt: %d", Element.getTag());
+            Element.dump();
+//
+        }
+  CTy.dump();
+////////////////////////////
+  //unsigned getRunTimeLang() const { return getUnsignedField(11); }
+  //DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
+  //DIArray getTemplateParams() const { return getFieldAs<DIArray>(13); }
+////////////////////////////
+printf("variab: ");
+for (unsigned j = 0, je = variab.getNumElements(); j != je; j++) {
+printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
+   DIVariable ee(variab.getElement(j));
+   ee.dump();
+}
+//fprintf(stderr, "func: ");
+  //sub.getFunction()->dump();
+printf("tparam: ");
+for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
+printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
+   DIDescriptor ee(tparam.getElement(j));
+   ee.dump();
+}
+//fprintf(stderr, "vnod: ");
+//vnod->dump();
+//printf("fdecl: ");
+  //processSubprogram(DISubprogram(sub.getFunctionDeclaration()));
+}
+
 void dump_metadata(Module *Mod)
 {
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
@@ -1029,39 +1291,24 @@ void dump_metadata(Module *Mod)
   if (!CU_Nodes)
     return;
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-class DITemp : public DIDescriptor {
-  friend class DIDescriptor;
-public:
-  explicit DITemp(const MDNode *N = 0) : DIDescriptor(N) {}
-/////////////////////////
-  StringRef lgetStringField(unsigned Elt) const { return  getStringField(Elt); }
-  uint64_t lgetUInt64Field(unsigned Elt) const { return  getUInt64Field(Elt); }
-  int64_t lgetInt64Field(unsigned Elt) const { return  getInt64Field(Elt); }
-  DIDescriptor lgetDescriptorField(unsigned Elt) const { return  getDescriptorField(Elt); }
-  //template <typename DescTy> DescTy getFieldAs(unsigned Elt) const {
-    //return DescTy(getDescriptorField(Elt));
-  //}
-  //GlobalVariable *getGlobalVariableField(unsigned Elt) const;
-  //Constant *getConstantField(unsigned Elt) const;
-  //Function *getFunctionField(unsigned Elt) const;
-  //void replaceFunctionField(unsigned Elt, Function *F);
-/////////////////////////
-};
 
+#if 0
 DITemp foo(CU_Nodes->getOperand(i));
 for (int i = 0; i < 10; i++) {
-printf("[%s:%d] %d %llx\n", __FUNCTION__, __LINE__, i, (long long)foo.lgetUInt64Field(i));
-printf("[%s:%d] %d '%s'\n", __FUNCTION__, __LINE__, i, foo.lgetStringField(i).str().c_str());
+   //printf("[%s:%d] %d %llx = '%s'\n", __FUNCTION__, __LINE__, i, (long long)foo.lgetUInt64Field(i), foo.lgetStringField(i).str().c_str());
 }
 DITemp foo9(foo.lgetDescriptorField(9));
-for (int j = 40; j < 46; j++) {
+for (int j = 45; j < 46; j++) {
     DITemp foo9_1(foo9.lgetDescriptorField(j));
-    for (int i = 0; i < 10; i++) {
-        printf("[%s:%d]9_1 %d/%d %llx = '%s'\n", __FUNCTION__, __LINE__, j, i, (long long)foo9_1.lgetUInt64Field(i), foo9_1.lgetStringField(i).str().c_str());
+    printf(" %d:", j);
+    for (int i = 0; i < 20; i++) {
+        printf(" [%d] %llx='%s';", i, (long long)foo9_1.lgetUInt64Field(i), foo9_1.lgetStringField(i).str().c_str());
     }
+    printf("\n");
 }
 //->dump();
  continue;
+#endif
     DICompileUnit CU(CU_Nodes->getOperand(i));
     printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
          // from DIScope:
@@ -1075,10 +1322,12 @@ for (int j = 40; j < 46; j++) {
     }
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+if (i < 45 || i > 47) continue;
       // dump methods
-      //printf("[%s:%d]methods\n", __FUNCTION__, __LINE__);
-      //SPs.getElement(i)->dump();
-      //processSubprogram(DISubprogram(SPs.getElement(i)));
+      printf("[%s:%d]methods %d/%d\n", __FUNCTION__, __LINE__, i, e);
+      DISubprogram sub(SPs.getElement(i));
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      processSubprogram(DISubprogram(SPs.getElement(i)));
     }
     DIArray EnumTypes = CU.getEnumTypes();
     for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
