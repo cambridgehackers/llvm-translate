@@ -71,8 +71,10 @@ namespace {
 #define MAX_CHAR_BUFFER 1000
 
 static ExecutionEngine *EE = 0;
-std::map<const Value *, int> slotmap;
-struct {
+static std::map<const Value *, int> slotmap;
+static std::map<const Value *, int> metamap;
+static int metanumber;
+static struct {
     const char *name;
     int ignore_debug_info;
     uint8_t *svalue;
@@ -117,9 +119,7 @@ void makeLocalSlot(const Value *V)
 }
 int getLocalSlot(const Value *V)
 {
-  //assert(!isa<Constant>(V) && "Can't get a constant or global slot with this!");
   std::map<const Value *, int>::iterator FI = slotmap.find(V);
-  //return FI == slotmap.end() ? -1 : (int)FI->second;
   if (FI == slotmap.end()) {
      makeLocalSlot(V);
      return getLocalSlot(V);
@@ -997,18 +997,43 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
   return Result;
 }
 
+static void processComposite(DICompositeType CTy);
+static void dumpType(DIType litem)
+{
+    int tag = litem.getTag();
+    printf(" tag %s name %s off %3ld size %3ld",
+        dwarf::TagString(tag), litem.getName().str().c_str(),
+        (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
+    if (litem.getTag() == dwarf::DW_TAG_subprogram) {
+        DISubprogram sub(litem);
+        printf(" link %s", sub.getLinkageName().str().c_str());
+    }
+    printf("\n");
+    switch (tag) {
+    case dwarf::DW_TAG_class_type:
+    case dwarf::DW_TAG_array_type:
+    case dwarf::DW_TAG_enumeration_type:
+    case dwarf::DW_TAG_structure_type:
+    case dwarf::DW_TAG_union_type:
+    case dwarf::DW_TAG_subroutine_type:
+    case dwarf::DW_TAG_inheritance:
+        processComposite(DICompositeType(litem));
+        break;
+    }
+}
 void format_type(DIType DT)
 {
     fprintf(stderr, "    %s:", __FUNCTION__);
-    fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
-    StringRef Res = DT.getName();
-    if (!Res.empty())
-      errs() << " [" << Res << "]";
-    errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits() << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
+    dumpType(DT);
+    //fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
+    //StringRef Res = DT.getName();
+    //if (!Res.empty())
+      //errs() << " [" << Res << "]";
+    //errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits() << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
     if (DT.isBasicType())
       if (const char *Enc = dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
         errs() << ", enc " << Enc;
-    errs() << "]";
+    //errs() << "]";
     if (DT.isPrivate()) errs() << " [private]";
     else if (DT.isProtected()) errs() << " [protected]";
     if (DT.isArtificial()) errs() << " [artificial]";
@@ -1036,28 +1061,6 @@ void format_type(DIType DT)
     }
 }
 
-#if 0
-class DISubrange :DIDescriptor { int64_t getLo 1; int64_t getCount 2; };
-class DIEnumerator :DIDescriptor { STR getName 1; int64_t getEnumValue 2; };
-class DIScope :DIDescriptor { DIScopeRef getContext; STR getName; STR getFilename; STR getDirectory; DIScopeRef getRef; };
-class DIType :DIScope { DIScopeRef getContext 2; STR getName 3; I getLineNumber 4; uint64_t getSizeInBits 5; uint64_t getAlignInBits 6; uint64_t getOffsetInBits 7; I getFlags 8; };
-class DIBasicType :DIType { I getEncoding 9; };
-class DIDerivedType :DIType { DITypeRef getTypeDerivedFrom 9; DITypeRef getClassType 10; Constant *getConstant 10; };
-class DICompositeType :DIDerivedType { DIArray getTypeArray 10; I getRunTimeLang 11; DITypeRef getContainingType 12; DIArray getTemplateParams 13; MDString *getIdentifier };
-class DIFile :DIScope { MDNode *getFileNode; };
-class DICompileUnit :DIScope { I getLanguage 2; STR getProducer 3; bool isOptimized 4; STR getFlags 5; I getRunTimeVersion 6; STR getSplitDebugFilename 12; };
-class DISubprogram :DIScope { DIScopeRef getContext 2; STR getName 3; STR getDisplayName 4; STR getLinkageName 5; I getLineNumber 6; DICompositeType getType 7; I isLocalToUnit 8; I isDefinition 9; I getVirtuality 10; I getVirtualIndex 11; DITypeRef getContainingType 12; I getFlags 13; Function *getFunction 15; DIArray getTemplateParams 16; DISubprogram getFunctionDeclaration 17; I getScopeLineNumber 19; };
-class DILexicalBlock :DIScope { DIScope getContext 2; I getLineNumber 3; I getColumnNumber 4; };
-class DILexicalBlockFile :DIScope { DILexicalBlock getScope 2; };
-class DINameSpace :DIScope { DIScope getContext 2; STR getName 3; I getLineNumber 4; };
-class DITemplateTypeParameter :DIDescriptor { DIScopeRef getContext 1; STR getName 2; DITypeRef getType 3; STR getFilename 4; STR getDirectory 4; I getLineNumber 5; I getColumnNumber 6; };
-class DITemplateValueParameter :DIDescriptor { DIScopeRef getContext 1; STR getName 2; DITypeRef getType 3; STR getFilename 5; STR getDirectory 5; I getLineNumber 6; I getColumnNumber 7; };
-class DIGlobalVariable :DIDescriptor { DIScope getContext 2; STR getName 3; STR getDisplayName 4; STR getLinkageName 5; STR getFilename 6; STR getDirectory 6; I getLineNumber 7; DIType getType 8; I isLocalToUnit 9; I isDefinition 10; GlobalVariable *getGlobal 11; Constant *getConstant 11; DIDerivedType getStaticDataMemberDeclaration 12; };
-class DIVariable :DIDescriptor { DIScope getContext 1; STR getName 2; DIFile getFile 3; I getLineNumber 4; I getArgNumber 4; DIType getType 5; bool isArtificial 6; bool isObjectPointer 6; bool isIndirect 6; uint64_t getAddrElement Idx + 8; };
-class DILocation :DIDescriptor { I getLineNumber 0; I getColumnNumber 1; DIScope getScope 2; DILocation getOrigLocation 3; STR getFilename; STR getDirectory; };
-class DIObjCProperty :DIDescriptor { STR getObjCPropertyName 1; DIFile getFile 2; I getLineNumber 3; STR getObjCPropertyGetterName 4; STR getObjCPropertySetterName 5; DIType getType 7; };
-class DIImportedEntity :DIDescriptor { DIScope getContext 1; DIDescriptor getEntity 2; I getLineNumber 3; STR getName 4; };
-#endif
 class DITemp : public DIDescriptor {
   friend class DIDescriptor;
 public:
@@ -1070,82 +1073,70 @@ public:
   Constant *getConstantField(unsigned Elt) const { return getConstantField(Elt); }
   Function *getFunctionField(unsigned Elt) const { return getFunctionField(Elt); }
 };
-void processTypeRef(DITypeRef tr)
+static void processComposite(DICompositeType CTy)
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //printf("TypeRef: %s", dwarf::TagString(tr.getTag()));
-}
-void processSubprogram(DISubprogram sub);
-void processSubtype(DICompositeType CTy)
-{
-printf("CTy:\n");
-     printf("name %s\n", CTy.getName().str().c_str());
-     DIArray Elements = CTy.getTypeArray();
-     for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-         DIType Ty(Elements.getElement(k));
-         DITemp footop(Elements.getElement(k));
+    DIArray Elements = CTy.getTypeArray();
+    for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
+        DIType Ty(Elements.getElement(k));
+        DITemp footop(Elements.getElement(k));
 
-         uint16_t tag = Ty.getTag();
-         printf("struct elt: %s", dwarf::TagString(tag));
-         if (tag == dwarf::DW_TAG_pointer_type) {
+        uint16_t tag = Ty.getTag();
+        if (!tag)     // Ignore elements with tag of 0
+            continue;
+        printf("struct elt: %s;", dwarf::TagString(tag));
+        if (tag == dwarf::DW_TAG_pointer_type) {
+            Value *val = DIDerivedType(Ty).getTypeDerivedFrom();
 #if 0
-             Value *val = DIDerivedType(Ty).getTypeDerivedFrom();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  if (const MDNode *Node = dyn_cast<MDNode>(val)) {
-printf("[%s:%d] got node\n", __FUNCTION__, __LINE__);
-  printf( "JJ!{");
-  for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
-    const Value *V = Node->getOperand(mi);
-    if (V == 0)
-      printf( "null");
-    else {
-      //TypePrinter->print(V->getType(), Out);
-      printf(" MMM");
-V->getType()->dump();
-      if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
-printf("[%s:%d] %d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
-      }
-    }
-    if (mi + 1 != me)
-      printf( ", ");
-  }
-  printf( "}");
-}
+printf("[%s:%d]\n",__FUNCTION__, __LINE__);
+            if (const MDNode *Node = dyn_cast<MDNode>(val)) {
+printf("[%s:%d]got node\n", __FUNCTION__, __LINE__);
+            printf( "JJ!{");
+            for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
+              const Value *V = Node->getOperand(mi);
+              if (V == 0)
+                printf( "null");
+              else {
+                //TypePrinter->print(V->getType(), Out);
+                printf(" MMM");
+                V->getType()->dump();
+                if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
+printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
+                }
+              }
+              if (mi + 1 != me)
+                printf( ", ");
+            }
+            printf( "}");
+          }
 #endif
-printf("[%s:%d]magic\n", __FUNCTION__, __LINE__);
-         DIType ltype(footop.lgetDescriptorField(9));
-         printf("FFFFstruct elt: %s", dwarf::TagString(ltype.getTag()));
-         DICompositeType lcom(ltype);
-         DIArray larr = lcom.getTypeArray();
-         for (unsigned li = 0, le = larr.getNumElements(); li < le; li++) {
-             DIType litem(larr.getElement(li));
-             printf(" %d tag %s name %s size %ld off %ld",
-                 li, dwarf::TagString(litem.getTag()), litem.getName().str().c_str(),
-                 (long)litem.getSizeInBits()/8, (long)litem.getOffsetInBits()/8);
-             if (litem.getTag() == dwarf::DW_TAG_subprogram) {
-                 DISubprogram sub(litem);
-                 printf(" name %s disp %s link %s", sub.getName().str().c_str(),
-                 sub.getDisplayName().str().c_str(), sub.getLinkageName().str().c_str());
-             }
-             printf("\n");
-         }
-         }
-         else
-            Ty.dump();
-//
-        }
-  CTy.dump();
-////////////////////////////
-  //unsigned getRunTimeLang() const { return getUnsignedField(11); }
-  //DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
-  //DIArray getTemplateParams() const { return getFieldAs<DIArray>(13); }
-////////////////////////////
+          std::map<const Value *, int>::iterator FI = metamap.find(val);
+          if (FI != metamap.end())
+              printf(" magic %p = ref %d\n", val, FI->second);
+          else {
+              printf(" magic %p =**** %d\n", val, metanumber);
+              metamap[val] = metanumber++;
+#if 0
+              DIType ltype(footop.lgetDescriptorField(9));
+              printf("base: %s", dwarf::TagString(ltype.getTag()));
+              if (ltype.getTag() == dwarf::DW_TAG_class_type)
+                  printf(" *****************************************************************");
+              printf("\n");
+              DICompositeType lcom(ltype);
+              DIArray larr = lcom.getTypeArray();
+              for (unsigned li = 0, le = larr.getNumElements(); li < le; li++)
+                  dumpType(DIType(larr.getElement(li)));
+#else
+              dumpType(DIType(footop.lgetDescriptorField(9)));
+#endif
+          }
+       }
+       else
+           dumpType(Ty);
+   }
 }
 void processSubprogram(DISubprogram sub)
 {
-  //DIScopeRef getContext()->dump();
-  printf(" %s", sub.getName().str().c_str());
-  printf(" %s", sub.getDisplayName().str().c_str());
+  printf("Subprogram: %s", sub.getName().str().c_str());
   printf(" %s", sub.getLinkageName().str().c_str());
   printf(" %d", sub.getLineNumber());
   printf(" %d", sub.isLocalToUnit());
@@ -1153,38 +1144,35 @@ void processSubprogram(DISubprogram sub)
   printf(" %d", sub.getVirtuality());
   printf(" %d", sub.getVirtualIndex());
   printf(" %d", sub.getFlags());
-  //printf(" %d", sub.isOptimized());
-  //bool describes(const Function *F);
-  DIArray tparam(sub.getTemplateParams());
-  //MDNode *vnod = sub.getVariablesNodes();
-  printf(" %d\n", sub.getScopeLineNumber());
+  printf(" %d", sub.getScopeLineNumber());
   printf("\n");
-  processTypeRef(DITypeRef(sub.getContainingType()));
-if (MDNode *Temp = sub.getVariablesNodes()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      DIType vn(Temp);
-      vn.dump();
-}
-  DIArray variab(sub.getVariables());
-  processSubtype(DICompositeType(sub.getType()));
-printf("variab: ");
-for (unsigned j = 0, je = variab.getNumElements(); j != je; j++) {
-printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
-   DIVariable ee(variab.getElement(j));
-   ee.dump();
-}
-//fprintf(stderr, "func: ");
+  //processTypeRef(DITypeRef(sub.getContainingType()));
+  //if (MDNode *Temp = sub.getVariablesNodes()) {
+      //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      //DIType vn(Temp);
+      //vn.dump();
+  //}
+  //DIArray variab(sub.getVariables());
+  //printf("variab: ");
+  //for (unsigned j = 0, je = variab.getNumElements(); j != je; j++) {
+     //DIVariable ee(variab.getElement(j));
+     //printf("[%s:%d] %d/%d name '%s' arg %d line %d\n", __FUNCTION__, __LINE__, j, je, ee.getName().str().c_str(), ee.getArgNumber(), ee.getLineNumber());
+     //ee.dump();
+  //}
+  DIArray tparam(sub.getTemplateParams());
+  if (tparam.getNumElements() > 0) {
+      printf("tparam: ");
+      for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
+        printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
+         DIDescriptor ee(tparam.getElement(j));
+         ee.dump();
+      }
+  }
+  //fprintf(stderr, "func: ");
   //sub.getFunction()->dump();
-printf("tparam: ");
-for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
-printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
-   DIDescriptor ee(tparam.getElement(j));
-   ee.dump();
-}
-//fprintf(stderr, "vnod: ");
-//vnod->dump();
-//printf("fdecl: ");
+  //printf("fdecl: ");
   //processSubprogram(DISubprogram(sub.getFunctionDeclaration()));
+  processComposite(DICompositeType(sub.getType()));
 }
 
 void dump_metadata(Module *Mod)
@@ -1194,24 +1182,6 @@ void dump_metadata(Module *Mod)
   if (!CU_Nodes)
     return;
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-
-#if 0
-DITemp foo(CU_Nodes->getOperand(i));
-for (int i = 0; i < 10; i++) {
-   //printf("[%s:%d] %d %llx = '%s'\n", __FUNCTION__, __LINE__, i, (long long)foo.lgetUInt64Field(i), foo.lgetStringField(i).str().c_str());
-}
-DITemp foo9(foo.lgetDescriptorField(9));
-for (int j = 45; j < 46; j++) {
-    DITemp foo9_1(foo9.lgetDescriptorField(j));
-    printf(" %d:", j);
-    for (int i = 0; i < 20; i++) {
-        printf(" [%d] %llx='%s';", i, (long long)foo9_1.lgetUInt64Field(i), foo9_1.lgetStringField(i).str().c_str());
-    }
-    printf("\n");
-}
-//->dump();
- continue;
-#endif
     DICompileUnit CU(CU_Nodes->getOperand(i));
     printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
          // from DIScope:
@@ -1225,11 +1195,8 @@ for (int j = 45; j < 46; j++) {
     }
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-if (i < 45 || i > 47) continue;
       // dump methods
-      printf("[%s:%d]methods %d/%d\n", __FUNCTION__, __LINE__, i, e);
-      DISubprogram sub(SPs.getElement(i));
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      printf("[%s:%d]****** methods %d/%d ", __FUNCTION__, __LINE__, i, e);
       processSubprogram(DISubprogram(SPs.getElement(i)));
     }
     DIArray EnumTypes = CU.getEnumTypes();
