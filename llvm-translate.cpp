@@ -1013,48 +1013,48 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 static void dumpType(DIType litem);
 static void dumpTref(DIType litem, int offset)
 {
-    DITemp footop(litem);
-    dumpType(DIType(footop.lgetDescriptorField(offset)));
+    int tag = litem.getTag();
+    printf("struct elt: %s;", dwarf::TagString(tag));
+    Value *val = DIDerivedType(litem).getTypeDerivedFrom();
+#if 0
+printf("[%s:%d]\n",__FUNCTION__, __LINE__);
+    if (const MDNode *Node = dyn_cast<MDNode>(val)) {
+printf("[%s:%d]got node\n", __FUNCTION__, __LINE__);
+    printf( "JJ!{");
+    for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
+          const Value *V = Node->getOperand(mi);
+          if (V == 0)
+            printf( "null");
+          else {
+            //TypePrinter->print(V->getType(), Out);
+            printf(" MMM");
+            V->getType()->dump();
+            if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
+printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
+            }
+          }
+          if (mi + 1 != me)
+            printf( ", ");
+        }
+        printf( "}");
+    }
+#endif
+    std::map<const Value *, int>::iterator FI = metamap.find(val);
+    if (FI != metamap.end())
+        printf(" magic %p = ref %d\n", val, FI->second);
+    else {
+        printf(" magic %p =**** %d\n", val, metanumber);
+        metamap[val] = metanumber++;
+        DITemp footop(litem);
+        dumpType(DIType(footop.lgetDescriptorField(offset)));
+    }
 }
+
 static void dumpType(DIType litem)
 {
     int tag = litem.getTag();
     if (tag == dwarf::DW_TAG_pointer_type) {
-        printf("struct elt: %s;", dwarf::TagString(tag));
-        Value *val = DIDerivedType(litem).getTypeDerivedFrom();
-#if 0
-printf("[%s:%d]\n",__FUNCTION__, __LINE__);
-        if (const MDNode *Node = dyn_cast<MDNode>(val)) {
-printf("[%s:%d]got node\n", __FUNCTION__, __LINE__);
-        printf( "JJ!{");
-        for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
-              const Value *V = Node->getOperand(mi);
-              if (V == 0)
-                printf( "null");
-              else {
-                //TypePrinter->print(V->getType(), Out);
-                printf(" MMM");
-                V->getType()->dump();
-                if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
-printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
-                }
-              }
-              if (mi + 1 != me)
-                printf( ", ");
-            }
-            printf( "}");
-        }
-#endif
-        std::map<const Value *, int>::iterator FI = metamap.find(val);
-        if (FI != metamap.end())
-            printf(" magic %p = ref %d\n", val, FI->second);
-        else {
-            printf(" magic %p =**** %d\n", val, metanumber);
-            metamap[val] = metanumber++;
-            //DITemp footop(litem);
-            //dumpType(DIType(footop.lgetDescriptorField(9)));
-            dumpTref(litem, 9);
-        }
+        dumpTref(litem, 9);
         return;
     }
     printf(" tag %s name %s off %3ld size %3ld",
