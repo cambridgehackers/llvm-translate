@@ -202,9 +202,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
     Type *ETy = CA->getType()->getElementType();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //TypePrinter.print(ETy);
     //WriteAsOperandInternal(CA->getOperand(0), &TypePrinter, Machine, Context);
     for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(ETy);
       //WriteAsOperandInternal(CA->getOperand(i), &TypePrinter, Machine, Context);
     }
@@ -212,9 +214,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   if (const ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CV)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     // As a special case, print the array as a string if it is an array of
     // i8 with ConstantInt values.
     if (CA->isString()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //PrintEscapedString(CA->getAsString());
       return;
     }
@@ -223,6 +227,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //TypePrinter.print(ETy);
     //WriteAsOperandInternal(CA->getElementAsConstant(0), &TypePrinter, Machine, Context);
     for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(ETy);
       //WriteAsOperandInternal(CA->getElementAsConstant(i), &TypePrinter, Machine, Context);
     }
@@ -231,10 +236,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     unsigned N = CS->getNumOperands();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (N) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(CS->getOperand(0)->getType());
       //WriteAsOperandInternal(CS->getOperand(0), &TypePrinter, Machine, Context);
       for (unsigned i = 1; i < N; i++) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         //TypePrinter.print(CS->getOperand(i)->getType());
         //WriteAsOperandInternal(CS->getOperand(i), &TypePrinter, Machine, Context);
       }
@@ -244,9 +252,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
     Type *ETy = CV->getType()->getVectorElementType();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //TypePrinter.print(ETy);
     //WriteAsOperandInternal(CV->getAggregateElement(0U), &TypePrinter, Machine, Context);
     for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(ETy);
       //WriteAsOperandInternal(CV->getAggregateElement(i), &TypePrinter, Machine, Context);
     }
@@ -264,22 +274,26 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
 
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //printf( CE->getOpcodeName();
     //WriteOptimizationInfo(CE);
     //if (CE->isCompare())
       //printf( ' ' << getPredicateText(CE->getPredicate());
 
     for (User::const_op_iterator OI=CE->op_begin(); OI != CE->op_end(); ++OI) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print((*OI)->getType()); //WriteAsOperandInternal(*OI, &TypePrinter, Machine, Context);
     }
 
     if (CE->hasIndices()) {
       ArrayRef<unsigned> Indices = CE->getIndices();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       for (unsigned i = 0, e = Indices.size(); i != e; ++i)
         printf( "%d ",  Indices[i]);
     }
 
     if (CE->isCast()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //TypePrinter.print(CE->getType());
     }
     return;
@@ -1023,192 +1037,26 @@ void format_type(DIType DT)
 }
 
 #if 0
-class DISubrange : public DIDescriptor {
-  int64_t getLo() const { return getInt64Field(1); }
-  int64_t getCount() const { return getInt64Field(2); }
-};
-class DIArray : public DIDescriptor {
-  unsigned getNumElements() const;
-  DIDescriptor getElement(unsigned Idx) const { return getDescriptorField(Idx); }
-};
-class DIEnumerator : public DIDescriptor {
-  StringRef getName() const { return getStringField(1); }
-  int64_t getEnumValue() const { return getInt64Field(2); }
-};
-class DIScope : public DIDescriptor {
-  DIScopeRef getContext() const;
-  StringRef getName() const;
-  StringRef getFilename() const;
-  StringRef getDirectory() const;
-  DIScopeRef getRef() const;
-};
-class DIType : public DIScope {
-  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(2); }
-  StringRef getName() const { return getStringField(3); }
-  unsigned getLineNumber() const { return getUnsignedField(4); }
-  uint64_t getSizeInBits() const { return getUInt64Field(5); }
-  uint64_t getAlignInBits() const { return getUInt64Field(6); }
-  uint64_t getOffsetInBits() const { return getUInt64Field(7); }
-  unsigned getFlags() const { return getUnsignedField(8); }
-  bool isPrivate() const { return (getFlags() & FlagPrivate) != 0; }
-  bool isProtected() const { return (getFlags() & FlagProtected) != 0; }
-  bool isForwardDecl() const { return (getFlags() & FlagFwdDecl) != 0; }
-  bool isAppleBlockExtension() const { return (getFlags() & FlagAppleBlock) != 0; }
-  bool isBlockByrefStruct() const { return (getFlags() & FlagBlockByrefStruct) != 0; }
-  bool isVirtual() const { return (getFlags() & FlagVirtual) != 0; }
-  bool isArtificial() const { return (getFlags() & FlagArtificial) != 0; }
-  bool isObjectPointer() const { return (getFlags() & FlagObjectPointer) != 0; }
-  bool isObjcClassComplete() const { return (getFlags() & FlagObjcClassComplete) != 0; }
-  bool isVector() const { return (getFlags() & FlagVector) != 0; }
-  bool isStaticMember() const { return (getFlags() & FlagStaticMember) != 0; }
-};
-class DIBasicType : public DIType {
-  unsigned getEncoding() const { return getUnsignedField(9); }
-};
-class DIDerivedType : public DIType {
-  DITypeRef getTypeDerivedFrom() const { return getFieldAs<DITypeRef>(9); }
-  MDNode *getObjCProperty() const;
-  DITypeRef getClassType() const { return getFieldAs<DITypeRef>(10); }
-  Constant *getConstant() const { return getConstantField(10); }
-};
-class DICompositeType : public DIDerivedType {
-  DIArray getTypeArray() const { return getFieldAs<DIArray>(10); }
-  void setTypeArray(DIArray Elements, DIArray TParams = DIArray());
-  void addMember(DIDescriptor D);
-  unsigned getRunTimeLang() const { return getUnsignedField(11); }
-  DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
-  void setContainingType(DICompositeType ContainingType);
-  DIArray getTemplateParams() const { return getFieldAs<DIArray>(13); }
-  MDString *getIdentifier() const;
-};
-class DIFile : public DIScope {
-  MDNode *getFileNode() const;
-};
-class DICompileUnit : public DIScope {
-  unsigned getLanguage() const { return getUnsignedField(2); }
-  StringRef getProducer() const { return getStringField(3); }
-  bool isOptimized() const { return getUnsignedField(4) != 0; }
-  StringRef getFlags() const { return getStringField(5); }
-  unsigned getRunTimeVersion() const { return getUnsignedField(6); }
-  DIArray getEnumTypes() const;
-  DIArray getRetainedTypes() const;
-  DIArray getSubprograms() const;
-  DIArray getGlobalVariables() const;
-  DIArray getImportedEntities() const;
-  StringRef getSplitDebugFilename() const { return getStringField(12); }
-};
-class DISubprogram : public DIScope {
-  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(2); }
-  StringRef getName() const { return getStringField(3); }
-  StringRef getDisplayName() const { return getStringField(4); }
-  StringRef getLinkageName() const { return getStringField(5); }
-  unsigned getLineNumber() const { return getUnsignedField(6); }
-  DICompositeType getType() const { return getFieldAs<DICompositeType>(7); }
-  unsigned isLocalToUnit() const { return getUnsignedField(8); }
-  unsigned isDefinition() const { return getUnsignedField(9); }
-  unsigned getVirtuality() const { return getUnsignedField(10); }
-  unsigned getVirtualIndex() const { return getUnsignedField(11); }
-  DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
-  unsigned getFlags() const { return getUnsignedField(13); }
-  unsigned isOptimized() const;
-  bool describes(const Function *F);
-  Function *getFunction() const { return getFunctionField(15); }
-  void replaceFunction(Function *F) { replaceFunctionField(15, F); }
-  DIArray getTemplateParams() const { return getFieldAs<DIArray>(16); }
-  DISubprogram getFunctionDeclaration() const { return getFieldAs<DISubprogram>(17); }
-  MDNode *getVariablesNodes() const;
-  DIArray getVariables() const;
-  unsigned getScopeLineNumber() const { return getUnsignedField(19); }
-};
-class DILexicalBlock : public DIScope {
-  DIScope getContext() const { return getFieldAs<DIScope>(2); }
-  unsigned getLineNumber() const { return getUnsignedField(3); }
-  unsigned getColumnNumber() const { return getUnsignedField(4); }
-};
-class DILexicalBlockFile : public DIScope {
-  DIScope getContext() const { if (getScope().isSubprogram()) return getScope(); return getScope().getContext(); }
-  unsigned getLineNumber() const { return getScope().getLineNumber(); }
-  unsigned getColumnNumber() const { return getScope().getColumnNumber(); }
-  DILexicalBlock getScope() const { return getFieldAs<DILexicalBlock>(2); }
-};
-class DINameSpace : public DIScope {
-  DIScope getContext() const { return getFieldAs<DIScope>(2); }
-  StringRef getName() const { return getStringField(3); }
-  unsigned getLineNumber() const { return getUnsignedField(4); }
-};
-class DITemplateTypeParameter : public DIDescriptor {
-  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(1); }
-  StringRef getName() const { return getStringField(2); }
-  DITypeRef getType() const { return getFieldAs<DITypeRef>(3); }
-  StringRef getFilename() const { return getFieldAs<DIFile>(4).getFilename(); }
-  StringRef getDirectory() const { return getFieldAs<DIFile>(4).getDirectory(); }
-  unsigned getLineNumber() const { return getUnsignedField(5); }
-  unsigned getColumnNumber() const { return getUnsignedField(6); }
-};
-class DITemplateValueParameter : public DIDescriptor {
-  DIScopeRef getContext() const { return getFieldAs<DIScopeRef>(1); }
-  StringRef getName() const { return getStringField(2); }
-  DITypeRef getType() const { return getFieldAs<DITypeRef>(3); }
-  StringRef getFilename() const { return getFieldAs<DIFile>(5).getFilename(); }
-  StringRef getDirectory() const { return getFieldAs<DIFile>(5).getDirectory(); }
-  unsigned getLineNumber() const { return getUnsignedField(6); }
-  unsigned getColumnNumber() const { return getUnsignedField(7); }
-};
-class DIGlobalVariable : public DIDescriptor {
-  DIScope getContext() const { return getFieldAs<DIScope>(2); }
-  StringRef getName() const { return getStringField(3); }
-  StringRef getDisplayName() const { return getStringField(4); }
-  StringRef getLinkageName() const { return getStringField(5); }
-  StringRef getFilename() const { return getFieldAs<DIFile>(6).getFilename(); }
-  StringRef getDirectory() const { return getFieldAs<DIFile>(6).getDirectory(); }
-  unsigned getLineNumber() const { return getUnsignedField(7); }
-  DIType getType() const { return getFieldAs<DIType>(8); }
-  unsigned isLocalToUnit() const { return getUnsignedField(9); }
-  unsigned isDefinition() const { return getUnsignedField(10); }
-  GlobalVariable *getGlobal() const { return getGlobalVariableField(11); }
-  Constant *getConstant() const { return getConstantField(11); }
-  DIDerivedType getStaticDataMemberDeclaration() const { return getFieldAs<DIDerivedType>(12); }
-};
-class DIVariable : public DIDescriptor {
-  DIScope getContext() const { return getFieldAs<DIScope>(1); }
-  StringRef getName() const { return getStringField(2); }
-  DIFile getFile() const { return getFieldAs<DIFile>(3); }
-  unsigned getLineNumber() const { return (getUnsignedField(4) << 8) >> 8; }
-  unsigned getArgNumber() const { unsigned L = getUnsignedField(4); return L >> 24; }
-  DIType getType() const { return getFieldAs<DIType>(5); }
-  bool isArtificial() const { return (getUnsignedField(6) & FlagArtificial) != 0; }
-  bool isObjectPointer() const { return (getUnsignedField(6) & FlagObjectPointer) != 0; }
-  bool isIndirect() const { return (getUnsignedField(6) & FlagIndirectVariable) != 0; }
-  MDNode *getInlinedAt() const;
-  bool hasComplexAddress() const { return getNumAddrElements() > 0; }
-  unsigned getNumAddrElements() const;
-  uint64_t getAddrElement(unsigned Idx) const { return getUInt64Field(Idx + 8); }
-  bool isBlockByrefVariable() const { return getType().isBlockByrefStruct(); }
-  bool isInlinedFnArgument(const Function *CurFn);
-  void printExtendedName(raw_ostream &OS) const;
-};
-class DILocation : public DIDescriptor {
-  unsigned getLineNumber() const { return getUnsignedField(0); }
-  unsigned getColumnNumber() const { return getUnsignedField(1); }
-  DIScope getScope() const { return getFieldAs<DIScope>(2); }
-  DILocation getOrigLocation() const { return getFieldAs<DILocation>(3); }
-  StringRef getFilename() const { return getScope().getFilename(); }
-  StringRef getDirectory() const { return getScope().getDirectory(); }
-};
-class DIObjCProperty : public DIDescriptor {
-  StringRef getObjCPropertyName() const { return getStringField(1); }
-  DIFile getFile() const { return getFieldAs<DIFile>(2); }
-  unsigned getLineNumber() const { return getUnsignedField(3); }
-  StringRef getObjCPropertyGetterName() const { return getStringField(4); }
-  StringRef getObjCPropertySetterName() const { return getStringField(5); }
-  DIType getType() const { return getFieldAs<DIType>(7); }
-};
-class DIImportedEntity : public DIDescriptor {
-  DIScope getContext() const { return getFieldAs<DIScope>(1); }
-  DIDescriptor getEntity() const { return getFieldAs<DIDescriptor>(2); }
-  unsigned getLineNumber() const { return getUnsignedField(3); }
-  StringRef getName() const { return getStringField(4); }
-};
+class DISubrange :DIDescriptor { int64_t getLo 1; int64_t getCount 2; };
+class DIEnumerator :DIDescriptor { STR getName 1; int64_t getEnumValue 2; };
+class DIScope :DIDescriptor { DIScopeRef getContext; STR getName; STR getFilename; STR getDirectory; DIScopeRef getRef; };
+class DIType :DIScope { DIScopeRef getContext 2; STR getName 3; I getLineNumber 4; uint64_t getSizeInBits 5; uint64_t getAlignInBits 6; uint64_t getOffsetInBits 7; I getFlags 8; };
+class DIBasicType :DIType { I getEncoding 9; };
+class DIDerivedType :DIType { DITypeRef getTypeDerivedFrom 9; DITypeRef getClassType 10; Constant *getConstant 10; };
+class DICompositeType :DIDerivedType { DIArray getTypeArray 10; I getRunTimeLang 11; DITypeRef getContainingType 12; DIArray getTemplateParams 13; MDString *getIdentifier };
+class DIFile :DIScope { MDNode *getFileNode; };
+class DICompileUnit :DIScope { I getLanguage 2; STR getProducer 3; bool isOptimized 4; STR getFlags 5; I getRunTimeVersion 6; STR getSplitDebugFilename 12; };
+class DISubprogram :DIScope { DIScopeRef getContext 2; STR getName 3; STR getDisplayName 4; STR getLinkageName 5; I getLineNumber 6; DICompositeType getType 7; I isLocalToUnit 8; I isDefinition 9; I getVirtuality 10; I getVirtualIndex 11; DITypeRef getContainingType 12; I getFlags 13; Function *getFunction 15; DIArray getTemplateParams 16; DISubprogram getFunctionDeclaration 17; I getScopeLineNumber 19; };
+class DILexicalBlock :DIScope { DIScope getContext 2; I getLineNumber 3; I getColumnNumber 4; };
+class DILexicalBlockFile :DIScope { DILexicalBlock getScope 2; };
+class DINameSpace :DIScope { DIScope getContext 2; STR getName 3; I getLineNumber 4; };
+class DITemplateTypeParameter :DIDescriptor { DIScopeRef getContext 1; STR getName 2; DITypeRef getType 3; STR getFilename 4; STR getDirectory 4; I getLineNumber 5; I getColumnNumber 6; };
+class DITemplateValueParameter :DIDescriptor { DIScopeRef getContext 1; STR getName 2; DITypeRef getType 3; STR getFilename 5; STR getDirectory 5; I getLineNumber 6; I getColumnNumber 7; };
+class DIGlobalVariable :DIDescriptor { DIScope getContext 2; STR getName 3; STR getDisplayName 4; STR getLinkageName 5; STR getFilename 6; STR getDirectory 6; I getLineNumber 7; DIType getType 8; I isLocalToUnit 9; I isDefinition 10; GlobalVariable *getGlobal 11; Constant *getConstant 11; DIDerivedType getStaticDataMemberDeclaration 12; };
+class DIVariable :DIDescriptor { DIScope getContext 1; STR getName 2; DIFile getFile 3; I getLineNumber 4; I getArgNumber 4; DIType getType 5; bool isArtificial 6; bool isObjectPointer 6; bool isIndirect 6; uint64_t getAddrElement Idx + 8; };
+class DILocation :DIDescriptor { I getLineNumber 0; I getColumnNumber 1; DIScope getScope 2; DILocation getOrigLocation 3; STR getFilename; STR getDirectory; };
+class DIObjCProperty :DIDescriptor { STR getObjCPropertyName 1; DIFile getFile 2; I getLineNumber 3; STR getObjCPropertyGetterName 4; STR getObjCPropertySetterName 5; DIType getType 7; };
+class DIImportedEntity :DIDescriptor { DIScope getContext 1; DIDescriptor getEntity 2; I getLineNumber 3; STR getName 4; };
 #endif
 class DITemp : public DIDescriptor {
   friend class DIDescriptor;
@@ -1222,40 +1070,68 @@ public:
   Constant *getConstantField(unsigned Elt) const { return getConstantField(Elt); }
   Function *getFunctionField(unsigned Elt) const { return getFunctionField(Elt); }
 };
-void processSubprogram(DISubprogram sub)
+void processTypeRef(DITypeRef tr)
 {
-  //DIScopeRef getContext()->dump();
-  printf(" %s", sub.getName().str().c_str());
-  printf(" %s", sub.getDisplayName().str().c_str());
-  printf(" %s", sub.getLinkageName().str().c_str());
-  printf(" %d", sub.getLineNumber());
-  DICompositeType CTy(sub.getType());
-  printf(" %d", sub.isLocalToUnit());
-  printf(" %d", sub.isDefinition());
-  printf(" %d", sub.getVirtuality());
-  printf(" %d", sub.getVirtualIndex());
-  DITypeRef tref(sub.getContainingType());
-  printf(" %d", sub.getFlags());
-  //printf(" %d", sub.isOptimized());
-  //bool describes(const Function *F);
-  DIArray tparam(sub.getTemplateParams());
-  //MDNode *vnod = sub.getVariablesNodes();
-  printf(" %d\n", sub.getScopeLineNumber());
-  printf("\n");
-if (MDNode *Temp = sub.getVariablesNodes()) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      DIType vn(Temp);
-      vn.dump();
+    //printf("TypeRef: %s", dwarf::TagString(tr.getTag()));
 }
-//tref->dump();
-  DIArray variab(sub.getVariables());
+void processSubprogram(DISubprogram sub);
+void processSubtype(DICompositeType CTy)
+{
 printf("CTy:\n");
-        printf("name %s\n", CTy.getName().str().c_str());
-        DIArray Elements = CTy.getTypeArray();
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-            DIType Element(Elements.getElement(k));
-            fprintf(stderr, "struct elt: %d", Element.getTag());
-            Element.dump();
+     printf("name %s\n", CTy.getName().str().c_str());
+     DIArray Elements = CTy.getTypeArray();
+     for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
+         DIType Ty(Elements.getElement(k));
+         DITemp footop(Elements.getElement(k));
+
+         uint16_t tag = Ty.getTag();
+         printf("struct elt: %s", dwarf::TagString(tag));
+         if (tag == dwarf::DW_TAG_pointer_type) {
+#if 0
+             Value *val = DIDerivedType(Ty).getTypeDerivedFrom();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  if (const MDNode *Node = dyn_cast<MDNode>(val)) {
+printf("[%s:%d] got node\n", __FUNCTION__, __LINE__);
+  printf( "JJ!{");
+  for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
+    const Value *V = Node->getOperand(mi);
+    if (V == 0)
+      printf( "null");
+    else {
+      //TypePrinter->print(V->getType(), Out);
+      printf(" MMM");
+V->getType()->dump();
+      if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
+printf("[%s:%d] %d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
+      }
+    }
+    if (mi + 1 != me)
+      printf( ", ");
+  }
+  printf( "}");
+}
+#endif
+printf("[%s:%d]magic\n", __FUNCTION__, __LINE__);
+         DIType ltype(footop.lgetDescriptorField(9));
+         printf("FFFFstruct elt: %s", dwarf::TagString(ltype.getTag()));
+         DICompositeType lcom(ltype);
+         DIArray larr = lcom.getTypeArray();
+         for (unsigned li = 0, le = larr.getNumElements(); li < le; li++) {
+             DIType litem(larr.getElement(li));
+             printf(" %d tag %s name %s size %ld off %ld",
+                 li, dwarf::TagString(litem.getTag()), litem.getName().str().c_str(),
+                 (long)litem.getSizeInBits()/8, (long)litem.getOffsetInBits()/8);
+             if (litem.getTag() == dwarf::DW_TAG_subprogram) {
+                 DISubprogram sub(litem);
+                 printf(" name %s disp %s link %s", sub.getName().str().c_str(),
+                 sub.getDisplayName().str().c_str(), sub.getLinkageName().str().c_str());
+             }
+             printf("\n");
+         }
+         }
+         else
+            Ty.dump();
 //
         }
   CTy.dump();
@@ -1264,6 +1140,33 @@ printf("CTy:\n");
   //DITypeRef getContainingType() const { return getFieldAs<DITypeRef>(12); }
   //DIArray getTemplateParams() const { return getFieldAs<DIArray>(13); }
 ////////////////////////////
+}
+void processSubprogram(DISubprogram sub)
+{
+  //DIScopeRef getContext()->dump();
+  printf(" %s", sub.getName().str().c_str());
+  printf(" %s", sub.getDisplayName().str().c_str());
+  printf(" %s", sub.getLinkageName().str().c_str());
+  printf(" %d", sub.getLineNumber());
+  printf(" %d", sub.isLocalToUnit());
+  printf(" %d", sub.isDefinition());
+  printf(" %d", sub.getVirtuality());
+  printf(" %d", sub.getVirtualIndex());
+  printf(" %d", sub.getFlags());
+  //printf(" %d", sub.isOptimized());
+  //bool describes(const Function *F);
+  DIArray tparam(sub.getTemplateParams());
+  //MDNode *vnod = sub.getVariablesNodes();
+  printf(" %d\n", sub.getScopeLineNumber());
+  printf("\n");
+  processTypeRef(DITypeRef(sub.getContainingType()));
+if (MDNode *Temp = sub.getVariablesNodes()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      DIType vn(Temp);
+      vn.dump();
+}
+  DIArray variab(sub.getVariables());
+  processSubtype(DICompositeType(sub.getType()));
 printf("variab: ");
 for (unsigned j = 0, je = variab.getNumElements(); j != je; j++) {
 printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
