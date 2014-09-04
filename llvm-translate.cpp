@@ -1011,8 +1011,10 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 }
 
 static void dumpType(DIType litem);
-static void dumpTref(DIType litem, int offset)
+static void dumpTref(Value *val)
 {
+    if (!val)
+        return;
 #if 0
     Value *val = DIDerivedType(litem).getTypeDerivedFrom();
 printf("[%s:%d]\n",__FUNCTION__, __LINE__);
@@ -1037,21 +1039,18 @@ printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands()
         printf( "}");
     }
 #endif
-    //Value *val = DIDerivedType(litem).getRef();
-    DITemp footop(litem);
-    DIType nextitem(footop.lgetDescriptorField(offset));
-    MDNode *val = nextitem;
+    if (const MDNode *Node = dyn_cast<MDNode>(val)) {
+    DIType nextitem(Node);
     int tag = nextitem.getTag();
-    if (!val)
-        return;
     printf("TRef: %s;", dwarf::TagString(tag));
-    std::map<const MDNode *, int>::iterator FI = metamap.find(val);
+    std::map<const MDNode *, int>::iterator FI = metamap.find(Node);
     if (FI != metamap.end())
         printf(" magic %p = ref %d\n", val, FI->second);
     else {
         printf(" magic %p =**** %d\n", val, metanumber);
-        metamap[val] = metanumber++;
+        metamap[Node] = metanumber++;
         dumpType(nextitem);
+    }
     }
 }
 
@@ -1061,7 +1060,8 @@ static void dumpType(DIType litem)
     if (!tag)     // Ignore elements with tag of 0
         return;
     if (tag == dwarf::DW_TAG_pointer_type) {
-        dumpTref(litem, 9); // getTypeDerivedFrom()
+        DICompositeType CTy(litem);
+        dumpTref(CTy.getTypeDerivedFrom());
         return;
     }
     printf(" tag %s name %s off %3ld size %3ld",
@@ -1072,23 +1072,22 @@ static void dumpType(DIType litem)
         printf(" link %s", sub.getLinkageName().str().c_str());
     }
     printf("\n");
+    DICompositeType CTy(litem);
     switch (tag) {
     case dwarf::DW_TAG_class_type:
     case dwarf::DW_TAG_array_type:
     case dwarf::DW_TAG_enumeration_type:
     case dwarf::DW_TAG_structure_type:
     case dwarf::DW_TAG_union_type:
-    case dwarf::DW_TAG_subroutine_type:
     case dwarf::DW_TAG_inheritance:
-        {
-        DICompositeType CTy(litem);
-        dumpTref(litem, 9);  // CTy.getTypeDerivedFrom()
-        dumpTref(litem, 12); // CTy.getContainingType()
+        dumpTref(CTy.getTypeDerivedFrom());
+        dumpTref(CTy.getContainingType());
+        /* fall through */
+    case dwarf::DW_TAG_subroutine_type:
         DIArray Elements = CTy.getTypeArray();
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
             dumpType(Ty);
-        }
         }
         break;
     }
@@ -1144,8 +1143,7 @@ void processSubprogram(DISubprogram sub)
   printf(" %d", sub.getFlags());
   printf(" %d", sub.getScopeLineNumber());
   printf("\n");
-  //if (sub.getContainingType())
-      dumpTref(DIType(sub), 12); //processTypeRef(DITypeRef(sub.getContainingType()));
+  dumpTref(sub.getContainingType());
   //if (MDNode *Temp = sub.getVariablesNodes()) {
       //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //DIType vn(Temp);
