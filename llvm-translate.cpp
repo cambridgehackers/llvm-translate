@@ -85,7 +85,7 @@ public:
 
 static ExecutionEngine *EE = 0;
 static std::map<const Value *, int> slotmap;
-static std::map<const Value *, int> metamap;
+static std::map<const MDNode *, int> metamap;
 static int metanumber;
 static struct {
     const char *name;
@@ -1013,10 +1013,8 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 static void dumpType(DIType litem);
 static void dumpTref(DIType litem, int offset)
 {
-    int tag = litem.getTag();
-    printf("struct elt: %s;", dwarf::TagString(tag));
-    Value *val = DIDerivedType(litem).getTypeDerivedFrom();
 #if 0
+    Value *val = DIDerivedType(litem).getTypeDerivedFrom();
 printf("[%s:%d]\n",__FUNCTION__, __LINE__);
     if (const MDNode *Node = dyn_cast<MDNode>(val)) {
 printf("[%s:%d]got node\n", __FUNCTION__, __LINE__);
@@ -1039,22 +1037,31 @@ printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands()
         printf( "}");
     }
 #endif
-    std::map<const Value *, int>::iterator FI = metamap.find(val);
+    //Value *val = DIDerivedType(litem).getRef();
+    DITemp footop(litem);
+    DIType nextitem(footop.lgetDescriptorField(offset));
+    MDNode *val = nextitem;
+    int tag = nextitem.getTag();
+    if (!val)
+        return;
+    printf("TRef: %s;", dwarf::TagString(tag));
+    std::map<const MDNode *, int>::iterator FI = metamap.find(val);
     if (FI != metamap.end())
         printf(" magic %p = ref %d\n", val, FI->second);
     else {
         printf(" magic %p =**** %d\n", val, metanumber);
         metamap[val] = metanumber++;
-        DITemp footop(litem);
-        dumpType(DIType(footop.lgetDescriptorField(offset)));
+        dumpType(nextitem);
     }
 }
 
 static void dumpType(DIType litem)
 {
     int tag = litem.getTag();
+    if (!tag)     // Ignore elements with tag of 0
+        return;
     if (tag == dwarf::DW_TAG_pointer_type) {
-        dumpTref(litem, 9);
+        dumpTref(litem, 9); // getTypeDerivedFrom()
         return;
     }
     printf(" tag %s name %s off %3ld size %3ld",
@@ -1075,11 +1082,12 @@ static void dumpType(DIType litem)
     case dwarf::DW_TAG_inheritance:
         {
         DICompositeType CTy(litem);
+        dumpTref(litem, 9);  // CTy.getTypeDerivedFrom()
+        dumpTref(litem, 12); // CTy.getContainingType()
         DIArray Elements = CTy.getTypeArray();
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
-            if (Ty.getTag())     // Ignore elements with tag of 0
-                dumpType(Ty);
+            dumpType(Ty);
         }
         }
         break;
@@ -1119,7 +1127,7 @@ void format_type(DIType DT)
         DIArray Elements = CTy.getTypeArray();
         for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
             DIDescriptor Element = Elements.getElement(i);
-            fprintf(stderr, "struct elt:");
+            fprintf(stderr, "fmtstruct elt:");
             Element.dump();
         }
     }
@@ -1136,7 +1144,8 @@ void processSubprogram(DISubprogram sub)
   printf(" %d", sub.getFlags());
   printf(" %d", sub.getScopeLineNumber());
   printf("\n");
-  //processTypeRef(DITypeRef(sub.getContainingType()));
+  //if (sub.getContainingType())
+      dumpTref(DIType(sub), 12); //processTypeRef(DITypeRef(sub.getContainingType()));
   //if (MDNode *Temp = sub.getVariablesNodes()) {
       //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       //DIType vn(Temp);
@@ -1186,7 +1195,7 @@ void dump_metadata(Module *Mod)
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       // dump methods
-      printf("[%s:%d]****** methods %d/%d ", __FUNCTION__, __LINE__, i, e);
+      printf("[%s:%d]****** methods %d/%d\n", __FUNCTION__, __LINE__, i, e);
       processSubprogram(DISubprogram(SPs.getElement(i)));
     }
     DIArray EnumTypes = CU.getEnumTypes();
