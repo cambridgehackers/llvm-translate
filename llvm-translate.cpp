@@ -70,19 +70,6 @@ namespace {
 #define MAX_OPERAND_LIST 200
 #define MAX_CHAR_BUFFER 1000
 
-class DITemp : public DIDescriptor {
-  friend class DIDescriptor;
-public:
-  explicit DITemp(const MDNode *N = 0) : DIDescriptor(N) {}
-  StringRef lgetStringField(unsigned Elt) const { return  getStringField(Elt); }
-  uint64_t lgetUInt64Field(unsigned Elt) const { return  getUInt64Field(Elt); }
-  int64_t lgetInt64Field(unsigned Elt) const { return  getInt64Field(Elt); }
-  DIDescriptor lgetDescriptorField(unsigned Elt) const { return  getDescriptorField(Elt); }
-  GlobalVariable *getGlobalVariableField(unsigned Elt) const { return getGlobalVariableField(Elt); }
-  Constant *getConstantField(unsigned Elt) const { return getConstantField(Elt); }
-  Function *getFunctionField(unsigned Elt) const { return getFunctionField(Elt); }
-};
-
 static ExecutionEngine *EE = 0;
 static std::map<const Value *, int> slotmap;
 static std::map<const MDNode *, int> metamap;
@@ -1013,33 +1000,9 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 static void dumpType(DIType litem);
 static void dumpTref(Value *val)
 {
-    if (!val)
+    const MDNode *Node;
+    if (!val || !(Node = dyn_cast<MDNode>(val)))
         return;
-#if 0
-    Value *val = DIDerivedType(litem).getTypeDerivedFrom();
-printf("[%s:%d]\n",__FUNCTION__, __LINE__);
-    if (const MDNode *Node = dyn_cast<MDNode>(val)) {
-printf("[%s:%d]got node\n", __FUNCTION__, __LINE__);
-    printf( "JJ!{");
-    for (unsigned mi = 0, me = Node->getNumOperands(); mi != me; ++mi) {
-          const Value *V = Node->getOperand(mi);
-          if (V == 0)
-            printf( "null");
-          else {
-            //TypePrinter->print(V->getType(), Out);
-            printf(" MMM");
-            V->getType()->dump();
-            if (const MDNode *Nodeinner = dyn_cast<MDNode>(V)) {
-printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands());
-            }
-          }
-          if (mi + 1 != me)
-            printf( ", ");
-        }
-        printf( "}");
-    }
-#endif
-    if (const MDNode *Node = dyn_cast<MDNode>(val)) {
     DIType nextitem(Node);
     int tag = nextitem.getTag();
     printf("TRef: %s;", dwarf::TagString(tag));
@@ -1050,7 +1013,6 @@ printf("[%s:%d]%d %d\n", __FUNCTION__, __LINE__, mi, Nodeinner->getNumOperands()
         printf(" magic %p =**** %d\n", val, metanumber);
         metamap[Node] = metanumber++;
         dumpType(nextitem);
-    }
     }
 }
 
@@ -1072,39 +1034,26 @@ static void dumpType(DIType litem)
         printf(" link %s", sub.getLinkageName().str().c_str());
     }
     printf("\n");
-    DICompositeType CTy(litem);
-    switch (tag) {
-    case dwarf::DW_TAG_class_type:
-    case dwarf::DW_TAG_array_type:
-    case dwarf::DW_TAG_enumeration_type:
-    case dwarf::DW_TAG_structure_type:
-    case dwarf::DW_TAG_union_type:
-    case dwarf::DW_TAG_inheritance:
-        dumpTref(CTy.getTypeDerivedFrom());
-        dumpTref(CTy.getContainingType());
-        /* fall through */
-    case dwarf::DW_TAG_subroutine_type:
+    if (litem.isCompositeType() || tag == dwarf::DW_TAG_inheritance) {
+        DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
+        if (tag != dwarf::DW_TAG_subroutine_type) {
+            dumpTref(CTy.getTypeDerivedFrom());
+            dumpTref(CTy.getContainingType());
+        }
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
             dumpType(Ty);
         }
-        break;
     }
 }
 void format_type(DIType DT)
 {
     fprintf(stderr, "    %s:", __FUNCTION__);
     dumpType(DT);
-    //fprintf(stderr, "[ %s ]", dwarf::TagString(DT.getTag()));
-    //StringRef Res = DT.getName();
-    //if (!Res.empty())
-      //errs() << " [" << Res << "]";
-    //errs() << " [line " << DT.getLineNumber() << ", size " << DT.getSizeInBits() << ", align " << DT.getAlignInBits() << ", offset " << DT.getOffsetInBits();
     if (DT.isBasicType())
       if (const char *Enc = dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
         errs() << ", enc " << Enc;
-    //errs() << "]";
     if (DT.isPrivate()) errs() << " [private]";
     else if (DT.isProtected()) errs() << " [protected]";
     if (DT.isArtificial()) errs() << " [artificial]";
@@ -1112,8 +1061,6 @@ void format_type(DIType DT)
     else if (DT.getTag() == dwarf::DW_TAG_structure_type || DT.getTag() == dwarf::DW_TAG_union_type ||
              DT.getTag() == dwarf::DW_TAG_enumeration_type || DT.getTag() == dwarf::DW_TAG_class_type)
       errs() << " [def]";
-    if (DT.isVector()) errs() << " [vector]";
-    if (DT.isStaticMember()) errs() << " [static]";
     if (DT.isDerivedType()) {
        errs() << " [from ";
        errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
