@@ -56,7 +56,7 @@
 using namespace llvm;
 
 static int dump_interpret;// = 1;
-static int trace_meta = 1;
+static int trace_meta;// = 1;
 static int output_stdout = 1;
 static const char *trace_break_name;// = "_ZN4Echo7respond5guardEv";
 #define SEPARATOR ":"
@@ -1009,6 +1009,8 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 
 #define MAX_CLASS_ARRAY 20
 static struct {
+    std::string name;
+    std::string inheritname;
     std::list<const MDNode *> inherit;
     std::list<const MDNode *> members;
 } classinfo_array[MAX_CLASS_ARRAY];
@@ -1033,15 +1035,22 @@ static void dumpTref(const Value *val)
         metamap[Node] = metanumber++;
         if (tag == dwarf::DW_TAG_class_type) {
             if (classinfo_array_index++ != 0) {
-                printf(" recursiveclassdefmagic %s [%p] =**** %d level %d.\n", name.c_str(), val, metanumber, classinfo_array_index);
+                printf(" recursiveclassdefmagic %s [%p] =**** %d level %d. above %s\n", name.c_str(), val, metanumber, classinfo_array_index, classinfo_array[classinfo_array_index-1].name.c_str());
                 //exit(1);
             }
+            classinfo_array[classinfo_array_index].name = name;
+            classinfo_array[classinfo_array_index].inheritname = "";
             classinfo_array[classinfo_array_index].inherit.clear();
             classinfo_array[classinfo_array_index].members.clear();
         }
         dumpType(nextitem);
         if (tag == dwarf::DW_TAG_class_type) {
-             classinfo_array_index--;
+            if (classinfo_array[classinfo_array_index].inherit.size()) {
+                const MDNode *n = *classinfo_array[classinfo_array_index].inherit.begin();
+                DIType Ty(n);
+                //name = Ty.getName().str() + "::" + name;
+                name = classinfo_array[classinfo_array_index].inheritname + name;
+            }
             std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
             printf("class %s inherit %d members %d\n", name.c_str(),
                 (int)classinfo_array[classinfo_array_index].inherit.size(),
@@ -1050,6 +1059,7 @@ static void dumpTref(const Value *val)
                 printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
                 //exit(1);
             }
+            classinfo_array_index--;
             classmap[name] = Node;
         }
     }
@@ -1070,8 +1080,10 @@ static void dumpType(DIType litem)
         DIArray Elements = CTy.getTypeArray();
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-        if (v && (Node = dyn_cast<MDNode>(v)))
+        if (v && (Node = dyn_cast<MDNode>(v))) {
             classinfo_array[classinfo_array_index].inherit.push_back(Node);
+            classinfo_array[classinfo_array_index].inheritname = DIType(Node).getName().str() + "::";
+        }
         dumpTref(v);
         return;
     }
@@ -1098,7 +1110,6 @@ static void dumpType(DIType litem)
             if (Ty.getTag() == dwarf::DW_TAG_member) {
                 const MDNode *Node = Ty;
                 classinfo_array[classinfo_array_index].members.push_back(Node);
-printf("memberstartttt");
             }
             dumpType(Ty);
         }
