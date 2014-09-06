@@ -83,6 +83,24 @@ static struct {
     uint8_t *svalue;
 } slotarray[MAX_SLOTARRAY];
 static int slotarray_index;
+#define MAX_CLASS_ARRAY 20
+#define MAX_CLASS_DEFS  200
+static struct {
+    std::string name;
+    std::string inheritname;
+    std::string scope;
+    std::list<const MDNode *> inherit;
+    std::list<const MDNode *> members;
+} classinfo_array[MAX_CLASS_ARRAY];
+static int classinfo_array_index;
+typedef struct {
+    const char   *name;
+    const MDNode *inherit;
+    int           member_count;
+    const MDNode *members[1];
+} CLASS_META;
+static CLASS_META *class_data[MAX_CLASS_DEFS];
+static int class_data_index;
 
 static uint64_t ***globalThis;
 static const char *globalName;
@@ -1002,15 +1020,6 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
   return Result;
 }
 
-#define MAX_CLASS_ARRAY 20
-static struct {
-    std::string name;
-    std::string inheritname;
-    std::string scope;
-    std::list<const MDNode *> inherit;
-    std::list<const MDNode *> members;
-} classinfo_array[MAX_CLASS_ARRAY];
-int classinfo_array_index;
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1065,13 +1074,23 @@ static void dumpTref(const Value *val)
                 name = name.substr(0, ind);
             name = "class." + classinfo_array[classinfo_array_index].scope + name;
             std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
+            int mcount = classinfo_array[classinfo_array_index].members.size();
             printf("class %s inherit %d members %d:", name.c_str(),
-                (int)classinfo_array[classinfo_array_index].inherit.size(),
-                (int)classinfo_array[classinfo_array_index].members.size());
+                (int)classinfo_array[classinfo_array_index].inherit.size(), mcount);
+            int sizet = sizeof(CLASS_META) + mcount * sizeof(MDNode *);
+            CLASS_META *classp = (CLASS_META *)malloc(sizet);
+            memset(classp, 0, sizet);
+            classp->name = strdup(name.c_str());
+            classp->inherit = *classinfo_array[classinfo_array_index].inherit.begin();
+            classp->member_count = 0;
             for (std::list<const MDNode *>::iterator MI = classinfo_array[classinfo_array_index].members.begin(),
                 ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
                 //DIType Ty(*MI);
                 DISubprogram Ty(*MI);
+                const Value *v = Ty;
+                const MDNode *Node;
+                if (v && (Node = dyn_cast<MDNode>(v)))
+                    classp->members[classp->member_count++] = Node;
                 const char *cp = Ty.getLinkageName().str().c_str();
                 if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
                     cp = Ty.getName().str().c_str();
@@ -1083,6 +1102,7 @@ static void dumpTref(const Value *val)
                 //exit(1);
             }
             classinfo_array_index--;
+            class_data[class_data_index++] = classp;
             classmap[name] = Node;
         }
     }
