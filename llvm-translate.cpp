@@ -676,15 +676,10 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
 printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, PTy->getElementType()->getTypeID());
            //printf(" itype %d.;", ty->getTypeID());
       }
-            //std::map<std::string const MDNode *>::iterator CI = classmap.find(nextitem.getName().str());
-      //if (!strcmp(cp, "this")) {
-          const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-          //g = EE->getGlobalValueAtAddress(*(uint64_t **)ptr);
-          //printf("g2=%p;", g);
-          if (g)
-              ret = g->getName().str().c_str();
-          //cp = globalClassName;
-      //}
+      //std::map<std::string const MDNode *>::iterator CI = classmap.find(nextitem.getName().str());
+      const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
+      if (g)
+          ret = g->getName().str().c_str();
       if (!ret) {
           sprintf(temp, "%s" SEPARATOR "%lld", cp, (long long)Total);
           ret = temp;
@@ -1011,10 +1006,23 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 static struct {
     std::string name;
     std::string inheritname;
+    std::string scope;
     std::list<const MDNode *> inherit;
     std::list<const MDNode *> members;
 } classinfo_array[MAX_CLASS_ARRAY];
 int classinfo_array_index;
+static std::string getScope(const Value *val)
+{
+    const MDNode *Node;
+    if (!val || !(Node = dyn_cast<MDNode>(val)))
+        return "";
+    DIType nextitem(Node);
+    std::string name = getScope(nextitem.getContext()) + nextitem.getName().str();
+    //int ind = name.find("<");
+    //if (ind >= 0)
+        //name = name.substr(0, ind);
+    return name + "::";
+}
 static void dumpType(DIType litem);
 static void dumpTref(const Value *val)
 {
@@ -1042,6 +1050,7 @@ static void dumpTref(const Value *val)
             classinfo_array[classinfo_array_index].inheritname = "";
             classinfo_array[classinfo_array_index].inherit.clear();
             classinfo_array[classinfo_array_index].members.clear();
+            classinfo_array[classinfo_array_index].scope = getScope(nextitem.getContext());
         }
         dumpType(nextitem);
         if (tag == dwarf::DW_TAG_class_type) {
@@ -1049,12 +1058,26 @@ static void dumpTref(const Value *val)
                 const MDNode *n = *classinfo_array[classinfo_array_index].inherit.begin();
                 DIType Ty(n);
                 //name = Ty.getName().str() + "::" + name;
-                name = classinfo_array[classinfo_array_index].inheritname + name;
+                //name = classinfo_array[classinfo_array_index].inheritname + name;
             }
+            int ind = name.find("<");
+            if (ind >= 0)
+                name = name.substr(0, ind);
+            name = "class." + classinfo_array[classinfo_array_index].scope + name;
             std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
-            printf("class %s inherit %d members %d\n", name.c_str(),
+            printf("class %s inherit %d members %d:", name.c_str(),
                 (int)classinfo_array[classinfo_array_index].inherit.size(),
                 (int)classinfo_array[classinfo_array_index].members.size());
+            for (std::list<const MDNode *>::iterator MI = classinfo_array[classinfo_array_index].members.begin(),
+                ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
+                //DIType Ty(*MI);
+                DISubprogram Ty(*MI);
+                const char *cp = Ty.getLinkageName().str().c_str();
+                if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
+                    cp = Ty.getName().str().c_str();
+                printf(" %s", cp);
+            }
+            printf("\n");
             if (CI != classmap.end()) {
                 printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
                 //exit(1);
@@ -1107,7 +1130,8 @@ static void dumpType(DIType litem)
         }
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
-            if (Ty.getTag() == dwarf::DW_TAG_member) {
+            int tag = Ty.getTag();
+            if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
                 const MDNode *Node = Ty;
                 classinfo_array[classinfo_array_index].members.push_back(Node);
             }
@@ -1258,9 +1282,6 @@ void dump_metadata(Module *Mod)
         printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
     }
   }
-  for (std::map<std::string, const MDNode *>::iterator CI = classmap.begin(), CE = classmap.end(); CI != CE; CI++) {
-printf("[%s:%d] class %s = %p\n", __FUNCTION__, __LINE__, CI->first.c_str(), CI->second);
-  }
 }
 int main(int argc, char **argv, char * const *envp)
 {
@@ -1369,9 +1390,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Run main.
   Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
+  dump_metadata(Mod);
+
   generate_verilog(Mod);
 
-  dump_metadata(Mod);
+  for (std::map<std::string, const MDNode *>::iterator CI = classmap.begin(), CE = classmap.end(); CI != CE; CI++) {
+printf("[%s:%d] class %s = %p\n", __FUNCTION__, __LINE__, CI->first.c_str(), CI->second);
+  }
+
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
