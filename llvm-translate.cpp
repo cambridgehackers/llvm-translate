@@ -95,11 +95,16 @@ static struct {
 static int classinfo_array_index;
 typedef struct {
     const char   *name;
+    const MDNode *node;
+} CLASS_META_MEMBER;
+typedef struct {
+    const char   *name;
+    const MDNode *node;
     const MDNode *inherit;
     int           member_count;
-    const MDNode *members[1];
+    CLASS_META_MEMBER *member;
 } CLASS_META;
-static CLASS_META *class_data[MAX_CLASS_DEFS];
+static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
 static uint64_t ***globalThis;
@@ -1077,24 +1082,28 @@ static void dumpTref(const Value *val)
             int mcount = classinfo_array[classinfo_array_index].members.size();
             printf("class %s inherit %d members %d:", name.c_str(),
                 (int)classinfo_array[classinfo_array_index].inherit.size(), mcount);
-            int sizet = sizeof(CLASS_META) + mcount * sizeof(MDNode *);
-            CLASS_META *classp = (CLASS_META *)malloc(sizet);
-            memset(classp, 0, sizet);
-            classp->name = strdup(name.c_str());
-            classp->inherit = *classinfo_array[classinfo_array_index].inherit.begin();
-            classp->member_count = 0;
+            class_data[class_data_index].name = strdup(name.c_str());
+            class_data[class_data_index].node = Node;
+            class_data[class_data_index].inherit = *classinfo_array[classinfo_array_index].inherit.begin();
+            class_data[class_data_index].member_count = 0;
+            class_data[class_data_index].member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
             for (std::list<const MDNode *>::iterator MI = classinfo_array[classinfo_array_index].members.begin(),
                 ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
                 //DIType Ty(*MI);
                 DISubprogram Ty(*MI);
                 const Value *v = Ty;
                 const MDNode *Node;
-                if (v && (Node = dyn_cast<MDNode>(v)))
-                    classp->members[classp->member_count++] = Node;
+                if (!v || !(Node = dyn_cast<MDNode>(v))) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+                }
                 const char *cp = Ty.getLinkageName().str().c_str();
                 if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
                     cp = Ty.getName().str().c_str();
                 printf(" %s", cp);
+                int j = class_data[class_data_index].member_count++;
+                class_data[class_data_index].member[j].node = Node;
+                class_data[class_data_index].member[j].name = strdup(cp);
             }
             printf("\n");
             if (CI != classmap.end()) {
@@ -1102,7 +1111,7 @@ static void dumpTref(const Value *val)
                 //exit(1);
             }
             classinfo_array_index--;
-            class_data[class_data_index++] = classp;
+            class_data_index++;
             classmap[name] = Node;
         }
     }
@@ -1414,8 +1423,19 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   generate_verilog(Mod);
 
-  for (std::map<std::string, const MDNode *>::iterator CI = classmap.begin(), CE = classmap.end(); CI != CE; CI++) {
-printf("[%s:%d] class %s = %p\n", __FUNCTION__, __LINE__, CI->first.c_str(), CI->second);
+//  for (std::map<std::string, const MDNode *>::iterator CI = classmap.begin(), CE = classmap.end(); CI != CE; CI++) {
+//printf("[%s:%d] class %s = %p\n", __FUNCTION__, __LINE__, CI->first.c_str(), CI->second);
+  //}
+  CLASS_META *classp = class_data;
+  for (int i = 0; i < class_data_index; i++) {
+    CLASS_META_MEMBER *classm = classp->member;
+    printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
+    for (int j = 0; j < classp->member_count; j++) {
+        printf(" %s", classm->name);
+        classm++;
+    }
+    printf("\n");
+    classp++;
   }
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
