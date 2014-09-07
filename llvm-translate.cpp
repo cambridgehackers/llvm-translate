@@ -171,17 +171,16 @@ static void dump_class_data()
     classp++;
   }
 }
-static CLASS_META *lookup_class(const char *cp, uint64_t offset)
+static CLASS_META *lookup_class(const char *cp)
 {
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
-    CLASS_META_MEMBER *classm = classp->member;
     if (!strcmp(cp, classp->name))
         return classp;
-    printf("class %s cp %s ", classp->name, cp);
+    //printf("class %s cp %s ", classp->name, cp);
     classp++;
   }
-  printf("lookup_class: not found %s\n", cp);
+  //printf("lookup_class: not found %s\n", cp);
   return NULL;
 }
 
@@ -389,7 +388,10 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 }
 static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
 {
-  assert(LoadBytes <= sizeof(*Dst));
+  if (LoadBytes > sizeof(*Dst)) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
   memcpy(Dst, Src, LoadBytes);
 }
 static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
@@ -512,7 +514,10 @@ void translateVerilog(const Instruction &I)
       temp[0] = 0;
       printf("XLAT:%14s", opstr_print(opcode));
       sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
-      assert (operand_list[0].type == OpTypeLocalRef);
+      if (operand_list[0].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
@@ -523,7 +528,10 @@ void translateVerilog(const Instruction &I)
       {
       printf("XLAT:          Load");
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
       slotarray[operand_list[0].value].svalue = (uint8_t *)value;
@@ -546,32 +554,74 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
   //case Instruction::Fence:
   case Instruction::GetElementPtr:
       {
-      printf("XLAT: GetElementPtr");
+      Type *element = NULL;
+      int eltype = -1;
+      int ptrcnt = 0;
+      CLASS_META *classp = NULL;
+      const char *mcp = NULL;
+      uint64_t off = -1;
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER];
+
+      printf("XLAT: GetElementPtr");
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
-      printf(" GEP Index %lld;", (long long)Total);
-      assert (slotarray[operand_list[1].value].svalue);
+      //printf(" GEP Index %lld;", (long long)Total);
+      if (!slotarray[operand_list[1].value].svalue) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
       const char *cp = slotarray[operand_list[1].value].name;
-      printf(" type %d. GEPname %s;", I.getOperand(0)->getType()->getTypeID(), cp);
+      //printf(" type %d. GEPname %s;", I.getOperand(0)->getType()->getTypeID(), cp);
       Type *topty = I.getOperand(0)->getType();
-      if (topty->getTypeID() == Type::PointerTyID) {
+      while (topty->getTypeID() == Type::PointerTyID) {
+          ptrcnt++;
           PointerType *PTy = cast<PointerType>(topty);
-          Type *element = PTy->getElementType();
-          if (element->getTypeID() == Type::StructTyID) {
-              CLASS_META *classp = lookup_class(element->getStructName().str().c_str(), Total);
-printf("[%s:%d] classp %p\n", __FUNCTION__, __LINE__, classp);
-assert(classp);
-           //printf(" itype %d.;", ty->getTypeID());
-           }
+          element = PTy->getElementType();
+          eltype = element->getTypeID();
+          if (eltype != Type::PointerTyID)
+              break;
+          topty = element;
       }
-      //std::map<std::string const MDNode *>::iterator CI = classmap.find(nextitem.getName().str());
-      const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-      if (g)
-          ret = g->getName().str().c_str();
-      if (!ret) {
-          sprintf(temp, "%s" SEPARATOR "%lld", cp, (long long)Total);
+      if (eltype != Type::StructTyID) {
+          printf(" itype %d.;", eltype);
+          if (eltype == Type::FunctionTyID) {
+              printf("[%s:%d] FunctionTyID\n", __FUNCTION__, __LINE__);
+              goto skipfunc;
+          }
+          element = NULL;
+      }
+      if(!element) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      classp = lookup_class(element->getStructName().str().c_str());
+      if(!classp) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      for (int ind = 0; ind < classp->member_count; ind++) {
+          DIType Ty(classp->member[ind].node);
+          off = Ty.getOffsetInBits()/8; //(long)litem.getSizeInBits()/8);
+          if (off == Total) {
+              mcp = classp->member[ind].name;
+              break;
+          }
+      }
+      if (!mcp) {
+          printf("[%s:%d] Total %lld\n", __FUNCTION__, __LINE__, (long long)Total);
+          exit(1);
+      }
+      //printf("FNAME %s/%s\n", classp->name, mcp);
+skipfunc:
+      //const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
+      //if (g)
+          //ret = g->getName().str().c_str();
+      if (!classp) { // FunctionTyID
+          ret = "FUNCNAMEEE";
+      }
+      else {
+          sprintf(temp, "%s" SEPARATOR "%s", classp->name, mcp);
           ret = temp;
       }
       slotarray[operand_list[0].value].name = strdup(ret);
@@ -582,12 +632,18 @@ assert(classp);
   // Convert instructions...
   case Instruction::Trunc:
       printf("XLAT:         Trunc");
-      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   case Instruction::ZExt:
       printf("XLAT:          Zext");
-      assert(operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::SExt:
@@ -601,7 +657,10 @@ assert(classp);
   //case Instruction::PtrToInt:
   case Instruction::BitCast:
       printf("XLAT:       BitCast");
-      assert (operand_list[0].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef);
+      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AddrSpaceCast:
@@ -647,7 +706,10 @@ assert(classp);
       const Value *val = CI->getCalledValue();
       //writeOperand(val);
       printf("XLAT:          Call");
-      assert (operand_list[1].type == OpTypeLocalRef);
+      if (operand_list[1].type != OpTypeLocalRef) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
       const Instruction *t = (const Instruction *)val;
       printf ("[%p=%s]", t, t->getName().str().c_str());
       //t->dump();
@@ -1013,7 +1075,10 @@ static void dumpType(DIType litem)
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
         if (v && (Node = dyn_cast<MDNode>(v))) {
-            assert(!classinfo_array[classinfo_array_index].inherit);
+            if(classinfo_array[classinfo_array_index].inherit) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+     exit(1);
+  }
             classinfo_array[classinfo_array_index].inherit = Node;
         }
         dumpTref(v);
