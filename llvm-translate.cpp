@@ -157,12 +157,32 @@ void clearLocalSlot(void)
   memset(slotarray, 0, sizeof(slotarray));
 }
 
-void dump_type(Module *Mod, const char *p)
+static void dump_class_data()
 {
-    StructType *tgv = Mod->getTypeByName(p);
-    printf("%s:] ", __FUNCTION__);
-    tgv->dump();
-    printf(" tgv %p\n", tgv);
+  CLASS_META *classp = class_data;
+  for (int i = 0; i < class_data_index; i++) {
+    CLASS_META_MEMBER *classm = classp->member;
+    printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
+    for (int j = 0; j < classp->member_count; j++) {
+        printf(" %s", classm->name);
+        classm++;
+    }
+    printf("\n");
+    classp++;
+  }
+}
+static CLASS_META *lookup_class(const char *cp, uint64_t offset)
+{
+  CLASS_META *classp = class_data;
+  for (int i = 0; i < class_data_index; i++) {
+    CLASS_META_MEMBER *classm = classp->member;
+    if (!strcmp(cp, classp->name))
+        return classp;
+    printf("class %s cp %s ", classp->name, cp);
+    classp++;
+  }
+  printf("lookup_class: not found %s\n", cp);
+  return NULL;
 }
 
 static const char *getPredicateText(unsigned predicate)
@@ -234,6 +254,7 @@ void writeOperand(const Value *Operand)
 
   if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
     if (N->isFunctionLocal()) {
       // Print metadata inline, not via slot reference number.
       //WriteMDNodeBodyInternal(N, TypePrinter, Machine, Context);
@@ -244,6 +265,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 
   if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
 printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
+exit(1);
     //PrintEscapedString(MDS->getString());
     return;
   }
@@ -251,6 +273,7 @@ printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
   if (Operand->getValueID() == Value::PseudoSourceValueVal ||
       Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
     return;
   }
 locallab:
@@ -415,13 +438,8 @@ void translateVerilog(const Instruction &I)
     operand_list_index++;
     sprintf(instruction_label, "            : ");
   }
-  if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
-      writeOperand(CI->getCalledValue());
-  }
-  else {
-      for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
-          writeOperand(I.getOperand(i));
-  }
+  for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
+      writeOperand(I.getOperand(i));
   printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
@@ -540,8 +558,13 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       Type *topty = I.getOperand(0)->getType();
       if (topty->getTypeID() == Type::PointerTyID) {
           PointerType *PTy = cast<PointerType>(topty);
-printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, PTy->getElementType()->getTypeID());
+          Type *element = PTy->getElementType();
+          if (element->getTypeID() == Type::StructTyID) {
+              CLASS_META *classp = lookup_class(element->getStructName().str().c_str(), Total);
+printf("[%s:%d] classp %p\n", __FUNCTION__, __LINE__, classp);
+assert(classp);
            //printf(" itype %d.;", ty->getTypeID());
+           }
       }
       //std::map<std::string const MDNode *>::iterator CI = classmap.find(nextitem.getName().str());
       const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
@@ -620,15 +643,14 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, PTy->getElementType()->getTypeID(
   //case Instruction::Select:
   case Instruction::Call:
       {
+      const CallInst *CI = dyn_cast<CallInst>(&I);
+      const Value *val = CI->getCalledValue();
+      //writeOperand(val);
       printf("XLAT:          Call");
       assert (operand_list[1].type == OpTypeLocalRef);
-      const Instruction *t = (const Instruction *)slotarray[operand_list[1].value].svalue;
+      const Instruction *t = (const Instruction *)val;
       printf ("[%p=%s]", t, t->getName().str().c_str());
       //t->dump();
-      //if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
-          //Operand = CI->getCalledValue();
-          //writeOperand(Operand);
-      //}
       }
       break;
   //case Instruction::Shl:
@@ -826,6 +848,14 @@ fprintf(stderr, "\n");
            }
        }
     }
+}
+
+static void dump_type(Module *Mod, const char *p)
+{
+    StructType *tgv = Mod->getTypeByName(p);
+    printf("%s:] ", __FUNCTION__);
+    tgv->dump();
+    printf(" tgv %p\n", tgv);
 }
 
 void generate_verilog(Module *Mod)
@@ -1270,17 +1300,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   generate_verilog(Mod);
 
-  CLASS_META *classp = class_data;
-  for (int i = 0; i < class_data_index; i++) {
-    CLASS_META_MEMBER *classm = classp->member;
-    printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
-    for (int j = 0; j < classp->member_count; j++) {
-        printf(" %s", classm->name);
-        classm++;
-    }
-    printf("\n");
-    classp++;
-  }
+  dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
