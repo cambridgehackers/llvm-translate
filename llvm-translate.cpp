@@ -86,7 +86,7 @@ static int slotarray_index;
 #define MAX_CLASS_ARRAY 20
 #define MAX_CLASS_DEFS  200
 static struct {
-    std::string name;
+    //std::string name;
     const MDNode * inherit;
     std::list<const MDNode *> members;
 } classinfo_array[MAX_CLASS_ARRAY];
@@ -920,10 +920,9 @@ static void dumpTref(const Value *val)
         else {
             CLASS_META *classp = &class_data[class_data_index++];
             if (classinfo_array_index++ != 0) {
-                printf(" recursiveclassdefmagic %s [%p] =**** %d level %d. above %s\n", name.c_str(), val, metanumber, classinfo_array_index, classinfo_array[classinfo_array_index-1].name.c_str());
+                printf(" recursiveclassdefmagic %s [%p] =**** %d level %d.\n", name.c_str(), val, metanumber, classinfo_array_index);
                 //exit(1);
             }
-            classinfo_array[classinfo_array_index].name = name;
             classinfo_array[classinfo_array_index].inherit = NULL;
             classinfo_array[classinfo_array_index].members.clear();
             dumpType(nextitem);
@@ -931,7 +930,6 @@ static void dumpTref(const Value *val)
             if (ind >= 0)
                 name = name.substr(0, ind);
             name = "class." + getScope(nextitem.getContext()) + name;
-            std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
             int mcount = classinfo_array[classinfo_array_index].members.size();
             printf("class %s members %d:", name.c_str(), mcount);
             classp->name = strdup(name.c_str());
@@ -943,13 +941,14 @@ static void dumpTref(const Value *val)
                 ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
                 DISubprogram Ty(*MI);
                 const Value *v = Ty;
+                int etag = Ty.getTag();
                 const MDNode *Node;
                 if (!v || !(Node = dyn_cast<MDNode>(v))) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
                 const char *cp = Ty.getLinkageName().str().c_str();
-                if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
+                if (etag != dwarf::DW_TAG_subprogram || !strlen(cp))
                     cp = Ty.getName().str().c_str();
                 printf(" %s", cp);
                 int j = classp->member_count++;
@@ -957,6 +956,7 @@ static void dumpTref(const Value *val)
                 classp->member[j].name = strdup(cp);
             }
             printf("\n");
+            std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
             if (CI != classmap.end()) {
                 printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
                 //exit(1);
