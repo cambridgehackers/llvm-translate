@@ -87,9 +87,7 @@ static int slotarray_index;
 #define MAX_CLASS_DEFS  200
 static struct {
     std::string name;
-    std::string inheritname;
-    std::string scope;
-    std::list<const MDNode *> inherit;
+    const MDNode * inherit;
     std::list<const MDNode *> members;
 } classinfo_array[MAX_CLASS_ARRAY];
 static int classinfo_array_index;
@@ -209,122 +207,7 @@ static void WriteConstantInternal(const Constant *CV)
   }
 
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
-    printf("[%s:%d] floating point\n", __FUNCTION__, __LINE__);
-    return;
-  }
-
-  if (isa<ConstantAggregateZero>(CV)) {
-    printf( "zeroinitializer");
-    return;
-  }
-
-  if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
-    printf( "blockaddress(");
-    //WriteAsOperandInternal(BA->getFunction(), &TypePrinter, Machine, Context);
-    //WriteAsOperandInternal(BA->getBasicBlock(), &TypePrinter, Machine, Context);
-    return;
-  }
-
-  if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
-    Type *ETy = CA->getType()->getElementType();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //TypePrinter.print(ETy);
-    //WriteAsOperandInternal(CA->getOperand(0), &TypePrinter, Machine, Context);
-    for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print(ETy);
-      //WriteAsOperandInternal(CA->getOperand(i), &TypePrinter, Machine, Context);
-    }
-    return;
-  }
-
-  if (const ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CV)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    // As a special case, print the array as a string if it is an array of
-    // i8 with ConstantInt values.
-    if (CA->isString()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //PrintEscapedString(CA->getAsString());
-      return;
-    }
-
-    Type *ETy = CA->getType()->getElementType();
-    //TypePrinter.print(ETy);
-    //WriteAsOperandInternal(CA->getElementAsConstant(0), &TypePrinter, Machine, Context);
-    for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print(ETy);
-      //WriteAsOperandInternal(CA->getElementAsConstant(i), &TypePrinter, Machine, Context);
-    }
-    return;
-  }
-
-  if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
-    unsigned N = CS->getNumOperands();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    if (N) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print(CS->getOperand(0)->getType());
-      //WriteAsOperandInternal(CS->getOperand(0), &TypePrinter, Machine, Context);
-      for (unsigned i = 1; i < N; i++) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        //TypePrinter.print(CS->getOperand(i)->getType());
-        //WriteAsOperandInternal(CS->getOperand(i), &TypePrinter, Machine, Context);
-      }
-    }
-    return;
-  }
-
-  if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
-    Type *ETy = CV->getType()->getVectorElementType();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //TypePrinter.print(ETy);
-    //WriteAsOperandInternal(CV->getAggregateElement(0U), &TypePrinter, Machine, Context);
-    for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print(ETy);
-      //WriteAsOperandInternal(CV->getAggregateElement(i), &TypePrinter, Machine, Context);
-    }
-    return;
-  }
-
-  if (isa<ConstantPointerNull>(CV)) {
-    printf( "null");
-    return;
-  }
-
-  if (isa<UndefValue>(CV)) {
-    printf( "undef");
-    return;
-  }
-
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //printf( CE->getOpcodeName();
-    //WriteOptimizationInfo(CE);
-    //if (CE->isCompare())
-      //printf( ' ' << getPredicateText(CE->getPredicate());
-
-    for (User::const_op_iterator OI=CE->op_begin(); OI != CE->op_end(); ++OI) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print((*OI)->getType()); //WriteAsOperandInternal(*OI, &TypePrinter, Machine, Context);
-    }
-
-    if (CE->hasIndices()) {
-      ArrayRef<unsigned> Indices = CE->getIndices();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      for (unsigned i = 0, e = Indices.size(); i != e; ++i)
-        printf( "%d ",  Indices[i]);
-    }
-
-    if (CE->isCast()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //TypePrinter.print(CE->getType());
-    }
-    return;
-  }
-  printf( "<placeholder or erroneous Constant>");
+exit(1);
 }
 
 void writeOperand(const Value *Operand)
@@ -510,94 +393,35 @@ void translateVerilog(const Instruction &I)
 {
   int opcode = I.getOpcode();
   char instruction_label[MAX_CHAR_BUFFER];
+  char vout[MAX_CHAR_BUFFER];
+
+  vout[0] = 0;
   operand_list_index = 0;
   memset(operand_list, 0, sizeof(operand_list));
-  if (I.hasName()) {
+  if (I.hasName() || !I.getType()->isVoidTy()) {
     int t = getLocalSlot(&I);
     operand_list[operand_list_index].type = OpTypeLocalRef;
     operand_list[operand_list_index++].value = t;
-    slotarray[t].name = strdup(I.getName().str().c_str());
-    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
-  } else if (!I.getType()->isVoidTy()) {
-    char temp[MAX_CHAR_BUFFER];
-    int t = getLocalSlot(&I);
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = t;
-    sprintf(temp, "%%%d", t);
-    slotarray[t].name = strdup(temp);
+    if (I.hasName())
+        slotarray[t].name = strdup(I.getName().str().c_str());
+    else {
+        char temp[MAX_CHAR_BUFFER];
+        sprintf(temp, "%%%d", t);
+        slotarray[t].name = strdup(temp);
+    }
     sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
   }
   else {
     operand_list_index++;
     sprintf(instruction_label, "            : ");
   }
-  if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
-    printf("tail ");
-  const Value *Operand = I.getNumOperands() ? I.getOperand(0) : 0;
-  if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-    const BranchInst &BI(cast<BranchInst>(I));
-    writeOperand(BI.getCondition());
-    writeOperand(BI.getSuccessor(0));
-    writeOperand(BI.getSuccessor(1));
-  } else if (isa<SwitchInst>(I)) {
-    const SwitchInst& SI(cast<SwitchInst>(I));
-    writeOperand(SI.getCondition());
-    writeOperand(SI.getDefaultDest());
-    for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-      writeOperand(i.getCaseValue());
-      writeOperand(i.getCaseSuccessor());
-    }
-  } else if (isa<IndirectBrInst>(I)) {
-    writeOperand(Operand);
-    for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
-      writeOperand(I.getOperand(i));
-    }
-  } else if (const PHINode *PN = dyn_cast<PHINode>(&I)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      I.getType()->dump();
-    for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-      writeOperand(PN->getIncomingValue(op));
-      writeOperand(PN->getIncomingBlock(op));
-    }
-  } else if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(&I)) {
-    writeOperand(I.getOperand(0));
-    for (const unsigned *i = EVI->idx_begin(), *e = EVI->idx_end(); i != e; ++i)
-      printf(", %x", *i);
-  } else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(&I)) {
-    writeOperand(I.getOperand(0));
-    writeOperand(I.getOperand(1));
-    for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
-      printf(", %x", *i);
-  } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      I.getType()->dump();
-    printf(" personality ");
-    writeOperand(I.getOperand(0));
-    if (LPI->isCleanup())
-      printf("          cleanup");
-    for (unsigned i = 0, e = LPI->getNumClauses(); i != e; ++i) {
-      if (i != 0 || LPI->isCleanup()) printf("\n");
-      if (LPI->isCatch(i))
-        printf("          catch ");
-      else
-        printf("          filter ");
-      writeOperand(LPI->getClause(i));
-    }
-  } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
-    Operand = CI->getCalledValue();
-    writeOperand(Operand);
-  } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
-    Operand = II->getCalledValue();
-    writeOperand(Operand);
-    writeOperand(II->getNormalDest());
-    writeOperand(II->getUnwindDest());
-  } else if (Operand) {   // Print the normal way.
-    for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i) {
-      writeOperand(I.getOperand(i));
-    }
+  if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
+      writeOperand(CI->getCalledValue());
   }
-  char vout[MAX_CHAR_BUFFER];
-  vout[0] = 0;
+  else {
+      for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
+          writeOperand(I.getOperand(i));
+  }
   printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
@@ -616,9 +440,29 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
       break;
   case Instruction::Br:
+      {
       printf("XLAT:            Br");
+      //if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+        //const BranchInst &BI(cast<BranchInst>(I));
+        //writeOperand(BI.getCondition());
+        //writeOperand(BI.getSuccessor(0));
+        //writeOperand(BI.getSuccessor(1));
+      //} else if (isa<IndirectBrInst>(I)) {
+        //writeOperand(Operand);
+        //for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
+          //writeOperand(I.getOperand(i));
+        //}
+      //}
+      }
       break;
   //case Instruction::Switch:
+      //const SwitchInst& SI(cast<SwitchInst>(I));
+      //writeOperand(SI.getCondition());
+      //writeOperand(SI.getDefaultDest());
+      //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
+        //writeOperand(i.getCaseValue());
+        //writeOperand(i.getCaseSuccessor());
+      //}
   //case Instruction::IndirectBr:
   //case Instruction::Invoke:
   //case Instruction::Resume:
@@ -759,7 +603,19 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, PTy->getElementType()->getTypeID(
       break;
   //case Instruction::FCmp:
   case Instruction::PHI:
+      {
       printf("XLAT:           PHI");
+      const PHINode *PN = dyn_cast<PHINode>(&I);
+      if (!PN) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      I.getType()->dump();
+      for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
+          writeOperand(PN->getIncomingValue(op));
+          writeOperand(PN->getIncomingBlock(op));
+      }
+      }
       break;
   //case Instruction::Select:
   case Instruction::Call:
@@ -769,6 +625,10 @@ printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, PTy->getElementType()->getTypeID(
       const Instruction *t = (const Instruction *)slotarray[operand_list[1].value].svalue;
       printf ("[%p=%s]", t, t->getName().str().c_str());
       //t->dump();
+      //if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
+          //Operand = CI->getCalledValue();
+          //writeOperand(Operand);
+      //}
       }
       break;
   //case Instruction::Shl:
@@ -974,8 +834,8 @@ void generate_verilog(Module *Mod)
   uint64_t **modfirst;
   GenericValue *Ptr;
   GlobalValue *gv;
+  static DataLayout foo(Mod);
 
-static DataLayout foo = DataLayout(Mod);
   TD = &foo;
   std::string Name = "_ZN6Module5firstE";
   gv = Mod->getNamedValue(Name);
@@ -1055,55 +915,46 @@ static void dumpTref(const Value *val)
         if (trace_meta)
         printf(" magic %s [%p] =**** %d\n", nextitem.getName().str().c_str(), val, metanumber);
         metamap[Node] = metanumber++;
-        if (tag == dwarf::DW_TAG_class_type) {
+        if (tag != dwarf::DW_TAG_class_type)
+            dumpType(nextitem);
+        else {
+            CLASS_META *classp = &class_data[class_data_index++];
             if (classinfo_array_index++ != 0) {
                 printf(" recursiveclassdefmagic %s [%p] =**** %d level %d. above %s\n", name.c_str(), val, metanumber, classinfo_array_index, classinfo_array[classinfo_array_index-1].name.c_str());
                 //exit(1);
             }
             classinfo_array[classinfo_array_index].name = name;
-            classinfo_array[classinfo_array_index].inheritname = "";
-            classinfo_array[classinfo_array_index].inherit.clear();
+            classinfo_array[classinfo_array_index].inherit = NULL;
             classinfo_array[classinfo_array_index].members.clear();
-            classinfo_array[classinfo_array_index].scope = getScope(nextitem.getContext());
-        }
-        dumpType(nextitem);
-        if (tag == dwarf::DW_TAG_class_type) {
-            if (classinfo_array[classinfo_array_index].inherit.size()) {
-                const MDNode *n = *classinfo_array[classinfo_array_index].inherit.begin();
-                DIType Ty(n);
-                //name = Ty.getName().str() + "::" + name;
-                //name = classinfo_array[classinfo_array_index].inheritname + name;
-            }
+            dumpType(nextitem);
             int ind = name.find("<");
             if (ind >= 0)
                 name = name.substr(0, ind);
-            name = "class." + classinfo_array[classinfo_array_index].scope + name;
+            name = "class." + getScope(nextitem.getContext()) + name;
             std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
             int mcount = classinfo_array[classinfo_array_index].members.size();
-            printf("class %s inherit %d members %d:", name.c_str(),
-                (int)classinfo_array[classinfo_array_index].inherit.size(), mcount);
-            class_data[class_data_index].name = strdup(name.c_str());
-            class_data[class_data_index].node = Node;
-            class_data[class_data_index].inherit = *classinfo_array[classinfo_array_index].inherit.begin();
-            class_data[class_data_index].member_count = 0;
-            class_data[class_data_index].member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
+            printf("class %s members %d:", name.c_str(), mcount);
+            classp->name = strdup(name.c_str());
+            classp->node = Node;
+            classp->inherit = classinfo_array[classinfo_array_index].inherit;
+            classp->member_count = 0;
+            classp->member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
             for (std::list<const MDNode *>::iterator MI = classinfo_array[classinfo_array_index].members.begin(),
                 ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
-                //DIType Ty(*MI);
                 DISubprogram Ty(*MI);
                 const Value *v = Ty;
                 const MDNode *Node;
                 if (!v || !(Node = dyn_cast<MDNode>(v))) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
                 }
                 const char *cp = Ty.getLinkageName().str().c_str();
                 if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
                     cp = Ty.getName().str().c_str();
                 printf(" %s", cp);
-                int j = class_data[class_data_index].member_count++;
-                class_data[class_data_index].member[j].node = Node;
-                class_data[class_data_index].member[j].name = strdup(cp);
+                int j = classp->member_count++;
+                classp->member[j].node = Node;
+                classp->member[j].name = strdup(cp);
             }
             printf("\n");
             if (CI != classmap.end()) {
@@ -1111,7 +962,6 @@ exit(1);
                 //exit(1);
             }
             classinfo_array_index--;
-            class_data_index++;
             classmap[name] = Node;
         }
     }
@@ -1133,8 +983,8 @@ static void dumpType(DIType litem)
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
         if (v && (Node = dyn_cast<MDNode>(v))) {
-            classinfo_array[classinfo_array_index].inherit.push_back(Node);
-            classinfo_array[classinfo_array_index].inheritname = DIType(Node).getName().str() + "::";
+            assert(!classinfo_array[classinfo_array_index].inherit);
+            classinfo_array[classinfo_array_index].inherit = Node;
         }
         dumpTref(v);
         return;
@@ -1208,9 +1058,6 @@ void processSubprogram(DISubprogram sub)
   if (trace_meta) {
   printf("Subprogram: %s", sub.getName().str().c_str());
   printf(" %s", sub.getLinkageName().str().c_str());
-  printf(" %d", sub.getLineNumber());
-  printf(" %d", sub.isLocalToUnit());
-  printf(" %d", sub.isDefinition());
   printf(" %d", sub.getVirtuality());
   printf(" %d", sub.getVirtualIndex());
   printf(" %d", sub.getFlags());
@@ -1423,9 +1270,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   generate_verilog(Mod);
 
-//  for (std::map<std::string, const MDNode *>::iterator CI = classmap.begin(), CE = classmap.end(); CI != CE; CI++) {
-//printf("[%s:%d] class %s = %p\n", __FUNCTION__, __LINE__, CI->first.c_str(), CI->second);
-  //}
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
     CLASS_META_MEMBER *classm = classp->member;
