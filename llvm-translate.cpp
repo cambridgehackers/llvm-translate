@@ -1299,6 +1299,26 @@ void dump_metadata(Module *Mod)
     }
   }
 }
+void dump_list(Module *Mod, const char *cp, const char *style)
+{
+  uint64_t **modfirst;
+  GenericValue *Ptr;
+  GlobalValue *gv;
+
+  gv = Mod->getNamedValue(cp);
+  printf("\n%s &p:\n", style, gv);
+  gv->dump();
+  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
+  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
+  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
+  modfirst = (uint64_t **)*(PointerTy*)Ptr;
+  printf("[%s:%d] value of %s::first %p\n", __FUNCTION__, __LINE__, style, modfirst);
+  while (modfirst) { /* loop through all modules */
+    printf("%s vtab %p next %p\n\n", style, modfirst[0], modfirst[1]);
+    dump_vtab((uint64_t ***)modfirst);
+    modfirst = (uint64_t **)modfirst[1];        // GuardedValue.next
+  }
+}
 int main(int argc, char **argv, char * const *envp)
 {
   SMDiagnostic Err;
@@ -1412,6 +1432,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   dump_class_data();
 
+  dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
+  dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
+#if 0
 {
   uint64_t **modfirst;
   GenericValue *Ptr;
@@ -1445,6 +1468,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 //break;
   }
 }
+#endif
 printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
   for (int i = 0; i < extra_vtab_index; i++) {
 printf("[%s:%d] [%d.] vt %p this %p tmp %p *******************************************\n", __FUNCTION__, __LINE__, i,
