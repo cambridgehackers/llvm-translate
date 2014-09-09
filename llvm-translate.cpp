@@ -1299,26 +1299,21 @@ void dump_metadata(Module *Mod)
     }
   }
 }
-void dump_list(Module *Mod, const char *cp, const char *style)
-{
-  uint64_t **modfirst;
-  GenericValue *Ptr;
-  GlobalValue *gv;
 
-  gv = Mod->getNamedValue(cp);
-  printf("\n%s &p:\n", style, gv);
-  gv->dump();
-  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-  modfirst = (uint64_t **)*(PointerTy*)Ptr;
-  printf("[%s:%d] value of %s::first %p\n", __FUNCTION__, __LINE__, style, modfirst);
-  while (modfirst) { /* loop through all modules */
-    printf("%s vtab %p next %p\n\n", style, modfirst[0], modfirst[1]);
-    dump_vtab((uint64_t ***)modfirst);
-    modfirst = (uint64_t **)modfirst[1];        // GuardedValue.next
-  }
+static void dump_list(Module *Mod, const char *cp, const char *style)
+{
+    GlobalValue *gv = Mod->getNamedValue(cp);
+    printf("dump_list: [%s] = %p\n", style, gv);
+    PointerTy *Ptr = (PointerTy *)EE->getPointerToGlobal(gv);
+    printf("dump_list: [%s] = %p\n", gv->getName().str().c_str(), Ptr);
+    uint64_t **first = (uint64_t **)*Ptr;
+    while (first) {                         // loop through linked list
+        printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
+        dump_vtab((uint64_t ***)first);
+        first = (uint64_t **)first[1];        // first = first->next
+    }
 }
+
 int main(int argc, char **argv, char * const *envp)
 {
   SMDiagnostic Err;
@@ -1434,44 +1429,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
   dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
-#if 0
-{
-  uint64_t **modfirst;
-  GenericValue *Ptr;
-  GlobalValue *gv;
-
-  gv = Mod->getNamedValue("_ZN12GuardedValueIiE5firstE");
-  printf("\nGuardedValue &p:\n", gv);
-  gv->dump();
-  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-  modfirst = (uint64_t **)*(PointerTy*)Ptr;
-  printf("[%s:%d] value of GuardedValue::first %p\n", __FUNCTION__, __LINE__, modfirst);
-  while (modfirst) { /* loop through all modules */
-    printf("GuardedValue vtab %p next %p\n\n", modfirst[0], modfirst[1]);
-    dump_vtab((uint64_t ***)modfirst);
-    modfirst = (uint64_t **)modfirst[1];        // GuardedValue.next
-  }
-  gv = Mod->getNamedValue("_ZN6ActionIiE5firstE");
-  printf("\nAction %p:\n", gv);
-  gv->dump();
-  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-  modfirst = (uint64_t **)*(PointerTy*)Ptr;
-  printf("[%s:%d] value of Action::first %p\n", __FUNCTION__, __LINE__, modfirst);
-  while (modfirst) { /* loop through all modules */
-    printf("Action vtab %p next %p\n\n", modfirst[0], modfirst[1]);
-    dump_vtab((uint64_t ***)modfirst);
-    modfirst = (uint64_t **)modfirst[1];        // Action.next
-//break;
-  }
-}
-#endif
-printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
+  printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
   for (int i = 0; i < extra_vtab_index; i++) {
-printf("[%s:%d] [%d.] vt %p this %p tmp %p *******************************************\n", __FUNCTION__, __LINE__, i,
+      printf("[%s:%d] [%d.] vt %p this %p tmp %p *******************************************\n", __FUNCTION__, __LINE__, i,
       extra_vtab[i].vtab, extra_vtab[i].thisp, extra_vtab[i].tmp);
       //dump_vtable(extra_vtab[i].tmp, (uint64_t ***)extra_vtab[i].vtab);
   }
