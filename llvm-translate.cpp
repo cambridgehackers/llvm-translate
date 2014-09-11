@@ -105,7 +105,6 @@ typedef struct {
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
-static uint64_t ***globalThis;
 static const char *globalName;
 static const char *globalClassName;
 static FILE *outputFile;
@@ -297,13 +296,6 @@ locallab:
   slotindex = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
   operand_list[operand_list_index++].value = slotindex;
-  if (!slotarray[slotindex].svalue && !slotarray[slotindex].name) {
-      slotarray[slotindex].name = strdup(Operand->getName().str().c_str());
-      if (!strcmp(slotarray[slotindex].name, "this")) {
-           slotarray[slotindex].name = globalClassName;
-           slotarray[slotindex].svalue = (uint8_t *)globalThis;
-      }
-  }
 }
 
 static const char *getparam(int arg)
@@ -871,50 +863,50 @@ static void verilogFunction(Function *F)
   }
 }
 
-static void processFunction(Function *F)
+static void processFunction(Function *F, uint64_t ***thisp)
 {
-  if (!F->isDeclaration()) {
-      for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-          opt_runOnBasicBlock(*I);
-      printf("FULLopt:\n");
-      F->dump();
-      printf("TRANSLATE:\n");
-      int num_args = 0;
-      for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
-        Type *Ty = AI->getType();
+    int num_args = 0;
+    for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
+        int slotindex = getLocalSlot(AI);
         num_args++;
         if (AI->hasByValAttr()) {
-printf("[%s:%d] hasByVal param not supported\n", __FUNCTION__, __LINE__);
-exit(1);
+            printf("[%s] hasByVal param not supported\n", __FUNCTION__);
+            exit(1);
         }
-          //Ty = cast<PointerType>(Ty)->getElementType();
-        // Size should be aligned to DWORD boundary
-        //ArgWords += ((TD.getTypeAllocSize(Ty) + 3)/4)*4;
-      }
-      if (num_args > 1) {
-          printf("[%s:%d] num_args > 1 not supported %d\n", __FUNCTION__, __LINE__, num_args);
-          //exit(1);
-      }
-      else
-          verilogFunction(F);
-  }
+        slotarray[slotindex].name = strdup(AI->getName().str().c_str());
+        printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
+        if (!strcmp(slotarray[slotindex].name, "this")) {
+            slotarray[slotindex].name = globalClassName;
+            slotarray[slotindex].svalue = (uint8_t *)thisp;
+        }
+    }
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+        opt_runOnBasicBlock(*I);
+    printf("FULLopt:\n");
+    F->dump();
+    printf("TRANSLATE:\n");
+    if (num_args > 1) {
+        printf("[%s:%d] num_args > 1 not supported %d\n", __FUNCTION__, __LINE__, num_args);
+        //exit(1);
+        return;
+    }
+    verilogFunction(F);
 }
 
-void dump_vtable(uint64_t **vtab, uint64_t ***thisp)
+static void dump_vtable(uint64_t **vtab, uint64_t ***thisp)
 {
 int arr_size = 0;
     const GlobalValue *g;
 
-    globalThis = thisp;
     for (int i = 0; i < 16; i++) {
-         g = EE->getGlobalValueAtAddress(vtab - 8 + i);
-if (g)
-printf("[%s:%d]v %d g %p name %s\n", __FUNCTION__, __LINE__, - 8 + i, g, g->getName().str().c_str());
+        g = EE->getGlobalValueAtAddress(vtab - 8 + i);
+        if (g)
+            printf("[%s:%d]v %d g %p name %s\n", __FUNCTION__, __LINE__, - 8 + i, g, g->getName().str().c_str());
     }
     g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
-memdump(((unsigned char *)globalThis), 64, "THIS");
+    memdump(((unsigned char *)thisp), 64, "THIS");
     if (g) {
         globalClassName = strdup(g->getName().str().c_str());
         if (g->getType()->getTypeID() == Type::PointerTyID) {
@@ -925,18 +917,19 @@ memdump(((unsigned char *)globalThis), 64, "THIS");
            }
         }
         g->getType()->dump();
-fprintf(stderr, "\n");
+        fprintf(stderr, "\n");
     }
     for (int i = 0; i < arr_size-2; i++) {
        Function *f = (Function *)(vtab[i]);
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
-       printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, globalThis);
+       printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, thisp);
        int rettype = f->getReturnType()->getTypeID();
        if ((rettype == Type::IntegerTyID || rettype == Type::VoidTyID)
         && strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
-               processFunction(f);
+               if (!f->isDeclaration())
+                   processFunction(f, thisp);
                if (trace_break_name && !strcmp(globalName, trace_break_name)) {
                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                    exit(1);
