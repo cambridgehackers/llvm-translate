@@ -57,6 +57,7 @@ using namespace llvm;
 
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
+static int trace_full;// = 1;
 static int output_stdout = 1;
 static const char *trace_break_name;// = "_ZN4Echo7respond5guardEv";
 #define SEPARATOR ":"
@@ -394,6 +395,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
   const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
   uint64_t rv = 0;
 
+if (trace_full)
 printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
@@ -411,6 +413,7 @@ printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getT
     errs() << "Cannot load value of type " << *Ty << "!";
     exit(1);
   }
+if (trace_full)
 printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
@@ -531,11 +534,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       if(//operand_list[0].type != OpTypeLocalRef || //operand_list[1].type != OpTypeLocalRef ||
  !Ptr) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
 break;
      exit(1);
   }
-#if 1
       Type *element = NULL;
       int eltype = -1;
       Type *topty = I.getOperand(0)->getType();
@@ -548,20 +550,18 @@ break;
           topty = element;
       }
       if (eltype == Type::FunctionTyID) {
-printf("[%s:%d] FFFFFFFUUUUUUUUUUUUUUCCCCCCCCCC\n", __FUNCTION__, __LINE__);
+           //printf("[%s:%d] FFFFFFFUUUUUNCTION\n", __FUNCTION__, __LINE__);
       }
-else
-#endif
-{
-      Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
-      slotarray[operand_list[0].value].svalue = (uint8_t *)value;
-      const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
-      printf("g2=%p;", g);
-printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
-      if (g)  // remember the name of where this value came from
-          slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
+      else {
+          Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
+          slotarray[operand_list[0].value].svalue = (uint8_t *)value;
+          const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
+          if (trace_full)
+              printf("[%s:%d] g2 %p value %p\n", __FUNCTION__, __LINE__, g, value);
+          if (g)  // remember the name of where this value came from
+              slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
+          }
       }
-}
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
@@ -582,9 +582,6 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER], tempoff[MAX_CHAR_BUFFER];
       const char *mcp = NULL;
-#if 0
-      const GlobalValue *g;
-#endif
 
       printf("XLAT: GetElementPtr");
       tempoff[0] = 0;
@@ -596,6 +593,7 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       }
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
       const char *cp = slotarray[operand_list[1].value].name;
+      if (trace_full)
       printf(" type %d. GEPname %s;", I.getOperand(0)->getType()->getTypeID(), cp);
       Type *topty = I.getOperand(0)->getType();
       while (topty->getTypeID() == Type::PointerTyID) {
@@ -609,46 +607,33 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       }
       if (eltype == Type::FunctionTyID) {
           ptr = slotarray[operand_list[1].value].svalue;
-#if 0
-          g = EE->getGlobalValueAtAddress(((uint64_t *)slotarray[operand_list[1].value].svalue)-2);
-          if (!g) {
-              printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, (uint64_t *)slotarray[operand_list[1].value].svalue);
-              exit(1);
-              tempoff[0] = 0;
+          if (trace_full)
+              printf(" FUNCOFFSET=%lld", (long long)Total);
+      }
+      else {
+          if (eltype != Type::StructTyID) {
+              printf(" itype %d.;", eltype);
+              element = NULL;
           }
-          else
-              sprintf(tempoff, "%s/%lld", g->getName().str().c_str(), (long long)Total);
-          sprintf(tempoff, "FFUNNNNNNNNNNNN/%lld", (long long)Total);
-          mcp = tempoff;
-#endif
-          printf(" FUNCOFFSET=%lld", (long long)Total);
-          goto skipfunc;
+          if(!element) {
+              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+              exit(1);
+          }
+          classm = lookup_class(element->getStructName().str().c_str(), Total);
+          if(!classm) {
+              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+              exit(1);
+          }
+          mcp = classm->name;
+          ret = cp;
+          const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
+          if (g) {
+              ret = g->getName().str().c_str();
+              mcp = "";
+          }
+          sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
+          slotarray[operand_list[0].value].name = strdup(temp);
       }
-      else if (eltype != Type::StructTyID) {
-          printf(" itype %d.;", eltype);
-          element = NULL;
-      }
-      if(!element) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      classm = lookup_class(element->getStructName().str().c_str(), Total);
-      if(!classm) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      mcp = classm->name;
-      ret = cp;
-      {
-      const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-      if (g) {
-          ret = g->getName().str().c_str();
-          mcp = "";
-      }
-      }
-      sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
-      slotarray[operand_list[0].value].name = strdup(temp);
-skipfunc:
       slotarray[operand_list[0].value].svalue = ptr;
       slotarray[operand_list[0].value].offset = Total;
       }
@@ -729,20 +714,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       {
       const CallInst *CI = dyn_cast<CallInst>(&I);
       const Value *val = CI->getCalledValue();
-      //writeOperand(val);
       printf("XLAT:          Call");
-      //if (operand_list[1].type != OpTypeLocalRef) {
-//printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, operand_list[1].type);
-     //exit(1);
-  //}
+      if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
+          printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
+          break;
+      }
       extra_vtab[extra_vtab_index].vtab = slotarray[operand_list[operand_list_index-1].value]; // Callee is _last_ operand
       if (operand_list_index > 3)
           extra_vtab[extra_vtab_index].arg = slotarray[operand_list[2].value];
       extra_vtab_index++;
-printf("[%s:%d]FFFFFFFFFFFFFF operand_list_index %d\n", __FUNCTION__, __LINE__, operand_list_index);
       const Instruction *t = (const Instruction *)val;
-      printf ("[%p=%s]", t, t->getName().str().c_str());
-      //t->dump();
+      if (trace_full)
+          printf ("CALL[%p=%s]", t, t->getName().str().c_str());
       }
       break;
   //case Instruction::Shl:
@@ -760,6 +743,7 @@ printf("[%s:%d]FFFFFFFFFFFFFF operand_list_index %d\n", __FUNCTION__, __LINE__, 
       exit(1);
       break;
   }
+  if (trace_full)
   for (int i = 0; i < operand_list_index; i++) {
       int t = operand_list[i].value;
       if (operand_list[i].type == OpTypeLocalRef)
@@ -889,26 +873,24 @@ static void processFunction(Function *F, uint64_t ***thisp, uint64_t ***arg)
             exit(1);
         }
         slotarray[slotindex].name = strdup(AI->getName().str().c_str());
-        printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
+        if (trace_full)
+            printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
         if (!strcmp(slotarray[slotindex].name, "this")) {
             slotarray[slotindex].name = globalClassName;
             slotarray[slotindex].svalue = (uint8_t *)thisp;
         }
-        if (!strcmp(slotarray[slotindex].name, "v")) {
+        else if (!strcmp(slotarray[slotindex].name, "v")) {
             slotarray[slotindex].name = "ARGUMENT";
             slotarray[slotindex].svalue = (uint8_t *)arg;
         }
+        else
+            printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
         opt_runOnBasicBlock(*I);
     printf("FULLopt:\n");
     F->dump();
     printf("TRANSLATE:\n");
-    if (num_args > 1) {
-        printf("[%s:%d] num_args > 1 not supported %d\n", __FUNCTION__, __LINE__, num_args);
-        //exit(1);
-        //return;
-    }
     verilogFunction(F);
 }
 
@@ -920,13 +902,15 @@ int arr_size = 0;
 
     for (int i = 0; i < 16; i++) {
         g = EE->getGlobalValueAtAddress(vtab - 8 + i);
-        if (g)
+        if (trace_full && g)
             printf("[%s:%d]v %d g %p name %s\n", __FUNCTION__, __LINE__, - 8 + i, g, g->getName().str().c_str());
     }
     g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
+    if (trace_full) {
     printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
     memdump(((unsigned char *)thisp), 64, "THIS");
+    }
     if (g) {
         globalClassName = strdup(g->getName().str().c_str());
         if (g->getType()->getTypeID() == Type::PointerTyID) {
@@ -936,8 +920,10 @@ int arr_size = 0;
                arr_size = aty->getNumElements();
            }
         }
-        g->getType()->dump();
-        fprintf(stderr, "\n");
+        if (trace_full) {
+            g->getType()->dump();
+            fprintf(stderr, "\n");
+        }
     }
     int i = 0;
     if (method_index != -1)
@@ -946,7 +932,8 @@ int arr_size = 0;
        Function *f = (Function *)(vtab[i]);
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
-       printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, thisp);
+       if (trace_full)
+           printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, thisp);
        int rettype = f->getReturnType()->getTypeID();
        if ((rettype == Type::IntegerTyID || rettype == Type::VoidTyID)
         && strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
@@ -965,13 +952,10 @@ int arr_size = 0;
 }
 void dump_vtab(uint64_t ***thisptr)
 {
-    const GlobalValue *g;
-    uint64_t **vtab = (uint64_t **)thisptr[0];
-
     for (int i = 0; i < 16; i++) {
-         g = EE->getGlobalValueAtAddress(thisptr -8 + i);
-if (g)
-printf("[%s:%d] %d g %p name %s\n", __FUNCTION__, __LINE__, -8 + i, g, g->getName().str().c_str());
+        const GlobalValue *g = EE->getGlobalValueAtAddress(thisptr -8 + i);
+        if (g)
+            printf("[%s:%d] %d g %p name %s\n", __FUNCTION__, __LINE__, -8 + i, g, g->getName().str().c_str());
     }
     dump_vtable(thisptr, -1, NULL);
 }
@@ -994,15 +978,15 @@ void generate_verilog(Module *Mod)
 
   TD = &foo;
   gv = Mod->getNamedValue("_ZN6Module5firstE");
-  printf("\n\n");
-  gv->dump();
-  printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
-  printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-  printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
+  //printf("\n\n");
+  //gv->dump();
+  //printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
+  //printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
+  //printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
   Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-  printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
+  //printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
   modfirst = (uint64_t **)*(PointerTy*)Ptr;
-  printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
+  //printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
   dump_type(Mod, "class.Module");
   dump_type(Mod, "class.Rule");
 
@@ -1086,6 +1070,7 @@ static void dumpTref(const Value *val)
                 name = name.substr(0, ind);
             name = "class." + getScope(nextitem.getContext()) + name;
             int mcount = classinfo_array[classinfo_array_index].members.size();
+            if (trace_full)
             printf("class %s members %d:", name.c_str(), mcount);
             classp->name = strdup(name.c_str());
             classp->node = Node;
@@ -1105,15 +1090,18 @@ static void dumpTref(const Value *val)
                 const char *cp = Ty.getLinkageName().str().c_str();
                 if (etag != dwarf::DW_TAG_subprogram || !strlen(cp))
                     cp = Ty.getName().str().c_str();
+                if (trace_full)
                 printf(" %s", cp);
                 int j = classp->member_count++;
                 classp->member[j].node = Node;
                 classp->member[j].name = strdup(cp);
             }
-            printf("\n");
+            if (trace_full)
+                printf("\n");
             std::map<std::string, const MDNode *>::iterator CI = classmap.find(name);
             if (CI != classmap.end()) {
-                printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
+                if (trace_full)
+                    printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
                 //exit(1);
             }
             classinfo_array_index--;
@@ -1449,16 +1437,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
   printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
   for (int i = 0; i < extra_vtab_index; i++) {
-      printf("[%s:%d] [%d.] *******************************************\n", __FUNCTION__, __LINE__, i);
-      printf("[%s:%d] [%d.] vt %p method %lld arg %p/%lld\n", __FUNCTION__, __LINE__, i,
+      printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
           extra_vtab[i].vtab.svalue, (long long)extra_vtab[i].vtab.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
       //uint64_t *t = *(uint64_t **)extra_vtab[i].vtab.svalue;
       //const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
       //if (g)
           //printf("name %s\n", g->getName().str().c_str());
-      if (extra_vtab[i].vtab.svalue)
-          dump_vtable((uint64_t ***)extra_vtab[i].vtab.svalue, (int)extra_vtab[i].vtab.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
+      dump_vtable((uint64_t ***)extra_vtab[i].vtab.svalue, (int)extra_vtab[i].vtab.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
