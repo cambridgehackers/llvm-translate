@@ -81,8 +81,9 @@ static struct {
     const char *name;
     int ignore_debug_info;
     uint8_t *svalue;
+    uint64_t offset;
 } slotarray[MAX_SLOTARRAY];
-static int slotarray_index;
+static int slotarray_index = 1;
 #define MAX_CLASS_ARRAY 20
 #define MAX_CLASS_DEFS  200
 static struct {
@@ -119,9 +120,9 @@ static struct {
 static int operand_list_index;
 #define MAX_VTAB_EXTRA 100
 static struct {
-    uint64_t ***thisp;
-    uint64_t **vtab;
-    uint64_t **tmp;
+    int thisp;
+    int vtab;
+    int arg;
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
 
@@ -159,7 +160,7 @@ int getLocalSlot(const Value *V)
 void clearLocalSlot(void)
 {
   slotmap.clear();
-  slotarray_index = 0;
+  slotarray_index = 1;
   memset(slotarray, 0, sizeof(slotarray));
 }
 
@@ -549,6 +550,24 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
      exit(1);
   }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+#if 1
+      Type *element = NULL;
+      int eltype = -1;
+      Type *topty = I.getOperand(0)->getType();
+      while (topty->getTypeID() == Type::PointerTyID) {
+          PointerType *PTy = cast<PointerType>(topty);
+          element = PTy->getElementType();
+          eltype = element->getTypeID();
+          if (eltype != Type::PointerTyID)
+              break;
+          topty = element;
+      }
+      if (eltype == Type::FunctionTyID) {
+printf("[%s:%d] FFFFFFFUUUUUUUUUUUUUUCCCCCCCCCC\n", __FUNCTION__, __LINE__);
+      }
+else
+#endif
+{
       Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
       slotarray[operand_list[0].value].svalue = (uint8_t *)value;
       const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
@@ -557,6 +576,7 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       if (g)  // remember the name of where this value came from
           slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
       }
+}
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
@@ -577,7 +597,9 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
       const char *ret = NULL;
       char temp[MAX_CHAR_BUFFER], tempoff[MAX_CHAR_BUFFER];
       const char *mcp = NULL;
+#if 0
       const GlobalValue *g;
+#endif
 
       printf("XLAT: GetElementPtr");
       tempoff[0] = 0;
@@ -601,7 +623,8 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
           topty = element;
       }
       if (eltype == Type::FunctionTyID) {
-      extra_vtab[extra_vtab_index].tmp = (uint64_t **)slotarray[operand_list[1].value].svalue;
+          ptr = slotarray[operand_list[1].value].svalue;
+#if 0
           g = EE->getGlobalValueAtAddress(((uint64_t *)slotarray[operand_list[1].value].svalue)-2);
           if (!g) {
               printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, (uint64_t *)slotarray[operand_list[1].value].svalue);
@@ -610,7 +633,10 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
           }
           else
               sprintf(tempoff, "%s/%lld", g->getName().str().c_str(), (long long)Total);
+          sprintf(tempoff, "FFUNNNNNNNNNNNN/%lld", (long long)Total);
           mcp = tempoff;
+#endif
+          printf(" FUNCOFFSET=%lld", (long long)Total);
           goto skipfunc;
       }
       else if (eltype != Type::StructTyID) {
@@ -627,16 +653,19 @@ printf("[%s:%d] value %p\n", __FUNCTION__, __LINE__, value);
           exit(1);
       }
       mcp = classm->name;
-skipfunc:
       ret = cp;
-      g = EE->getGlobalValueAtAddress(ptr);
+      {
+      const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
       if (g) {
           ret = g->getName().str().c_str();
           mcp = "";
       }
+      }
       sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
       slotarray[operand_list[0].value].name = strdup(temp);
+skipfunc:
       slotarray[operand_list[0].value].svalue = ptr;
+      slotarray[operand_list[0].value].offset = Total;
       }
       break;
 
@@ -721,10 +750,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
      exit(1);
   }
-      extra_vtab[extra_vtab_index].thisp = (uint64_t ***)slotarray[operand_list[1].value].svalue;
-      extra_vtab[extra_vtab_index].vtab = (uint64_t **)slotarray[operand_list[2].value].svalue;
+      extra_vtab[extra_vtab_index].vtab = operand_list[operand_list_index-1].value; // Callee is _last_ operand
+      extra_vtab[extra_vtab_index].thisp = operand_list[1].value;
+      if (operand_list_index > 3)
+          extra_vtab[extra_vtab_index].arg = operand_list[2].value;
       extra_vtab_index++;
-printf("[%s:%d]FFFFFFFFFFFFFF\n", __FUNCTION__, __LINE__);
+printf("[%s:%d]FFFFFFFFFFFFFF operand_list_index %d\n", __FUNCTION__, __LINE__, operand_list_index);
       const Instruction *t = (const Instruction *)val;
       printf ("[%p=%s]", t, t->getName().str().c_str());
       //t->dump();
@@ -856,6 +887,18 @@ static void verilogFunction(Function *F)
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
+  printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
+  for (int i = 0; i < extra_vtab_index; i++) {
+      printf("[%s:%d] [%d.] vt %d this %d arg %d *******************************************\n", __FUNCTION__, __LINE__, i,
+          extra_vtab[i].vtab, extra_vtab[i].thisp, extra_vtab[i].arg);
+      printf("[%s:%d] [%d.] vt %p/%lld this %p/%lld arg %p/%lld\n", __FUNCTION__, __LINE__, i,
+          slotarray[extra_vtab[i].vtab].svalue, (long long)slotarray[extra_vtab[i].vtab].offset,
+          slotarray[extra_vtab[i].thisp].svalue, (long long)slotarray[extra_vtab[i].thisp].offset,
+          slotarray[extra_vtab[i].arg].svalue, (long long)slotarray[extra_vtab[i].arg].offset);
+      //dump_vtable(extra_vtab[i].tmp, (uint64_t ***)extra_vtab[i].vtab);
+  }
+  extra_vtab_index = 0;
+  memset(extra_vtab, 0, sizeof(extra_vtab));
   clearLocalSlot();
   if (updateFlag) {
       print_header();
@@ -888,7 +931,7 @@ static void processFunction(Function *F, uint64_t ***thisp)
     if (num_args > 1) {
         printf("[%s:%d] num_args > 1 not supported %d\n", __FUNCTION__, __LINE__, num_args);
         //exit(1);
-        return;
+        //return;
     }
     verilogFunction(F);
 }
@@ -1302,7 +1345,7 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     uint64_t **first = (uint64_t **)*Ptr;
     while (first) {                         // loop through linked list
         printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        dump_vtab((uint64_t ***)first);
+        //dump_vtab((uint64_t ***)first);
         first = (uint64_t **)first[1];        // first = first->next
     }
 }
@@ -1422,12 +1465,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
   dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
-  printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
-  for (int i = 0; i < extra_vtab_index; i++) {
-      printf("[%s:%d] [%d.] vt %p this %p tmp %p *******************************************\n", __FUNCTION__, __LINE__, i,
-      extra_vtab[i].vtab, extra_vtab[i].thisp, extra_vtab[i].tmp);
-      //dump_vtable(extra_vtab[i].tmp, (uint64_t ***)extra_vtab[i].vtab);
-  }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
