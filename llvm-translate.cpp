@@ -721,7 +721,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       extra_vtab[extra_vtab_index].called = slotarray[operand_list[operand_list_index-1].value]; // Callee is _last_ operand
       if (operand_list_index > 3)
           extra_vtab[extra_vtab_index].arg = slotarray[operand_list[2].value];
+      Function **vtab = ((Function ***)extra_vtab[extra_vtab_index].called.svalue)[0];
+      Function *f = vtab[extra_vtab[extra_vtab_index].called.offset/8];
+      const char *cp = f->getName().str().c_str();
       extra_vtab_index++;
+      slotarray[operand_list[0].value].name = strdup(cp);
       const Instruction *t = (const Instruction *)val;
       if (trace_full)
           printf ("CALL[%p=%s]", t, t->getName().str().c_str());
@@ -861,7 +865,7 @@ static void verilogFunction(Function *F)
   }
 }
 
-static void processFunction(Function *F, uint64_t ***thisp, uint64_t ***arg)
+static void processFunction(Function *F, Function ***thisp, uint64_t ***arg)
 {
     int num_args = 0;
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
@@ -893,7 +897,7 @@ static void processFunction(Function *F, uint64_t ***thisp, uint64_t ***arg)
     verilogFunction(F);
 }
 
-static void dump_vtable(uint64_t ***thisp, int method_index, uint64_t ***arg)
+static void dump_vtable(Function ***thisp, int method_index, uint64_t ***arg)
 {
 int arr_size = 0;
     const GlobalValue *g;
@@ -956,7 +960,7 @@ static void dump_type(Module *Mod, const char *p)
 
 void generate_verilog(Module *Mod)
 {
-  uint64_t ***t;
+  Function ***t;
   uint64_t **modfirst;
   GenericValue *Ptr;
   GlobalValue *gv;
@@ -978,14 +982,14 @@ void generate_verilog(Module *Mod)
 
   while (modfirst) { /* loop through all modules */
     printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-    dump_vtable((uint64_t ***)modfirst, -1, NULL);
-    t = (uint64_t ***)modfirst[1];        // Module.rfirst
+    dump_vtable((Function ***)modfirst, -1, NULL);
+    t = (Function ***)modfirst[1];        // Module.rfirst
     modfirst = (uint64_t **)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
       printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
       dump_vtable(t, -1, NULL);
-      t = (uint64_t ***)t[1];             // Rule.next
+      t = (Function ***)t[1];             // Rule.next
     }
   }
 }
@@ -1301,7 +1305,7 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     uint64_t **first = (uint64_t **)*Ptr;
     while (first) {                         // loop through linked list
         printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        //dump_vtable((uint64_t ***)first, -1, NULL);
+        //dump_vtable((Function ***)first, -1, NULL);
         first = (uint64_t **)first[1];        // first = first->next
     }
 }
@@ -1426,7 +1430,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
           extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      dump_vtable((uint64_t ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
+      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
