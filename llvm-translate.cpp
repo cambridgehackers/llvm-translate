@@ -235,68 +235,51 @@ static const char *getPredicateText(unsigned predicate)
   }
   return pred;
 }
-static void WriteConstantInternal(const Constant *CV)
-{
-  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-    operand_list[operand_list_index].type = OpTypeInt;
-    operand_list[operand_list_index++].value = CI->getZExtValue();
-    return;
-  }
-
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
 
 void writeOperand(const Value *Operand)
 {
-  int slotindex;
   const Constant *CV;
-  if (!Operand) {
+
+  if (!Operand)
     return;
-  }
+  int slotindex = getLocalSlot(Operand);
+  operand_list[operand_list_index].value = slotindex;
   if (Operand->hasName()) {
     if (isa<Constant>(Operand)) {
         operand_list[operand_list_index].type = OpTypeExternalFunction;
-        operand_list[operand_list_index++].value = (uint64_t) Operand->getName().str().c_str();
+        slotarray[slotindex].name = Operand->getName().str().c_str();
     }
     else
         goto locallab;
-    return;
+    goto retlab;
   }
   CV = dyn_cast<Constant>(Operand);
   if (CV && !isa<GlobalValue>(CV)) {
-    WriteConstantInternal(CV);// *TypePrinter, Machine, Context);
-    return;
-  }
-
-  if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-    if (N->isFunctionLocal()) {
-      // Print metadata inline, not via slot reference number.
-      //WriteMDNodeBodyInternal(N, TypePrinter, Machine, Context);
-      return;
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+      operand_list[operand_list_index].type = OpTypeInt;
+      slotarray[slotindex].offset = CI->getZExtValue();
+      goto retlab;
     }
-    goto locallab;
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
   }
-
+  if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
+  }
   if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
-exit(1);
-    //PrintEscapedString(MDS->getString());
-    return;
+      printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
+      exit(1);
   }
-
   if (Operand->getValueID() == Value::PseudoSourceValueVal ||
       Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-    return;
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
   }
 locallab:
-  slotindex = getLocalSlot(Operand);
   operand_list[operand_list_index].type = OpTypeLocalRef;
-  operand_list[operand_list_index++].value = slotindex;
+retlab:
+  operand_list_index++;
 }
 
 static const char *getparam(int arg)
@@ -306,9 +289,9 @@ static const char *getparam(int arg)
    if (operand_list[arg].type == OpTypeLocalRef)
        return (slotarray[operand_list[arg].value].name);
    else if (operand_list[arg].type == OpTypeExternalFunction)
-       return (const char *)operand_list[arg].value;
+       return slotarray[operand_list[arg].value].name;
    else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)operand_list[arg].value);
+       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
    else if (operand_list[arg].type == OpTypeString)
        return (const char *)operand_list[arg].value;
    return strdup(temp);
