@@ -59,7 +59,6 @@ static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
 static int output_stdout = 1;
-static const char *trace_break_name;// = "_ZN4Echo7respond5guardEv";
 #define SEPARATOR ":"
 
 namespace {
@@ -122,7 +121,7 @@ static struct {
 static int operand_list_index;
 #define MAX_VTAB_EXTRA 100
 static struct {
-    SLOTARRAY_TYPE vtab;
+    SLOTARRAY_TYPE called;
     SLOTARRAY_TYPE arg;
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
@@ -719,7 +718,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      extra_vtab[extra_vtab_index].vtab = slotarray[operand_list[operand_list_index-1].value]; // Callee is _last_ operand
+      extra_vtab[extra_vtab_index].called = slotarray[operand_list[operand_list_index-1].value]; // Callee is _last_ operand
       if (operand_list_index > 3)
           extra_vtab[extra_vtab_index].arg = slotarray[operand_list[2].value];
       extra_vtab_index++;
@@ -898,7 +897,7 @@ static void dump_vtable(uint64_t ***thisp, int method_index, uint64_t ***arg)
 {
 int arr_size = 0;
     const GlobalValue *g;
-    uint64_t **vtab = (uint64_t **)thisp[0];
+    Function **vtab = (Function **)thisp[0];
 
     for (int i = 0; i < 16; i++) {
         g = EE->getGlobalValueAtAddress(vtab - 8 + i);
@@ -908,8 +907,8 @@ int arr_size = 0;
     g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     if (trace_full) {
-    printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
-    memdump(((unsigned char *)thisp), 64, "THIS");
+        printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
+        memdump(((unsigned char *)thisp), 64, "THIS");
     }
     if (g) {
         globalClassName = strdup(g->getName().str().c_str());
@@ -929,7 +928,7 @@ int arr_size = 0;
     if (method_index != -1)
         i = method_index;
     for (; i < arr_size-2; i++) {
-       Function *f = (Function *)(vtab[i]);
+       Function *f = vtab[i];
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
        if (trace_full)
@@ -940,24 +939,11 @@ int arr_size = 0;
            if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
                if (!f->isDeclaration())
                    processFunction(f, thisp, arg);
-               if (trace_break_name && !strcmp(globalName, trace_break_name)) {
-                   printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                   exit(1);
-               }
            }
        }
        if (method_index != -1)
            break;
     }
-}
-void dump_vtab(uint64_t ***thisptr)
-{
-    for (int i = 0; i < 16; i++) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(thisptr -8 + i);
-        if (g)
-            printf("[%s:%d] %d g %p name %s\n", __FUNCTION__, __LINE__, -8 + i, g, g->getName().str().c_str());
-    }
-    dump_vtable(thisptr, -1, NULL);
 }
 
 static void dump_type(Module *Mod, const char *p)
@@ -992,13 +978,13 @@ void generate_verilog(Module *Mod)
 
   while (modfirst) { /* loop through all modules */
     printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-    dump_vtab((uint64_t ***)modfirst);
+    dump_vtable((uint64_t ***)modfirst, -1, NULL);
     t = (uint64_t ***)modfirst[1];        // Module.rfirst
     modfirst = (uint64_t **)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
       printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-      dump_vtab(t);
+      dump_vtable(t, -1, NULL);
       t = (uint64_t ***)t[1];             // Rule.next
     }
   }
@@ -1315,7 +1301,7 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     uint64_t **first = (uint64_t **)*Ptr;
     while (first) {                         // loop through linked list
         printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        //dump_vtab((uint64_t ***)first);
+        //dump_vtable((uint64_t ***)first, -1, NULL);
         first = (uint64_t **)first[1];        // first = first->next
     }
 }
@@ -1438,13 +1424,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
   for (int i = 0; i < extra_vtab_index; i++) {
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
-          extra_vtab[i].vtab.svalue, (long long)extra_vtab[i].vtab.offset,
+          extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      //uint64_t *t = *(uint64_t **)extra_vtab[i].vtab.svalue;
-      //const GlobalValue *g = EE->getGlobalValueAtAddress(t-2);
-      //if (g)
-          //printf("name %s\n", g->getName().str().c_str());
-      dump_vtable((uint64_t ***)extra_vtab[i].vtab.svalue, (int)extra_vtab[i].vtab.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
+      dump_vtable((uint64_t ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
