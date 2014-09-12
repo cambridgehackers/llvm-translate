@@ -53,7 +53,7 @@ using namespace llvm;
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
-static int output_stdout = 1;
+static int output_stdout;// = 1;
 #define SEPARATOR ":"
 
 namespace {
@@ -101,6 +101,7 @@ static const char *globalClassName;
 static FILE *outputFile;
 static const Function *globalFunction;
 static int already_printed_header;
+static const char *globalGuardName;
 static std::list<const MDNode *> global_members;
 static CLASS_META *global_classp;
 
@@ -289,8 +290,11 @@ static const char *getparam(int arg)
 
 static void print_header()
 {
-    if (!already_printed_header)
+    if (!already_printed_header) {
         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
+        if (globalGuardName)
+            fprintf(outputFile, "if (%s) then begin\n", globalGuardName);
+    }
     already_printed_header = 1;
 }
 static const char *opstr(unsigned opcode)
@@ -455,15 +459,16 @@ void translateVerilog(const Instruction &I)
       break;
   case Instruction::Br:
       {
+      char temp[MAX_CHAR_BUFFER];
       printf("XLAT:            Br");
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
         int cond_item = getLocalSlot(BI.getCondition());
-printf("[%s:%d] cond %d\n", __FUNCTION__, __LINE__, cond_item);
+        sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
         if (slotarray[cond_item].name) {
-            sprintf(vout, "BRCOND = %s\n", slotarray[cond_item].name);
-            slotarray[cond_item].name = "BRCOND";
+            sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
+            slotarray[cond_item].name = strdup(temp);
         }
         writeOperand(BI.getSuccessor(0));
         writeOperand(BI.getSuccessor(1));
@@ -696,8 +701,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
       I.getType()->dump();
-      sprintf(vout, "PHIVAL = ");
-      slotarray[operand_list[0].value].name = "PHIVAL";
+      sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
+      sprintf(vout, "%s = ", temp);
+      slotarray[operand_list[0].value].name = strdup(temp);
       for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
           int valuein = getLocalSlot(PN->getIncomingValue(op));
           writeOperand(PN->getIncomingValue(op));
@@ -855,33 +861,27 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
 static void verilogFunction(Function *F)
 {
   FunctionType *FT = F->getFunctionType();
-  int updateFlag = strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv");
   char temp[MAX_CHAR_BUFFER];
 
   globalFunction = F;
   already_printed_header = 0;
   strcpy(temp, globalName);
-  if (updateFlag) {
-      print_header();
+  globalGuardName = NULL;
+  if (strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv")) {
       strcat(temp + strlen(globalName) - 8, "guardEv");
-      fprintf(outputFile, "if (%s) then begin\n", temp);
+      globalGuardName = strdup(temp);
   }
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
       if (I->hasName()) {              // Print out the label if it exists...
           int current_block = getLocalSlot(I);
-          printf("LLLLL: %d:%s\n", current_block, I->getName().str().c_str());
+          printf("LLLLL: %s\n", I->getName().str().c_str());
       }
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
-      TerminatorInst *TI = I->getTerminator();
-printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-      TI->dump();
   }
   clearLocalSlot();
-  if (updateFlag) {
-      print_header();
+  if (globalGuardName && already_printed_header)
       fprintf(outputFile, "end;\n");
-  }
 }
 
 static void processFunction(Function *F, Function ***thisp, uint64_t ***arg)
