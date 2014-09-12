@@ -66,6 +66,8 @@ namespace {
 #define MAX_SLOTARRAY 1000
 #define MAX_OPERAND_LIST 200
 #define MAX_CHAR_BUFFER 1000
+#define MAX_CLASS_DEFS  200
+#define MAX_VTAB_EXTRA 100
 
 static ExecutionEngine *EE = 0;
 static std::map<const Value *, int> slotmap;
@@ -80,13 +82,6 @@ typedef struct {
 } SLOTARRAY_TYPE;
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
-#define MAX_CLASS_ARRAY 20
-#define MAX_CLASS_DEFS  200
-static struct {
-    const MDNode * inherit;
-    std::list<const MDNode *> members;
-} classinfo_array[MAX_CLASS_ARRAY];
-static int classinfo_array_index;
 typedef struct {
     const char   *name;
     const MDNode *node;
@@ -106,6 +101,8 @@ static const char *globalClassName;
 static FILE *outputFile;
 static const Function *globalFunction;
 static int already_printed_header;
+static std::list<const MDNode *> global_members;
+static CLASS_META *global_classp;
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
@@ -113,7 +110,6 @@ static struct {
    uint64_t value;
 } operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
-#define MAX_VTAB_EXTRA 100
 static struct {
     SLOTARRAY_TYPE called;
     SLOTARRAY_TYPE arg;
@@ -775,7 +771,6 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
         case Instruction::Load:
             {
             const char *cp = I->getOperand(0)->getName().str().c_str();
-            //printf("[%s:%d] Load %s ret %p\n", __FUNCTION__, __LINE__, cp, retv);
             if (!strcmp(cp, "this")) {
                 retv->replaceAllUsesWith(I->getOperand(0));
                 I->eraseFromParent(); // delete "Load 'this'" instruction
@@ -786,23 +781,16 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
         case Instruction::Alloca:
             if (I->hasName()) {
                 Value *newt = NULL;
-                //const char *cp = I->getName().str().c_str();
-                //printf("[%s:%d] Alloca %s\n", __FUNCTION__, __LINE__, cp);
                 BasicBlock::iterator PN = PI;
                 while (PN != E) {
                     BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
                     if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
                         newt = PN->getOperand(0);
-                    //printf("[%s:%d] ROP %d: ", __FUNCTION__, __LINE__, PN->getOpcode());
                     for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
                         Value *val = *OI;
-                        //printf(" %p", val);
-                        if (val == retv && newt) {
-                            //printf(" REPLACEOP");
+                        if (val == retv && newt)
                             *OI = newt;
-                        }
                     }
-                    //printf("\n");
                     if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
                         if (PI == PN)
                             PI = PNN;
@@ -820,7 +808,6 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
                 if (Operand->hasName() && isa<Constant>(Operand)) {
                   const char *cp = Operand->getName().str().c_str();
                   if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "printf")) {
-                      //printf("[%s:%d] ERASE\n", __FUNCTION__, __LINE__);
                       I->eraseFromParent(); // delete this instruction
                       changed = true;
                   }
@@ -1042,27 +1029,25 @@ static void dumpTref(const Value *val)
             dumpType(nextitem);
         else {
             CLASS_META *classp = &class_data[class_data_index++];
-            if (classinfo_array_index++ != 0) {
-                printf(" recursiveclassdefmagic %s [%p] =**** %d level %d.\n", name.c_str(), val, metanumber, classinfo_array_index);
-                //exit(1);
-            }
-            classinfo_array[classinfo_array_index].inherit = NULL;
-            classinfo_array[classinfo_array_index].members.clear();
+            CLASS_META *saved_classp = global_classp;
+printf("[%s:%d]save\n", __FUNCTION__, __LINE__);
+            std::list<const MDNode *> saved_members = global_members;
+            global_classp = classp;
+            global_members.clear();
             int ind = name.find("<");
             if (ind >= 0)
                 name = name.substr(0, ind);
             name = "class." + getScope(nextitem.getContext()) + name;
             dumpType(nextitem);
-            int mcount = classinfo_array[classinfo_array_index].members.size();
+            int mcount = global_members.size();
             if (trace_full)
             printf("class %s members %d:", name.c_str(), mcount);
             classp->name = strdup(name.c_str());
             classp->node = Node;
-            classp->inherit = classinfo_array[classinfo_array_index].inherit;
             classp->member_count = 0;
             classp->member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
-            for (std::list<const MDNode *>::iterator MI = classinfo_array[classinfo_array_index].members.begin(),
-                ME = classinfo_array[classinfo_array_index].members.end(); MI != ME; MI++) {
+            for (std::list<const MDNode *>::iterator MI = global_members.begin(),
+                ME = global_members.end(); MI != ME; MI++) {
                 DISubprogram Ty(*MI);
                 const Value *v = Ty;
                 int etag = Ty.getTag();
@@ -1088,8 +1073,10 @@ static void dumpTref(const Value *val)
                     printf(" duplicateclassdefmagic %s [%p] =**** %d\n", name.c_str(), val, metanumber);
                 //exit(1);
             }
-            classinfo_array_index--;
             classmap[name] = Node;
+            global_classp = saved_classp;
+            global_members = saved_members;
+printf("[%s:%d]restore\n", __FUNCTION__, __LINE__);
         }
     }
 }
@@ -1110,11 +1097,12 @@ static void dumpType(DIType litem)
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
         if (v && (Node = dyn_cast<MDNode>(v))) {
-            if(classinfo_array[classinfo_array_index].inherit) {
+            if(global_classp && global_classp->inherit) {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
      exit(1);
   }
-            classinfo_array[classinfo_array_index].inherit = Node;
+            if (global_classp)
+                global_classp->inherit = Node;
         }
         dumpTref(v);
         return;
@@ -1142,7 +1130,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
                 const MDNode *Node = Ty;
-                classinfo_array[classinfo_array_index].members.push_back(Node);
+printf("[%s:%d]add\n", __FUNCTION__, __LINE__);
+                global_members.push_back(Node);
             }
             dumpType(Ty);
         }
