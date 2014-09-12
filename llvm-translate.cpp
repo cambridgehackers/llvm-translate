@@ -411,6 +411,7 @@ void translateVerilog(const Instruction &I)
   int opcode = I.getOpcode();
   char instruction_label[MAX_CHAR_BUFFER];
   char vout[MAX_CHAR_BUFFER];
+  int dump_operands = trace_full;
 
   vout[0] = 0;
   operand_list_index = 0;
@@ -440,7 +441,8 @@ void translateVerilog(const Instruction &I)
   case Instruction::Ret:
       {
       printf("XLAT:           Ret");
-      printf(" ret=%d/%d;", globalFunction->getReturnType()->getTypeID(), operand_list_index);
+      int parent_block = getLocalSlot(I.getParent());
+      printf("parent %d ret=%d/%d;", parent_block, globalFunction->getReturnType()->getTypeID(), operand_list_index);
       if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
@@ -457,6 +459,12 @@ void translateVerilog(const Instruction &I)
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
+        int cond_item = getLocalSlot(BI.getCondition());
+printf("[%s:%d] cond %d\n", __FUNCTION__, __LINE__, cond_item);
+        if (slotarray[cond_item].name) {
+            sprintf(vout, "BRCOND = %s\n", slotarray[cond_item].name);
+            slotarray[cond_item].name = "BRCOND";
+        }
         writeOperand(BI.getSuccessor(0));
         writeOperand(BI.getSuccessor(1));
       } else if (isa<IndirectBrInst>(I)) {
@@ -464,13 +472,7 @@ void translateVerilog(const Instruction &I)
           writeOperand(I.getOperand(i));
         }
       }
-      for (int i = 0; i < operand_list_index; i++) {
-          int t = operand_list[i].value;
-          if (operand_list[i].type == OpTypeLocalRef)
-              printf(" op[%d]L=%d:%p:[%p=%s];", i, t, slotarray[t].svalue, slotarray[t].name, slotarray[t].name);
-          else if (operand_list[i].type != OpTypeNone)
-              printf(" op[%d]=%s;", i, getparam(i));
-      }
+      dump_operands = 1;
       }
       break;
   //case Instruction::Switch:
@@ -687,16 +689,41 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::PHI:
       {
       printf("XLAT:           PHI");
+      char temp[MAX_CHAR_BUFFER];
       const PHINode *PN = dyn_cast<PHINode>(&I);
       if (!PN) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
       I.getType()->dump();
+      sprintf(vout, "PHIVAL = ");
+      slotarray[operand_list[0].value].name = "PHIVAL";
       for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
+          int valuein = getLocalSlot(PN->getIncomingValue(op));
           writeOperand(PN->getIncomingValue(op));
           writeOperand(PN->getIncomingBlock(op));
+          TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
+          printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+          TI->dump();
+          const BranchInst *BI = dyn_cast<BranchInst>(TI);
+          const char *trailch = "";
+          if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
+            writeOperand(BI->getCondition());
+            int cond_item = getLocalSlot(BI->getCondition());
+printf("[%s:%d] cond %s\n", __FUNCTION__, __LINE__, slotarray[cond_item].name);
+            sprintf(temp, "%s ?", slotarray[cond_item].name);
+            trailch = ":";
+            //writeOperand(BI->getSuccessor(0));
+            //writeOperand(BI->getSuccessor(1));
+            strcat(vout, temp);
+          }
+          if (slotarray[valuein].name)
+              sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
+          else
+              sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
+          strcat(vout, temp);
       }
+      dump_operands = 1;
       }
       break;
   //case Instruction::Select:
@@ -720,7 +747,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       const Instruction *t = (const Instruction *)val;
       //if (trace_full)
           printf ("CALL[%p=%s]", t, t->getName().str().c_str());
-printf("[%s:%d] cp %s offset %d\n", __FUNCTION__, __LINE__, cp, extra_vtab[extra_vtab_index].called.offset);
+printf("[%s:%d] cp %s\n", __FUNCTION__, __LINE__, cp);
+      dump_operands = 1;
       }
       break;
   //case Instruction::Shl:
@@ -738,7 +766,7 @@ printf("[%s:%d] cp %s offset %d\n", __FUNCTION__, __LINE__, cp, extra_vtab[extra
       exit(1);
       break;
   }
-  if (trace_full)
+  if (dump_operands)
   for (int i = 0; i < operand_list_index; i++) {
       int t = operand_list[i].value;
       if (operand_list[i].type == OpTypeLocalRef)
@@ -840,10 +868,14 @@ static void verilogFunction(Function *F)
   }
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
       if (I->hasName()) {              // Print out the label if it exists...
-          printf("LLLLL: %s\n", I->getName().str().c_str());
+          int current_block = getLocalSlot(I);
+          printf("LLLLL: %d:%s\n", current_block, I->getName().str().c_str());
       }
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
+      TerminatorInst *TI = I->getTerminator();
+printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+      TI->dump();
   }
   clearLocalSlot();
   if (updateFlag) {
@@ -1421,3 +1453,20 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
+#if 0
+
+  O << "digraph {\n";
+  for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
+       I != E; ++I) {
+    unsigned BB = I->getNumber();
+    O << "\t\"BB#" << BB << "\" [ shape=box ]\n"
+      << '\t' << G.getBundle(BB, false) << " -> \"BB#" << BB << "\"\n"
+      << "\t\"BB#" << BB << "\" -> " << G.getBundle(BB, true) << '\n';
+    for (MachineBasicBlock::const_succ_iterator SI = I->succ_begin(),
+           SE = I->succ_end(); SI != SE; ++SI)
+      O << "\t\"BB#" << BB << "\" -> \"BB#" << (*SI)->getNumber()
+        << "\" [ color=lightgray ]\n";
+  }
+  O << "}\n";
+
+#endif
