@@ -454,17 +454,23 @@ void translateVerilog(const Instruction &I)
   case Instruction::Br:
       {
       printf("XLAT:            Br");
-      //if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-        //const BranchInst &BI(cast<BranchInst>(I));
-        //writeOperand(BI.getCondition());
-        //writeOperand(BI.getSuccessor(0));
-        //writeOperand(BI.getSuccessor(1));
-      //} else if (isa<IndirectBrInst>(I)) {
-        //writeOperand(Operand);
-        //for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
-          //writeOperand(I.getOperand(i));
-        //}
-      //}
+      if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+        const BranchInst &BI(cast<BranchInst>(I));
+        writeOperand(BI.getCondition());
+        writeOperand(BI.getSuccessor(0));
+        writeOperand(BI.getSuccessor(1));
+      } else if (isa<IndirectBrInst>(I)) {
+        for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+          writeOperand(I.getOperand(i));
+        }
+      }
+      for (int i = 0; i < operand_list_index; i++) {
+          int t = operand_list[i].value;
+          if (operand_list[i].type == OpTypeLocalRef)
+              printf(" op[%d]L=%d:%p:[%p=%s];", i, t, slotarray[t].svalue, slotarray[t].name, slotarray[t].name);
+          else if (operand_list[i].type != OpTypeNone)
+              printf(" op[%d]=%s;", i, getparam(i));
+      }
       }
       break;
   //case Instruction::Switch:
@@ -521,12 +527,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       printf("XLAT:          Load");
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      if(//operand_list[0].type != OpTypeLocalRef || //operand_list[1].type != OpTypeLocalRef ||
- !Ptr) {
-printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-break;
-     exit(1);
-  }
+      if(!Ptr) {
+          printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+          break;
+      }
       Type *element = NULL;
       int eltype = -1;
       Type *topty = I.getOperand(0)->getType();
@@ -538,10 +542,7 @@ break;
               break;
           topty = element;
       }
-      if (eltype == Type::FunctionTyID) {
-           //printf("[%s:%d] FFFFFFFUUUUUNCTION\n", __FUNCTION__, __LINE__);
-      }
-      else {
+      if (eltype != Type::FunctionTyID) {
           Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
           slotarray[operand_list[0].value].svalue = (uint8_t *)value;
           const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
@@ -717,8 +718,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       extra_vtab_index++;
       slotarray[operand_list[0].value].name = strdup(cp);
       const Instruction *t = (const Instruction *)val;
-      if (trace_full)
+      //if (trace_full)
           printf ("CALL[%p=%s]", t, t->getName().str().c_str());
+printf("[%s:%d] cp %s offset %d\n", __FUNCTION__, __LINE__, cp, extra_vtab[extra_vtab_index].called.offset);
       }
       break;
   //case Instruction::Shl:
@@ -836,9 +838,13 @@ static void verilogFunction(Function *F)
       strcat(temp + strlen(globalName) - 8, "guardEv");
       fprintf(outputFile, "if (%s) then begin\n", temp);
   }
-  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+      if (I->hasName()) {              // Print out the label if it exists...
+          printf("LLLLL: %s\n", I->getName().str().c_str());
+      }
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
+  }
   clearLocalSlot();
   if (updateFlag) {
       print_header();
@@ -1030,7 +1036,6 @@ static void dumpTref(const Value *val)
         else {
             CLASS_META *classp = &class_data[class_data_index++];
             CLASS_META *saved_classp = global_classp;
-printf("[%s:%d]save\n", __FUNCTION__, __LINE__);
             std::list<const MDNode *> saved_members = global_members;
             global_classp = classp;
             global_members.clear();
@@ -1076,7 +1081,6 @@ printf("[%s:%d]save\n", __FUNCTION__, __LINE__);
             classmap[name] = Node;
             global_classp = saved_classp;
             global_members = saved_members;
-printf("[%s:%d]restore\n", __FUNCTION__, __LINE__);
         }
     }
 }
@@ -1130,7 +1134,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
                 const MDNode *Node = Ty;
-printf("[%s:%d]add\n", __FUNCTION__, __LINE__);
                 global_members.push_back(Node);
             }
             dumpType(Ty);
