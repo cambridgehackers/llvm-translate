@@ -28,7 +28,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
@@ -43,15 +42,11 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/Timer.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Assembly/Parser.h"
-#include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 
 using namespace llvm;
 
@@ -88,7 +83,6 @@ static int slotarray_index = 1;
 #define MAX_CLASS_ARRAY 20
 #define MAX_CLASS_DEFS  200
 static struct {
-    //std::string name;
     const MDNode * inherit;
     std::list<const MDNode *> members;
 } classinfo_array[MAX_CLASS_ARRAY];
@@ -1054,11 +1048,11 @@ static void dumpTref(const Value *val)
             }
             classinfo_array[classinfo_array_index].inherit = NULL;
             classinfo_array[classinfo_array_index].members.clear();
-            dumpType(nextitem);
             int ind = name.find("<");
             if (ind >= 0)
                 name = name.substr(0, ind);
             name = "class." + getScope(nextitem.getContext()) + name;
+            dumpType(nextitem);
             int mcount = classinfo_array[classinfo_array_index].members.size();
             if (trace_full)
             printf("class %s members %d:", name.c_str(), mcount);
