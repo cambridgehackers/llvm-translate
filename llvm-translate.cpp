@@ -532,10 +532,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::Load:
       {
       printf("XLAT:          Load");
-      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       if(!Ptr) {
           printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+          dump_operands = 1;
           break;
       }
       Type *element = NULL;
@@ -776,7 +777,7 @@ printf("[%s:%d] cp %s\n", __FUNCTION__, __LINE__, cp);
   for (int i = 0; i < operand_list_index; i++) {
       int t = operand_list[i].value;
       if (operand_list[i].type == OpTypeLocalRef)
-          printf(" op[%d]L=%d:%p:[%p=%s];", i, t, slotarray[t].svalue, slotarray[t].name, slotarray[t].name);
+          printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
@@ -884,7 +885,7 @@ static void verilogFunction(Function *F)
       fprintf(outputFile, "end;\n");
 }
 
-static void processFunction(Function *F, Function ***thisp, uint64_t ***arg)
+static void processFunction(Function *F, Function ***thisp, SLOTARRAY_TYPE *arg)
 {
     int num_args = 0;
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
@@ -902,8 +903,10 @@ static void processFunction(Function *F, Function ***thisp, uint64_t ***arg)
             slotarray[slotindex].svalue = (uint8_t *)thisp;
         }
         else if (!strcmp(slotarray[slotindex].name, "v")) {
-            slotarray[slotindex].name = "ARGUMENT";
-            slotarray[slotindex].svalue = (uint8_t *)arg;
+            if (arg)
+                slotarray[slotindex] = *arg;
+            else
+                printf("[%s:%d] missing param func: %s\n", __FUNCTION__, __LINE__, globalName);
         }
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
@@ -916,7 +919,7 @@ static void processFunction(Function *F, Function ***thisp, uint64_t ***arg)
     verilogFunction(F);
 }
 
-static void dump_vtable(Function ***thisp, int method_index, uint64_t ***arg)
+static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg)
 {
 int arr_size = 0;
     const GlobalValue *g;
@@ -1448,25 +1451,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
           extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, (uint64_t ***)extra_vtab[i].arg.svalue);
+      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
-#if 0
-
-  O << "digraph {\n";
-  for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
-       I != E; ++I) {
-    unsigned BB = I->getNumber();
-    O << "\t\"BB#" << BB << "\" [ shape=box ]\n"
-      << '\t' << G.getBundle(BB, false) << " -> \"BB#" << BB << "\"\n"
-      << "\t\"BB#" << BB << "\" -> " << G.getBundle(BB, true) << '\n';
-    for (MachineBasicBlock::const_succ_iterator SI = I->succ_begin(),
-           SE = I->succ_end(); SI != SE; ++SI)
-      O << "\t\"BB#" << BB << "\" -> \"BB#" << (*SI)->getNumber()
-        << "\" [ color=lightgray ]\n";
-  }
-  O << "}\n";
-
-#endif
