@@ -536,6 +536,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       if(!Ptr) {
           printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+          if (!slotarray[operand_list[0].value].svalue)
+              operand_list[0].type = OpTypeInt;
           dump_operands = 1;
           break;
       }
@@ -563,9 +565,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
   case Instruction::Store:
       printf("XLAT:         Store");
-      if (operand_list[2].type != OpTypeLocalRef || !slotarray[operand_list[2].value].ignore_debug_info)
+      if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
+          operand_list[1].type = OpTypeInt;
+      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
+        || !slotarray[operand_list[2].value].ignore_debug_info)
           sprintf(vout, "%s = %s;", getparam(2), getparam(1));
-      if (operand_list[2].type == OpTypeLocalRef && operand_list[1].type == OpTypeLocalRef)
+      else
           slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AtomicCmpXchg:
