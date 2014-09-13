@@ -99,7 +99,6 @@ static int class_data_index;
 static const char *globalName;
 static const char *globalClassName;
 static FILE *outputFile;
-static const Function *globalFunction;
 static int already_printed_header;
 static const char *globalGuardName;
 static std::list<const MDNode *> global_members;
@@ -392,7 +391,7 @@ if (trace_full)
 printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
-void translateVerilog(const Instruction &I)
+void translateVerilog(int return_type, const Instruction &I)
 {
   int opcode = I.getOpcode();
   char instruction_label[MAX_CHAR_BUFFER];
@@ -428,8 +427,8 @@ void translateVerilog(const Instruction &I)
       {
       printf("XLAT:           Ret");
       int parent_block = getLocalSlot(I.getParent());
-      printf("parent %d ret=%d/%d;", parent_block, globalFunction->getReturnType()->getTypeID(), operand_list_index);
-      if (globalFunction->getReturnType()->getTypeID() == Type::IntegerTyID && operand_list_index > 1) {
+      printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
+      if (return_type == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
           if (strlen(globalName) > 7 && !strcmp(globalName + strlen(globalName) - 7, "guardEv"))
@@ -833,36 +832,21 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void verilogFunction(Function *F)
-{
-  FunctionType *FT = F->getFunctionType();
-  char temp[MAX_CHAR_BUFFER];
-
-  globalFunction = F;
-  already_printed_header = 0;
-  strcpy(temp, globalName);
-  globalGuardName = NULL;
-  if (strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv")) {
-      strcat(temp + strlen(globalName) - 8, "guardEv");
-      globalGuardName = strdup(temp);
-  }
-  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-      if (I->hasName())         // Print out the label if it exists...
-          printf("LLLLL: %s\n", I->getName().str().c_str());
-      for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
-          translateVerilog(*ins);
-  }
-  clearLocalSlot();
-  if (globalGuardName && already_printed_header)
-      fprintf(outputFile, "end;\n");
-}
-
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
 {
-    int num_args = 0;
+    FunctionType *FT = F->getFunctionType();
+    char temp[MAX_CHAR_BUFFER];
+
+    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+        opt_runOnBasicBlock(*I);
+    printf("FULL_AFTER_OPT:\n");
+    F->dump();
+    printf("TRANSLATE:\n");
+
+    /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
-        num_args++;
         if (AI->hasByValAttr()) {
             printf("[%s] hasByVal param not supported\n", __FUNCTION__);
             exit(1);
@@ -883,38 +867,51 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-        opt_runOnBasicBlock(*I);
-    printf("FULLopt:\n");
-    F->dump();
-    printf("TRANSLATE:\n");
-    verilogFunction(F);
+
+    /* If this is an 'update' method, generate 'if guard' around instruction stream */
+    already_printed_header = 0;
+    strcpy(temp, globalName);
+    globalGuardName = NULL;
+    if (strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv")) {
+        strcat(temp + strlen(globalName) - 8, "guardEv");
+        globalGuardName = strdup(temp);
+    }
+    /* Generate Verilog for all instructions.  Record function calls for post processing */
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        if (I->hasName())         // Print out the label if it exists...
+            printf("LLLLL: %s\n", I->getName().str().c_str());
+        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
+            translateVerilog(F->getReturnType()->getTypeID(), *ins);
+    }
+    clearLocalSlot();
+    if (globalGuardName && already_printed_header)
+        fprintf(outputFile, "end;\n");
 }
 
 static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg)
 {
     int arr_size = 0;
     Function **vtab = thisp[0];
+    int i = 0;
 
+    if (method_index != -1)
+        i = method_index;
     const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     if (trace_full) {
         printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
     }
-    if (g) {
+    if (g && method_index == -1) {
         globalClassName = strdup(g->getName().str().c_str());
         if (g->getType()->getTypeID() == Type::PointerTyID) {
            Type *ty = g->getType()->getElementType();
            if (ty->getTypeID() == Type::ArrayTyID) {
                ArrayType *aty = cast<ArrayType>(ty);
-               arr_size = aty->getNumElements();
+               arr_size = aty->getNumElements() - 2;
            }
         }
     }
-    int i = 0;
-    if (method_index != -1)
-        i = method_index;
-    for (; i < arr_size-2; i++) {
+    while(1) {
        Function *f = vtab[i];
        globalName = strdup(f->getName().str().c_str());
        const char *cend = globalName + (strlen(globalName)-4);
@@ -928,7 +925,7 @@ static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg
                    processFunction(f, thisp, arg);
            }
        }
-       if (method_index != -1)
+       if (++i >= arr_size)
            break;
     }
 }
