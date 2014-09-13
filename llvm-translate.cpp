@@ -850,7 +850,6 @@ static void verilogFunction(Function *F)
   }
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
       if (I->hasName()) {              // Print out the label if it exists...
-          int current_block = getLocalSlot(I);
           printf("LLLLL: %s\n", I->getName().str().c_str());
       }
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
@@ -897,16 +896,10 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
 
 static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg)
 {
-int arr_size = 0;
-    const GlobalValue *g;
+    int arr_size = 0;
     Function **vtab = thisp[0];
 
-    for (int i = 0; i < 16; i++) {
-        g = EE->getGlobalValueAtAddress(vtab - 8 + i);
-        if (trace_full && g)
-            printf("[%s:%d]v %d g %p name %s\n", __FUNCTION__, __LINE__, - 8 + i, g, g->getName().str().c_str());
-    }
-    g = EE->getGlobalValueAtAddress(vtab-2);
+    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     if (trace_full) {
         printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
@@ -919,10 +912,6 @@ int arr_size = 0;
                ArrayType *aty = cast<ArrayType>(ty);
                arr_size = aty->getNumElements();
            }
-        }
-        if (trace_full) {
-            g->getType()->dump();
-            fprintf(stderr, "\n");
         }
     }
     int i = 0;
@@ -944,6 +933,18 @@ int arr_size = 0;
        }
        if (method_index != -1)
            break;
+    }
+}
+
+static void dump_list(Module *Mod, const char *cp, const char *style)
+{
+    GlobalValue *gv = Mod->getNamedValue(cp);
+    printf("dump_list: [%s] = %p\n", style, gv);
+    uint64_t **first = (uint64_t **)*(PointerTy *)EE->getPointerToGlobal(gv);
+    while (first) {                         // loop through linked list
+        printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
+        //dump_vtable((Function ***)first, -1, NULL);
+        first = (uint64_t **)first[1];        // first = first->next
     }
 }
 
@@ -1085,13 +1086,12 @@ static void dumpType(DIType litem)
         DIArray Elements = CTy.getTypeArray();
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-        if (v && (Node = dyn_cast<MDNode>(v))) {
-            if(global_classp && global_classp->inherit) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
-  }
-            if (global_classp)
-                global_classp->inherit = Node;
+        if (v && (Node = dyn_cast<MDNode>(v)) && global_classp) {
+            if(global_classp->inherit) {
+                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                exit(1);
+            }
+            global_classp->inherit = Node;
         }
         dumpTref(v);
         return;
@@ -1202,12 +1202,8 @@ void processSubprogram(DISubprogram sub)
   dumpType(DICompositeType(sub.getType()));
 }
 
-void dump_metadata(Module *Mod)
+void dump_metadata(NamedMDNode *CU_Nodes)
 {
-  NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-
-  if (!CU_Nodes)
-    return;
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
     DICompileUnit CU(CU_Nodes->getOperand(i));
     if (trace_meta)
@@ -1225,9 +1221,6 @@ void dump_metadata(Module *Mod)
     }
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-      // dump methods
-      if (trace_meta)
-      printf("[%s:%d]****** methods %d/%d\n", __FUNCTION__, __LINE__, i, e);
       processSubprogram(DISubprogram(SPs.getElement(i)));
     }
     DIArray EnumTypes = CU.getEnumTypes();
@@ -1258,27 +1251,12 @@ void dump_metadata(Module *Mod)
         }
       }
       else if (Entity.isNameSpace()) {
-        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         //DINameSpace(Entity).getContext()->dump();
       }
       else
         printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
     }
   }
-}
-
-static void dump_list(Module *Mod, const char *cp, const char *style)
-{
-    GlobalValue *gv = Mod->getNamedValue(cp);
-    printf("dump_list: [%s] = %p\n", style, gv);
-    PointerTy *Ptr = (PointerTy *)EE->getPointerToGlobal(gv);
-    printf("dump_list: [%s] = %p\n", gv->getName().str().c_str(), Ptr);
-    uint64_t **first = (uint64_t **)*Ptr;
-    while (first) {                         // loop through linked list
-        printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        //dump_vtable((Function ***)first, -1, NULL);
-        first = (uint64_t **)first[1];        // first = first->next
-    }
 }
 
 int main(int argc, char **argv, char * const *envp)
@@ -1377,8 +1355,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   EE->runStaticConstructorsDestructors(false);
 
   for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
-        Function *Fn = &*I;
-        if (Fn != EntryFn && !Fn->isDeclaration())
+      Function *Fn = &*I;
+      if (Fn != EntryFn && !Fn->isDeclaration())
           EE->getPointerToFunction(Fn);
   }
 
@@ -1388,7 +1366,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Run main.
   Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-  dump_metadata(Mod);
+  NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+  if (CU_Nodes)
+      dump_metadata(CU_Nodes);
 
   static DataLayout foo(Mod);
   TD = &foo;
