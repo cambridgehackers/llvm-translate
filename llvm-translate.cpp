@@ -117,24 +117,6 @@ static struct {
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
 
-static void memdump(unsigned char *p, int len, const char *title)
-{
-int i;
-
-    i = 0;
-    while (len > 0) {
-        if (!(i & 0xf)) {
-            if (i > 0)
-                printf("\n");
-            printf("%s: ",title);
-        }
-        printf("%02x ", *p++);
-        i++;
-        len--;
-    }
-    printf("\n");
-}
-
 void makeLocalSlot(const Value *V)
 {
   slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
@@ -496,18 +478,11 @@ void translateVerilog(const Instruction &I)
       break;
 
   // Standard binary operators...
-  case Instruction::Add:
-  case Instruction::FAdd:
-  case Instruction::Sub:
-  case Instruction::FSub:
-  case Instruction::Mul:
-  case Instruction::FMul:
-  case Instruction::UDiv:
-  case Instruction::SDiv:
-  case Instruction::FDiv:
-  case Instruction::URem:
-  case Instruction::SRem:
-  case Instruction::FRem:
+  case Instruction::Add: case Instruction::FAdd:
+  case Instruction::Sub: case Instruction::FSub:
+  case Instruction::Mul: case Instruction::FMul:
+  case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+  case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
 
   // Logical operators...
   case Instruction::And:
@@ -660,14 +635,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::SExt:
-  //case Instruction::FPTrunc:
-  //case Instruction::FPExt:
-  //case Instruction::FPToUI:
-  //case Instruction::FPToSI:
-  //case Instruction::UIToFP:
-  //case Instruction::SIToFP:
-  //case Instruction::IntToPtr:
-  //case Instruction::PtrToInt:
+  //case Instruction::FPTrunc: //case Instruction::FPExt:
+  //case Instruction::FPToUI: //case Instruction::FPToSI:
+  //case Instruction::UIToFP: //case Instruction::SIToFP:
+  //case Instruction::IntToPtr: //case Instruction::PtrToInt:
   case Instruction::BitCast:
       printf("XLAT:       BitCast");
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
@@ -939,7 +910,6 @@ int arr_size = 0;
     globalClassName = NULL;
     if (trace_full) {
         printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
-        memdump(((unsigned char *)thisp), 64, "THIS");
     }
     if (g) {
         globalClassName = strdup(g->getName().str().c_str());
@@ -977,40 +947,15 @@ int arr_size = 0;
     }
 }
 
-static void dump_type(Module *Mod, const char *p)
-{
-    StructType *tgv = Mod->getTypeByName(p);
-    printf("%s:] ", __FUNCTION__);
-    tgv->dump();
-    printf(" tgv %p\n", tgv);
-}
-
 void generate_verilog(Module *Mod)
 {
-  Function ***t;
-  uint64_t **modfirst;
-  GenericValue *Ptr;
-  GlobalValue *gv;
-  static DataLayout foo(Mod);
-
-  TD = &foo;
-  gv = Mod->getNamedValue("_ZN6Module5firstE");
-  //printf("\n\n");
-  //gv->dump();
-  //printf("[%s:%d] gv %p\n", __FUNCTION__, __LINE__, gv);
-  //printf("[%s:%d] gvname %s\n", __FUNCTION__, __LINE__, gv->getName().str().c_str());
-  //printf("[%s:%d] gvtype %p\n", __FUNCTION__, __LINE__, gv->getType());
-  Ptr = (GenericValue *)EE->getPointerToGlobal(gv);
-  //printf("[%s:%d] ptr %p\n", __FUNCTION__, __LINE__, Ptr);
-  modfirst = (uint64_t **)*(PointerTy*)Ptr;
-  //printf("[%s:%d] value of Module::first %p\n", __FUNCTION__, __LINE__, modfirst);
-  dump_type(Mod, "class.Module");
-  dump_type(Mod, "class.Rule");
+  GlobalValue *gv = Mod->getNamedValue("_ZN6Module5firstE");
+  uint64_t **modfirst = (uint64_t **)*(PointerTy*)EE->getPointerToGlobal(gv);
 
   while (modfirst) { /* loop through all modules */
     printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
     dump_vtable((Function ***)modfirst, -1, NULL);
-    t = (Function ***)modfirst[1];        // Module.rfirst
+    Function ***t = (Function ***)modfirst[1];        // Module.rfirst
     modfirst = (uint64_t **)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
@@ -1445,6 +1390,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   dump_metadata(Mod);
 
+  static DataLayout foo(Mod);
+  TD = &foo;
   generate_verilog(Mod);
 
   dump_class_data();
