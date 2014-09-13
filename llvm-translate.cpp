@@ -728,9 +728,8 @@ printf("[%s:%d] cond %s\n", __FUNCTION__, __LINE__, slotarray[cond_item].name);
       extra_vtab_index++;
       slotarray[operand_list[0].value].name = strdup(cp);
       const Instruction *t = (const Instruction *)val;
-      //if (trace_full)
-          printf ("CALL[%p=%s]", t, t->getName().str().c_str());
-printf("[%s:%d] cp %s\n", __FUNCTION__, __LINE__, cp);
+      if (trace_full)
+          printf ("CALL[%p=%s, %s]", t, t->getName().str().c_str(), cp);
       dump_operands = 1;
       }
       break;
@@ -800,8 +799,7 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
                     if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
                         newt = PN->getOperand(0);
                     for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
-                        Value *val = *OI;
-                        if (val == retv && newt)
+                        if (*OI == retv && newt)
                             *OI = newt;
                     }
                     if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
@@ -849,9 +847,8 @@ static void verilogFunction(Function *F)
       globalGuardName = strdup(temp);
   }
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-      if (I->hasName()) {              // Print out the label if it exists...
+      if (I->hasName())         // Print out the label if it exists...
           printf("LLLLL: %s\n", I->getName().str().c_str());
-      }
       for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
           translateVerilog(*ins);
   }
