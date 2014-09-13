@@ -861,7 +861,7 @@ static void verilogFunction(Function *F)
       fprintf(outputFile, "end;\n");
 }
 
-static void processFunction(Function *F, Function ***thisp, SLOTARRAY_TYPE *arg)
+static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
 {
     int num_args = 0;
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
@@ -899,7 +899,7 @@ static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg
 {
 int arr_size = 0;
     const GlobalValue *g;
-    Function **vtab = (Function **)thisp[0];
+    Function **vtab = thisp[0];
 
     for (int i = 0; i < 16; i++) {
         g = EE->getGlobalValueAtAddress(vtab - 8 + i);
@@ -950,18 +950,18 @@ int arr_size = 0;
 void generate_verilog(Module *Mod)
 {
   GlobalValue *gv = Mod->getNamedValue("_ZN6Module5firstE");
-  uint64_t **modfirst = (uint64_t **)*(PointerTy*)EE->getPointerToGlobal(gv);
+  Function ***modfirst = (Function ***)*(PointerTy*)EE->getPointerToGlobal(gv);
 
   while (modfirst) { /* loop through all modules */
     printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-    dump_vtable((Function ***)modfirst, -1, NULL);
-    Function ***t = (Function ***)modfirst[1];        // Module.rfirst
-    modfirst = (uint64_t **)modfirst[2]; // Module.next
+    dump_vtable(modfirst, -1, NULL);
+    Function **t = modfirst[1];        // Module.rfirst
+    modfirst = (Function ***)modfirst[2]; // Module.next
 
     while (t) {      /* loop through all rules for this module */
       printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-      dump_vtable(t, -1, NULL);
-      t = (Function ***)t[1];             // Rule.next
+      dump_vtable((Function ***)t, -1, NULL);
+      t = (Function **)t[1];             // Rule.next
     }
   }
 }
