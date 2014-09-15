@@ -1,9 +1,11 @@
 
 
 
-0) git checkout remotes/origin/release_34atomicc1 -b release_34atomicc1
+0) 
+    git clone git://github.com/cambridgehackers/llvm -b release_34atomicc1
+    sudo apt-get install libffi-dev
 
-1) cd ../llvm 
+1) cd llvm 
     mkdir build
     cd build
     source ../../llvm-translate/configure_llvm
