@@ -954,23 +954,19 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     }
 }
 
-void generate_verilog(Module *Mod)
+static void generate_verilog(Function ***modfirst)
 {
-  GlobalValue *gv = Mod->getNamedValue("_ZN6Module5firstE");
-  Function ***modfirst = (Function ***)*(PointerTy*)EE->getPointerToGlobal(gv);
-
-  while (modfirst) { /* loop through all modules */
-    printf("Module vtab %p rfirst %p next %p\n\n", modfirst[0], modfirst[1], modfirst[2]);
-    dump_vtable(modfirst, -1, NULL);
-    Function **t = modfirst[1];        // Module.rfirst
-    modfirst = (Function ***)modfirst[2]; // Module.next
-
-    while (t) {      /* loop through all rules for this module */
-      printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-      dump_vtable((Function ***)t, -1, NULL);
-      t = (Function **)t[1];             // Rule.next
+    while (modfirst) {                   // loop through all modules
+        printf("Module %p: vtab %p rfirst %p next %p\n\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
+        dump_vtable(modfirst, -1, NULL);
+        Function **t = modfirst[1];        // Module.rfirst
+        while (t) {                        // loop through all rules for module
+            printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
+            dump_vtable((Function ***)t, -1, NULL);
+            t = (Function **)t[1];           // Rule.next
+        }
+        modfirst = (Function ***)modfirst[2]; // Module.next
     }
-  }
 }
 
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
@@ -1207,6 +1203,30 @@ void processSubprogram(DISubprogram sub)
   //processSubprogram(DISubprogram(sub.getFunctionDeclaration()));
   dumpType(DICompositeType(sub.getType()));
 }
+static void dump_struct(DICompositeType CTy, void *addr)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    sprintf(temp, "class.%s", CTy.getName().str().c_str());
+      //printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
+    CLASS_META *classp = class_data;
+    CLASS_META_MEMBER *classm;
+    for (int i = 0; i < class_data_index; i++) {
+      if (!strcmp(temp, classp->name))
+          goto check_offset;
+      classp++;
+    }
+printf("[%s:%d] class '%s' not found\n", __FUNCTION__, __LINE__, temp);
+    return;
+  check_offset:
+    classm = classp->member;
+    for (int ind = 0; ind < classp->member_count; ind++) {
+        DIType Ty(classm->node);
+        uint64_t off = Ty.getOffsetInBits()/8; //(long)litem.getSizeInBits()/8);
+        uint64_t **p = (uint64_t **)(((char *)addr) + off);
+printf("[%s:%d] [%lld] %s %p\n", __FUNCTION__, __LINE__, (long long)off, classm->name, *p);
+        classm++;
+    }
+}
 
 void dump_metadata(NamedMDNode *CU_Nodes)
 {
@@ -1216,15 +1236,6 @@ void dump_metadata(NamedMDNode *CU_Nodes)
     printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
          // from DIScope:
          CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
-    DIArray GVs = CU.getGlobalVariables();
-    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-      DIGlobalVariable DIG(GVs.getElement(i));
-      if (trace_meta) {
-      printf("[%s:%d]globalvar\n", __FUNCTION__, __LINE__);
-      DIG.dump();
-      }
-      format_type(DIG.getType());
-    }
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       processSubprogram(DISubprogram(SPs.getElement(i)));
@@ -1261,6 +1272,31 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       }
       else
         printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
+    }
+    DIArray GVs = CU.getGlobalVariables();
+    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+      trace_meta++;
+      DIGlobalVariable DIG(GVs.getElement(i));
+      const GlobalVariable *gv = DIG.getGlobal();
+      //const Constant *con = DIG.getConstant();
+      const Value *val = dyn_cast<Value>(gv);
+      const char *cp = DIG.getLinkageName().str().c_str();
+      if (!cp || !strlen(cp))
+          cp = DIG.getName().str().c_str();
+      void *addr = EE->getPointerToGlobal(gv);
+      printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp, gv, val->getType()->getTypeID(), addr);
+      format_type(DIG.getType());
+      trace_meta--;
+#if 1
+      DICompositeType CTy(DIG.getType());
+      int tag = CTy.getTag();
+      printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
+      if (tag == dwarf::DW_TAG_class_type) {
+          dump_struct(CTy, addr);
+          //dumpTref(CTy.getTypeDerivedFrom());
+          //return;
+      }
+#endif
     }
   }
 }
@@ -1402,20 +1438,21 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   if (CU_Nodes)
       dump_metadata(CU_Nodes);
+#if 0
   {
   MutexGuard locked(EE->lock);
-#if 0
   for (ExecutionEngineState::GlobalAddressMapTy::iterator
       I = EE->EEState.getGlobalAddressMap(locked).begin(),
       E = EE->EEState.getGlobalAddressMap(locked).end(); I != E; ++I) {
       //printf("[%s:%d] I %p %s\n", __FUNCTION__, __LINE__, I->second, I->first->getName().str().c_str());
       mapitem.push_back(mappair(I->second, I->first));
   }
+  }
 #endif
   mapitem.sort(mapcompare);
-  }
 
-  generate_verilog(Mod);
+  GlobalValue *gvmodfirst = Mod->getNamedValue("_ZN6Module5firstE");
+  generate_verilog((Function ***)*(PointerTy*)EE->getPointerToGlobal(gvmodfirst));
 
   dump_class_data();
 
