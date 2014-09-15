@@ -43,6 +43,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/MutexGuard.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
@@ -337,9 +338,9 @@ uint64_t getOperandValue(const Value *Operand)
   return rv;
 }
 
-static DataLayout *TD;
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
+  const DataLayout *TD = EE->getDataLayout();
   uint64_t Total = 0; 
   for (; I != E; ++I) {
     if (StructType *STy = dyn_cast<StructType>(*I)) {
@@ -366,6 +367,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 static int dummyval;
 static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 {
+  const DataLayout *TD = EE->getDataLayout();
   const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
   uint64_t rv = 0;
 
@@ -518,10 +520,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       Type *element = NULL;
       int eltype = -1;
       Type *topty = I.getOperand(0)->getType();
+      int ptrlevel = 0;
       while (topty->getTypeID() == Type::PointerTyID) {
           PointerType *PTy = cast<PointerType>(topty);
           element = PTy->getElementType();
           eltype = element->getTypeID();
+          ptrlevel++;
           if (eltype != Type::PointerTyID)
               break;
           topty = element;
@@ -534,7 +538,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               printf("[%s:%d] g2 %p value %p\n", __FUNCTION__, __LINE__, g, value);
           if (g)  // remember the name of where this value came from
               slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
-          }
+      }
+      else
+printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
       }
       break;
   case Instruction::Store:
@@ -609,6 +615,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               mcp = "";
           }
           sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
+printf("[%s:%d] ptr %p g %p temp '%s'\n", __FUNCTION__, __LINE__, ptr, g, temp);
           slotarray[operand_list[0].value].name = strdup(temp);
       }
       slotarray[operand_list[0].value].svalue = ptr;
@@ -896,6 +903,11 @@ static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg
 
     if (method_index != -1)
         i = method_index;
+    for (int j = 0; j < 16; j++) {
+        const GlobalValue *g = EE->getGlobalValueAtAddress((void *)(((long)thisp) - 32 + j*4));
+if (g)
+printf("[%s:%d] [%d] %p\n", __FUNCTION__, __LINE__, j, g);
+    }
     const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     if (trace_full) {
@@ -1253,6 +1265,30 @@ void dump_metadata(NamedMDNode *CU_Nodes)
   }
 }
 
+typedef std::pair<void *, const GlobalValue *> mappair;
+std::list<mappair> mapitem;
+static bool mapcompare(const mappair &a, const mappair &b) { return a.first < b.first; }
+static char *map_address(void *arg)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    void *lastp = NULL;
+    const GlobalValue *lastg = NULL;
+    for (std::list<mappair>::const_iterator MI = mapitem.begin(), ME = mapitem.end(); MI != ME; MI++) {
+        //printf("%p %s\n", MI->first, MI->second->getName().str().c_str());
+        if (arg < MI->first) {
+            if (!lastp) {
+                sprintf(temp, "%p", arg);
+                return temp;
+            }
+            break;
+        }
+        lastp = MI->first;
+        lastg = MI->second;
+    }
+    sprintf(temp, "%s+%ld", lastg->getName().str().c_str(), ((char *)arg) - (char *)lastp);
+    return temp;
+}
+
 int main(int argc, char **argv, char * const *envp)
 {
   SMDiagnostic Err;
@@ -1363,9 +1399,19 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   if (CU_Nodes)
       dump_metadata(CU_Nodes);
+  {
+  MutexGuard locked(EE->lock);
+#if 0
+  for (ExecutionEngineState::GlobalAddressMapTy::iterator
+      I = EE->EEState.getGlobalAddressMap(locked).begin(),
+      E = EE->EEState.getGlobalAddressMap(locked).end(); I != E; ++I) {
+      //printf("[%s:%d] I %p %s\n", __FUNCTION__, __LINE__, I->second, I->first->getName().str().c_str());
+      mapitem.push_back(mappair(I->second, I->first));
+  }
+#endif
+  mapitem.sort(mapcompare);
+  }
 
-  static DataLayout foo(Mod);
-  TD = &foo;
   generate_verilog(Mod);
 
   dump_class_data();
@@ -1377,7 +1423,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
           extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
+      printf("thisp %s\n", map_address(extra_vtab[i].called.svalue));
+      if (map_address(extra_vtab[i].arg.svalue))
+          printf("arg %s\n", map_address(extra_vtab[i].arg.svalue));
+      printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0]));
+      //dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
