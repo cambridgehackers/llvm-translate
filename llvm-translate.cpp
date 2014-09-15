@@ -1285,7 +1285,10 @@ static char *map_address(void *arg)
         lastp = MI->first;
         lastg = MI->second;
     }
+    if (lastg)
     sprintf(temp, "%s+%ld", lastg->getName().str().c_str(), ((char *)arg) - (char *)lastp);
+    else
+    sprintf(temp, "%p", arg);
     return temp;
 }
 
@@ -1427,7 +1430,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       if (map_address(extra_vtab[i].arg.svalue))
           printf("arg %s\n", map_address(extra_vtab[i].arg.svalue));
       printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0]));
-      //dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
+      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
