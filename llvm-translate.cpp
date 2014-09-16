@@ -117,6 +117,8 @@ static struct {
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
 
+static const char *map_address(void *arg, std::string name);
+
 void makeLocalSlot(const Value *V)
 {
   slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
@@ -615,7 +617,7 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
               mcp = "";
           }
           sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
-printf("[%s:%d] ptr %p g %p temp '%s'\n", __FUNCTION__, __LINE__, ptr, g, temp);
+printf("[%s:%d] ptr %p g %p temp '%s' map %s\n", __FUNCTION__, __LINE__, ptr, g, temp, map_address(ptr, ""));
           slotarray[operand_list[0].value].name = strdup(temp);
       }
       slotarray[operand_list[0].value].svalue = ptr;
@@ -1127,12 +1129,30 @@ static void dumpType(DIType litem)
         }
     }
 }
-static std::map<std::string, int> already_seen;
+static std::map<void *, std::string> mapitem;
+static const char *map_address(void *arg, std::string name)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
+    if (g)
+        mapitem[arg] = g->getName().str();
+    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
+    if (MI != mapitem.end())
+        return MI->second.c_str();
+    if (name.length() != 0) {
+        mapitem[arg] = name;
+        return name.c_str();
+    }
+    sprintf(temp, "%p", arg);
+    return temp;
+}
 static void mapType(DICompositeType CTy, char *addr, std::string aname)
 {
 static int slevel;
     int tag = CTy.getTag();
     std::string name = CTy.getName().str();
+    if (!name.length())
+        name = CTy.getName().str();
     std::string fname = name;
     if (aname.length() > 0)
         fname = aname + ":" + name;
@@ -1140,23 +1160,33 @@ static int slevel;
     long offset = (long)CTy.getOffsetInBits()/8;
     addr += offset;
     char *addr_target = *(char **)addr;
-    if (tag != dwarf::DW_TAG_subprogram) {
-        printf(" %d SSSStag %s name %s addr %p off %3ld ", slevel, dwarf::TagString(tag), cp, addr, offset);
-        printf("val %p\n", addr_target);
+    if (mapitem.find(addr) != mapitem.end()) {
+        //printf("**** ");
+        //return;
     }
-    std::map<std::string, int>::iterator FI = already_seen.find(name);
-    if (FI == already_seen.end())
-        already_seen[name] = 0;
-    //if (already_seen[name]++ > 2) return;
-    if (name == "first" || name == "module") return;
-    slevel++;
-    if (tag == dwarf::DW_TAG_pointer_type && addr_target) {
+    if (tag == dwarf::DW_TAG_pointer_type) {
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-        if (val && (Node = dyn_cast<MDNode>(val)))
+        if (addr_target && val && (Node = dyn_cast<MDNode>(val)))
             mapType(DICompositeType(Node), addr_target, fname);
+        return;
     }
-    else if (tag == dwarf::DW_TAG_inheritance
+    if (tag != dwarf::DW_TAG_subprogram
+     && tag != dwarf::DW_TAG_subroutine_type
+     && tag != dwarf::DW_TAG_class_type
+     && tag != dwarf::DW_TAG_inheritance
+     && tag != dwarf::DW_TAG_base_type) {
+        printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
+        if (CTy.isStaticMember()) {
+            printf("STATIC\n");
+            return;
+        }
+        printf("addr [%s]=val %s\n", map_address(addr, fname), map_address(addr_target, ""));
+    }
+    if (name == "first" || name == "module") return;
+//if (slevel > 3) return;
+    slevel++;
+    if (tag == dwarf::DW_TAG_inheritance
      || tag == dwarf::DW_TAG_member
      || CTy.isCompositeType()) {
         DIArray Elements = CTy.getTypeArray();
@@ -1298,6 +1328,18 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       const GlobalVariable *gv = DIG.getGlobal();
       //const Constant *con = DIG.getConstant();
       const Value *val = dyn_cast<Value>(gv);
+      std::string cp = DIG.getLinkageName().str();
+      if (!cp.length())
+          cp = DIG.getName().str();
+      void *addr = EE->getPointerToGlobal(gv);
+      printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID(), addr);
+      mapitem[addr] = cp;
+    }
+    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+      DIGlobalVariable DIG(GVs.getElement(i));
+      const GlobalVariable *gv = DIG.getGlobal();
+      //const Constant *con = DIG.getConstant();
+      const Value *val = dyn_cast<Value>(gv);
       const char *cp = DIG.getLinkageName().str().c_str();
       if (!cp || !strlen(cp))
           cp = DIG.getName().str().c_str();
@@ -1309,39 +1351,11 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       int tag = CTy.getTag();
       printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
       if (tag == dwarf::DW_TAG_class_type) {
-          already_seen.clear();
           mapType(CTy, (char *)addr, "");
       }
 #endif
     }
   }
-}
-
-typedef std::pair<void *, const GlobalValue *> mappair;
-std::list<mappair> mapitem;
-static bool mapcompare(const mappair &a, const mappair &b) { return a.first < b.first; }
-static char *map_address(void *arg)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    void *lastp = NULL;
-    const GlobalValue *lastg = NULL;
-    for (std::list<mappair>::const_iterator MI = mapitem.begin(), ME = mapitem.end(); MI != ME; MI++) {
-        //printf("%p %s\n", MI->first, MI->second->getName().str().c_str());
-        if (arg < MI->first) {
-            if (!lastp) {
-                sprintf(temp, "%p", arg);
-                return temp;
-            }
-            break;
-        }
-        lastp = MI->first;
-        lastg = MI->second;
-    }
-    if (lastg)
-    sprintf(temp, "%s+%ld", lastg->getName().str().c_str(), ((char *)arg) - (char *)lastp);
-    else
-    sprintf(temp, "%p", arg);
-    return temp;
 }
 
 int main(int argc, char **argv, char * const *envp)
@@ -1464,10 +1478,13 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       mapitem.push_back(mappair(I->second, I->first));
   }
   }
-#endif
   mapitem.sort(mapcompare);
+#endif
 
   GlobalValue *gvmodfirst = Mod->getNamedValue("_ZN6Module5firstE");
+  uint64_t **p9 = (uint64_t **)EE->getPointerToGlobal(gvmodfirst);
+printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, p9, *p9);
+//exit(1);
   generate_verilog((Function ***)*(PointerTy*)EE->getPointerToGlobal(gvmodfirst));
 
   dump_class_data();
@@ -1479,10 +1496,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
           extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
           extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      printf("thisp %s\n", map_address(extra_vtab[i].called.svalue));
-      if (map_address(extra_vtab[i].arg.svalue))
-          printf("arg %s\n", map_address(extra_vtab[i].arg.svalue));
-      printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0]));
+      printf("thisp %s\n", map_address(extra_vtab[i].called.svalue, ""));
+      if (map_address(extra_vtab[i].arg.svalue, ""))
+          printf("arg %s\n", map_address(extra_vtab[i].arg.svalue, ""));
+      printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0], ""));
       dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
