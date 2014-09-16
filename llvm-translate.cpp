@@ -1144,9 +1144,15 @@ static const char *map_address(void *arg, std::string name)
     if (g)
         mapitem[arg] = g->getName().str();
     std::map<void *, std::string>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end())
+    if (MI != mapitem.end()) {
+        if (name.length() && name.length() < MI->second.length()) {
+printf("\n[%s:%d] changed name '%s' to '%s'", __FUNCTION__, __LINE__, MI->second.c_str(), name.c_str());
+            MI->second = name;
+        }
         return MI->second.c_str();
+    }
     if (name.length() != 0) {
+printf("\n[%s:%d] new %p = %s;", __FUNCTION__, __LINE__, arg, name.c_str());
         mapitem[arg] = name;
         return name.c_str();
     }
@@ -1172,15 +1178,13 @@ static int slevel;
             char temp[MAX_CHAR_BUFFER];
             sprintf(temp, "class.%s", ret+11);
             CLASS_META *classp = lookup_class(temp);
-            printf("[%s:%d] oldname %s %s %p\n", __FUNCTION__, __LINE__, name.c_str(), temp, classp);
             if (!classp) {
                 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                 exit(1);
             }
             name = ret+11;
-            if (!derived) {
-            CTy = DICompositeType(classp->node);
-            }
+            if (!derived)
+                CTy = DICompositeType(classp->node);
         }
     }
     if (aname.length() > 0)
@@ -1206,6 +1210,7 @@ static int slevel;
         mapType(0, derivType, addr_target, fname);
         return;
     }
+    map_address(addr, fname);
     if (tag != dwarf::DW_TAG_subprogram
      && tag != dwarf::DW_TAG_subroutine_type
      && tag != dwarf::DW_TAG_class_type
@@ -1216,7 +1221,7 @@ static int slevel;
             printf("STATIC\n");
             return;
         }
-        printf("addr [%p:%s]=val %s derived %d\n", addr, map_address(addr, fname), map_address(addr_target, ""), derived);
+        printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
     if (name == "first" || name == "module") return;
     if (name == "rfirst" || name == "next") return;
@@ -1505,23 +1510,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   if (CU_Nodes)
       dump_metadata(CU_Nodes);
-#if 0
-  {
-  MutexGuard locked(EE->lock);
-  for (ExecutionEngineState::GlobalAddressMapTy::iterator
-      I = EE->EEState.getGlobalAddressMap(locked).begin(),
-      E = EE->EEState.getGlobalAddressMap(locked).end(); I != E; ++I) {
-      //printf("[%s:%d] I %p %s\n", __FUNCTION__, __LINE__, I->second, I->first->getName().str().c_str());
-      mapitem.push_back(mappair(I->second, I->first));
-  }
-  }
-  mapitem.sort(mapcompare);
-#endif
 
   GlobalValue *gvmodfirst = Mod->getNamedValue("_ZN6Module5firstE");
-  uint64_t **p9 = (uint64_t **)EE->getPointerToGlobal(gvmodfirst);
-printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, p9, *p9);
-//exit(1);
   generate_verilog((Function ***)*(PointerTy*)EE->getPointerToGlobal(gvmodfirst));
 
   dump_class_data();
