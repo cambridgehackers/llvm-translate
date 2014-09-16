@@ -1164,45 +1164,29 @@ static int slevel;
     if (!name.length())
         name = CTy.getName().str();
     std::string fname = name;
-    if (aname.length() > 0)
-        fname = aname + ":" + name;
-if (name == "Fifo<int>")
-printf("[%s:%d] name %s %s ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag));
-    const char *cp = fname.c_str();
-        const GlobalValue *g = NULL;
-        if (tag == dwarf::DW_TAG_class_type)
-            g = EE->getGlobalValueAtAddress((((uint64_t ***)addr_target))-2);
-        if (g) {
-            const char *classp = g->getName().str().c_str();
-            int status;
-            const char *ret = abi::__cxa_demangle(classp, 0, 0, &status);
-            printf("[%s:%d] %s %p derived %d CCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__, ret, ((uint64_t *)addr_target)-2, derived);
-            if (!strncmp(ret, "vtable for ", 11)) {
-                char temp[MAX_CHAR_BUFFER];
-                sprintf(temp, "class.%s", ret+11);
-                CLASS_META *classp = lookup_class(temp);
-                printf("[%s:%d] oldname %s %s %p\n", __FUNCTION__, __LINE__, name.c_str(), temp, classp);
-                if (!classp) {
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
-                name = ret+11;
-static int once = 0;
-if (!derived)
-printf("[%s:%d]replaceEEEEE %d EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n", __FUNCTION__, __LINE__, once);
-if (!derived && once < 99) {
-once++;
-printf("old"); CTy.dump();
-                CTy = DICompositeType(classp->node);
-printf("new"); CTy.dump();
-    std::string fname = name;
-    if (aname.length() > 0)
-        fname = aname + ":" + name;
-}
+    const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
+    if (tag == dwarf::DW_TAG_class_type && g) {
+        int status;
+        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+        if (!strncmp(ret, "vtable for ", 11)) {
+            char temp[MAX_CHAR_BUFFER];
+            sprintf(temp, "class.%s", ret+11);
+            CLASS_META *classp = lookup_class(temp);
+            printf("[%s:%d] oldname %s %s %p\n", __FUNCTION__, __LINE__, name.c_str(), temp, classp);
+            if (!classp) {
+                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                exit(1);
+            }
+            name = ret+11;
+            if (!derived) {
+            CTy = DICompositeType(classp->node);
             }
         }
+    }
+    if (aname.length() > 0)
+        fname = aname + ":" + name;
+    const char *cp = fname.c_str();
     if (tag == dwarf::DW_TAG_pointer_type) {
-printf(" %d SSSStag %20s name %30s addr %p addr_target %p derived %d\n", slevel, dwarf::TagString(tag), cp, addr, addr_target, derived);
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *derivedNode = NULL;
         if (!addr_target)
@@ -1224,7 +1208,7 @@ printf(" %d SSSStag %20s name %30s addr %p addr_target %p derived %d\n", slevel,
     }
     if (tag != dwarf::DW_TAG_subprogram
      && tag != dwarf::DW_TAG_subroutine_type
-     //&& tag != dwarf::DW_TAG_class_type
+     && tag != dwarf::DW_TAG_class_type
      && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
         printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
@@ -1237,10 +1221,6 @@ printf(" %d SSSStag %20s name %30s addr %p addr_target %p derived %d\n", slevel,
     if (name == "first" || name == "module") return;
     if (name == "rfirst" || name == "next") return;
     slevel++;
-if (slevel > 24) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
     if (tag == dwarf::DW_TAG_inheritance
      || tag == dwarf::DW_TAG_member
      || CTy.isCompositeType()) {
