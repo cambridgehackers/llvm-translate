@@ -1127,6 +1127,49 @@ static void dumpType(DIType litem)
         }
     }
 }
+static std::map<std::string, int> already_seen;
+static void mapType(DICompositeType CTy, char *addr, std::string aname)
+{
+static int slevel;
+    int tag = CTy.getTag();
+    std::string name = CTy.getName().str();
+    std::string fname = name;
+    if (aname.length() > 0)
+        fname = aname + ":" + name;
+    const char *cp = fname.c_str();
+    long offset = (long)CTy.getOffsetInBits()/8;
+    addr += offset;
+    char *addr_target = *(char **)addr;
+    if (tag != dwarf::DW_TAG_subprogram) {
+        printf(" %d SSSStag %s name %s addr %p off %3ld ", slevel, dwarf::TagString(tag), cp, addr, offset);
+        printf("val %p\n", addr_target);
+    }
+    std::map<std::string, int>::iterator FI = already_seen.find(name);
+    if (FI == already_seen.end())
+        already_seen[name] = 0;
+    //if (already_seen[name]++ > 2) return;
+    if (name == "first" || name == "module") return;
+    slevel++;
+    if (tag == dwarf::DW_TAG_pointer_type && addr_target) {
+        const Value *val = CTy.getTypeDerivedFrom();
+        const MDNode *Node;
+        if (val && (Node = dyn_cast<MDNode>(val)))
+            mapType(DICompositeType(Node), addr_target, fname);
+    }
+    else if (tag == dwarf::DW_TAG_inheritance
+     || tag == dwarf::DW_TAG_member
+     || CTy.isCompositeType()) {
+        DIArray Elements = CTy.getTypeArray();
+        const Value *val = CTy.getTypeDerivedFrom();
+        const MDNode *Node;
+        if (tag != dwarf::DW_TAG_subroutine_type && val && (Node = dyn_cast<MDNode>(val)))
+            mapType(DICompositeType(Node), addr, fname);
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
+            mapType(DICompositeType(Elements.getElement(k)), addr, fname);
+    }
+    slevel--;
+}
+
 void format_type(DIType DT)
 {
     dumpType(DT);
@@ -1203,30 +1246,6 @@ void processSubprogram(DISubprogram sub)
   //processSubprogram(DISubprogram(sub.getFunctionDeclaration()));
   dumpType(DICompositeType(sub.getType()));
 }
-static void dump_struct(DICompositeType CTy, void *addr)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "class.%s", CTy.getName().str().c_str());
-      //printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
-    CLASS_META *classp = class_data;
-    CLASS_META_MEMBER *classm;
-    for (int i = 0; i < class_data_index; i++) {
-      if (!strcmp(temp, classp->name))
-          goto check_offset;
-      classp++;
-    }
-printf("[%s:%d] class '%s' not found\n", __FUNCTION__, __LINE__, temp);
-    return;
-  check_offset:
-    classm = classp->member;
-    for (int ind = 0; ind < classp->member_count; ind++) {
-        DIType Ty(classm->node);
-        uint64_t off = Ty.getOffsetInBits()/8; //(long)litem.getSizeInBits()/8);
-        uint64_t **p = (uint64_t **)(((char *)addr) + off);
-printf("[%s:%d] [%lld] %s %p\n", __FUNCTION__, __LINE__, (long long)off, classm->name, *p);
-        classm++;
-    }
-}
 
 void dump_metadata(NamedMDNode *CU_Nodes)
 {
@@ -1275,7 +1294,6 @@ void dump_metadata(NamedMDNode *CU_Nodes)
     }
     DIArray GVs = CU.getGlobalVariables();
     for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-      trace_meta++;
       DIGlobalVariable DIG(GVs.getElement(i));
       const GlobalVariable *gv = DIG.getGlobal();
       //const Constant *con = DIG.getConstant();
@@ -1286,15 +1304,13 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       void *addr = EE->getPointerToGlobal(gv);
       printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp, gv, val->getType()->getTypeID(), addr);
       format_type(DIG.getType());
-      trace_meta--;
 #if 1
       DICompositeType CTy(DIG.getType());
       int tag = CTy.getTag();
       printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
       if (tag == dwarf::DW_TAG_class_type) {
-          dump_struct(CTy, addr);
-          //dumpTref(CTy.getTypeDerivedFrom());
-          //return;
+          already_seen.clear();
+          mapType(CTy, (char *)addr, "");
       }
 #endif
     }
