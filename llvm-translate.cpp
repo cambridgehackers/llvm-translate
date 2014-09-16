@@ -1145,20 +1145,35 @@ static const char *map_address(void *arg, std::string name)
         mapitem[arg] = g->getName().str();
     std::map<void *, std::string>::iterator MI = mapitem.find(arg);
     if (MI != mapitem.end()) {
-        if (name.length() && name.length() < MI->second.length()) {
-printf("\n[%s:%d] changed name '%s' to '%s'", __FUNCTION__, __LINE__, MI->second.c_str(), name.c_str());
-            MI->second = name;
-        }
+        //if (name.length() && name.length() < MI->second.length()) {
+//printf("\n[%s:%d] changed name '%s' to '%s'", __FUNCTION__, __LINE__, MI->second.c_str(), name.c_str());
+            //MI->second = name;
+        //}
         return MI->second.c_str();
     }
     if (name.length() != 0) {
-printf("\n[%s:%d] new %p = %s;", __FUNCTION__, __LINE__, arg, name.c_str());
+//printf("\n[%s:%d] new %p = %s;", __FUNCTION__, __LINE__, arg, name.c_str());
         mapitem[arg] = name;
         return name.c_str();
     }
     sprintf(temp, "%p", arg);
     return temp;
 }
+class MAPTYPE_WORK {
+public:
+    int derived;
+    DICompositeType CTy;
+    char *addr;
+    std::string aname;
+    MAPTYPE_WORK(int a, DICompositeType b, char *c, std::string d) {
+       derived = a;
+       CTy = b;
+       addr = c;
+       aname = d;
+    }
+};
+static std::list<MAPTYPE_WORK> mapwork;
+
 static void mapType(int derived, DICompositeType CTy, char *addr, std::string aname)
 {
 static int slevel;
@@ -1207,7 +1222,8 @@ static int slevel;
         printf("****\n");
         return;
     }
-        mapType(0, derivType, addr_target, fname);
+        //mapType(0, derivType, addr_target, fname);
+        mapwork.push_back(MAPTYPE_WORK(0, derivType, addr_target, fname));
         return;
     }
     map_address(addr, fname);
@@ -1234,10 +1250,14 @@ static int slevel;
         if (val)
             derivedNode = dyn_cast<MDNode>(val);
         DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
-            mapType(1, DICompositeType(derivedNode), addr, fname);
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
-            mapType(0, DICompositeType(Elements.getElement(k)), addr, fname);
+        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode) {
+            //mapType(1, DICompositeType(derivedNode), addr, fname);
+            mapwork.push_back(MAPTYPE_WORK(1, DICompositeType(derivedNode), addr, fname));
+        }
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
+            //mapType(0, DICompositeType(Elements.getElement(k)), addr, fname);
+            mapwork.push_back(MAPTYPE_WORK(0, DICompositeType(Elements.getElement(k)), addr, fname));
+        }
     }
     slevel--;
 }
@@ -1394,6 +1414,11 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
       if (tag == dwarf::DW_TAG_class_type) {
           mapType(1, CTy, (char *)addr, "");
+          while (mapwork.begin() != mapwork.end()) {
+              MAPTYPE_WORK foo = *mapwork.begin();
+              mapType(foo.derived, foo.CTy, foo.addr, foo.aname);
+              mapwork.pop_front();
+          }
       }
 #endif
     }
