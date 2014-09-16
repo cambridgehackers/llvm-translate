@@ -621,8 +621,8 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
               mcp = "";
           }
           sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
-printf("\n[%s:%d] ptr %p g %p temp '%s' map %s;", __FUNCTION__, __LINE__, ptr, g, temp, map_address(ptr, ""));
-          slotarray[operand_list[0].value].name = strdup(temp);
+//printf("\n[%s:%d] ptr %p g %p temp '%s' map %s;", __FUNCTION__, __LINE__, ptr, g, temp, map_address(ptr, ""));
+          slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
       }
       slotarray[operand_list[0].value].svalue = ptr;
       slotarray[operand_list[0].value].offset = Total;
