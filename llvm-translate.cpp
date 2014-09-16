@@ -1164,21 +1164,23 @@ static int slevel;
     if (!name.length())
         name = CTy.getName().str();
     const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
-    if (tag == dwarf::DW_TAG_class_type && g) {
+    //if (tag == dwarf::DW_TAG_class_type && g) {
+    if (tag == dwarf::DW_TAG_pointer_type && g) {
         const char *classp = g->getName().str().c_str();
         int status;
         const char *ret = abi::__cxa_demangle(classp, 0, 0, &status);
-        printf("[%s:%d] %s CCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__, ret);
+        printf("[%s:%d] %s %p CCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__, ret, ((uint64_t *)addr_target)-2);
         if (!strncmp(ret, "vtable for ", 11)) {
             char temp[MAX_CHAR_BUFFER];
             sprintf(temp, "class.%s", ret+11);
-            name = ret+11;
             CLASS_META *classp = lookup_class(temp);
             printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, classp);
             if (!classp) {
                 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                 exit(1);
             }
+            name = ret+11;
+            //CTy = DICompositeType(classp->node);
         }
     }
     std::string fname = name;
@@ -1192,11 +1194,13 @@ printf("[%s:%d] name %s %s ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
         //return;
     }
     if (tag == dwarf::DW_TAG_pointer_type) {
-        const Value *val = CTy.getTypeDerivedFrom();
-        const MDNode *Node;
 printf(" %d SSSStag %20s name %30s addr %p addr_target %p\n", slevel, dwarf::TagString(tag), cp, addr, addr_target);
-        if (addr_target && val && (Node = dyn_cast<MDNode>(val)))
-            mapType(DICompositeType(Node), addr_target, fname);
+        const Value *val = CTy.getTypeDerivedFrom();
+        const MDNode *derivedNode = NULL;
+        if (val)
+            derivedNode = dyn_cast<MDNode>(val);
+        if (addr_target && derivedNode)
+            mapType(DICompositeType(derivedNode), addr_target, fname);
         return;
     }
     if (tag != dwarf::DW_TAG_subprogram
@@ -1209,18 +1213,20 @@ printf(" %d SSSStag %20s name %30s addr %p addr_target %p\n", slevel, dwarf::Tag
             printf("STATIC\n");
             return;
         }
-        printf("addr [%s]=val %s\n", map_address(addr, fname), map_address(addr_target, ""));
+        printf("addr [%p:%s]=val %s\n", addr, map_address(addr, fname), map_address(addr_target, ""));
     }
     if (name == "first" || name == "module") return;
     slevel++;
     if (tag == dwarf::DW_TAG_inheritance
      || tag == dwarf::DW_TAG_member
      || CTy.isCompositeType()) {
-        DIArray Elements = CTy.getTypeArray();
         const Value *val = CTy.getTypeDerivedFrom();
-        const MDNode *Node;
-        if (tag != dwarf::DW_TAG_subroutine_type && val && (Node = dyn_cast<MDNode>(val)))
-            mapType(DICompositeType(Node), addr, fname);
+        const MDNode *derivedNode = NULL;
+        if (val)
+            derivedNode = dyn_cast<MDNode>(val);
+        DIArray Elements = CTy.getTypeArray();
+        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
+            mapType(DICompositeType(derivedNode), addr, fname);
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapType(DICompositeType(Elements.getElement(k)), addr, fname);
     }
