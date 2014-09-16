@@ -1163,28 +1163,27 @@ static int slevel;
     std::string name = CTy.getName().str();
     if (!name.length())
         name = CTy.getName().str();
-    if (tag == dwarf::DW_TAG_class_type) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
-        if (g) {
-const char *classp = g->getName().str().c_str();
-int status;
-const char *ret = abi::__cxa_demangle(classp, 0, 0, &status);
-printf("[%s:%d] %s CCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__, ret);
-if (!strncmp(ret, "vtable for ", 11)) {
-   char temp[MAX_CHAR_BUFFER];
-sprintf(temp, "class.%s", ret+11);
-CLASS_META *classp = lookup_class(temp);
-printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, classp);
-if (!classp) {
-exit(1);
-}
-}
-}
+    const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
+    if (tag == dwarf::DW_TAG_class_type && g) {
+        const char *classp = g->getName().str().c_str();
+        int status;
+        const char *ret = abi::__cxa_demangle(classp, 0, 0, &status);
+        printf("[%s:%d] %s CCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__, ret);
+        if (!strncmp(ret, "vtable for ", 11)) {
+            char temp[MAX_CHAR_BUFFER];
+            sprintf(temp, "class.%s", ret+11);
+            name = ret+11;
+            CLASS_META *classp = lookup_class(temp);
+            printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, classp);
+            if (!classp) {
+                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                exit(1);
+            }
+        }
     }
     std::string fname = name;
     if (aname.length() > 0)
         fname = aname + ":" + name;
-//if (name == "full")
 if (name == "Fifo<int>")
 printf("[%s:%d] name %s %s ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag));
     const char *cp = fname.c_str();
@@ -1195,55 +1194,16 @@ printf("[%s:%d] name %s %s ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
     if (tag == dwarf::DW_TAG_pointer_type) {
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-        uint64_t **t = (uint64_t **)addr;
-        uint64_t **t2 = (uint64_t **)addr_target;
-        uint64_t **t3 = (uint64_t **)NULL;
-        if (t2)
-            t3 = *(uint64_t ***)t2;
-if (fname == "EchoTest:echo::Echo:fifo:")
-printf("[%s:%d]JJJJJJJJJJJJ\n", __FUNCTION__, __LINE__);
-printf(" %d SSSStag %20s name %30s addr %p addr_target %p t3 %p\n", slevel, dwarf::TagString(tag), cp, addr, addr_target, t3);
-        const GlobalValue *g = EE->getGlobalValueAtAddress(t);
-        if (g)
-printf("[%s:%d] g %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t-1);
-        if (g)
-printf("[%s:%d] g1 %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t-2);
-        if (g)
-printf("[%s:%d] g2 %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t2);
-        if (g)
-printf("[%s:%d] t %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t2-1);
-        if (g)
-printf("[%s:%d] t1 %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t2-2);
-        if (g)
-printf("[%s:%d] t2 %p\n", __FUNCTION__, __LINE__, g);
-if (t3) {
-        g = EE->getGlobalValueAtAddress(t3);
-        if (g)
-printf("[%s:%d] y %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t3-1);
-        if (g)
-printf("[%s:%d] y1 %p\n", __FUNCTION__, __LINE__, g);
-        g = EE->getGlobalValueAtAddress(t3-2);
-        if (g) {
-printf("[%s:%d] %p y2 %p *************\n", __FUNCTION__, __LINE__, t3-2, g);
-//g->dump();
-}
-}
+printf(" %d SSSStag %20s name %30s addr %p addr_target %p\n", slevel, dwarf::TagString(tag), cp, addr, addr_target);
         if (addr_target && val && (Node = dyn_cast<MDNode>(val)))
             mapType(DICompositeType(Node), addr_target, fname);
         return;
     }
-    if (//tag != dwarf::DW_TAG_subprogram
-     //&& tag != dwarf::DW_TAG_subroutine_type
+    if (tag != dwarf::DW_TAG_subprogram
+     && tag != dwarf::DW_TAG_subroutine_type
      //&& tag != dwarf::DW_TAG_class_type
-     //&& tag != dwarf::DW_TAG_inheritance
-     //&&
-          tag != dwarf::DW_TAG_base_type) {
+     && tag != dwarf::DW_TAG_inheritance
+     && tag != dwarf::DW_TAG_base_type) {
         printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
         if (CTy.isStaticMember()) {
             printf("STATIC\n");
@@ -1251,14 +1211,7 @@ printf("[%s:%d] %p y2 %p *************\n", __FUNCTION__, __LINE__, t3-2, g);
         }
         printf("addr [%s]=val %s\n", map_address(addr, fname), map_address(addr_target, ""));
     }
-int trace_echo = 0;
-//DW_TAG_member name echo
-if (name == "echo") {
-printf("[%s:%d]  EEEEEEEEEEEEEEEECCCCCCCCCCCHHHHHHHHHHOOOOOOOOOOOOOOO\n", __FUNCTION__, __LINE__);
-trace_echo = 1;
-}
     if (name == "first" || name == "module") return;
-//if (slevel > 3) return;
     slevel++;
     if (tag == dwarf::DW_TAG_inheritance
      || tag == dwarf::DW_TAG_member
@@ -1266,18 +1219,10 @@ trace_echo = 1;
         DIArray Elements = CTy.getTypeArray();
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-if (trace_echo)
-printf("[%s:%d] val %p\n", __FUNCTION__, __LINE__, val);
-        if (tag != dwarf::DW_TAG_subroutine_type && val && (Node = dyn_cast<MDNode>(val))) {
-if (trace_echo)
-printf("[%s:%d] Node %p\n", __FUNCTION__, __LINE__, Node);
+        if (tag != dwarf::DW_TAG_subroutine_type && val && (Node = dyn_cast<MDNode>(val)))
             mapType(DICompositeType(Node), addr, fname);
-}
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-if (trace_echo)
-printf("[%s:%d] val %p\n", __FUNCTION__, __LINE__, val);
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapType(DICompositeType(Elements.getElement(k)), addr, fname);
-}
     }
     slevel--;
 }
