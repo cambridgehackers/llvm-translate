@@ -44,7 +44,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MutexGuard.h"
-//#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
 #include "llvm/Assembly/Parser.h"
@@ -230,7 +229,7 @@ static CLASS_META *lookup_class(const char *cp)
   }
   return NULL;
 }
-static CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
+CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
 {
   CLASS_META *classp = lookup_class(cp);
   if (!classp)
@@ -585,8 +584,6 @@ void translateVerilog(int return_type, const Instruction &I)
           slotarray[operand_list[0].value].svalue = (uint8_t *)value;
           slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
       }
-      else
-printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
       }
       break;
   case Instruction::Store:
@@ -606,27 +603,15 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
       {
       Type *element = NULL;
       int eltype = -1;
-      int ptrcnt = 0;
-      CLASS_META_MEMBER *classm = NULL;
-      const char *ret = NULL;
-      char temp[MAX_CHAR_BUFFER], tempoff[MAX_CHAR_BUFFER];
-      const char *mcp = NULL;
 
       printf("XLAT: GetElementPtr");
-      tempoff[0] = 0;
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
-      //printf(" GEP Index %lld;", (long long)Total);
       if (!slotarray[operand_list[1].value].svalue) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-      const char *cp = slotarray[operand_list[1].value].name;
-      if (trace_full)
-      printf(" type %d. GEPname %s;", I.getOperand(0)->getType()->getTypeID(), cp);
       Type *topty = I.getOperand(0)->getType();
       while (topty->getTypeID() == Type::PointerTyID) {
-          ptrcnt++;
           PointerType *PTy = cast<PointerType>(topty);
           element = PTy->getElementType();
           eltype = element->getTypeID();
@@ -634,35 +619,11 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
               break;
           topty = element;
       }
-      if (eltype == Type::FunctionTyID) {
+      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+      if (eltype == Type::FunctionTyID)
           ptr = slotarray[operand_list[1].value].svalue;
-          if (trace_full)
-              printf(" FUNCOFFSET=%lld", (long long)Total);
-      }
-      else {
-          if (eltype != Type::StructTyID) {
-              printf(" itype %d.;", eltype);
-              element = NULL;
-          }
-          if(!element) {
-              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-              exit(1);
-          }
-          classm = lookup_class_member(element->getStructName().str().c_str(), Total);
-          if(!classm) {
-              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-              exit(1);
-          }
-          mcp = classm->name;
-          ret = cp;
-          const GlobalValue *g = EE->getGlobalValueAtAddress(ptr);
-          if (g) {
-              ret = g->getName().str().c_str();
-              mcp = "";
-          }
-          sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
+      else
           slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
-      }
       slotarray[operand_list[0].value].svalue = ptr;
       slotarray[operand_list[0].value].offset = Total;
       }
