@@ -212,6 +212,21 @@ static CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
   }
   return NULL;
 }
+static int lookup_method(const char *classname, const char *methodname)
+{
+  CLASS_META *classp = lookup_class(classname);
+  if (!classp)
+      return -1;
+  CLASS_META_MEMBER *classm = classp->member;
+  for (int ind = 0; ind < classp->member_count; ind++) {
+      DISubprogram Ty(classm->node);
+      if (Ty.getTag() == dwarf::DW_TAG_subprogram
+       && !strcmp(Ty.getName().str().c_str(), methodname))
+          return Ty.getVirtualIndex();
+      classm++;
+  }
+  return -1;
+}
 
 static const char *map_address(void *arg, std::string name)
 {
@@ -937,45 +952,6 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
         fprintf(outputFile, "end;\n");
 }
 
-static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg)
-{
-    int arr_size = 0;
-    Function **vtab = thisp[0];
-    int i = 0;
-
-    if (method_index != -1)
-        i = method_index;
-    const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
-    globalClassName = NULL;
-    if (trace_full) {
-        printf("[%s:%d] vtabbase %p g %p:\n", __FUNCTION__, __LINE__, vtab-2, g);
-    }
-    if (g && method_index == -1) {
-        globalClassName = strdup(g->getName().str().c_str());
-        if (g->getType()->getTypeID() == Type::PointerTyID) {
-           Type *ty = g->getType()->getElementType();
-           if (ty->getTypeID() == Type::ArrayTyID) {
-               ArrayType *aty = cast<ArrayType>(ty);
-               arr_size = aty->getNumElements() - 2;
-           }
-        }
-    }
-    while(1) {
-       Function *f = vtab[i];
-       globalName = strdup(f->getName().str().c_str());
-       if (trace_full)
-           printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, thisp);
-       int rettype = f->getReturnType()->getTypeID();
-       if ((rettype == Type::IntegerTyID || rettype == Type::VoidTyID)
-        && !endswith(globalName, "D0Ev") && !endswith(globalName, "D1Ev")
-        && !endswith(globalName, "setModuleEP6Module")
-        && !f->isDeclaration())
-           processFunction(f, thisp, arg);
-       if (++i >= arr_size)
-           break;
-    }
-}
-
 static void dump_list(Module *Mod, const char *cp, const char *style)
 {
     GlobalValue *gv = Mod->getNamedValue(cp);
@@ -983,20 +959,23 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     uint64_t **first = (uint64_t **)*(PointerTy *)EE->getPointerToGlobal(gv);
     while (first) {                         // loop through linked list
         printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        //dump_vtable((Function ***)first, -1, NULL);
         first = (uint64_t **)first[1];        // first = first->next
     }
 }
 
 static void loop_through_all_rules(Function ***modfirst)
 {
+    int guard_index = lookup_method("class.Rule", "guard");
+    int body_index = lookup_method("class.Rule", "body");
+    int update_index = lookup_method("class.Rule", "update");
     while (modfirst) {                   // loop through all modules
         printf("Module %p: vtab %p rfirst %p next %p\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
-        vtablework.push_back(VTABLE_WORK(modfirst, -1, SLOTARRAY_TYPE()));
         Function **t = modfirst[1];        // Module.rfirst
         while (t) {                        // loop through all rules for module
             printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-            vtablework.push_back(VTABLE_WORK((Function ***)t, -1, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, guard_index, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, body_index, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, update_index, SLOTARRAY_TYPE()));
             t = (Function **)t[1];           // Rule.next
         }
         modfirst = (Function ***)modfirst[2]; // Module.next
@@ -1451,7 +1430,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
-      dump_vtable(vtablework.begin()->thisp, vtablework.begin()->method_index, &vtablework.begin()->arg);
+      Function ***thisp = vtablework.begin()->thisp;
+      Function *f = thisp[0][vtablework.begin()->method_index];
+      globalClassName = NULL;
+      globalName = strdup(f->getName().str().c_str());
+      processFunction(f, thisp, &vtablework.begin()->arg);
       vtablework.pop_front();
   }
 
