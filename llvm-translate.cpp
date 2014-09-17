@@ -353,7 +353,7 @@ static void print_header()
     if (!already_printed_header) {
         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
         if (globalGuardName)
-            fprintf(outputFile, "if (%s) then begin\n", globalGuardName);
+            fprintf(outputFile, "if (%sguardEv && %senableEv) then begin\n", globalGuardName, globalGuardName);
     }
     already_printed_header = 1;
 }
@@ -506,10 +506,7 @@ void translateVerilog(int return_type, const Instruction &I)
       if (return_type == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
-          if (endswith(globalName, "guardEv"))
-              sprintf(vout, "%s = %s && %s" SEPARATOR "enable;", globalName, getparam(1), globalName);
-          else
-              sprintf(vout, "%s = %s;", globalName, getparam(1));
+          sprintf(vout, "%s = %s;", globalName, getparam(1));
       }
       }
       break;
@@ -841,7 +838,7 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
   }
 }
 
-bool opt_runOnBasicBlock(BasicBlock &BB)
+static bool opt_runOnBasicBlock(BasicBlock &BB)
 {
     bool changed = false;
     BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
@@ -947,7 +944,8 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
     strcpy(temp, globalName);
     globalGuardName = NULL;
     if (endswith(globalName, "updateEv")) {
-        strcat(temp + strlen(globalName) - 8, "guardEv");
+        //strcat(temp + strlen(globalName) - 8, "guardEv");
+        temp[strlen(globalName) - 8] = 0;  // truncate "updateEv"
         globalGuardName = strdup(temp);
     }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
