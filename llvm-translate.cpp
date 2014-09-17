@@ -1216,9 +1216,7 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
             exit(1);
         }
         DICompositeType derivType(derivedNode);
-        if (mapitem.find(addr_target) != mapitem.end())
-            printf("****\n");
-        else
+        if (mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
             mapwork.push_back(MAPTYPE_WORK(0, derivType, addr_target, fname));
         return;
     }
@@ -1253,7 +1251,6 @@ static void process_metadata(NamedMDNode *CU_Nodes)
 {
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
     DICompileUnit CU(CU_Nodes->getOperand(i));
-    if (trace_meta)
     printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
          // from DIScope:
          CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
@@ -1343,21 +1340,27 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
           void *addr = EE->getPointerToGlobal(gv);
           mapitem[addr] = cp;
           DICompositeType CTy(DIG.getType());
-          if (CTy.getTag() == dwarf::DW_TAG_class_type)
+          int tag = CTy.getTag();
+          Value *contextp = DIG.getContext();
+          printf("%s: globalvar %s tag %s context %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp);
+          if (!contextp)
               mapwork.push_back(MAPTYPE_WORK(1, CTy, (char *)addr, cp));
           else
               mapwork_non_class.push_back(MAPTYPE_WORK(1, CTy, (char *)addr, cp));
         }
       }
   }
+  // process top level classes
   while (mapwork.begin() != mapwork.end()) {
       mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
       mapwork.pop_front();
   }
+  // process top level non-classes
   while (mapwork_non_class.begin() != mapwork_non_class.end()) {
       mapType(mapwork_non_class.begin()->derived, mapwork_non_class.begin()->CTy, mapwork_non_class.begin()->addr, mapwork_non_class.begin()->aname);
       mapwork_non_class.pop_front();
   }
+  // process process recursion items from top level non-classes
   while (mapwork.begin() != mapwork.end()) {
       mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
       mapwork.pop_front();
