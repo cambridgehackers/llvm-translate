@@ -129,8 +129,6 @@ static struct {
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
 
-static const char *map_address(void *arg, std::string name);
-
 void makeLocalSlot(const Value *V)
 {
   slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
@@ -191,6 +189,26 @@ static CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
       classm++;
   }
   return NULL;
+}
+
+static std::map<void *, std::string> mapitem;
+static std::list<MAPTYPE_WORK> mapwork;
+static int slevel;
+static const char *map_address(void *arg, std::string name)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
+    if (g)
+        mapitem[arg] = g->getName().str();
+    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
+    if (MI != mapitem.end())
+        return MI->second.c_str();
+    if (name.length() != 0) {
+        mapitem[arg] = name;
+        return name.c_str();
+    }
+    sprintf(temp, "%p", arg);
+    return temp;
 }
 
 static const char *getPredicateText(unsigned predicate)
@@ -254,15 +272,8 @@ void writeOperand(const Value *Operand)
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
   }
-  if (const MDNode *N = dyn_cast<MDNode>(Operand)) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
-  if (const MDString *MDS = dyn_cast<MDString>(Operand)) {
-      printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, MDS->getString().str().c_str());
-      exit(1);
-  }
-  if (Operand->getValueID() == Value::PseudoSourceValueVal ||
+  if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
+   || Operand->getValueID() == Value::PseudoSourceValueVal ||
       Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
@@ -1143,25 +1154,6 @@ static void dumpType(DIType litem)
         dtlevel--;
     }
 }
-static std::map<void *, std::string> mapitem;
-static const char *map_address(void *arg, std::string name)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    if (g)
-        mapitem[arg] = g->getName().str();
-    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end())
-        return MI->second.c_str();
-    if (name.length() != 0) {
-        mapitem[arg] = name;
-        return name.c_str();
-    }
-    sprintf(temp, "%p", arg);
-    return temp;
-}
-static std::list<MAPTYPE_WORK> mapwork;
-static int slevel;
 
 static void mapType(int derived, DICompositeType CTy, char *addr, std::string aname)
 {
@@ -1325,19 +1317,17 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       void *addr = EE->getPointerToGlobal(gv);
       printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp, gv, val->getType()->getTypeID(), addr);
       dumpType(DIG.getType());
-#if 1
       DICompositeType CTy(DIG.getType());
       int tag = CTy.getTag();
       printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
-      if (tag == dwarf::DW_TAG_class_type) {
+      //if (tag == dwarf::DW_TAG_class_type) {
           mapType(1, CTy, (char *)addr, "");
           while (mapwork.begin() != mapwork.end()) {
               MAPTYPE_WORK foo = *mapwork.begin();
               mapType(foo.derived, foo.CTy, foo.addr, foo.aname);
               mapwork.pop_front();
           }
-      }
-#endif
+      //}
     }
   }
 }
