@@ -89,6 +89,18 @@ public:
     }
 };
 
+class VTABLE_WORK {
+public:
+    Function ***thisp;
+    int method_index;
+    SLOTARRAY_TYPE *arg;
+    VTABLE_WORK(Function ***a, int b, SLOTARRAY_TYPE *c) {
+       thisp = a;
+       method_index = b;
+       arg = c;
+    }
+};
+
 typedef struct {
     const char   *name;
     const MDNode *node;
@@ -134,6 +146,7 @@ static int extra_vtab_index;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork;
 static std::list<MAPTYPE_WORK> mapwork_non_class;
+static std::list<VTABLE_WORK> vtablework;
 static int slevel;
 
 void makeLocalSlot(const Value *V)
@@ -986,11 +999,11 @@ static void generate_verilog(Function ***modfirst)
 {
     while (modfirst) {                   // loop through all modules
         printf("Module %p: vtab %p rfirst %p next %p\n\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
-        dump_vtable(modfirst, -1, NULL);
+        vtablework.push_back(VTABLE_WORK(modfirst, -1, NULL));
         Function **t = modfirst[1];        // Module.rfirst
         while (t) {                        // loop through all rules for module
             printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-            dump_vtable((Function ***)t, -1, NULL);
+            vtablework.push_back(VTABLE_WORK((Function ***)t, -1, NULL));
             t = (Function **)t[1];           // Rule.next
         }
         modfirst = (Function ***)modfirst[2]; // Module.next
@@ -1442,6 +1455,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Walk the rule lists, generating code
   generate_verilog((Function ***)*(PointerTy*)
       EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
+
+  while (vtablework.begin() != vtablework.end()) {
+      dump_vtable(vtablework.begin()->thisp, vtablework.begin()->method_index, vtablework.begin()->arg);
+      vtablework.pop_front();
+  }
 
   // walk the fixup table
   printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
