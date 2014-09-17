@@ -347,7 +347,7 @@ static const char *getparam(int arg)
    char temp[MAX_CHAR_BUFFER];
    temp[0] = 0;
    if (operand_list[arg].type == OpTypeLocalRef)
-       return (slotarray[operand_list[arg].value].name);
+       return slotarray[operand_list[arg].value].name;
    else if (operand_list[arg].type == OpTypeExternalFunction)
        return slotarray[operand_list[arg].value].name;
    else if (operand_list[arg].type == OpTypeInt)
@@ -583,11 +583,7 @@ void translateVerilog(int return_type, const Instruction &I)
       if (eltype != Type::FunctionTyID) {
           Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
           slotarray[operand_list[0].value].svalue = (uint8_t *)value;
-          const GlobalValue *g = EE->getGlobalValueAtAddress(Ptr);
-          if (trace_full)
-              printf("[%s:%d] g2 %p value %p\n", __FUNCTION__, __LINE__, g, value);
-          if (g)  // remember the name of where this value came from
-              slotarray[operand_list[0].value].name = strdup(g->getName().str().c_str());
+          slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
       }
       else
 printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
@@ -665,7 +661,6 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
               mcp = "";
           }
           sprintf(temp, "%s" SEPARATOR "%s", ret, mcp);
-//printf("\n[%s:%d] ptr %p g %p temp '%s' map %s;", __FUNCTION__, __LINE__, ptr, g, temp, map_address(ptr, ""));
           slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
       }
       slotarray[operand_list[0].value].svalue = ptr;
@@ -767,8 +762,8 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
   //case Instruction::Select:
   case Instruction::Call:
       {
-      const CallInst *CI = dyn_cast<CallInst>(&I);
-      const Value *val = CI->getCalledValue();
+      //const CallInst *CI = dyn_cast<CallInst>(&I);
+      //const Value *val = CI->getCalledValue();
       printf("XLAT:          Call");
       if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
@@ -782,10 +777,6 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       const char *cp = f->getName().str().c_str();
       slotarray[operand_list[0].value].name = strdup(cp);
-      const Instruction *t = (const Instruction *)val;
-      if (trace_full)
-          printf ("CALL[%p=%s, %s]", t, t->getName().str().c_str(), cp);
-      dump_operands = 1;
       }
       break;
   //case Instruction::Shl:
