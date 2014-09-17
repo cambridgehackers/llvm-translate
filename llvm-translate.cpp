@@ -566,24 +566,8 @@ void translateVerilog(int return_type, const Instruction &I)
           dump_operands = 1;
           break;
       }
-      Type *element = NULL;
-      int eltype = -1;
-      Type *topty = I.getOperand(0)->getType();
-      int ptrlevel = 0;
-      while (topty->getTypeID() == Type::PointerTyID) {
-          PointerType *PTy = cast<PointerType>(topty);
-          element = PTy->getElementType();
-          eltype = element->getTypeID();
-          ptrlevel++;
-          if (eltype != Type::PointerTyID)
-              break;
-          topty = element;
-      }
-      if (eltype != Type::FunctionTyID) {
-          Value *value = (Value *)LoadValueFromMemory(Ptr, I.getType());
-          slotarray[operand_list[0].value].svalue = (uint8_t *)value;
-          slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
-      }
+      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
+      slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
       }
       break;
   case Instruction::Store:
@@ -601,58 +585,29 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::Fence:
   case Instruction::GetElementPtr:
       {
-      Type *element = NULL;
-      int eltype = -1;
-
       printf("XLAT: GetElementPtr");
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       if (!slotarray[operand_list[1].value].svalue) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      Type *topty = I.getOperand(0)->getType();
-      while (topty->getTypeID() == Type::PointerTyID) {
-          PointerType *PTy = cast<PointerType>(topty);
-          element = PTy->getElementType();
-          eltype = element->getTypeID();
-          if (eltype != Type::PointerTyID)
-              break;
-          topty = element;
-      }
       uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-      if (eltype == Type::FunctionTyID)
-          ptr = slotarray[operand_list[1].value].svalue;
-      else
-          slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
+      slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
       slotarray[operand_list[0].value].svalue = ptr;
       slotarray[operand_list[0].value].offset = Total;
       }
       break;
 
   // Convert instructions...
-  case Instruction::Trunc:
-      printf("XLAT:         Trunc");
-      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      break;
-  case Instruction::ZExt:
-      printf("XLAT:          Zext");
-      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      break;
   //case Instruction::SExt:
   //case Instruction::FPTrunc: //case Instruction::FPExt:
   //case Instruction::FPToUI: //case Instruction::FPToSI:
   //case Instruction::UIToFP: //case Instruction::SIToFP:
   //case Instruction::IntToPtr: //case Instruction::PtrToInt:
+  case Instruction::Trunc:
+  case Instruction::ZExt:
   case Instruction::BitCast:
-      printf("XLAT:       BitCast");
+      printf("XLAT:       %9s", I.getOpcodeName());
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
@@ -731,11 +686,12 @@ void translateVerilog(int return_type, const Instruction &I)
           break;
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-      Function ***thisp = (Function ***)slotarray[tcall].svalue;
-      Function *f = thisp[0][slotarray[tcall].offset/8];
-      vtablework.push_back(VTABLE_WORK(f, thisp,
+      Function *f = (Function *)slotarray[tcall].svalue;
+      vtablework.push_back(VTABLE_WORK(f,
+          (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+      dump_operands = 1;
       }
       break;
   //case Instruction::Shl:
