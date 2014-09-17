@@ -69,12 +69,19 @@ namespace {
 #define MAX_CLASS_DEFS  200
 #define MAX_VTAB_EXTRA 100
 
-typedef struct {
+class SLOTARRAY_TYPE {
+public:
     const char *name;
     int ignore_debug_info;
     uint8_t *svalue;
     uint64_t offset;
-} SLOTARRAY_TYPE;
+    SLOTARRAY_TYPE() {
+        name = NULL;
+        ignore_debug_info = 0;
+        svalue = NULL;
+        offset = 0;
+    }
+};
 class MAPTYPE_WORK {
 public:
     int derived;
@@ -93,8 +100,8 @@ class VTABLE_WORK {
 public:
     Function ***thisp;
     int method_index;
-    SLOTARRAY_TYPE *arg;
-    VTABLE_WORK(Function ***a, int b, SLOTARRAY_TYPE *c) {
+    SLOTARRAY_TYPE arg;
+    VTABLE_WORK(Function ***a, int b, SLOTARRAY_TYPE c) {
        thisp = a;
        method_index = b;
        arg = c;
@@ -138,11 +145,6 @@ static struct {
    uint64_t value;
 } operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
-static struct {
-    SLOTARRAY_TYPE called;
-    SLOTARRAY_TYPE arg;
-} extra_vtab[MAX_VTAB_EXTRA];
-static int extra_vtab_index;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork;
 static std::list<MAPTYPE_WORK> mapwork_non_class;
@@ -766,13 +768,13 @@ printf("[%s:%d] cond %s\n", __FUNCTION__, __LINE__, slotarray[cond_item].name);
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      extra_vtab[extra_vtab_index].called = slotarray[operand_list[operand_list_index-1].value]; // Callee is _last_ operand
-      if (operand_list_index > 3)
-          extra_vtab[extra_vtab_index].arg = slotarray[operand_list[2].value];
-      Function **vtab = ((Function ***)extra_vtab[extra_vtab_index].called.svalue)[0];
-      Function *f = vtab[extra_vtab[extra_vtab_index].called.offset/8];
+      int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
+      Function **vtab = ((Function ***)slotarray[tcall].svalue)[0];
+      Function *f = vtab[slotarray[tcall].offset/8];
+      vtablework.push_back(VTABLE_WORK((Function ***)slotarray[tcall].svalue,
+          slotarray[tcall].offset/8, 
+          (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       const char *cp = f->getName().str().c_str();
-      extra_vtab_index++;
       slotarray[operand_list[0].value].name = strdup(cp);
       const Instruction *t = (const Instruction *)val;
       if (trace_full)
@@ -882,7 +884,7 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
 
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
 {
-    FunctionType *FT = F->getFunctionType();
+    //FunctionType *FT = F->getFunctionType();
     char temp[MAX_CHAR_BUFFER];
 
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
@@ -995,15 +997,15 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
     }
 }
 
-static void generate_verilog(Function ***modfirst)
+static void loop_through_all_rules(Function ***modfirst)
 {
     while (modfirst) {                   // loop through all modules
         printf("Module %p: vtab %p rfirst %p next %p\n\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
-        vtablework.push_back(VTABLE_WORK(modfirst, -1, NULL));
+        vtablework.push_back(VTABLE_WORK(modfirst, -1, SLOTARRAY_TYPE()));
         Function **t = modfirst[1];        // Module.rfirst
         while (t) {                        // loop through all rules for module
             printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-            vtablework.push_back(VTABLE_WORK((Function ***)t, -1, NULL));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, -1, SLOTARRAY_TYPE()));
             t = (Function **)t[1];           // Rule.next
         }
         modfirst = (Function ***)modfirst[2]; // Module.next
@@ -1126,7 +1128,7 @@ static void dumpType(DIType litem)
     if (tag == dwarf::DW_TAG_inheritance) {
         dtlevel++;
         DICompositeType CTy(litem);
-        DIArray Elements = CTy.getTypeArray();
+        //DIArray Elements = CTy.getTypeArray();
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
         if (v && (Node = dyn_cast<MDNode>(v)) && global_classp) {
@@ -1452,26 +1454,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   construct_address_map(CU_Nodes);
   
-  // Walk the rule lists, generating code
-  generate_verilog((Function ***)*(PointerTy*)
+  // Walk the rule lists for all modules, generating work items
+  loop_through_all_rules((Function ***)*(PointerTy*)
       EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
 
+  // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
-      dump_vtable(vtablework.begin()->thisp, vtablework.begin()->method_index, vtablework.begin()->arg);
+      dump_vtable(vtablework.begin()->thisp, vtablework.begin()->method_index, &vtablework.begin()->arg);
       vtablework.pop_front();
-  }
-
-  // walk the fixup table
-  printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
-  for (int i = 0; i < extra_vtab_index; i++) {
-      printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
-          extra_vtab[i].called.svalue, (long long)extra_vtab[i].called.offset,
-          extra_vtab[i].arg.svalue, (long long)extra_vtab[i].arg.offset);
-      printf("thisp %s\n", map_address(extra_vtab[i].called.svalue, ""));
-      if (map_address(extra_vtab[i].arg.svalue, ""))
-          printf("arg %s\n", map_address(extra_vtab[i].arg.svalue, ""));
-      printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0], ""));
-      dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
 
   dump_class_data();
