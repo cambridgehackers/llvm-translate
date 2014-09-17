@@ -962,25 +962,14 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
         fprintf(outputFile, "end;\n");
 }
 
-static void dump_list(Module *Mod, const char *cp, const char *style)
-{
-    GlobalValue *gv = Mod->getNamedValue(cp);
-    printf("dump_list: [%s] = %p\n", style, gv);
-    uint64_t **first = (uint64_t **)*(PointerTy *)EE->getPointerToGlobal(gv);
-    while (first) {                         // loop through linked list
-        printf("dump_list[%s]: %p {vtab %p next %p}\n", style, first, first[0], first[1]);
-        first = (uint64_t **)first[1];        // first = first->next
-    }
-}
-
 static void loop_through_all_rules(Function ***modfirst)
 {
-    int RuleGuard = lookup_method("class.Rule", "guard");
-    int RuleBody = lookup_method("class.Rule", "body");
-    int RuleUpdate = lookup_method("class.Rule", "update");
-    int ModuleNext = lookup_field("class.Module", "next")/sizeof(uint64_t);
     int ModuleRfirst = lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-    int RuleNext = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+    int ModuleNext   = lookup_field("class.Module", "next")/sizeof(uint64_t);
+    int RuleNext     = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+    int RuleGuard    = lookup_method("class.Rule", "guard");
+    int RuleBody     = lookup_method("class.Rule", "body");
+    int RuleUpdate   = lookup_method("class.Rule", "update");
     while (modfirst) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
         Function **t = modfirst[ModuleRfirst];        // Module.rfirst
@@ -1451,8 +1440,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   //dump_class_data();
-  dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
-  dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
