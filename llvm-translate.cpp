@@ -967,17 +967,18 @@ static void loop_through_all_rules(Function ***modfirst)
     int ModuleRfirst = lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext   = lookup_field("class.Module", "next")/sizeof(uint64_t);
     int RuleNext     = lookup_field("class.Rule", "next")/sizeof(uint64_t);
-    int RuleGuard    = lookup_method("class.Rule", "guard");
-    int RuleBody     = lookup_method("class.Rule", "body");
-    int RuleUpdate   = lookup_method("class.Rule", "update");
     while (modfirst) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
         Function **t = modfirst[ModuleRfirst];        // Module.rfirst
-        while (t) {                        // loop through all rules for module
+        while (t) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", t, t[RuleNext]);
-            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleGuard, SLOTARRAY_TYPE()));
-            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleBody, SLOTARRAY_TYPE()));
-            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleUpdate, SLOTARRAY_TYPE()));
+            static const char *method[] = { "guard", "body", "update", NULL};
+            const char **p = method;
+            while (*p) {
+                vtablework.push_back(VTABLE_WORK((Function ***)t, 
+                    lookup_method("class.Rule", *p), SLOTARRAY_TYPE()));
+                p++;
+            }
             t = (Function **)t[RuleNext];           // Rule.next
         }
         modfirst = (Function ***)modfirst[ModuleNext]; // Module.next
