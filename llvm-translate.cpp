@@ -91,12 +91,12 @@ public:
 
 class VTABLE_WORK {
 public:
+    Function *f;
     Function ***thisp;
-    int method_index;
     SLOTARRAY_TYPE arg;
-    VTABLE_WORK(Function ***a, int b, SLOTARRAY_TYPE c) {
-       thisp = a;
-       method_index = b;
+    VTABLE_WORK(Function *a, Function ***b, SLOTARRAY_TYPE c) {
+       f = a;
+       thisp = b;
        arg = c;
     }
 };
@@ -732,12 +732,10 @@ void translateVerilog(int return_type, const Instruction &I)
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function ***thisp = (Function ***)slotarray[tcall].svalue;
-      int method_index = slotarray[tcall].offset/8;
-      Function *f = thisp[0][method_index];
-      vtablework.push_back(VTABLE_WORK(thisp, method_index,
+      Function *f = thisp[0][slotarray[tcall].offset/8];
+      vtablework.push_back(VTABLE_WORK(f, thisp,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
-      const char *cp = f->getName().str().c_str();
-      slotarray[operand_list[0].value].name = strdup(cp);
+      slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
       }
       break;
   //case Instruction::Shl:
@@ -899,17 +897,17 @@ static void loop_through_all_rules(Function ***modfirst)
     int RuleNext     = lookup_field("class.Rule", "next")/sizeof(uint64_t);
     while (modfirst) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
-        Function **t = modfirst[ModuleRfirst];        // Module.rfirst
+        Function ***t = (Function ***)modfirst[ModuleRfirst];        // Module.rfirst
         while (t) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", t, t[RuleNext]);
             static const char *method[] = { "guard", "body", "update", NULL};
             const char **p = method;
             while (*p) {
-                vtablework.push_back(VTABLE_WORK((Function ***)t, 
-                    lookup_method("class.Rule", *p), SLOTARRAY_TYPE()));
+                vtablework.push_back(VTABLE_WORK(t[0][lookup_method("class.Rule", *p)], t, 
+                    SLOTARRAY_TYPE()));
                 p++;
             }
-            t = (Function **)t[RuleNext];           // Rule.next
+            t = (Function ***)t[RuleNext];           // Rule.next
         }
         modfirst = (Function ***)modfirst[ModuleNext]; // Module.next
     }
@@ -1363,8 +1361,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
+      Function *f = vtablework.begin()->f;
       Function ***thisp = vtablework.begin()->thisp;
-      Function *f = thisp[0][vtablework.begin()->method_index];
       globalName = strdup(f->getName().str().c_str());
       processFunction(f, thisp, vtablework.begin()->arg);
       vtablework.pop_front();
