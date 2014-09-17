@@ -150,6 +150,7 @@ static std::list<MAPTYPE_WORK> mapwork;
 static std::list<MAPTYPE_WORK> mapwork_non_class;
 static std::list<VTABLE_WORK> vtablework;
 static int slevel;
+static int dtlevel;
 
 void makeLocalSlot(const Value *V)
 {
@@ -1112,7 +1113,6 @@ static void dumpTref(const Value *val)
     }
 }
 
-static int dtlevel;
 static void dumpType(DIType litem)
 {
     int tag = litem.getTag();
@@ -1355,12 +1355,9 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
       mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
       mapwork.pop_front();
   }
+
   // process top level non-classes
-  while (mapwork_non_class.begin() != mapwork_non_class.end()) {
-      mapType(mapwork_non_class.begin()->derived, mapwork_non_class.begin()->CTy, mapwork_non_class.begin()->addr, mapwork_non_class.begin()->aname);
-      mapwork_non_class.pop_front();
-  }
-  // process process recursion items from top level non-classes
+  mapwork = mapwork_non_class;
   while (mapwork.begin() != mapwork.end()) {
       mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
       mapwork.pop_front();
@@ -1467,7 +1464,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       vtablework.pop_front();
   }
 
-  dump_class_data();
+  //dump_class_data();
   dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
   dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
 
