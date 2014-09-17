@@ -115,7 +115,41 @@ typedef struct {
     CLASS_META_MEMBER *member;
 } CLASS_META;
 
+typedef struct {
+    int value;
+    const char *name;
+} INTMAP_TYPE;
+
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
+
+static INTMAP_TYPE predText[] = {
+    {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
+    {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
+    {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
+    {FCmpInst::FCMP_ONE, "one"}, {FCmpInst::FCMP_ORD, "ord"},
+    {FCmpInst::FCMP_UNO, "uno"}, {FCmpInst::FCMP_UEQ, "ueq"},
+    {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
+    {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
+    {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
+    {ICmpInst::ICMP_EQ, "eq"}, {ICmpInst::ICMP_NE, "ne"},
+    {ICmpInst::ICMP_SGT, "sgt"}, {ICmpInst::ICMP_SGE, "sge"},
+    {ICmpInst::ICMP_SLT, "slt"}, {ICmpInst::ICMP_SLE, "sle"},
+    {ICmpInst::ICMP_UGT, "ugt"}, {ICmpInst::ICMP_UGE, "uge"},
+    {ICmpInst::ICMP_ULT, "ult"}, {ICmpInst::ICMP_ULE, "ule"}, {}};
+static INTMAP_TYPE opcodeMap[] = {
+    {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
+    {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
+    {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
+    {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
+    {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
+    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
+static INTMAP_TYPE opcodeStrMap[] = {
+    {Instruction::Add, "Add"}, {Instruction::FAdd, "Add"},
+    {Instruction::Sub, "Sub"}, {Instruction::FSub, "Sub"},
+    {Instruction::Mul, "Mul"}, {Instruction::FMul, "Mul"},
+    {Instruction::UDiv, "Div"}, {Instruction::SDiv, "Div"}, {Instruction::FDiv, "Div"},
+    {Instruction::URem, "Rem"}, {Instruction::SRem, "Rem"}, {Instruction::FRem, "Rem"},
+    {Instruction::And, "And"}, {Instruction::Or, "Or"}, {Instruction::Xor, "Xor"}, {}};
 
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
@@ -234,7 +268,6 @@ static int lookup_field(const char *classname, const char *methodname)
   CLASS_META_MEMBER *classm = classp->member;
   for (int ind = 0; ind < classp->member_count; ind++) {
       DIType Ty(classm->node);
-printf("[%s:%d] tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(Ty.getTag()), Ty.getName().str().c_str());
       if (Ty.getTag() == dwarf::DW_TAG_member
        && !strcmp(Ty.getName().str().c_str(), methodname))
           return Ty.getOffsetInBits()/8;
@@ -260,38 +293,14 @@ static const char *map_address(void *arg, std::string name)
     return temp;
 }
 
-static const char *getPredicateText(unsigned predicate)
+static const char *intmap_lookup(INTMAP_TYPE *map, int value)
 {
-  const char * pred = "unknown";
-  switch (predicate) {
-  case FCmpInst::FCMP_FALSE: pred = "false"; break;
-  case FCmpInst::FCMP_OEQ:   pred = "oeq"; break;
-  case FCmpInst::FCMP_OGT:   pred = "ogt"; break;
-  case FCmpInst::FCMP_OGE:   pred = "oge"; break;
-  case FCmpInst::FCMP_OLT:   pred = "olt"; break;
-  case FCmpInst::FCMP_OLE:   pred = "ole"; break;
-  case FCmpInst::FCMP_ONE:   pred = "one"; break;
-  case FCmpInst::FCMP_ORD:   pred = "ord"; break;
-  case FCmpInst::FCMP_UNO:   pred = "uno"; break;
-  case FCmpInst::FCMP_UEQ:   pred = "ueq"; break;
-  case FCmpInst::FCMP_UGT:   pred = "ugt"; break;
-  case FCmpInst::FCMP_UGE:   pred = "uge"; break;
-  case FCmpInst::FCMP_ULT:   pred = "ult"; break;
-  case FCmpInst::FCMP_ULE:   pred = "ule"; break;
-  case FCmpInst::FCMP_UNE:   pred = "une"; break;
-  case FCmpInst::FCMP_TRUE:  pred = "true"; break;
-  case ICmpInst::ICMP_EQ:    pred = "eq"; break;
-  case ICmpInst::ICMP_NE:    pred = "ne"; break;
-  case ICmpInst::ICMP_SGT:   pred = "sgt"; break;
-  case ICmpInst::ICMP_SGE:   pred = "sge"; break;
-  case ICmpInst::ICMP_SLT:   pred = "slt"; break;
-  case ICmpInst::ICMP_SLE:   pred = "sle"; break;
-  case ICmpInst::ICMP_UGT:   pred = "ugt"; break;
-  case ICmpInst::ICMP_UGE:   pred = "uge"; break;
-  case ICmpInst::ICMP_ULT:   pred = "ult"; break;
-  case ICmpInst::ICMP_ULE:   pred = "ule"; break;
-  }
-  return pred;
+    while (map->name) {
+        if (map->value == value)
+            return map->name;
+        map++;
+    }
+    return "unknown";
 }
 
 void writeOperand(const Value *Operand)
@@ -357,48 +366,6 @@ static void print_header()
     }
     already_printed_header = 1;
 }
-static const char *opstr(unsigned opcode)
-{
-    switch (opcode) {
-    case Instruction::Add:
-    case Instruction::FAdd: return "+";
-    case Instruction::Sub:
-    case Instruction::FSub: return "-";
-    case Instruction::Mul:
-    case Instruction::FMul: return "*";
-    case Instruction::UDiv:
-    case Instruction::SDiv:
-    case Instruction::FDiv: return "/";
-    case Instruction::URem:
-    case Instruction::SRem:
-    case Instruction::FRem: return "%";
-    case Instruction::And:  return "&";
-    case Instruction::Or:   return "|";
-    case Instruction::Xor:  return "^";
-    }
-    return NULL;
-}
-static const char *opstr_print(unsigned opcode)
-{
-    switch (opcode) {
-    case Instruction::Add:
-    case Instruction::FAdd: return "Add";
-    case Instruction::Sub:
-    case Instruction::FSub: return "Sub";
-    case Instruction::Mul:
-    case Instruction::FMul: return "Mul";
-    case Instruction::UDiv:
-    case Instruction::SDiv:
-    case Instruction::FDiv: return "Div";
-    case Instruction::URem:
-    case Instruction::SRem:
-    case Instruction::FRem: return "Rem";
-    case Instruction::And:  return "And";
-    case Instruction::Or:   return "Or";
-    case Instruction::Xor:  return "Xor";
-    }
-    return NULL;
-}
 
 uint64_t getOperandValue(const Value *Operand)
 {
@@ -437,7 +404,6 @@ static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
   }
   memcpy(Dst, Src, LoadBytes);
 }
-static int dummyval;
 static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 {
   const DataLayout *TD = EE->getDataLayout();
@@ -453,7 +419,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
   case Type::PointerTyID:
     if (!Ptr) {
         printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ptr);
-        rv = (uint64_t)&dummyval;
+        exit(1);
     }
     else
         rv = (uint64_t) *((PointerTy*)Ptr);
@@ -466,6 +432,20 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
     printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
+
+static const char *getPredicateText(unsigned predicate)
+{
+  return intmap_lookup(predText, predicate);
+}
+static const char *opstr(unsigned opcode)
+{
+  return intmap_lookup(opcodeMap, opcode);
+}
+static const char *opstr_print(unsigned opcode)
+{
+  return intmap_lookup(opcodeStrMap, opcode);
+}
+
 void translateVerilog(int return_type, const Instruction &I)
 {
   int opcode = I.getOpcode();
