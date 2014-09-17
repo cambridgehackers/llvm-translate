@@ -57,12 +57,6 @@ static int trace_full;// = 1;
 static int output_stdout;// = 1;
 #define SEPARATOR ":"
 
-namespace {
-  cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>")); 
-  cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)")); 
-  cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,...")); 
-}
-
 #define MAX_SLOTARRAY 1000
 #define MAX_OPERAND_LIST 200
 #define MAX_CHAR_BUFFER 1000
@@ -172,7 +166,7 @@ void clearLocalSlot(void)
   memset(slotarray, 0, sizeof(slotarray));
 }
 
-static void dump_class_data()
+void dump_class_data()
 {
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
@@ -770,10 +764,10 @@ printf("[%s:%d] cond %s\n", __FUNCTION__, __LINE__, slotarray[cond_item].name);
           break;
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-      Function **vtab = ((Function ***)slotarray[tcall].svalue)[0];
-      Function *f = vtab[slotarray[tcall].offset/8];
-      vtablework.push_back(VTABLE_WORK((Function ***)slotarray[tcall].svalue,
-          slotarray[tcall].offset/8, 
+      Function ***thisp = (Function ***)slotarray[tcall].svalue;
+      int method_index = slotarray[tcall].offset/8;
+      Function *f = thisp[0][method_index];
+      vtablework.push_back(VTABLE_WORK(thisp, method_index,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       const char *cp = f->getName().str().c_str();
       slotarray[operand_list[0].value].name = strdup(cp);
@@ -947,11 +941,6 @@ static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg
 
     if (method_index != -1)
         i = method_index;
-    for (int j = 0; j < 16; j++) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress((void *)(((long)thisp) - 32 + j*4));
-if (g)
-printf("[%s:%d] [%d] %p\n", __FUNCTION__, __LINE__, j, g);
-    }
     const GlobalValue *g = EE->getGlobalValueAtAddress(vtab-2);
     globalClassName = NULL;
     if (trace_full) {
@@ -1001,7 +990,7 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
 static void loop_through_all_rules(Function ***modfirst)
 {
     while (modfirst) {                   // loop through all modules
-        printf("Module %p: vtab %p rfirst %p next %p\n\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
+        printf("Module %p: vtab %p rfirst %p next %p\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
         vtablework.push_back(VTABLE_WORK(modfirst, -1, SLOTARRAY_TYPE()));
         Function **t = modfirst[1];        // Module.rfirst
         while (t) {                        // loop through all rules for module
@@ -1011,26 +1000,6 @@ static void loop_through_all_rules(Function ***modfirst)
         }
         modfirst = (Function ***)modfirst[2]; // Module.next
     }
-}
-
-static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
-  OwningPtr<MemoryBuffer> File;
-  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename, File)) {
-    Err = SMDiagnostic(Filename, SourceMgr::DK_Error, "Could not open input file: " + ec.message());
-    return 0;
-  }
-  Module *M = new Module(Filename, Context);
-  M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-  return ParseAssembly(File.take(), M, Err, Context);
-}
-static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
-{
-  SMDiagnostic Err;
-  printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
-  Module* Result = llvm_ParseIRFile(FN, Err, Context);
-  if (!Result)
-      Err.print(argv0, errs());
-  return Result;
 }
 
 static std::string getScope(const Value *val)
@@ -1364,6 +1333,32 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
   }
 }
 
+static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename, File)) {
+    Err = SMDiagnostic(Filename, SourceMgr::DK_Error, "Could not open input file: " + ec.message());
+    return 0;
+  }
+  Module *M = new Module(Filename, Context);
+  M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+  return ParseAssembly(File.take(), M, Err, Context);
+}
+static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
+{
+  SMDiagnostic Err;
+  printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
+  Module* Result = llvm_ParseIRFile(FN, Err, Context);
+  if (!Result)
+      Err.print(argv0, errs());
+  return Result;
+}
+
+namespace {
+  cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>")); 
+  cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)")); 
+  cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,...")); 
+}
+
 int main(int argc, char **argv, char * const *envp)
 {
   std::string ErrorMsg;
@@ -1372,8 +1367,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   outputFile = fopen("output.tmp", "w");
   if (output_stdout)
       outputFile = stdout;
-  if (dump_interpret)
-      DebugFlag = true;
+  DebugFlag = dump_interpret != 0;
 
   LLVMContext &Context = getGlobalContext();
 
@@ -1426,10 +1420,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Create the execution environment for running the constructors
   EE = builder.create();
   if (!EE) {
-    if (!ErrorMsg.empty())
-      printf("%s: error creating EE: %s\n", argv[0], ErrorMsg.c_str());
-    else
-      printf("%s: unknown error creating EE!\n", argv[0]);
+    printf("%s: unknown error creating EE!\n", argv[0]);
     exit(1);
   }
 
@@ -1451,8 +1442,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
   // Construct the address -> symbolic name map using dwarf debug info
-  NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-  construct_address_map(CU_Nodes);
+  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
   
   // Walk the rule lists for all modules, generating work items
   loop_through_all_rules((Function ***)*(PointerTy*)
