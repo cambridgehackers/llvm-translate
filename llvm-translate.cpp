@@ -40,12 +40,11 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/Transforms/Instrumentation.h"
+//#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
 #include "llvm/Assembly/Parser.h"
@@ -62,7 +61,6 @@ namespace {
   cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>")); 
   cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)")); 
   cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,...")); 
-  cl::list<std::string> ExtraModules("extra-module", cl::desc("Extra modules to be loaded"), cl::value_desc("input bitcode"));
 }
 
 #define MAX_SLOTARRAY 1000
@@ -71,18 +69,25 @@ namespace {
 #define MAX_CLASS_DEFS  200
 #define MAX_VTAB_EXTRA 100
 
-static ExecutionEngine *EE = 0;
-static std::map<const Value *, int> slotmap;
-static std::map<const MDNode *, int> metamap;
-static int metanumber;
 typedef struct {
     const char *name;
     int ignore_debug_info;
     uint8_t *svalue;
     uint64_t offset;
 } SLOTARRAY_TYPE;
-static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
-static int slotarray_index = 1;
+class MAPTYPE_WORK {
+public:
+    int derived;
+    DICompositeType CTy;
+    char *addr;
+    std::string aname;
+    MAPTYPE_WORK(int a, DICompositeType b, char *c, std::string d) {
+       derived = a;
+       CTy = b;
+       addr = c;
+       aname = d;
+    }
+};
 typedef struct {
     const char   *name;
     const MDNode *node;
@@ -94,6 +99,14 @@ typedef struct {
     int           member_count;
     CLASS_META_MEMBER *member;
 } CLASS_META;
+enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
+
+static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
+static int slotarray_index = 1;
+static ExecutionEngine *EE = 0;
+static std::map<const Value *, int> slotmap;
+static std::map<const MDNode *, int> metamap;
+static int metanumber;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
@@ -105,7 +118,6 @@ static const char *globalGuardName;
 static std::list<const MDNode *> global_members;
 static CLASS_META *global_classp;
 
-enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 static struct {
    int type;
    uint64_t value;
@@ -330,18 +342,13 @@ static const char *opstr_print(unsigned opcode)
 
 uint64_t getOperandValue(const Value *Operand)
 {
-  static uint64_t rv = 0;
   const Constant *CV = dyn_cast<Constant>(Operand);
   const ConstantInt *CI;
 
   if (CV && !isa<GlobalValue>(CV) && (CI = dyn_cast<ConstantInt>(CV)))
-      rv = CI->getZExtValue();
-  else {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
-  //printf("[%s:%d] const %lld\n", __FUNCTION__, __LINE__, (long long)rv);
-  return rv;
+      return CI->getZExtValue();
+  printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  exit(1);
 }
 
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
@@ -365,8 +372,8 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
 {
   if (LoadBytes > sizeof(*Dst)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
   }
   memcpy(Dst, Src, LoadBytes);
 }
@@ -377,8 +384,8 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
   const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
   uint64_t rv = 0;
 
-if (trace_full)
-printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
+  if (trace_full)
+    printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
     LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
@@ -395,8 +402,8 @@ printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getT
     errs() << "Cannot load value of type " << *Ty << "!";
     exit(1);
   }
-if (trace_full)
-printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
+  if (trace_full)
+    printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
 void translateVerilog(int return_type, const Instruction &I)
@@ -502,9 +509,9 @@ void translateVerilog(int return_type, const Instruction &I)
       printf("XLAT:%14s", opstr_print(opcode));
       sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
       if (operand_list[0].type != OpTypeLocalRef) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
-  }
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
@@ -1082,14 +1089,14 @@ static void dumpType(DIType litem)
     if (!tag)     // Ignore elements with tag of 0
         return;
     if (tag == dwarf::DW_TAG_pointer_type) {
-dtlevel++;
+        dtlevel++;
         DICompositeType CTy(litem);
         dumpTref(CTy.getTypeDerivedFrom());
-dtlevel--;
+        dtlevel--;
         return;
     }
     if (tag == dwarf::DW_TAG_inheritance) {
-dtlevel++;
+        dtlevel++;
         DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
         const Value *v = CTy.getTypeDerivedFrom();
@@ -1101,7 +1108,7 @@ dtlevel++;
             }
             global_classp->inherit = Node;
         }
-dtlevel--;
+        dtlevel--;
         dumpTref(v);
         return;
     }
@@ -1117,7 +1124,7 @@ dtlevel--;
     if (trace_meta)
     printf("\n");
     if (litem.isCompositeType()) {
-dtlevel++;
+        dtlevel++;
         DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type) {
@@ -1133,7 +1140,7 @@ dtlevel++;
             }
             dumpType(Ty);
         }
-dtlevel--;
+        dtlevel--;
     }
 }
 static std::map<void *, std::string> mapitem;
@@ -1144,39 +1151,20 @@ static const char *map_address(void *arg, std::string name)
     if (g)
         mapitem[arg] = g->getName().str();
     std::map<void *, std::string>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end()) {
-        //if (name.length() && name.length() < MI->second.length()) {
-//printf("\n[%s:%d] changed name '%s' to '%s'", __FUNCTION__, __LINE__, MI->second.c_str(), name.c_str());
-            //MI->second = name;
-        //}
+    if (MI != mapitem.end())
         return MI->second.c_str();
-    }
     if (name.length() != 0) {
-//printf("\n[%s:%d] new %p = %s;", __FUNCTION__, __LINE__, arg, name.c_str());
         mapitem[arg] = name;
         return name.c_str();
     }
     sprintf(temp, "%p", arg);
     return temp;
 }
-class MAPTYPE_WORK {
-public:
-    int derived;
-    DICompositeType CTy;
-    char *addr;
-    std::string aname;
-    MAPTYPE_WORK(int a, DICompositeType b, char *c, std::string d) {
-       derived = a;
-       CTy = b;
-       addr = c;
-       aname = d;
-    }
-};
 static std::list<MAPTYPE_WORK> mapwork;
+static int slevel;
 
 static void mapType(int derived, DICompositeType CTy, char *addr, std::string aname)
 {
-static int slevel;
     int tag = CTy.getTag();
     long offset = (long)CTy.getOffsetInBits()/8;
     addr += offset;
@@ -1217,20 +1205,15 @@ static int slevel;
             exit(1);
         }
         DICompositeType derivType(derivedNode);
-        int dtag = derivType.getTag();
-    if (mapitem.find(addr_target) != mapitem.end()) {
-        printf("****\n");
-        return;
-    }
-        //mapType(0, derivType, addr_target, fname);
-        mapwork.push_back(MAPTYPE_WORK(0, derivType, addr_target, fname));
+        if (mapitem.find(addr_target) != mapitem.end())
+            printf("****\n");
+        else
+            mapwork.push_back(MAPTYPE_WORK(0, derivType, addr_target, fname));
         return;
     }
     map_address(addr, fname);
-    if (tag != dwarf::DW_TAG_subprogram
-     && tag != dwarf::DW_TAG_subroutine_type
-     && tag != dwarf::DW_TAG_class_type
-     && tag != dwarf::DW_TAG_inheritance
+    if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
+     && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
         printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
         if (CTy.isStaticMember()) {
@@ -1239,104 +1222,20 @@ static int slevel;
         }
         printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
-    if (name == "first" || name == "module") return;
-    if (name == "rfirst" || name == "next") return;
     slevel++;
-    if (tag == dwarf::DW_TAG_inheritance
-     || tag == dwarf::DW_TAG_member
+    if (tag == dwarf::DW_TAG_inheritance || tag == dwarf::DW_TAG_member
      || CTy.isCompositeType()) {
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *derivedNode = NULL;
         if (val)
             derivedNode = dyn_cast<MDNode>(val);
         DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode) {
-            //mapType(1, DICompositeType(derivedNode), addr, fname);
+        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
             mapwork.push_back(MAPTYPE_WORK(1, DICompositeType(derivedNode), addr, fname));
-        }
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-            //mapType(0, DICompositeType(Elements.getElement(k)), addr, fname);
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapwork.push_back(MAPTYPE_WORK(0, DICompositeType(Elements.getElement(k)), addr, fname));
-        }
     }
     slevel--;
-}
-
-void format_type(DIType DT)
-{
-    dumpType(DT);
-    if (trace_meta) {
-    fprintf(stderr, "    %s:", __FUNCTION__);
-    if (DT.isBasicType())
-      if (const char *Enc = dwarf::AttributeEncodingString(DIBasicType(DT).getEncoding()))
-        errs() << ", enc " << Enc;
-    if (DT.isPrivate()) errs() << " [private]";
-    else if (DT.isProtected()) errs() << " [protected]";
-    if (DT.isArtificial()) errs() << " [artificial]";
-    if (DT.isForwardDecl()) errs() << " [decl]";
-    else if (DT.getTag() == dwarf::DW_TAG_structure_type || DT.getTag() == dwarf::DW_TAG_union_type ||
-             DT.getTag() == dwarf::DW_TAG_enumeration_type || DT.getTag() == dwarf::DW_TAG_class_type)
-      errs() << " [def]";
-    if (DT.isDerivedType()) {
-       errs() << " [from ";
-       errs() << DIDerivedType(DT).getTypeDerivedFrom().getName();
-       errs() << ']';
-    }
-    fprintf(stderr, "\n");
-    }
-    if (DT.getTag() == dwarf::DW_TAG_structure_type) {
-        DICompositeType CTy = DICompositeType(DT);
-        //StringRef Name = CTy.getName();
-        DIArray Elements = CTy.getTypeArray();
-        for (unsigned i = 0, N = Elements.getNumElements(); i < N; ++i) {
-            DIDescriptor Element = Elements.getElement(i);
-            if (trace_meta) {
-            fprintf(stderr, "fmtstruct elt:");
-            Element.dump();
-            }
-        }
-    }
-}
-void processSubprogram(DISubprogram sub)
-{
-  if (trace_meta) {
-  printf("Subprogram: %s", sub.getName().str().c_str());
-  printf(" %s", sub.getLinkageName().str().c_str());
-  printf(" %d", sub.getVirtuality());
-  printf(" %d", sub.getVirtualIndex());
-  printf(" %d", sub.getFlags());
-  printf(" %d", sub.getScopeLineNumber());
-  printf("\n");
-  dumpTref(sub.getContainingType());
-  }
-  //if (MDNode *Temp = sub.getVariablesNodes()) {
-      //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      //DIType vn(Temp);
-      //vn.dump();
-  //}
-  //DIArray variab(sub.getVariables());
-  //printf("variab: ");
-  //for (unsigned j = 0, je = variab.getNumElements(); j != je; j++) {
-     //DIVariable ee(variab.getElement(j));
-     //printf("[%s:%d] %d/%d name '%s' arg %d line %d\n", __FUNCTION__, __LINE__, j, je, ee.getName().str().c_str(), ee.getArgNumber(), ee.getLineNumber());
-     //ee.dump();
-  //}
-  DIArray tparam(sub.getTemplateParams());
-  if (tparam.getNumElements() > 0) {
-      if (trace_meta) {
-      printf("tparam: ");
-      for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
-         DIDescriptor ee(tparam.getElement(j));
-        printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
-         ee.dump();
-      }
-      }
-  }
-  //fprintf(stderr, "func: ");
-  //sub.getFunction()->dump();
-  //printf("fdecl: ");
-  //processSubprogram(DISubprogram(sub.getFunctionDeclaration()));
-  dumpType(DICompositeType(sub.getType()));
 }
 
 void dump_metadata(NamedMDNode *CU_Nodes)
@@ -1349,19 +1248,37 @@ void dump_metadata(NamedMDNode *CU_Nodes)
          CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-      processSubprogram(DISubprogram(SPs.getElement(i)));
+      DISubprogram sub(SPs.getElement(i));
+      if (trace_meta) {
+          printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
+              sub.getLinkageName().str().c_str(), sub.getVirtuality(),
+              sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
+          dumpTref(sub.getContainingType());
+      }
+      DIArray tparam(sub.getTemplateParams());
+      if (tparam.getNumElements() > 0) {
+          if (trace_meta) {
+              printf("tparam: ");
+              for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
+                 DIDescriptor ee(tparam.getElement(j));
+                 printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
+                 ee.dump();
+              }
+          }
+      }
+      dumpType(DICompositeType(sub.getType()));
     }
     DIArray EnumTypes = CU.getEnumTypes();
     for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
       if (trace_meta)
       printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
-      format_type(DIType(EnumTypes.getElement(i)));
+      dumpType(DIType(EnumTypes.getElement(i)));
     }
     DIArray RetainedTypes = CU.getRetainedTypes();
     for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
       if (trace_meta)
       printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
-      format_type(DIType(RetainedTypes.getElement(i)));
+      dumpType(DIType(RetainedTypes.getElement(i)));
     }
     DIArray Imports = CU.getImportedEntities();
     for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
@@ -1370,7 +1287,7 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       if (Entity.isType()) {
         if (trace_meta)
         printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        format_type(DIType(Entity));
+        dumpType(DIType(Entity));
       }
       else if (Entity.isSubprogram()) {
         if (trace_meta) {
@@ -1407,7 +1324,7 @@ void dump_metadata(NamedMDNode *CU_Nodes)
           cp = DIG.getName().str().c_str();
       void *addr = EE->getPointerToGlobal(gv);
       printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp, gv, val->getType()->getTypeID(), addr);
-      format_type(DIG.getType());
+      dumpType(DIG.getType());
 #if 1
       DICompositeType CTy(DIG.getType());
       int tag = CTy.getTag();
@@ -1427,9 +1344,7 @@ void dump_metadata(NamedMDNode *CU_Nodes)
 
 int main(int argc, char **argv, char * const *envp)
 {
-  SMDiagnostic Err;
   std::string ErrorMsg;
-  int Result;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   outputFile = fopen("output.tmp", "w");
@@ -1437,8 +1352,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       outputFile = stdout;
   if (dump_interpret)
       DebugFlag = true;
-  //sys::PrintStackTraceOnErrorSignal();
-  //PrettyStackTraceProgram X(argc, argv);
 
   LLVMContext &Context = getGlobalContext();
 
@@ -1497,15 +1410,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     exit(1);
   }
 
-  // load any additional modules specified on the command line.
-  for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
-    Module *XMod = llvm_ParseIRFile(ExtraModules[i], Err, Context);
-    if (!XMod) {
-      Err.print(argv[0], errs());
-      return 1;
-    }
-    EE->addModule(XMod);
-  }
   EE->DisableLazyCompilation(true);
 
   std::vector<std::string> InputArgv;
@@ -1520,24 +1424,16 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Run static constructors.
   EE->runStaticConstructorsDestructors(false);
 
-  for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
-      Function *Fn = &*I;
-      if (Fn != EntryFn && !Fn->isDeclaration())
-          EE->getPointerToFunction(Fn);
-  }
-
-  // Trigger compilation separately so code regions that need to be invalidated will be known.
-  (void)EE->getPointerToFunction(EntryFn);
-
   // Run main.
-  Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+  int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   if (CU_Nodes)
       dump_metadata(CU_Nodes);
 
-  GlobalValue *gvmodfirst = Mod->getNamedValue("_ZN6Module5firstE");
-  generate_verilog((Function ***)*(PointerTy*)EE->getPointerToGlobal(gvmodfirst));
+  
+  generate_verilog((Function ***)*(PointerTy*)
+      EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
 
   dump_class_data();
 
