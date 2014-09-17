@@ -146,11 +146,16 @@ static std::list<VTABLE_WORK> vtablework;
 static int slevel;
 static int dtlevel;
 
-void makeLocalSlot(const Value *V)
+static bool endswith(const char *str, const char *suffix)
+{
+    int skipl = strlen(str) - strlen(suffix);
+    return skipl >= 0 && !strcmp(str + skipl, suffix);
+}
+static void makeLocalSlot(const Value *V)
 {
   slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
 }
-int getLocalSlot(const Value *V)
+static int getLocalSlot(const Value *V)
 {
   std::map<const Value *, int>::iterator FI = slotmap.find(V);
   if (FI == slotmap.end()) {
@@ -159,7 +164,7 @@ int getLocalSlot(const Value *V)
   }
   return (int)FI->second;
 }
-void clearLocalSlot(void)
+static void clearLocalSlot(void)
 {
   slotmap.clear();
   slotarray_index = 1;
@@ -471,7 +476,7 @@ void translateVerilog(int return_type, const Instruction &I)
       if (return_type == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
-          if (strlen(globalName) > 7 && !strcmp(globalName + strlen(globalName) - 7, "guardEv"))
+          if (endswith(globalName, "guardEv"))
               sprintf(vout, "%s = %s && %s" SEPARATOR "enable;", globalName, getparam(1), globalName);
           else
               sprintf(vout, "%s = %s;", globalName, getparam(1));
@@ -665,17 +670,17 @@ printf("[%s:%d] Load was FunctionTyID %d\n", __FUNCTION__, __LINE__, ptrlevel);
   case Instruction::Trunc:
       printf("XLAT:         Trunc");
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
-  }
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   case Instruction::ZExt:
       printf("XLAT:          Zext");
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
-  }
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::SExt:
@@ -686,9 +691,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   case Instruction::BitCast:
       printf("XLAT:       BitCast");
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-     exit(1);
-  }
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
   //case Instruction::AddrSpaceCast:
@@ -737,7 +742,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
             writeOperand(BI->getCondition());
             int cond_item = getLocalSlot(BI->getCondition());
-printf("[%s:%d] cond %s\n", __FUNCTION__, __LINE__, slotarray[cond_item].name);
             sprintf(temp, "%s ?", slotarray[cond_item].name);
             trailch = ":";
             //writeOperand(BI->getSuccessor(0));
@@ -917,7 +921,7 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
     already_printed_header = 0;
     strcpy(temp, globalName);
     globalGuardName = NULL;
-    if (strlen(globalName) > 8 && !strcmp(globalName + strlen(globalName) - 8, "updateEv")) {
+    if (endswith(globalName, "updateEv")) {
         strcat(temp + strlen(globalName) - 8, "guardEv");
         globalGuardName = strdup(temp);
     }
@@ -959,17 +963,14 @@ static void dump_vtable(Function ***thisp, int method_index, SLOTARRAY_TYPE *arg
     while(1) {
        Function *f = vtab[i];
        globalName = strdup(f->getName().str().c_str());
-       const char *cend = globalName + (strlen(globalName)-4);
        if (trace_full)
            printf("[%s:%d] [%d] p %p: %s, this %p\n", __FUNCTION__, __LINE__, i, vtab[i], globalName, thisp);
        int rettype = f->getReturnType()->getTypeID();
        if ((rettype == Type::IntegerTyID || rettype == Type::VoidTyID)
-        && strcmp(cend, "D0Ev") && strcmp(cend, "D1Ev")) {
-           if (strlen(globalName) <= 18 || strcmp(globalName + (strlen(globalName)-18), "setModuleEP6Module")) {
-               if (!f->isDeclaration())
-                   processFunction(f, thisp, arg);
-           }
-       }
+        && !endswith(globalName, "D0Ev") && !endswith(globalName, "D1Ev")
+        && !endswith(globalName, "setModuleEP6Module")
+        && !f->isDeclaration())
+           processFunction(f, thisp, arg);
        if (++i >= arr_size)
            break;
     }
