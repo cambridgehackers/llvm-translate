@@ -193,6 +193,7 @@ static CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
 
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork;
+static std::list<MAPTYPE_WORK> mapwork_non_class;
 static int slevel;
 static const char *map_address(void *arg, std::string name)
 {
@@ -1230,7 +1231,7 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
     slevel--;
 }
 
-void dump_metadata(NamedMDNode *CU_Nodes)
+static void process_metadata(NamedMDNode *CU_Nodes)
 {
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
     DICompileUnit CU(CU_Nodes->getOperand(i));
@@ -1241,12 +1242,11 @@ void dump_metadata(NamedMDNode *CU_Nodes)
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       DISubprogram sub(SPs.getElement(i));
-      if (trace_meta) {
+          if (trace_meta)
           printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
               sub.getLinkageName().str().c_str(), sub.getVirtuality(),
               sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
           dumpTref(sub.getContainingType());
-      }
       DIArray tparam(sub.getTemplateParams());
       if (tparam.getNumElements() > 0) {
           if (trace_meta) {
@@ -1303,32 +1303,46 @@ void dump_metadata(NamedMDNode *CU_Nodes)
       if (!cp.length())
           cp = DIG.getName().str();
       void *addr = EE->getPointerToGlobal(gv);
+      if (trace_meta)
       printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID(), addr);
-      mapitem[addr] = cp;
     }
-    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-      DIGlobalVariable DIG(GVs.getElement(i));
-      const GlobalVariable *gv = DIG.getGlobal();
-      //const Constant *con = DIG.getConstant();
-      const Value *val = dyn_cast<Value>(gv);
-      const char *cp = DIG.getLinkageName().str().c_str();
-      if (!cp || !strlen(cp))
-          cp = DIG.getName().str().c_str();
-      void *addr = EE->getPointerToGlobal(gv);
-      printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp, gv, val->getType()->getTypeID(), addr);
-      dumpType(DIG.getType());
-      DICompositeType CTy(DIG.getType());
-      int tag = CTy.getTag();
-      printf("tag %s name %s\n", dwarf::TagString(tag), CTy.getName().str().c_str());
-      //if (tag == dwarf::DW_TAG_class_type) {
-          mapType(1, CTy, (char *)addr, "");
-          while (mapwork.begin() != mapwork.end()) {
-              MAPTYPE_WORK foo = *mapwork.begin();
-              mapType(foo.derived, foo.CTy, foo.addr, foo.aname);
-              mapwork.pop_front();
-          }
-      //}
-    }
+  }
+}
+
+static void construct_address_map(NamedMDNode *CU_Nodes)
+{
+  if (CU_Nodes) {
+      process_metadata(CU_Nodes);
+      for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+        DICompileUnit CU(CU_Nodes->getOperand(i));
+        DIArray GVs = CU.getGlobalVariables();
+        for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+          DIGlobalVariable DIG(GVs.getElement(i));
+          const GlobalVariable *gv = DIG.getGlobal();
+          std::string cp = DIG.getLinkageName().str();
+          if (!cp.length())
+              cp = DIG.getName().str();
+          void *addr = EE->getPointerToGlobal(gv);
+          mapitem[addr] = cp;
+          DICompositeType CTy(DIG.getType());
+          if (CTy.getTag() == dwarf::DW_TAG_class_type)
+              mapwork.push_back(MAPTYPE_WORK(1, CTy, (char *)addr, cp));
+          else
+              mapwork_non_class.push_back(MAPTYPE_WORK(1, CTy, (char *)addr, cp));
+        }
+      }
+  }
+  while (mapwork.begin() != mapwork.end()) {
+      mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
+      mapwork.pop_front();
+  }
+  while (mapwork_non_class.begin() != mapwork_non_class.end()) {
+      mapType(mapwork_non_class.begin()->derived, mapwork_non_class.begin()->CTy, mapwork_non_class.begin()->addr, mapwork_non_class.begin()->aname);
+      mapwork_non_class.pop_front();
+  }
+  while (mapwork.begin() != mapwork.end()) {
+      mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
+      mapwork.pop_front();
   }
 }
 
@@ -1418,9 +1432,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-  if (CU_Nodes)
-      dump_metadata(CU_Nodes);
-
+  construct_address_map(CU_Nodes);
   
   generate_verilog((Function ***)*(PointerTy*)
       EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
