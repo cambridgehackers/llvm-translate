@@ -127,7 +127,6 @@ static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
 static const char *globalName;
-static const char *globalClassName;
 static FILE *outputFile;
 static int already_printed_header;
 static const char *globalGuardName;
@@ -223,6 +222,22 @@ static int lookup_method(const char *classname, const char *methodname)
       if (Ty.getTag() == dwarf::DW_TAG_subprogram
        && !strcmp(Ty.getName().str().c_str(), methodname))
           return Ty.getVirtualIndex();
+      classm++;
+  }
+  return -1;
+}
+static int lookup_field(const char *classname, const char *methodname)
+{
+  CLASS_META *classp = lookup_class(classname);
+  if (!classp)
+      return -1;
+  CLASS_META_MEMBER *classm = classp->member;
+  for (int ind = 0; ind < classp->member_count; ind++) {
+      DIType Ty(classm->node);
+printf("[%s:%d] tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(Ty.getTag()), Ty.getName().str().c_str());
+      if (Ty.getTag() == dwarf::DW_TAG_member
+       && !strcmp(Ty.getName().str().c_str(), methodname))
+          return Ty.getOffsetInBits()/8;
       classm++;
   }
   return -1;
@@ -896,7 +911,7 @@ bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
+static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
 {
     //FunctionType *FT = F->getFunctionType();
     char temp[MAX_CHAR_BUFFER];
@@ -918,15 +933,10 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE *arg)
         slotarray[slotindex].name = strdup(AI->getName().str().c_str());
         if (trace_full)
             printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
-        if (!strcmp(slotarray[slotindex].name, "this")) {
-            slotarray[slotindex].name = globalClassName;
+        if (!strcmp(slotarray[slotindex].name, "this"))
             slotarray[slotindex].svalue = (uint8_t *)thisp;
-        }
         else if (!strcmp(slotarray[slotindex].name, "v")) {
-            if (arg)
-                slotarray[slotindex] = *arg;
-            else
-                printf("[%s:%d] missing param func: %s\n", __FUNCTION__, __LINE__, globalName);
+            slotarray[slotindex] = arg;
         }
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
@@ -965,20 +975,23 @@ static void dump_list(Module *Mod, const char *cp, const char *style)
 
 static void loop_through_all_rules(Function ***modfirst)
 {
-    int guard_index = lookup_method("class.Rule", "guard");
-    int body_index = lookup_method("class.Rule", "body");
-    int update_index = lookup_method("class.Rule", "update");
+    int RuleGuard = lookup_method("class.Rule", "guard");
+    int RuleBody = lookup_method("class.Rule", "body");
+    int RuleUpdate = lookup_method("class.Rule", "update");
+    int ModuleNext = lookup_field("class.Module", "next")/sizeof(uint64_t);
+    int ModuleRfirst = lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
+    int RuleNext = lookup_field("class.Rule", "next")/sizeof(uint64_t);
     while (modfirst) {                   // loop through all modules
-        printf("Module %p: vtab %p rfirst %p next %p\n", modfirst, modfirst[0], modfirst[1], modfirst[2]);
-        Function **t = modfirst[1];        // Module.rfirst
+        printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
+        Function **t = modfirst[ModuleRfirst];        // Module.rfirst
         while (t) {                        // loop through all rules for module
-            printf("Rule %p: vtab %p next %p module %p\n", t, t[0], t[1], t[2]);
-            vtablework.push_back(VTABLE_WORK((Function ***)t, guard_index, SLOTARRAY_TYPE()));
-            vtablework.push_back(VTABLE_WORK((Function ***)t, body_index, SLOTARRAY_TYPE()));
-            vtablework.push_back(VTABLE_WORK((Function ***)t, update_index, SLOTARRAY_TYPE()));
-            t = (Function **)t[1];           // Rule.next
+            printf("Rule %p: next %p\n", t, t[RuleNext]);
+            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleGuard, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleBody, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK((Function ***)t, RuleUpdate, SLOTARRAY_TYPE()));
+            t = (Function **)t[RuleNext];           // Rule.next
         }
-        modfirst = (Function ***)modfirst[2]; // Module.next
+        modfirst = (Function ***)modfirst[ModuleNext]; // Module.next
     }
 }
 
@@ -1432,9 +1445,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   while (vtablework.begin() != vtablework.end()) {
       Function ***thisp = vtablework.begin()->thisp;
       Function *f = thisp[0][vtablework.begin()->method_index];
-      globalClassName = NULL;
       globalName = strdup(f->getName().str().c_str());
-      processFunction(f, thisp, &vtablework.begin()->arg);
+      processFunction(f, thisp, vtablework.begin()->arg);
       vtablework.pop_front();
   }
 
