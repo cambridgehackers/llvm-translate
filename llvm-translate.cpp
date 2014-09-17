@@ -88,10 +88,12 @@ public:
        aname = d;
     }
 };
+
 typedef struct {
     const char   *name;
     const MDNode *node;
 } CLASS_META_MEMBER;
+
 typedef struct {
     const char   *name;
     const MDNode *node;
@@ -99,6 +101,7 @@ typedef struct {
     int           member_count;
     CLASS_META_MEMBER *member;
 } CLASS_META;
+
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
@@ -128,6 +131,10 @@ static struct {
     SLOTARRAY_TYPE arg;
 } extra_vtab[MAX_VTAB_EXTRA];
 static int extra_vtab_index;
+static std::map<void *, std::string> mapitem;
+static std::list<MAPTYPE_WORK> mapwork;
+static std::list<MAPTYPE_WORK> mapwork_non_class;
+static int slevel;
 
 void makeLocalSlot(const Value *V)
 {
@@ -191,10 +198,6 @@ static CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
   return NULL;
 }
 
-static std::map<void *, std::string> mapitem;
-static std::list<MAPTYPE_WORK> mapwork;
-static std::list<MAPTYPE_WORK> mapwork_non_class;
-static int slevel;
 static const char *map_address(void *arg, std::string name)
 {
     static char temp[MAX_CHAR_BUFFER];
@@ -1361,7 +1364,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
-  // load the bitcode...
+  // Load/link the input bitcode
   Module *Mod = LoadFile(argv[0], InputFile[0], Context);
   if (!Mod) {
     errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
@@ -1405,6 +1408,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   builder.setTargetOptions(Options);
 
+  // Create the execution environment for running the constructors
   EE = builder.create();
   if (!EE) {
     if (!ErrorMsg.empty())
@@ -1425,22 +1429,21 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     return 1;
   }
 
-  // Run static constructors.
+  // Run the static constructors
   EE->runStaticConstructorsDestructors(false);
 
-  // Run main.
+  // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
+  // Construct the address -> symbolic name map using dwarf debug info
   NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
   construct_address_map(CU_Nodes);
   
+  // Walk the rule lists, generating code
   generate_verilog((Function ***)*(PointerTy*)
       EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
 
-  dump_class_data();
-
-  dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
-  dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
+  // walk the fixup table
   printf("[%s:%d] extra %d\n", __FUNCTION__, __LINE__, extra_vtab_index);
   for (int i = 0; i < extra_vtab_index; i++) {
       printf("\n[%s:%d] [%d.] vt %p method %lld arg %p/%lld *******************************************\n", __FUNCTION__, __LINE__, i,
@@ -1452,6 +1455,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       printf("thisp[0] %s\n", map_address(((Function ***)extra_vtab[i].called.svalue)[0], ""));
       dump_vtable((Function ***)extra_vtab[i].called.svalue, (int)extra_vtab[i].called.offset/8, &extra_vtab[i].arg);
   }
+
+  dump_class_data();
+  dump_list(Mod, "_ZN12GuardedValueIiE5firstE", "GuardedValue");
+  dump_list(Mod, "_ZN6ActionIiE5firstE", "Action");
+
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
 }
