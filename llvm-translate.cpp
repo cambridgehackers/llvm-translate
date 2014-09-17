@@ -142,13 +142,6 @@ static INTMAP_TYPE opcodeMap[] = {
     {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
     {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
     {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
-static INTMAP_TYPE opcodeStrMap[] = {
-    {Instruction::Add, "Add"}, {Instruction::FAdd, "Add"},
-    {Instruction::Sub, "Sub"}, {Instruction::FSub, "Sub"},
-    {Instruction::Mul, "Mul"}, {Instruction::FMul, "Mul"},
-    {Instruction::UDiv, "Div"}, {Instruction::SDiv, "Div"}, {Instruction::FDiv, "Div"},
-    {Instruction::URem, "Rem"}, {Instruction::SRem, "Rem"}, {Instruction::FRem, "Rem"},
-    {Instruction::And, "And"}, {Instruction::Or, "Or"}, {Instruction::Xor, "Xor"}, {}};
 
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
@@ -440,10 +433,6 @@ static const char *opstr(unsigned opcode)
 {
   return intmap_lookup(opcodeMap, opcode);
 }
-static const char *opstr_print(unsigned opcode)
-{
-  return intmap_lookup(opcodeStrMap, opcode);
-}
 
 void translateVerilog(int return_type, const Instruction &I)
 {
@@ -542,7 +531,7 @@ void translateVerilog(int return_type, const Instruction &I)
       const char *op1 = getparam(1), *op2 = getparam(2);
       char temp[MAX_CHAR_BUFFER];
       temp[0] = 0;
-      printf("XLAT:%14s", opstr_print(opcode));
+      printf("XLAT:%14s", I.getOpcodeName());
       sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
       if (operand_list[0].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
