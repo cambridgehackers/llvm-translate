@@ -56,7 +56,6 @@ static int slotarray_index = 1;
 static ExecutionEngine *EE = 0;
 static std::map<const Value *, int> slotmap;
 static std::map<const MDNode *, int> metamap;
-static int metanumber;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
@@ -64,7 +63,6 @@ static const char *globalName;
 static FILE *outputFile;
 static int already_printed_header;
 static const char *globalGuardName;
-static std::list<const MDNode *> global_members;
 static CLASS_META *global_classp;
 static char vout[MAX_CHAR_BUFFER];
 
@@ -74,8 +72,7 @@ static struct {
 } operand_list[MAX_OPERAND_LIST];
 static int operand_list_index;
 static std::map<void *, std::string> mapitem;
-static std::list<MAPTYPE_WORK> mapwork;
-static std::list<MAPTYPE_WORK> mapwork_non_class;
+static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static std::list<VTABLE_WORK> vtablework;
 static int slevel;
 static int dtlevel;
@@ -289,31 +286,23 @@ static void dumpTref(const Value *val)
     int tag = nextitem.getTag();
     std::string name = nextitem.getName().str();
     std::map<const MDNode *, int>::iterator FI = metamap.find(Node);
-    if (FI != metamap.end()) {
-        if (trace_meta)
-        printf(" magic %s [%p] = ref %d\n", nextitem.getName().str().c_str(), val, FI->second);
-    }
-    else {
-        if (trace_meta)
-        printf(" magic %s [%p] =**** %d\n", nextitem.getName().str().c_str(), val, metanumber);
-        metamap[Node] = metanumber++;
+    if (FI == metamap.end()) {
+        metamap[Node] = 1;
         if (tag != dwarf::DW_TAG_class_type)
             dumpType(nextitem);
         else {
-            std::list<const MDNode *> saved_members = global_members;
-            global_members.clear();
-            dumpType(nextitem);
-            int mcount = global_members.size();
-            if (trace_full)
-            printf("class %s members %d:", name.c_str(), mcount);
             CLASS_META *saved_classp = global_classp;
             CLASS_META *classp = &class_data[class_data_index++];
             global_classp = classp;
+            dumpType(nextitem);
+            int mcount = classp->memberl.size();
+            if (trace_full)
+            printf("class %s members %d:", name.c_str(), mcount);
             classp->node = Node;
             classp->member_count = 0;
             classp->member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
-            for (std::list<const MDNode *>::iterator MI = global_members.begin(),
-                ME = global_members.end(); MI != ME; MI++) {
+            for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(),
+                ME = classp->memberl.end(); MI != ME; MI++) {
                 DISubprogram Ty(*MI);
                 const Value *v = Ty;
                 int etag = Ty.getTag();
@@ -342,7 +331,6 @@ static void dumpTref(const Value *val)
                 classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             }
             global_classp = saved_classp;
-            global_members = saved_members;
         }
     }
 }
@@ -400,7 +388,8 @@ static void dumpType(DIType litem)
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
                 const MDNode *Node = Ty;
-                global_members.push_back(Node);
+                if (global_classp)
+                    global_classp->memberl.push_back(Node);
             }
             dumpType(Ty);
         }

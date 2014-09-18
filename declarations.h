@@ -56,6 +56,7 @@ typedef struct {
     const MDNode *node;
     const MDNode *inherit;
     int           member_count;
+    std::list<const MDNode *> memberl;
     CLASS_META_MEMBER *member;
 } CLASS_META;
 
