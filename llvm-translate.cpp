@@ -685,56 +685,6 @@ static void optFunction(Function *F)
         opt_runOnBasicBlock(*I);
 }
 
-static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
-{
-    //FunctionType *FT = F->getFunctionType();
-    char temp[MAX_CHAR_BUFFER];
-
-    optFunction(F);
-    printf("FULL_AFTER_OPT:\n");
-    F->dump();
-    printf("TRANSLATE:\n");
-
-    /* connect up argument formal param names with actual values */
-    for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
-        int slotindex = getLocalSlot(AI);
-        if (AI->hasByValAttr()) {
-            printf("[%s] hasByVal param not supported\n", __FUNCTION__);
-            exit(1);
-        }
-        slotarray[slotindex].name = strdup(AI->getName().str().c_str());
-        if (trace_full)
-            printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
-        if (!strcmp(slotarray[slotindex].name, "this"))
-            slotarray[slotindex].svalue = (uint8_t *)thisp;
-        else if (!strcmp(slotarray[slotindex].name, "v")) {
-            slotarray[slotindex] = arg;
-        }
-        else
-            printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
-    }
-
-    /* If this is an 'update' method, generate 'if guard' around instruction stream */
-    already_printed_header = 0;
-    strcpy(temp, globalName);
-    globalGuardName = NULL;
-    if (endswith(globalName, "updateEv")) {
-        //strcat(temp + strlen(globalName) - 8, "guardEv");
-        temp[strlen(globalName) - 8] = 0;  // truncate "updateEv"
-        globalGuardName = strdup(temp);
-    }
-    /* Generate Verilog for all instructions.  Record function calls for post processing */
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        if (I->hasName())         // Print out the label if it exists...
-            printf("LLLLL: %s\n", I->getName().str().c_str());
-        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
-            translateVerilog(F->getReturnType()->getTypeID(), *ins);
-    }
-    clearLocalSlot();
-    if (globalGuardName && already_printed_header)
-        fprintf(outputFile, "end;\n");
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1233,12 +1183,13 @@ static void preprocessBB(int return_type, const Instruction &I)
   }
   printf("\n");
 }
-
-static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
+static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(int return_type, const Instruction &I))
 {
+    int generate = proc == translateVerilog;
     optFunction(F);
-    printf("PREPROCESS: %s\n", F->getName().str().c_str());
-    //F->dump();
+    printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
+    F->dump();
+    printf("TRANSLATE:\n");
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
@@ -1257,15 +1208,30 @@ static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
+    /* If this is an 'update' method, generate 'if guard' around instruction stream */
+    already_printed_header = 0;
+    globalGuardName = NULL;
+    if (generate && endswith(globalName, "updateEv")) {
+        char temp[MAX_CHAR_BUFFER];
+        strcpy(temp, globalName);
+        //strcat(temp + strlen(globalName) - 8, "guardEv");
+        temp[strlen(globalName) - 8] = 0;  // truncate "updateEv"
+        globalGuardName = strdup(temp);
+    }
+    /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        if (generate && I->hasName())         // Print out the label if it exists...
+            printf("LLLLL: %s\n", I->getName().str().c_str());
         for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
-            preprocessBB(F->getReturnType()->getTypeID(), *ins);
+            proc(F->getReturnType()->getTypeID(), *ins);
     }
     clearLocalSlot();
+    if (globalGuardName && already_printed_header)
+        fprintf(outputFile, "end;\n");
 }
 
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
-       void (*proc)(Function *F, void *thisp, SLOTARRAY_TYPE &arg))
+       void (*proc)(int return_type, const Instruction &I))
 {
   // run Constructors
   EE->runStaticConstructorsDestructors(false);
@@ -1299,7 +1265,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
       Function *f = vtablework.begin()->f;
       Function ***thisp = vtablework.begin()->thisp;
       globalName = strdup(f->getName().str().c_str());
-      proc(f, thisp, vtablework.begin()->arg);
+      processFunction(f, thisp, vtablework.begin()->arg, proc);
       vtablework.pop_front();
   }
 }
@@ -1409,11 +1375,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-  processConstructorAndRules(Mod, modfirst, preprocessFunction);
+  processConstructorAndRules(Mod, modfirst, preprocessBB);
   *modfirst = NULL;       // re-init the Module list
 
   // Process the static constructors, generating code for all rules
-  processConstructorAndRules(Mod, modfirst, processFunction);
+  processConstructorAndRules(Mod, modfirst, translateVerilog);
 
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
