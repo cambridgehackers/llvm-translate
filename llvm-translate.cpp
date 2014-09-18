@@ -366,19 +366,19 @@ uint64_t getOperandValue(const Value *Operand)
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
   const DataLayout *TD = EE->getDataLayout();
-  uint64_t Total = 0; 
+  uint64_t Total = 0;
   for (; I != E; ++I) {
     if (StructType *STy = dyn_cast<StructType>(*I)) {
-      const StructLayout *SLO = TD->getStructLayout(STy); 
+      const StructLayout *SLO = TD->getStructLayout(STy);
       const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
-      Total += SLO->getElementOffset(CPU->getZExtValue()); 
+      Total += SLO->getElementOffset(CPU->getZExtValue());
     } else {
       SequentialType *ST = cast<SequentialType>(*I);
       // Get the index number for the array... which must be long type...
       Total += TD->getTypeAllocSize(ST->getElementType())
                * getOperandValue(I.getOperand());
     }
-  } 
+  }
   return Total;
 }
 static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
@@ -707,9 +707,9 @@ void translateVerilog(int return_type, const Instruction &I)
 static bool opt_runOnBasicBlock(BasicBlock &BB)
 {
     bool changed = false;
-    BasicBlock::iterator Start = BB.getFirstInsertionPt(); 
+    BasicBlock::iterator Start = BB.getFirstInsertionPt();
     BasicBlock::iterator E = BB.end();
-    if (Start == E) return false; 
+    if (Start == E) return false;
     BasicBlock::iterator I = Start++;
     while(1) {
         BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
@@ -1157,6 +1157,10 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
   }
 }
 
+static void preprocessBody(Module *Mod)
+{
+}
+
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
   OwningPtr<MemoryBuffer> File;
   if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
@@ -1178,9 +1182,9 @@ static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMCon
 }
 
 namespace {
-  cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>")); 
-  cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)")); 
-  cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,...")); 
+  cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
+  cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)"));
+  cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
 int main(int argc, char **argv, char * const *envp)
@@ -1253,13 +1257,17 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   std::vector<std::string> InputArgv;
   InputArgv.insert(InputArgv.begin(), InputFile[0]);
 
+  PointerTy* modfirst = (PointerTy *)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
   Function *EntryFn = Mod->getFunction("main");
-  if (!EntryFn) {
+  if (!EntryFn || !modfirst) {
     printf("'main' function not found in module.\n");
     return 1;
   }
 
   // Run the static constructors
+  EE->runStaticConstructorsDestructors(false);
+  preprocessBody(Mod);
+  *modfirst = NULL;
   EE->runStaticConstructorsDestructors(false);
 
   // Run main
@@ -1267,11 +1275,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // Construct the address -> symbolic name map using dwarf debug info
   construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
-  
+
   // Walk the rule lists for all modules, generating work items
   {
-  Function ***modp = (Function ***)*(PointerTy*)
-      EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
+  Function ***modp = (Function ***)*modfirst;
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
