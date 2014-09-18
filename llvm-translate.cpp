@@ -735,6 +735,18 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
         fprintf(outputFile, "end;\n");
 }
 
+static void processVtablework(void (*proc)(Function *F, void *thisp, SLOTARRAY_TYPE &arg))
+{
+  // Walk list of work items, generating code
+  while (vtablework.begin() != vtablework.end()) {
+      Function *f = vtablework.begin()->f;
+      Function ***thisp = vtablework.begin()->thisp;
+      globalName = strdup(f->getName().str().c_str());
+      proc(f, thisp, vtablework.begin()->arg);
+      vtablework.pop_front();
+  }
+}
+
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1210,10 +1222,11 @@ static void preprocessBB(int return_type, const Instruction &I)
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function *f = (Function *)slotarray[tcall].svalue;
-      printf("%s: CALL %d %s;", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str());
-      //vtablework.push_back(VTABLE_WORK(f,
-      //    (Function ***)slotarray[operand_list[1].value].svalue,
-      //    (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
+      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
+          f->getName().str().c_str(), slotarray[operand_list[1].value].svalue);
+      vtablework.push_back(VTABLE_WORK(f,
+          (Function ***)slotarray[operand_list[1].value].svalue,
+          (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
       }
       break;
@@ -1232,9 +1245,12 @@ static void preprocessBB(int return_type, const Instruction &I)
   }
   printf("\n");
 }
+
 static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
 {
     optFunction(F);
+    printf("PREPROCESS: %s\n", F->getName().str().c_str());
+    //F->dump();
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
@@ -1277,7 +1293,7 @@ static void preprocessBody(Module *Mod, Function ***modp)
       modp = (Function ***)modp[ModuleNext]; // Module.next
   }
   fprintf(outputFile, "//////////////////////////////\n");
-  vtablework.clear();
+  processVtablework(preprocessFunction);
 }
 
 static void run_constructor(Module *Mod)
@@ -1422,16 +1438,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
       }
       modp = (Function ***)modp[ModuleNext]; // Module.next
   }
-
-  // Walk list of work items, generating code
-  while (vtablework.begin() != vtablework.end()) {
-      Function *f = vtablework.begin()->f;
-      Function ***thisp = vtablework.begin()->thisp;
-      globalName = strdup(f->getName().str().c_str());
-      processFunction(f, thisp, vtablework.begin()->arg);
-      vtablework.pop_front();
-  }
-
+  processVtablework(processFunction);
   //dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
