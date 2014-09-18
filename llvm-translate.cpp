@@ -60,12 +60,13 @@ static int metanumber;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
-static const char *globalName = "foo";
+static const char *globalName;
 static FILE *outputFile;
 static int already_printed_header;
 static const char *globalGuardName;
 static std::list<const MDNode *> global_members;
 static CLASS_META *global_classp;
+static char vout[MAX_CHAR_BUFFER];
 
 static struct {
    int type;
@@ -345,8 +346,6 @@ static const char *opstr(unsigned opcode)
 static void translateVerilog(int return_type, const Instruction &I)
 {
   int dump_operands = trace_full;
-  char vout[MAX_CHAR_BUFFER];
-  vout[0] = 0;
   int opcode = I.getOpcode();
   switch (opcode) {
   // Terminators
@@ -422,21 +421,6 @@ static void translateVerilog(int return_type, const Instruction &I)
 
   // Memory instructions...
   //case Instruction::Alloca: // ignore
-  case Instruction::Load:
-      {
-      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-      if(!Ptr) {
-          printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-          if (!slotarray[operand_list[0].value].svalue)
-              operand_list[0].type = OpTypeInt;
-          dump_operands = 1;
-          break;
-      }
-      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
-      slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
-      }
-      break;
   case Instruction::Store:
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
@@ -449,19 +433,6 @@ static void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::AtomicCmpXchg:
   //case Instruction::AtomicRMW:
   //case Instruction::Fence:
-  case Instruction::GetElementPtr:
-      {
-      uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
-      if (!slotarray[operand_list[1].value].svalue) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-      slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
-      slotarray[operand_list[0].value].svalue = ptr;
-      slotarray[operand_list[0].value].offset = Total;
-      }
-      break;
 
   // Convert instructions...
   //case Instruction::SExt:
@@ -482,6 +453,7 @@ static void translateVerilog(int return_type, const Instruction &I)
 
   // Other instructions...
   case Instruction::ICmp:
+  //case Instruction::FCmp:
       {
       const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
       char temp[MAX_CHAR_BUFFER];
@@ -497,7 +469,6 @@ static void translateVerilog(int return_type, const Instruction &I)
       }
       }
       break;
-  //case Instruction::FCmp:
   case Instruction::PHI:
       {
       char temp[MAX_CHAR_BUFFER];
@@ -576,10 +547,6 @@ static void translateVerilog(int return_type, const Instruction &I)
           printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
-  }
-  if (strlen(vout)) {
-     print_header();
-     fprintf(outputFile, "        %s\n", vout);
   }
 }
 
@@ -1016,20 +983,6 @@ static void preprocessBB(int return_type, const Instruction &I)
       break;
 
   // Memory instructions...
-  case Instruction::Load:
-      {
-      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-      if(!Ptr) {
-          printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-          if (!slotarray[operand_list[0].value].svalue)
-              operand_list[0].type = OpTypeInt;
-          break;
-      }
-      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
-      slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
-      }
-      break;
   case Instruction::Store:
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
@@ -1038,19 +991,6 @@ static void preprocessBB(int return_type, const Instruction &I)
           printf("%s: STORE %s;", __FUNCTION__, getparam(2));
       else
           slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-      break;
-  case Instruction::GetElementPtr:
-      {
-      uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
-      if (!slotarray[operand_list[1].value].svalue) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-      slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
-      slotarray[operand_list[0].value].svalue = ptr;
-      slotarray[operand_list[0].value].offset = Total;
-      }
       break;
 
   // Convert instructions...
@@ -1192,7 +1132,42 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 writeOperand(ins->getOperand(i));
-            proc(F->getReturnType()->getTypeID(), *ins);
+            switch (ins->getOpcode()) {
+            case Instruction::GetElementPtr:
+                {
+                uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
+                if (!slotarray[operand_list[1].value].svalue) {
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
+                }
+                uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+                slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
+                slotarray[operand_list[0].value].svalue = ptr;
+                slotarray[operand_list[0].value].offset = Total;
+                }
+                break;
+            case Instruction::Load:
+                {
+                slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+                PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
+                if(!Ptr) {
+                    printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+                    if (!slotarray[operand_list[0].value].svalue)
+                        operand_list[0].type = OpTypeInt;
+                    break;
+                }
+                slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
+                slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
+                }
+                break;
+            default:
+                vout[0] = 0;
+                proc(F->getReturnType()->getTypeID(), *ins);
+                if (strlen(vout)) {
+                   print_header();
+                   fprintf(outputFile, "        %s\n", vout);
+                }
+            }
             printf("\n");
         }
     }
