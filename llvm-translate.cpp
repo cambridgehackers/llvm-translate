@@ -469,8 +469,7 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
         printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
     slevel++;
-    if (tag == dwarf::DW_TAG_inheritance || tag == dwarf::DW_TAG_member
-     || CTy.isCompositeType()) {
+    if (CTy.isDerivedType() || CTy.isCompositeType()) {
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *derivedNode = NULL;
         if (val)
@@ -991,16 +990,6 @@ static void translateVerilog(int return_type, const Instruction &I)
   }
 }
 
-static void print_header()
-{
-    if (!already_printed_header) {
-        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
-        if (globalGuardName)
-            fprintf(outputFile, "if (%sguardEv && %senableEv) then begin\n", globalGuardName, globalGuardName);
-    }
-    already_printed_header = 1;
-}
-
 static uint64_t getOperandValue(const Value *Operand)
 {
   const Constant *CV = dyn_cast<Constant>(Operand);
@@ -1100,7 +1089,7 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
         char temp[MAX_CHAR_BUFFER];
         strcpy(temp, globalName);
         //strcat(temp + strlen(globalName) - 8, "guardEv");
-        temp[strlen(globalName) - 8] = 0;  // truncate "updateEv"
+        temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
         globalGuardName = strdup(temp);
     }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
@@ -1164,7 +1153,12 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
                 vout[0] = 0;
                 proc(F->getReturnType()->getTypeID(), *ins);
                 if (strlen(vout)) {
-                   print_header();
+                    if (!already_printed_header) {
+                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
+                        if (globalGuardName)
+                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", globalGuardName, globalGuardName);
+                    }
+                    already_printed_header = 1;
                    fprintf(outputFile, "        %s\n", vout);
                 }
             }
