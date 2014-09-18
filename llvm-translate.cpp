@@ -653,13 +653,6 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void optFunction(Function *F)
-{
-    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-        opt_runOnBasicBlock(*I);
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1136,7 +1129,9 @@ static void preprocessBB(int return_type, const Instruction &I)
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(int return_type, const Instruction &I))
 {
     int generate = proc == translateVerilog;
-    optFunction(F);
+    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+        opt_runOnBasicBlock(*I);
     printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
     F->dump();
     printf("TRANSLATE:\n");
@@ -1177,7 +1172,6 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
 
             operand_list_index = 0;
             memset(operand_list, 0, sizeof(operand_list));
-#if 1
             if (ins->hasName() || !ins->getType()->isVoidTy()) {
               int t = getLocalSlot(ins);
               operand_list[operand_list_index].type = OpTypeLocalRef;
@@ -1198,7 +1192,6 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 writeOperand(ins->getOperand(i));
-#endif
             proc(F->getReturnType()->getTypeID(), *ins);
             printf("\n");
         }
