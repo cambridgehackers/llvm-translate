@@ -27,23 +27,18 @@
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/TypeBuilder.h"
+//#include "llvm/IR/Type.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/MutexGuard.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
 #include "llvm/Assembly/Parser.h"
@@ -522,7 +517,6 @@ void translateVerilog(int return_type, const Instruction &I)
   case Instruction::Mul: case Instruction::FMul:
   case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
   case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-
   // Logical operators...
   case Instruction::And:
   case Instruction::Or:
@@ -680,7 +674,6 @@ void translateVerilog(int return_type, const Instruction &I)
           (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
-      dump_operands = 1;
       }
       break;
   //case Instruction::Shl:
@@ -837,9 +830,9 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
 
 static void loop_through_all_rules(Function ***modfirst)
 {
-    int ModuleRfirst = lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-    int ModuleNext   = lookup_field("class.Module", "next")/sizeof(uint64_t);
-    int RuleNext     = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+    int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
+    int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
+    int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
     while (modfirst) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
         Function ***t = (Function ***)modfirst[ModuleRfirst];        // Module.rfirst
