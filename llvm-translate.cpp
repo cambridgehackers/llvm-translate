@@ -1235,9 +1235,6 @@ static void preprocessBB(int return_type, const Instruction &I)
 static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
 {
     optFunction(F);
-    //printf("preprocessFunction: before\n");
-    //F->dump();
-
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
@@ -1262,12 +1259,10 @@ static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
     }
     clearLocalSlot();
 }
+static int ModuleRfirst, ModuleNext, RuleNext;
 static void preprocessBody(Module *Mod, Function ***modp)
 {
   // Walk the rule lists for all modules, generating work items
-  int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-  int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
-  int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
   SLOTARRAY_TYPE temparg;
   globalName = "foo";
   while (modp) {                   // loop through all modules
@@ -1275,12 +1270,8 @@ static void preprocessBody(Module *Mod, Function ***modp)
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
       while (rulep) {                      // loop through all rules for module
           printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          static const char *method[] = { "guard", "body", "update", NULL};
-          const char **p = method;
-          while (*p) {
-              preprocessFunction(rulep[0][lookup_method("class.Rule", *p)], rulep, temparg);
-              p++;
-          }
+          preprocessFunction(rulep[0][lookup_method("class.Rule", "body")], rulep, temparg);
+          preprocessFunction(rulep[0][lookup_method("class.Rule", "update")], rulep, temparg);
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
       }
       modp = (Function ***)modp[ModuleNext]; // Module.next
@@ -1328,6 +1319,9 @@ int main(int argc, char **argv, char * const *envp)
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   DebugFlag = dump_interpret != 0;
+  outputFile = fopen("output.tmp", "w");
+  if (output_stdout)
+      outputFile = stdout;
 
   LLVMContext &Context = getGlobalContext();
 
@@ -1398,25 +1392,19 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // Run the static constructors
   run_constructor(Mod);
-  outputFile = fopen("output.tmp.preprocess", "w");
+  ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
+  ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
+  RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
   preprocessBody(Mod, (Function ***)*modfirst);
-  fclose(outputFile);
   *modfirst = NULL;
 
   run_constructor(Mod);
-  outputFile = fopen("output.tmp", "w");
-  if (output_stdout)
-      outputFile = stdout;
 
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
   // Walk the rule lists for all modules, generating work items
-  {
   Function ***modp = (Function ***)*modfirst;
-  int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-  int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
-  int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
   while (modp) {                   // loop through all modules
       printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
@@ -1432,7 +1420,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
       }
       modp = (Function ***)modp[ModuleNext]; // Module.next
-  }
   }
 
   // Walk list of work items, generating code
