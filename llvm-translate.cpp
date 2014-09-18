@@ -26,22 +26,20 @@
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/Linker.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-//#include "llvm/IR/Type.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Linker.h"
-#include "llvm/Assembly/Parser.h"
 
 using namespace llvm;
 
@@ -828,29 +826,6 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
         fprintf(outputFile, "end;\n");
 }
 
-static void loop_through_all_rules(Function ***modfirst)
-{
-    int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-    int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
-    int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
-    while (modfirst) {                   // loop through all modules
-        printf("Module %p: rfirst %p next %p\n", modfirst, modfirst[ModuleRfirst], modfirst[ModuleNext]);
-        Function ***t = (Function ***)modfirst[ModuleRfirst];        // Module.rfirst
-        while (t) {                      // loop through all rules for module
-            printf("Rule %p: next %p\n", t, t[RuleNext]);
-            static const char *method[] = { "guard", "body", "update", NULL};
-            const char **p = method;
-            while (*p) {
-                vtablework.push_back(VTABLE_WORK(t[0][lookup_method("class.Rule", *p)], t, 
-                    SLOTARRAY_TYPE()));
-                p++;
-            }
-            t = (Function ***)t[RuleNext];           // Rule.next
-        }
-        modfirst = (Function ***)modfirst[ModuleNext]; // Module.next
-    }
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1184,8 +1159,8 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
 
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
   OwningPtr<MemoryBuffer> File;
-  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename, File)) {
-    Err = SMDiagnostic(Filename, SourceMgr::DK_Error, "Could not open input file: " + ec.message());
+  if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
+    printf("llvm_ParseIRFile: could not open inpuf file %s\n", Filename.c_str());
     return 0;
   }
   Module *M = new Module(Filename, Context);
@@ -1294,8 +1269,29 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
   
   // Walk the rule lists for all modules, generating work items
-  loop_through_all_rules((Function ***)*(PointerTy*)
-      EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE")));
+  {
+  Function ***modp = (Function ***)*(PointerTy*)
+      EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
+  int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
+  int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
+  int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+  while (modp) {                   // loop through all modules
+      printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
+      Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
+      while (rulep) {                      // loop through all rules for module
+          printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
+          static const char *method[] = { "guard", "body", "update", NULL};
+          const char **p = method;
+          while (*p) {
+              vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
+                  rulep, SLOTARRAY_TYPE()));
+              p++;
+          }
+          rulep = (Function ***)rulep[RuleNext];           // Rule.next
+      }
+      modp = (Function ***)modp[ModuleNext]; // Module.next
+  }
+  }
 
   // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
