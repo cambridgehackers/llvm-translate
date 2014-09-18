@@ -599,7 +599,7 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::InsertValue:
   //case Instruction::LandingPad:
   default:
-      printf("XLAT: Other opcode %d.=%s", opcode, I.getOpcodeName());
+      printf("XLAT: Other opcode %d.=%s\n", opcode, I.getOpcodeName());
       exit(1);
       break;
   }
@@ -688,14 +688,19 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
+static void optFunction(Function *F)
+{
+    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+        opt_runOnBasicBlock(*I);
+}
+
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
 {
     //FunctionType *FT = F->getFunctionType();
     char temp[MAX_CHAR_BUFFER];
 
-    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-        opt_runOnBasicBlock(*I);
+    optFunction(F);
     printf("FULL_AFTER_OPT:\n");
     F->dump();
     printf("TRANSLATE:\n");
@@ -1073,6 +1078,277 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
   }
 }
 
+static void preprocessBB(int return_type, const Instruction &I)
+{
+  int opcode = I.getOpcode();
+  char instruction_label[MAX_CHAR_BUFFER];
+
+  operand_list_index = 0;
+  memset(operand_list, 0, sizeof(operand_list));
+  if (I.hasName() || !I.getType()->isVoidTy()) {
+    int t = getLocalSlot(&I);
+    operand_list[operand_list_index].type = OpTypeLocalRef;
+    operand_list[operand_list_index++].value = t;
+    if (I.hasName())
+        slotarray[t].name = strdup(I.getName().str().c_str());
+    else {
+        char temp[MAX_CHAR_BUFFER];
+        sprintf(temp, "%%%d", t);
+        slotarray[t].name = strdup(temp);
+    }
+    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
+  }
+  else {
+    operand_list_index++;
+    sprintf(instruction_label, "            : ");
+  }
+  printf("%s    ", instruction_label);
+  printf("XLAT:%14s", I.getOpcodeName());
+
+  for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
+      writeOperand(I.getOperand(i));
+  switch (opcode) {
+  // Terminators
+  case Instruction::Ret:
+      {
+      printf("XLAT:           Ret");
+      int parent_block = getLocalSlot(I.getParent());
+      printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
+      if (return_type == Type::IntegerTyID && operand_list_index > 1) {
+          operand_list[0].type = OpTypeString;
+          operand_list[0].value = (uint64_t)getparam(1);
+      }
+      }
+      break;
+  case Instruction::Br:
+      {
+      char temp[MAX_CHAR_BUFFER];
+      printf("XLAT:            Br");
+      if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+        const BranchInst &BI(cast<BranchInst>(I));
+        writeOperand(BI.getCondition());
+        int cond_item = getLocalSlot(BI.getCondition());
+        sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
+        if (slotarray[cond_item].name) {
+            slotarray[cond_item].name = strdup(temp);
+        }
+        writeOperand(BI.getSuccessor(0));
+        writeOperand(BI.getSuccessor(1));
+      } else if (isa<IndirectBrInst>(I)) {
+        for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+          writeOperand(I.getOperand(i));
+        }
+      }
+      }
+      break;
+  case Instruction::Unreachable:
+      printf("XLAT:   Unreachable");
+      break;
+
+  // Standard binary operators...
+  case Instruction::Add: case Instruction::FAdd:
+  case Instruction::Sub: case Instruction::FSub:
+  case Instruction::Mul: case Instruction::FMul:
+  case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+  case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+  // Logical operators...
+  case Instruction::And:
+  case Instruction::Or:
+  case Instruction::Xor:
+      {
+      const char *op1 = getparam(1), *op2 = getparam(2);
+      char temp[MAX_CHAR_BUFFER];
+      temp[0] = 0;
+      sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
+      if (operand_list[0].type != OpTypeLocalRef) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      slotarray[operand_list[0].value].name = strdup(temp);
+      }
+      break;
+
+  // Memory instructions...
+  case Instruction::Load:
+      {
+      printf("XLAT:          Load");
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
+      if(!Ptr) {
+          printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+          if (!slotarray[operand_list[0].value].svalue)
+              operand_list[0].type = OpTypeInt;
+          break;
+      }
+      slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, I.getType());
+      slotarray[operand_list[0].value].name = strdup(map_address(Ptr, ""));
+      }
+      break;
+  case Instruction::Store:
+      printf("XLAT:         Store");
+      if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
+          operand_list[1].type = OpTypeInt;
+      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
+        || !slotarray[operand_list[2].value].ignore_debug_info)
+          printf("%s: ATTEMPT TO STORE %s;", __FUNCTION__, getparam(1));
+      else
+          slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
+      break;
+  case Instruction::GetElementPtr:
+      {
+      printf("XLAT: GetElementPtr");
+      uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
+      if (!slotarray[operand_list[1].value].svalue) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+      slotarray[operand_list[0].value].name = strdup(map_address(ptr, ""));
+      slotarray[operand_list[0].value].svalue = ptr;
+      slotarray[operand_list[0].value].offset = Total;
+      }
+      break;
+
+  // Convert instructions...
+  //case Instruction::SExt:
+  //case Instruction::FPTrunc: //case Instruction::FPExt:
+  //case Instruction::FPToUI: //case Instruction::FPToSI:
+  //case Instruction::UIToFP: //case Instruction::SIToFP:
+  //case Instruction::IntToPtr: //case Instruction::PtrToInt:
+  case Instruction::Trunc:
+  case Instruction::ZExt:
+  case Instruction::BitCast:
+      printf("XLAT:       %9s", I.getOpcodeName());
+      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+      break;
+  //case Instruction::AddrSpaceCast:
+
+  // Other instructions...
+  case Instruction::ICmp:
+      {
+      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
+      char temp[MAX_CHAR_BUFFER];
+      temp[0] = 0;
+      printf("XLAT:          ICmp");
+      if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
+          opstr = getPredicateText(CI->getPredicate());
+      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
+      if (operand_list[0].type == OpTypeLocalRef)
+          slotarray[operand_list[0].value].name = strdup(temp);
+      else {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      }
+      break;
+  //case Instruction::FCmp:
+  case Instruction::PHI:
+      {
+      printf("XLAT:           PHI");
+      char temp[MAX_CHAR_BUFFER];
+      const PHINode *PN = dyn_cast<PHINode>(&I);
+      if (!PN) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      I.getType()->dump();
+      sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
+      slotarray[operand_list[0].value].name = strdup(temp);
+      for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
+          int valuein = getLocalSlot(PN->getIncomingValue(op));
+          writeOperand(PN->getIncomingValue(op));
+          writeOperand(PN->getIncomingBlock(op));
+          TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
+          printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+          TI->dump();
+          const BranchInst *BI = dyn_cast<BranchInst>(TI);
+          const char *trailch = "";
+          if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
+            writeOperand(BI->getCondition());
+            int cond_item = getLocalSlot(BI->getCondition());
+            sprintf(temp, "%s ?", slotarray[cond_item].name);
+            trailch = ":";
+            //writeOperand(BI->getSuccessor(0));
+            //writeOperand(BI->getSuccessor(1));
+          }
+          if (slotarray[valuein].name)
+              sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
+          else
+              sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
+      }
+      }
+      break;
+  //case Instruction::Select:
+  case Instruction::Call:
+      {
+      //const CallInst *CI = dyn_cast<CallInst>(&I);
+      //const Value *val = CI->getCalledValue();
+      printf("XLAT:          Call");
+      if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
+          printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
+          break;
+      }
+      int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
+      Function *f = (Function *)slotarray[tcall].svalue;
+      printf("%s: ATTEMPT TO CALL %s;", __FUNCTION__, f->getName().str().c_str());
+      //vtablework.push_back(VTABLE_WORK(f,
+      //    (Function ***)slotarray[operand_list[1].value].svalue,
+      //    (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
+      slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+      }
+      break;
+  //case Instruction::Shl:
+  //case Instruction::LShr:
+  //case Instruction::AShr:
+  //case Instruction::VAArg:
+  //case Instruction::ExtractElement:
+  //case Instruction::InsertElement:
+  //case Instruction::ShuffleVector:
+  //case Instruction::ExtractValue:
+  //case Instruction::InsertValue:
+  //case Instruction::LandingPad:
+  default:
+      printf("XLAT: Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+      exit(1);
+  //case Instruction::Alloca: // ignore
+      break;
+  }
+  printf("\n");
+}
+static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
+{
+    optFunction(F);
+    //printf("preprocessFunction: before\n");
+    //F->dump();
+
+    /* connect up argument formal param names with actual values */
+    for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
+        int slotindex = getLocalSlot(AI);
+        if (AI->hasByValAttr()) {
+            printf("[%s] hasByVal param not supported\n", __FUNCTION__);
+            exit(1);
+        }
+        slotarray[slotindex].name = strdup(AI->getName().str().c_str());
+        if (trace_full)
+            printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
+        if (!strcmp(slotarray[slotindex].name, "this"))
+            slotarray[slotindex].svalue = (uint8_t *)thisp;
+        else if (!strcmp(slotarray[slotindex].name, "v")) {
+            slotarray[slotindex] = arg;
+        }
+        else
+            printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
+    }
+    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
+            preprocessBB(F->getReturnType()->getTypeID(), *ins);
+    }
+    clearLocalSlot();
+}
 static void preprocessBody(Module *Mod, Function ***modp)
 {
   // Walk the rule lists for all modules, generating work items
@@ -1089,7 +1365,7 @@ static void preprocessBody(Module *Mod, Function ***modp)
           static const char *method[] = { "guard", "body", "update", NULL};
           const char **p = method;
           while (*p) {
-              processFunction(rulep[0][lookup_method("class.Rule", *p)], rulep, temparg);
+              preprocessFunction(rulep[0][lookup_method("class.Rule", *p)], rulep, temparg);
               p++;
           }
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
