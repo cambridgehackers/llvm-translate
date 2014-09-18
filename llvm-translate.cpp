@@ -342,36 +342,12 @@ static const char *opstr(unsigned opcode)
   return intmap_lookup(opcodeMap, opcode);
 }
 
-void translateVerilog(int return_type, const Instruction &I)
+static void translateVerilog(int return_type, const Instruction &I)
 {
-  int opcode = I.getOpcode();
-  char instruction_label[MAX_CHAR_BUFFER];
-  char vout[MAX_CHAR_BUFFER];
   int dump_operands = trace_full;
-
+  char vout[MAX_CHAR_BUFFER];
   vout[0] = 0;
-  operand_list_index = 0;
-  memset(operand_list, 0, sizeof(operand_list));
-  if (I.hasName() || !I.getType()->isVoidTy()) {
-    int t = getLocalSlot(&I);
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = t;
-    if (I.hasName())
-        slotarray[t].name = strdup(I.getName().str().c_str());
-    else {
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "%%%d", t);
-        slotarray[t].name = strdup(temp);
-    }
-    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
-  }
-  else {
-    operand_list_index++;
-    sprintf(instruction_label, "            : ");
-  }
-  printf("%s    XLAT:%14s", instruction_label, I.getOpcodeName());
-  for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
-      writeOperand(I.getOperand(i));
+  int opcode = I.getOpcode();
   switch (opcode) {
   // Terminators
   case Instruction::Ret:
@@ -601,7 +577,6 @@ void translateVerilog(int return_type, const Instruction &I)
       else if (operand_list[i].type != OpTypeNone)
           printf(" op[%d]=%s;", i, getparam(i));
   }
-  printf("\n");
   if (strlen(vout)) {
      print_header();
      fprintf(outputFile, "        %s\n", vout);
@@ -1024,30 +999,6 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
 static void preprocessBB(int return_type, const Instruction &I)
 {
   int opcode = I.getOpcode();
-  char instruction_label[MAX_CHAR_BUFFER];
-
-  operand_list_index = 0;
-  memset(operand_list, 0, sizeof(operand_list));
-  if (I.hasName() || !I.getType()->isVoidTy()) {
-    int t = getLocalSlot(&I);
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-    operand_list[operand_list_index++].value = t;
-    if (I.hasName())
-        slotarray[t].name = strdup(I.getName().str().c_str());
-    else {
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "%%%d", t);
-        slotarray[t].name = strdup(temp);
-    }
-    sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
-  }
-  else {
-    operand_list_index++;
-    sprintf(instruction_label, "            : ");
-  }
-  printf("%s    XLAT:%14s", instruction_label, I.getOpcodeName());
-  for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
-      writeOperand(I.getOperand(i));
   switch (opcode) {
   // Terminators
   case Instruction::Br:
@@ -1181,7 +1132,6 @@ static void preprocessBB(int return_type, const Instruction &I)
   case Instruction::ICmp:
       break;
   }
-  printf("\n");
 }
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(int return_type, const Instruction &I))
 {
@@ -1222,8 +1172,36 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
         if (generate && I->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", I->getName().str().c_str());
-        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins)
+        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins) {
+            char instruction_label[MAX_CHAR_BUFFER];
+
+            operand_list_index = 0;
+            memset(operand_list, 0, sizeof(operand_list));
+#if 1
+            if (ins->hasName() || !ins->getType()->isVoidTy()) {
+              int t = getLocalSlot(ins);
+              operand_list[operand_list_index].type = OpTypeLocalRef;
+              operand_list[operand_list_index++].value = t;
+              if (ins->hasName())
+                  slotarray[t].name = strdup(ins->getName().str().c_str());
+              else {
+                  char temp[MAX_CHAR_BUFFER];
+                  sprintf(temp, "%%%d", t);
+                  slotarray[t].name = strdup(temp);
+              }
+              sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
+            }
+            else {
+              operand_list_index++;
+              sprintf(instruction_label, "            : ");
+            }
+            printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
+            for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
+                writeOperand(ins->getOperand(i));
+#endif
             proc(F->getReturnType()->getTypeID(), *ins);
+            printf("\n");
+        }
     }
     clearLocalSlot();
     if (globalGuardName && already_printed_header)
