@@ -267,76 +267,6 @@ static const char *opstr(unsigned opcode)
   return intmap_lookup(opcodeMap, opcode);
 }
 
-static bool opt_runOnBasicBlock(BasicBlock &BB)
-{
-    bool changed = false;
-    BasicBlock::iterator Start = BB.getFirstInsertionPt();
-    BasicBlock::iterator E = BB.end();
-    if (Start == E) return false;
-    BasicBlock::iterator I = Start++;
-    while(1) {
-        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
-        int opcode = I->getOpcode();
-        Value *retv = (Value *)I;
-        //printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
-        //for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
-            //printf(" %p", I->getOperand(i));
-        //}
-        //printf("\n");
-        switch (opcode) {
-        case Instruction::Load:
-            {
-            const char *cp = I->getOperand(0)->getName().str().c_str();
-            if (!strcmp(cp, "this")) {
-                retv->replaceAllUsesWith(I->getOperand(0));
-                I->eraseFromParent(); // delete "Load 'this'" instruction
-                changed = true;
-            }
-            }
-            break;
-        case Instruction::Alloca:
-            if (I->hasName()) {
-                Value *newt = NULL;
-                BasicBlock::iterator PN = PI;
-                while (PN != E) {
-                    BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
-                    if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
-                        newt = PN->getOperand(0);
-                    for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
-                        if (*OI == retv && newt)
-                            *OI = newt;
-                    }
-                    if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
-                        if (PI == PN)
-                            PI = PNN;
-                        PN->eraseFromParent(); // delete Store instruction
-                    }
-                    PN = PNN;
-                }
-                I->eraseFromParent(); // delete Alloca instruction
-                changed = true;
-            }
-            break;
-        case Instruction::Call:
-            if (const CallInst *CI = dyn_cast<CallInst>(I)) {
-              const Value *Operand = CI->getCalledValue();
-                if (Operand->hasName() && isa<Constant>(Operand)) {
-                  const char *cp = Operand->getName().str().c_str();
-                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "printf")) {
-                      I->eraseFromParent(); // delete this instruction
-                      changed = true;
-                  }
-                }
-            }
-            break;
-        };
-        if (PI == E)
-            break;
-        I = PI;
-    }
-    return changed;
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -671,6 +601,76 @@ static void construct_address_map(NamedMDNode *CU_Nodes)
       mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
       mapwork.pop_front();
   }
+}
+
+static bool opt_runOnBasicBlock(BasicBlock &BB)
+{
+    bool changed = false;
+    BasicBlock::iterator Start = BB.getFirstInsertionPt();
+    BasicBlock::iterator E = BB.end();
+    if (Start == E) return false;
+    BasicBlock::iterator I = Start++;
+    while(1) {
+        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
+        int opcode = I->getOpcode();
+        Value *retv = (Value *)I;
+        //printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
+        //for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
+            //printf(" %p", I->getOperand(i));
+        //}
+        //printf("\n");
+        switch (opcode) {
+        case Instruction::Load:
+            {
+            const char *cp = I->getOperand(0)->getName().str().c_str();
+            if (!strcmp(cp, "this")) {
+                retv->replaceAllUsesWith(I->getOperand(0));
+                I->eraseFromParent(); // delete "Load 'this'" instruction
+                changed = true;
+            }
+            }
+            break;
+        case Instruction::Alloca:
+            if (I->hasName()) {
+                Value *newt = NULL;
+                BasicBlock::iterator PN = PI;
+                while (PN != E) {
+                    BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
+                    if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
+                        newt = PN->getOperand(0);
+                    for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
+                        if (*OI == retv && newt)
+                            *OI = newt;
+                    }
+                    if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
+                        if (PI == PN)
+                            PI = PNN;
+                        PN->eraseFromParent(); // delete Store instruction
+                    }
+                    PN = PNN;
+                }
+                I->eraseFromParent(); // delete Alloca instruction
+                changed = true;
+            }
+            break;
+        case Instruction::Call:
+            if (const CallInst *CI = dyn_cast<CallInst>(I)) {
+              const Value *Operand = CI->getCalledValue();
+                if (Operand->hasName() && isa<Constant>(Operand)) {
+                  const char *cp = Operand->getName().str().c_str();
+                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "printf")) {
+                      I->eraseFromParent(); // delete this instruction
+                      changed = true;
+                  }
+                }
+            }
+            break;
+        };
+        if (PI == E)
+            break;
+        I = PI;
+    }
+    return changed;
 }
 
 static void preprocessBB(int return_type, const Instruction &I)
