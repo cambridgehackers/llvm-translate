@@ -60,7 +60,7 @@ static int metanumber;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
-static const char *globalName;
+static const char *globalName = "foo";
 static FILE *outputFile;
 static int already_printed_header;
 static const char *globalGuardName;
@@ -735,18 +735,6 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
         fprintf(outputFile, "end;\n");
 }
 
-static void processVtablework(void (*proc)(Function *F, void *thisp, SLOTARRAY_TYPE &arg))
-{
-  // Walk list of work items, generating code
-  while (vtablework.begin() != vtablework.end()) {
-      Function *f = vtablework.begin()->f;
-      Function ***thisp = vtablework.begin()->thisp;
-      globalName = strdup(f->getName().str().c_str());
-      proc(f, thisp, vtablework.begin()->arg);
-      vtablework.pop_front();
-  }
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -1275,35 +1263,49 @@ static void preprocessFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg)
     }
     clearLocalSlot();
 }
-static int ModuleRfirst, ModuleNext, RuleNext;
-static void preprocessBody(Module *Mod, Function ***modp)
+
+static void processConstructorAndRules(Module *Mod, Function ****modfirst,
+       void (*proc)(Function *F, void *thisp, SLOTARRAY_TYPE &arg))
 {
+  // run Constructors
+  EE->runStaticConstructorsDestructors(false);
+  // Construct the address -> symbolic name map using dwarf debug info
+  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
+  int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
+  int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
+  int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+  Function ***modp = *modfirst;
+
   // Walk the rule lists for all modules, generating work items
-  SLOTARRAY_TYPE temparg;
-  globalName = "foo";
   while (modp) {                   // loop through all modules
       printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
       while (rulep) {                      // loop through all rules for module
           printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          preprocessFunction(rulep[0][lookup_method("class.Rule", "body")], rulep, temparg);
-          preprocessFunction(rulep[0][lookup_method("class.Rule", "update")], rulep, temparg);
+          static const char *method[] = { "guard", "body", "update", NULL};
+          const char **p = method;
+          while (*p) {
+              vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
+                  rulep, SLOTARRAY_TYPE()));
+              p++;
+          }
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
       }
       modp = (Function ***)modp[ModuleNext]; // Module.next
   }
-  fprintf(outputFile, "//////////////////////////////\n");
-  processVtablework(preprocessFunction);
+
+  // Walk list of work items, generating code
+  while (vtablework.begin() != vtablework.end()) {
+      Function *f = vtablework.begin()->f;
+      Function ***thisp = vtablework.begin()->thisp;
+      globalName = strdup(f->getName().str().c_str());
+      proc(f, thisp, vtablework.begin()->arg);
+      vtablework.pop_front();
+  }
 }
 
-static void run_constructor(Module *Mod)
+static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
-  EE->runStaticConstructorsDestructors(false);
-  // Construct the address -> symbolic name map using dwarf debug info
-  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
-}
-
-static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
   OwningPtr<MemoryBuffer> File;
   if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
     printf("llvm_ParseIRFile: could not open inpuf file %s\n", Filename.c_str());
@@ -1399,7 +1401,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   std::vector<std::string> InputArgv;
   InputArgv.insert(InputArgv.begin(), InputFile[0]);
 
-  PointerTy* modfirst = (PointerTy *)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
+  Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
   Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn || !modfirst) {
     printf("'main' function not found in module.\n");
@@ -1407,38 +1409,15 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-  run_constructor(Mod);
-  ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-  ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
-  RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
-  preprocessBody(Mod, (Function ***)*modfirst);
+  processConstructorAndRules(Mod, modfirst, preprocessFunction);
   *modfirst = NULL;       // re-init the Module list
 
-  // Run the static constructors
-  run_constructor(Mod);
+  // Process the static constructors, generating code for all rules
+  processConstructorAndRules(Mod, modfirst, processFunction);
 
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-  // Walk the rule lists for all modules, generating work items
-  Function ***modp = (Function ***)*modfirst;
-  while (modp) {                   // loop through all modules
-      printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
-      Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
-      while (rulep) {                      // loop through all rules for module
-          printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          static const char *method[] = { "guard", "body", "update", NULL};
-          const char **p = method;
-          while (*p) {
-              vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
-                  rulep, SLOTARRAY_TYPE()));
-              p++;
-          }
-          rulep = (Function ***)rulep[RuleNext];           // Rule.next
-      }
-      modp = (Function ***)modp[ModuleNext]; // Module.next
-  }
-  processVtablework(processFunction);
   //dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
