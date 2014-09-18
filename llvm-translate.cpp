@@ -1141,7 +1141,7 @@ static void preprocessBB(int return_type, const Instruction &I)
           operand_list[1].type = OpTypeInt;
       if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
         || !slotarray[operand_list[2].value].ignore_debug_info)
-          printf("%s: ATTEMPT TO STORE %s;", __FUNCTION__, getparam(1));
+          printf("%s: STORE %s;", __FUNCTION__, getparam(2));
       else
           slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
       break;
@@ -1210,7 +1210,7 @@ static void preprocessBB(int return_type, const Instruction &I)
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function *f = (Function *)slotarray[tcall].svalue;
-      printf("%s: ATTEMPT TO CALL %s;", __FUNCTION__, f->getName().str().c_str());
+      printf("%s: CALL %d %s;", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str());
       //vtablework.push_back(VTABLE_WORK(f,
       //    (Function ***)slotarray[operand_list[1].value].svalue,
       //    (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
@@ -1390,14 +1390,15 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     return 1;
   }
 
-  // Run the static constructors
+  // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
   run_constructor(Mod);
   ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
   preprocessBody(Mod, (Function ***)*modfirst);
-  *modfirst = NULL;
+  *modfirst = NULL;       // re-init the Module list
 
+  // Run the static constructors
   run_constructor(Mod);
 
   // Run main
