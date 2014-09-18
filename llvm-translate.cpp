@@ -48,6 +48,7 @@ using namespace llvm;
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
+static int trace_map;// = 1;
 static int output_stdout;// = 1;
 
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
@@ -368,14 +369,13 @@ void translateVerilog(int return_type, const Instruction &I)
     operand_list_index++;
     sprintf(instruction_label, "            : ");
   }
+  printf("%s    XLAT:%14s", instruction_label, I.getOpcodeName());
   for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
       writeOperand(I.getOperand(i));
-  printf("%s    ", instruction_label);
   switch (opcode) {
   // Terminators
   case Instruction::Ret:
       {
-      printf("XLAT:           Ret");
       int parent_block = getLocalSlot(I.getParent());
       printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
       if (return_type == Type::IntegerTyID && operand_list_index > 1) {
@@ -388,7 +388,6 @@ void translateVerilog(int return_type, const Instruction &I)
   case Instruction::Br:
       {
       char temp[MAX_CHAR_BUFFER];
-      printf("XLAT:            Br");
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
@@ -420,7 +419,6 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::Invoke:
   //case Instruction::Resume:
   case Instruction::Unreachable:
-      printf("XLAT:   Unreachable");
       break;
 
   // Standard binary operators...
@@ -437,7 +435,6 @@ void translateVerilog(int return_type, const Instruction &I)
       const char *op1 = getparam(1), *op2 = getparam(2);
       char temp[MAX_CHAR_BUFFER];
       temp[0] = 0;
-      printf("XLAT:%14s", I.getOpcodeName());
       sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
       if (operand_list[0].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -451,7 +448,6 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::Alloca: // ignore
   case Instruction::Load:
       {
-      printf("XLAT:          Load");
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       if(!Ptr) {
@@ -466,7 +462,6 @@ void translateVerilog(int return_type, const Instruction &I)
       }
       break;
   case Instruction::Store:
-      printf("XLAT:         Store");
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
       if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
@@ -480,7 +475,6 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::Fence:
   case Instruction::GetElementPtr:
       {
-      printf("XLAT: GetElementPtr");
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       if (!slotarray[operand_list[1].value].svalue) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -502,7 +496,6 @@ void translateVerilog(int return_type, const Instruction &I)
   case Instruction::Trunc:
   case Instruction::ZExt:
   case Instruction::BitCast:
-      printf("XLAT:       %9s", I.getOpcodeName());
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
@@ -517,7 +510,6 @@ void translateVerilog(int return_type, const Instruction &I)
       const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
       char temp[MAX_CHAR_BUFFER];
       temp[0] = 0;
-      printf("XLAT:          ICmp");
       if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
           opstr = getPredicateText(CI->getPredicate());
       sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
@@ -532,7 +524,6 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::FCmp:
   case Instruction::PHI:
       {
-      printf("XLAT:           PHI");
       char temp[MAX_CHAR_BUFFER];
       const PHINode *PN = dyn_cast<PHINode>(&I);
       if (!PN) {
@@ -575,7 +566,6 @@ void translateVerilog(int return_type, const Instruction &I)
       {
       //const CallInst *CI = dyn_cast<CallInst>(&I);
       //const Value *val = CI->getCalledValue();
-      printf("XLAT:          Call");
       if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
@@ -599,7 +589,7 @@ void translateVerilog(int return_type, const Instruction &I)
   //case Instruction::InsertValue:
   //case Instruction::LandingPad:
   default:
-      printf("XLAT: Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+      printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
       exit(1);
       break;
   }
@@ -936,11 +926,14 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
     if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
+        if (trace_map)
         printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
         if (CTy.isStaticMember()) {
+        if (trace_map)
             printf("STATIC\n");
             return;
         }
+        if (trace_map)
         printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
     slevel++;
@@ -1102,28 +1095,14 @@ static void preprocessBB(int return_type, const Instruction &I)
     operand_list_index++;
     sprintf(instruction_label, "            : ");
   }
-  printf("%s    ", instruction_label);
-  printf("XLAT:%14s", I.getOpcodeName());
-
+  printf("%s    XLAT:%14s", instruction_label, I.getOpcodeName());
   for (unsigned i = 0, E = I.getNumOperands(); i != E; ++i)
       writeOperand(I.getOperand(i));
   switch (opcode) {
   // Terminators
-  case Instruction::Ret:
-      {
-      printf("XLAT:           Ret");
-      int parent_block = getLocalSlot(I.getParent());
-      printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
-      if (return_type == Type::IntegerTyID && operand_list_index > 1) {
-          operand_list[0].type = OpTypeString;
-          operand_list[0].value = (uint64_t)getparam(1);
-      }
-      }
-      break;
   case Instruction::Br:
       {
       char temp[MAX_CHAR_BUFFER];
-      printf("XLAT:            Br");
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
@@ -1141,37 +1120,10 @@ static void preprocessBB(int return_type, const Instruction &I)
       }
       }
       break;
-  case Instruction::Unreachable:
-      printf("XLAT:   Unreachable");
-      break;
-
-  // Standard binary operators...
-  case Instruction::Add: case Instruction::FAdd:
-  case Instruction::Sub: case Instruction::FSub:
-  case Instruction::Mul: case Instruction::FMul:
-  case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-  case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-  // Logical operators...
-  case Instruction::And:
-  case Instruction::Or:
-  case Instruction::Xor:
-      {
-      const char *op1 = getparam(1), *op2 = getparam(2);
-      char temp[MAX_CHAR_BUFFER];
-      temp[0] = 0;
-      sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
-      if (operand_list[0].type != OpTypeLocalRef) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      slotarray[operand_list[0].value].name = strdup(temp);
-      }
-      break;
 
   // Memory instructions...
   case Instruction::Load:
       {
-      printf("XLAT:          Load");
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
       if(!Ptr) {
@@ -1185,7 +1137,6 @@ static void preprocessBB(int return_type, const Instruction &I)
       }
       break;
   case Instruction::Store:
-      printf("XLAT:         Store");
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
       if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
@@ -1196,7 +1147,6 @@ static void preprocessBB(int return_type, const Instruction &I)
       break;
   case Instruction::GetElementPtr:
       {
-      printf("XLAT: GetElementPtr");
       uint64_t Total = executeGEPOperation(gep_type_begin(I), gep_type_end(I));
       if (!slotarray[operand_list[1].value].svalue) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -1210,45 +1160,15 @@ static void preprocessBB(int return_type, const Instruction &I)
       break;
 
   // Convert instructions...
-  //case Instruction::SExt:
-  //case Instruction::FPTrunc: //case Instruction::FPExt:
-  //case Instruction::FPToUI: //case Instruction::FPToSI:
-  //case Instruction::UIToFP: //case Instruction::SIToFP:
-  //case Instruction::IntToPtr: //case Instruction::PtrToInt:
   case Instruction::Trunc:
   case Instruction::ZExt:
   case Instruction::BitCast:
-      printf("XLAT:       %9s", I.getOpcodeName());
-      if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
       slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
       break;
-  //case Instruction::AddrSpaceCast:
 
   // Other instructions...
-  case Instruction::ICmp:
-      {
-      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
-      char temp[MAX_CHAR_BUFFER];
-      temp[0] = 0;
-      printf("XLAT:          ICmp");
-      if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
-          opstr = getPredicateText(CI->getPredicate());
-      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
-      if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value].name = strdup(temp);
-      else {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      }
-      break;
-  //case Instruction::FCmp:
   case Instruction::PHI:
       {
-      printf("XLAT:           PHI");
       char temp[MAX_CHAR_BUFFER];
       const PHINode *PN = dyn_cast<PHINode>(&I);
       if (!PN) {
@@ -1263,8 +1183,8 @@ static void preprocessBB(int return_type, const Instruction &I)
           writeOperand(PN->getIncomingValue(op));
           writeOperand(PN->getIncomingBlock(op));
           TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-          printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-          TI->dump();
+          //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+          //TI->dump();
           const BranchInst *BI = dyn_cast<BranchInst>(TI);
           const char *trailch = "";
           if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
@@ -1282,12 +1202,8 @@ static void preprocessBB(int return_type, const Instruction &I)
       }
       }
       break;
-  //case Instruction::Select:
   case Instruction::Call:
       {
-      //const CallInst *CI = dyn_cast<CallInst>(&I);
-      //const Value *val = CI->getCalledValue();
-      printf("XLAT:          Call");
       if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
@@ -1301,20 +1217,17 @@ static void preprocessBB(int return_type, const Instruction &I)
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
       }
       break;
-  //case Instruction::Shl:
-  //case Instruction::LShr:
-  //case Instruction::AShr:
-  //case Instruction::VAArg:
-  //case Instruction::ExtractElement:
-  //case Instruction::InsertElement:
-  //case Instruction::ShuffleVector:
-  //case Instruction::ExtractValue:
-  //case Instruction::InsertValue:
-  //case Instruction::LandingPad:
   default:
-      printf("XLAT: Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+      printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
       exit(1);
-  //case Instruction::Alloca: // ignore
+  case Instruction::Ret: case Instruction::Unreachable:
+  case Instruction::Add: case Instruction::FAdd:
+  case Instruction::Sub: case Instruction::FSub:
+  case Instruction::Mul: case Instruction::FMul:
+  case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+  case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+  case Instruction::And: case Instruction::Or: case Instruction::Xor:
+  case Instruction::ICmp:
       break;
   }
   printf("\n");
@@ -1374,6 +1287,13 @@ static void preprocessBody(Module *Mod, Function ***modp)
   }
   fprintf(outputFile, "//////////////////////////////\n");
   vtablework.clear();
+}
+
+static void run_constructor(Module *Mod)
+{
+  EE->runStaticConstructorsDestructors(false);
+  // Construct the address -> symbolic name map using dwarf debug info
+  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
 }
 
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context) {
@@ -1477,16 +1397,13 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // Run the static constructors
-  EE->runStaticConstructorsDestructors(false);
-  // Construct the address -> symbolic name map using dwarf debug info
-  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
+  run_constructor(Mod);
   outputFile = fopen("output.tmp.preprocess", "w");
   preprocessBody(Mod, (Function ***)*modfirst);
   fclose(outputFile);
   *modfirst = NULL;
-  EE->runStaticConstructorsDestructors(false);
-  // Construct the address -> symbolic name map using dwarf debug info
-  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
+
+  run_constructor(Mod);
   outputFile = fopen("output.tmp", "w");
   if (output_stdout)
       outputFile = stdout;
