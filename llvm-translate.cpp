@@ -106,13 +106,15 @@ void dump_class_data()
 {
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
-    CLASS_META_MEMBER *classm = classp->member;
     printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
-    for (int j = 0; j < classp->member_count; j++) {
-        DIType Ty(classm->node);
-        uint64_t off = Ty.getOffsetInBits()/8; //(long)litem.getSizeInBits()/8);
-        printf(" %s/%lld", classm->name, (long long)off);
-        classm++;
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        DISubprogram CTy(*MI);
+        uint64_t off = Ty.getOffsetInBits()/8;
+        const char *cp = CTy.getLinkageName().str().c_str();
+        if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
+            cp = Ty.getName().str().c_str();
+        printf(" %s/%lld", cp, (long long)off);
     }
     printf("\n");
     classp++;
@@ -128,18 +130,15 @@ static CLASS_META *lookup_class(const char *cp)
   }
   return NULL;
 }
-CLASS_META_MEMBER *lookup_class_member(const char *cp, uint64_t Total)
+const MDNode *lookup_class_member(const char *cp, uint64_t Total)
 {
   CLASS_META *classp = lookup_class(cp);
   if (!classp)
       return NULL;
-  CLASS_META_MEMBER *classm = classp->member;
-  for (int ind = 0; ind < classp->member_count; ind++) {
-      DIType Ty(classm->node);
-      uint64_t off = Ty.getOffsetInBits()/8; //(long)litem.getSizeInBits()/8);
-      if (off == Total)
-          return classm;
-      classm++;
+  for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+      DIType Ty(*MI);
+      if (Ty.getOffsetInBits()/8 == Total)
+          return *MI;
   }
   return NULL;
 }
@@ -148,13 +147,11 @@ static int lookup_method(const char *classname, const char *methodname)
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
-  CLASS_META_MEMBER *classm = classp->member;
-  for (int ind = 0; ind < classp->member_count; ind++) {
-      DISubprogram Ty(classm->node);
+  for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+      DISubprogram Ty(*MI);
       if (Ty.getTag() == dwarf::DW_TAG_subprogram
        && !strcmp(Ty.getName().str().c_str(), methodname))
           return Ty.getVirtualIndex();
-      classm++;
   }
   return -1;
 }
@@ -163,13 +160,11 @@ static int lookup_field(const char *classname, const char *methodname)
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
-  CLASS_META_MEMBER *classm = classp->member;
-  for (int ind = 0; ind < classp->member_count; ind++) {
-      DIType Ty(classm->node);
+  for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+      DIType Ty(*MI);
       if (Ty.getTag() == dwarf::DW_TAG_member
        && !strcmp(Ty.getName().str().c_str(), methodname))
           return Ty.getOffsetInBits()/8;
-      classm++;
   }
   return -1;
 }
@@ -291,37 +286,8 @@ static void dumpTref(const Value *val)
         if (tag != dwarf::DW_TAG_class_type)
             dumpType(nextitem);
         else {
-            CLASS_META *saved_classp = global_classp;
             CLASS_META *classp = &class_data[class_data_index++];
-            global_classp = classp;
-            dumpType(nextitem);
-            int mcount = classp->memberl.size();
-            if (trace_full)
-            printf("class %s members %d:", name.c_str(), mcount);
             classp->node = Node;
-            classp->member_count = 0;
-            classp->member = (CLASS_META_MEMBER *)malloc(sizeof(CLASS_META_MEMBER) * mcount);
-            for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(),
-                ME = classp->memberl.end(); MI != ME; MI++) {
-                DISubprogram Ty(*MI);
-                const Value *v = Ty;
-                int etag = Ty.getTag();
-                const MDNode *Node;
-                if (!v || !(Node = dyn_cast<MDNode>(v))) {
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
-                const char *cp = Ty.getLinkageName().str().c_str();
-                if (etag != dwarf::DW_TAG_subprogram || !strlen(cp))
-                    cp = Ty.getName().str().c_str();
-                if (trace_full)
-                printf(" %s", cp);
-                int j = classp->member_count++;
-                classp->member[j].node = Node;
-                classp->member[j].name = strdup(cp);
-            }
-            if (trace_full)
-                printf("\n");
             classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             int ind = name.find("<");
             if (ind >= 0) { /* also insert the class w/o template parameters */
@@ -330,6 +296,9 @@ static void dumpTref(const Value *val)
                 name = name.substr(0, ind);
                 classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             }
+            CLASS_META *saved_classp = global_classp;
+            global_classp = classp;
+            dumpType(nextitem);
             global_classp = saved_classp;
         }
     }

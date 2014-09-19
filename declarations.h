@@ -49,15 +49,9 @@ public:
 typedef struct {
     const char   *name;
     const MDNode *node;
-} CLASS_META_MEMBER;
-
-typedef struct {
-    const char   *name;
-    const MDNode *node;
     const MDNode *inherit;
     int           member_count;
     std::list<const MDNode *> memberl;
-    CLASS_META_MEMBER *member;
 } CLASS_META;
 
 typedef struct {
