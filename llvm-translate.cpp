@@ -745,21 +745,17 @@ static void generateVerilog(const Instruction &I)
   switch (opcode) {
   // Terminators
   case Instruction::Ret:
-      {
-      int parent_block = getLocalSlot(I.getParent());
-      int return_type = I.getParent()->getParent()->getReturnType()->getTypeID();
-      printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
-      if (return_type == Type::IntegerTyID && operand_list_index > 1) {
+      if (I.getParent()->getParent()->getReturnType()->getTypeID()
+             == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
           operand_list[0].value = (uint64_t)getparam(1);
           sprintf(vout, "%s = %s;", globalName, getparam(1));
       }
-      }
       break;
   case Instruction::Br:
       {
-      char temp[MAX_CHAR_BUFFER];
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+        char temp[MAX_CHAR_BUFFER];
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
         int cond_item = getLocalSlot(BI.getCondition());
@@ -836,9 +832,7 @@ static void generateVerilog(const Instruction &I)
   //case Instruction::FPToUI: //case Instruction::FPToSI:
   //case Instruction::UIToFP: //case Instruction::SIToFP:
   //case Instruction::IntToPtr: //case Instruction::PtrToInt:
-  case Instruction::Trunc:
-  case Instruction::ZExt:
-  case Instruction::BitCast:
+  case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
       if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
@@ -848,8 +842,7 @@ static void generateVerilog(const Instruction &I)
   //case Instruction::AddrSpaceCast:
 
   // Other instructions...
-  case Instruction::ICmp:
-  //case Instruction::FCmp:
+  case Instruction::ICmp: case Instruction::FCmp:
       {
       const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
       char temp[MAX_CHAR_BUFFER];
