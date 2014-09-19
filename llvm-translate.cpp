@@ -141,28 +141,26 @@ const MDNode *lookup_class_member(const char *cp, uint64_t Total)
   }
   return NULL;
 }
-static int lookup_method(const char *classname, const char *methodname)
+static int lookup_method(const char *classname, std::string methodname)
 {
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
   for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
       DISubprogram Ty(*MI);
-      if (Ty.getTag() == dwarf::DW_TAG_subprogram
-       && !strcmp(Ty.getName().str().c_str(), methodname))
+      if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
           return Ty.getVirtualIndex();
   }
   return -1;
 }
-static int lookup_field(const char *classname, const char *methodname)
+static int lookup_field(const char *classname, std::string methodname)
 {
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
   for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
       DIType Ty(*MI);
-      if (Ty.getTag() == dwarf::DW_TAG_member
-       && !strcmp(Ty.getName().str().c_str(), methodname))
+      if (Ty.getTag() == dwarf::DW_TAG_member && Ty.getName().str() == methodname)
           return Ty.getOffsetInBits()/8;
   }
   return -1;
@@ -517,7 +515,7 @@ static void process_metadata(NamedMDNode *CU_Nodes)
   }
 }
 
-static void construct_address_map(NamedMDNode *CU_Nodes)
+static void constructAddressMap(NamedMDNode *CU_Nodes)
 {
   mapwork.clear();
   mapitem.clear();
@@ -1130,11 +1128,11 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        void (*proc)(int return_type, const Instruction &I))
 {
-  // run Constructors
   *modfirst = NULL;       // init the Module list before calling constructors
+  // run Constructors
   EE->runStaticConstructorsDestructors(false);
   // Construct the address -> symbolic name map using dwarf debug info
-  construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
+  constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
@@ -1146,9 +1144,9 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
       while (rulep) {                      // loop through all rules for module
           printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          static const char *method[] = { "guard", "body", "update", NULL};
-          const char **p = method;
-          while (*p) {
+          static std::string method[] = { "guard", "body", "update", ""};
+          std::string *p = method;
+          while (*p != "") {
               vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
                   rulep, SLOTARRAY_TYPE()));
               p++;
