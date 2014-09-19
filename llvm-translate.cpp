@@ -116,8 +116,12 @@ static CLASS_META *lookup_class(const char *cp)
 {
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
-    if (!strcmp(cp, classp->name))
+//printf("[%s:%d] classname '%s' cp '%s'\n", __FUNCTION__, __LINE__, classp->name, cp);
+//printf("[%s:%d] classnamelen %d cp %d\n", __FUNCTION__, __LINE__, strlen(classp->name), strlen(cp));
+    if (!strcmp(cp, classp->name)) {
+//printf("[%s:%d] ok\n", __FUNCTION__, __LINE__);
         return classp;
+}
     classp++;
   }
   return NULL;
@@ -136,11 +140,13 @@ const MDNode *lookup_class_member(const char *cp, uint64_t Total)
 }
 static int lookup_method(const char *classname, std::string methodname)
 {
+printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
   for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
       DISubprogram Ty(*MI);
+//printf("[%s:%d] typename %s meth %s\n", __FUNCTION__, __LINE__, Ty.getName().str().c_str(), methodname.c_str());
       if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
           return Ty.getVirtualIndex();
   }
@@ -696,8 +702,30 @@ static void calculateGuardUpdate(const Instruction &I)
       Function *f = (Function *)slotarray[tcall].svalue;
       printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
           f->getName().str().c_str(), slotarray[operand_list[1].value].svalue);
-  //int ModuleRfirst= lookup_field("class.Module", "guard")/sizeof(uint64_t);
-  //int ModuleRfirst= lookup_field("class.Module", "update")/sizeof(uint64_t);
+      Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
+printf("[%s:%d] thisp %p\n", __FUNCTION__, __LINE__, thisp);
+      Function *guardf = thisp[0][2];
+printf("[%s:%d] guardf %p\n", __FUNCTION__, __LINE__, guardf);
+const Value *oparg = I.getOperand(0);
+oparg->dump();
+  if (const Instruction *IC = dyn_cast<Instruction>(oparg)) {
+    const Function *F = IC->getParent() ? IC->getParent()->getParent() : 0;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    IC->dump();
+const Value *ldarg = IC->getOperand(0);
+    ldarg->getType()->dump();
+const Type *p1 = ldarg->getType()->getPointerElementType();
+    p1->dump();
+const Type *p2 = p1->getPointerElementType();
+    p2->dump();
+    const StructType *STy = cast<StructType>(p2);
+    const char *tname = strdup(STy->getName().str().c_str());
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, tname);
+  int guardName = lookup_method(tname, "guard");
+  int updateName = lookup_method(tname, "update");
+  int valueName = lookup_method(tname, "value");
+printf("[%s:%d] guard %d update %d value %d\n", __FUNCTION__, __LINE__, guardName, updateName, valueName);
+  }
   //%0 = load %class.Echo** %module, align 8, !dbg !425^M
   //%deqreq = getelementptr inbounds %class.Echo* %0, i32 0, i32 5, !dbg !425^M
   //%1 = load %class.Action** %deqreq, align 8, !dbg !425^M
@@ -1109,6 +1137,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(const Instruction &I
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        void (*proc)(const Instruction &I))
 {
+  int generate = proc == generateVerilog;
   *modfirst = NULL;       // init the Module list before calling constructors
   // run Constructors
   EE->runStaticConstructorsDestructors(false);
@@ -1125,12 +1154,14 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
       while (rulep) {                      // loop through all rules for module
           printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          static std::string method[] = { "guard", "body", "update", ""};
+          static std::string method[] = { "body", "guard", "update", ""};
           std::string *p = method;
           while (*p != "") {
               vtablework.push_back(VTABLE_WORK(lookup_method("class.Rule", *p),
                   rulep, SLOTARRAY_TYPE()));
               p++;
+              if (!generate) // only preprocess 'body'
+                  break;
           }
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
       }
