@@ -988,8 +988,12 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
     printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
-static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(const Instruction &I))
+static void processFunction(VTABLE_WORK *work, void (*proc)(const Instruction &I))
 {
+    int methodIndex = work->f;
+    Function ***thisp = work->thisp;
+    SLOTARRAY_TYPE &arg = work->arg;
+    Function *F = thisp[0][methodIndex];
     int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
@@ -1138,10 +1142,9 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 
   // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
-      Function ***thisp = vtablework.begin()->thisp;
-      Function *f = thisp[0][vtablework.begin()->f];
+      Function *f = vtablework.begin()->thisp[0][vtablework.begin()->f];
       globalName = strdup(f->getName().str().c_str());
-      processFunction(f, thisp, vtablework.begin()->arg, proc);
+      processFunction(&*vtablework.begin(), proc);
       vtablework.pop_front();
   }
 }
