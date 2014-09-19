@@ -10,12 +10,10 @@
 class SLOTARRAY_TYPE {
 public:
     const char *name;
-    int ignore_debug_info;
     uint8_t *svalue;
     uint64_t offset;
     SLOTARRAY_TYPE() {
         name = NULL;
-        ignore_debug_info = 0;
         svalue = NULL;
         offset = 0;
     }

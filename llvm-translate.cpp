@@ -193,45 +193,6 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
     return "unknown";
 }
 
-void writeOperand(const Value *Operand)
-{
-  const Constant *CV;
-
-  if (!Operand)
-    return;
-  int slotindex = getLocalSlot(Operand);
-  operand_list[operand_list_index].value = slotindex;
-  if (Operand->hasName()) {
-    if (isa<Constant>(Operand)) {
-        operand_list[operand_list_index].type = OpTypeExternalFunction;
-        slotarray[slotindex].name = Operand->getName().str().c_str();
-    }
-    else
-        goto locallab;
-    goto retlab;
-  }
-  CV = dyn_cast<Constant>(Operand);
-  if (CV && !isa<GlobalValue>(CV)) {
-    if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-      operand_list[operand_list_index].type = OpTypeInt;
-      slotarray[slotindex].offset = CI->getZExtValue();
-      goto retlab;
-    }
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-  }
-  if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
-   || Operand->getValueID() == Value::PseudoSourceValueVal ||
-      Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
-locallab:
-  operand_list[operand_list_index].type = OpTypeLocalRef;
-retlab:
-  operand_list_index++;
-}
-
 static const char *getparam(int arg)
 {
    char temp[MAX_CHAR_BUFFER];
@@ -618,6 +579,45 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
+static void writeOperand(const Value *Operand)
+{
+  const Constant *CV;
+
+  if (!Operand)
+    return;
+  int slotindex = getLocalSlot(Operand);
+  operand_list[operand_list_index].value = slotindex;
+  if (Operand->hasName()) {
+    if (isa<Constant>(Operand)) {
+        operand_list[operand_list_index].type = OpTypeExternalFunction;
+        slotarray[slotindex].name = Operand->getName().str().c_str();
+    }
+    else
+        goto locallab;
+    goto retlab;
+  }
+  CV = dyn_cast<Constant>(Operand);
+  if (CV && !isa<GlobalValue>(CV)) {
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+      operand_list[operand_list_index].type = OpTypeInt;
+      slotarray[slotindex].offset = CI->getZExtValue();
+      goto retlab;
+    }
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
+  }
+  if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
+   || Operand->getValueID() == Value::PseudoSourceValueVal ||
+      Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
+  }
+locallab:
+  operand_list[operand_list_index].type = OpTypeLocalRef;
+retlab:
+  operand_list_index++;
+}
+
 static void calculateGuardUpdate(const Instruction &I)
 {
   int opcode = I.getOpcode();
@@ -625,11 +625,11 @@ static void calculateGuardUpdate(const Instruction &I)
   // Terminators
   case Instruction::Br:
       {
-      char temp[MAX_CHAR_BUFFER];
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
         writeOperand(BI.getCondition());
         int cond_item = getLocalSlot(BI.getCondition());
+        char temp[MAX_CHAR_BUFFER];
         sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
         if (slotarray[cond_item].name) {
             slotarray[cond_item].name = strdup(temp);
@@ -648,8 +648,7 @@ static void calculateGuardUpdate(const Instruction &I)
   case Instruction::Store:
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
-      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
-        || !slotarray[operand_list[2].value].ignore_debug_info)
+      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
           printf("%s: STORE %s;", __FUNCTION__, getparam(2));
       else
           slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
@@ -806,8 +805,7 @@ static void generateVerilog(const Instruction &I)
   case Instruction::Store:
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
-      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef
-        || !slotarray[operand_list[2].value].ignore_debug_info)
+      if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
           sprintf(vout, "%s = %s;", getparam(2), getparam(1));
       else
           slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
