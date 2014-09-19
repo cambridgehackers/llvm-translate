@@ -74,8 +74,7 @@ static int operand_list_index;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static std::list<VTABLE_WORK> vtablework;
-static int slevel;
-static int dtlevel;
+static int slevel, dtlevel;
 
 static bool endswith(const char *str, const char *suffix)
 {
@@ -426,8 +425,8 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
         if (trace_map)
         printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
-    slevel++;
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
+        slevel++;
         const Value *val = CTy.getTypeDerivedFrom();
         const MDNode *derivedNode = NULL;
         if (val)
@@ -437,8 +436,8 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
             mapwork.push_back(MAPTYPE_WORK(1, DICompositeType(derivedNode), addr, fname));
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapwork.push_back(MAPTYPE_WORK(0, DICompositeType(Elements.getElement(k)), addr, fname));
+        slevel--;
     }
-    slevel--;
 }
 
 static void process_metadata(NamedMDNode *CU_Nodes)
@@ -630,7 +629,7 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void preprocessBB(int return_type, const Instruction &I)
+static void calculateGuardUpdate(int return_type, const Instruction &I)
 {
   int opcode = I.getOpcode();
   switch (opcode) {
@@ -741,7 +740,7 @@ static void preprocessBB(int return_type, const Instruction &I)
   }
 }
 
-static void translateVerilog(int return_type, const Instruction &I)
+static void generateVerilog(int return_type, const Instruction &I)
 {
   int dump_operands = trace_full;
   int opcode = I.getOpcode();
@@ -1015,7 +1014,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 }
 static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(int return_type, const Instruction &I))
 {
-    int generate = proc == translateVerilog;
+    int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
         opt_runOnBasicBlock(*I);
@@ -1132,6 +1131,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        void (*proc)(int return_type, const Instruction &I))
 {
   // run Constructors
+  *modfirst = NULL;       // init the Module list before calling constructors
   EE->runStaticConstructorsDestructors(false);
   // Construct the address -> symbolic name map using dwarf debug info
   construct_address_map(Mod->getNamedMetadata("llvm.dbg.cu"));
@@ -1273,11 +1273,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
 
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-  processConstructorAndRules(Mod, modfirst, preprocessBB);
-  *modfirst = NULL;       // re-init the Module list
+  processConstructorAndRules(Mod, modfirst, calculateGuardUpdate);
 
   // Process the static constructors, generating code for all rules
-  processConstructorAndRules(Mod, modfirst, translateVerilog);
+  processConstructorAndRules(Mod, modfirst, generateVerilog);
 
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
