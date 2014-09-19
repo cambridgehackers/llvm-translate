@@ -1154,14 +1154,14 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
       Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
       while (rulep) {                      // loop through all rules for module
           printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-          static std::string method[] = { "guard", "body", "update", ""};
+          static std::string method[] = { "body", "guard", "update", ""};
           std::string *p = method;
           while (*p != "") {
               vtablework.push_back(VTABLE_WORK(lookup_method("class.Rule", *p),
                   rulep, SLOTARRAY_TYPE()));
               p++;
-              //if (!generate) // only preprocess 'body'
-                  //break;
+              if (!generate) // only preprocess 'body'
+                  break;
           }
           rulep = (Function ***)rulep[RuleNext];           // Rule.next
       }
