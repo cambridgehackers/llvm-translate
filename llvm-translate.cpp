@@ -696,7 +696,17 @@ static void calculateGuardUpdate(const Instruction &I)
       Function *f = (Function *)slotarray[tcall].svalue;
       printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
           f->getName().str().c_str(), slotarray[operand_list[1].value].svalue);
-      vtablework.push_back(VTABLE_WORK(f,
+  //int ModuleRfirst= lookup_field("class.Module", "guard")/sizeof(uint64_t);
+  //int ModuleRfirst= lookup_field("class.Module", "update")/sizeof(uint64_t);
+  //%0 = load %class.Echo** %module, align 8, !dbg !425^M
+  //%deqreq = getelementptr inbounds %class.Echo* %0, i32 0, i32 5, !dbg !425^M
+  //%1 = load %class.Action** %deqreq, align 8, !dbg !425^M
+  //%2 = bitcast %class.Action* %1 to i1 (%class.Action*)***, !dbg !425^M
+  //%vtable = load i1 (%class.Action*)*** %2, !dbg !425^M
+  //%vfn = getelementptr inbounds i1 (%class.Action*)** %vtable, i64 2, !dbg !425^M
+  //%3 = load i1 (%class.Action*)** %vfn, !dbg !425^M
+  //%call = call zeroext i1 %3(%class.Action* %1), !dbg !425^M
+      vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
           (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
@@ -882,7 +892,7 @@ static void generateVerilog(const Instruction &I)
       }
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function *f = (Function *)slotarray[tcall].svalue;
-      vtablework.push_back(VTABLE_WORK(f,
+      vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
           (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
@@ -1117,7 +1127,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
           static std::string method[] = { "guard", "body", "update", ""};
           std::string *p = method;
           while (*p != "") {
-              vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
+              vtablework.push_back(VTABLE_WORK(lookup_method("class.Rule", *p),
                   rulep, SLOTARRAY_TYPE()));
               p++;
           }
@@ -1128,8 +1138,8 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 
   // Walk list of work items, generating code
   while (vtablework.begin() != vtablework.end()) {
-      Function *f = vtablework.begin()->f;
       Function ***thisp = vtablework.begin()->thisp;
+      Function *f = thisp[0][vtablework.begin()->f];
       globalName = strdup(f->getName().str().c_str());
       processFunction(f, thisp, vtablework.begin()->arg, proc);
       vtablework.pop_front();

@@ -34,10 +34,10 @@ public:
 
 class VTABLE_WORK {
 public:
-    Function *f;
+    int f;
     Function ***thisp;
     SLOTARRAY_TYPE arg;
-    VTABLE_WORK(Function *a, Function ***b, SLOTARRAY_TYPE c) {
+    VTABLE_WORK(int a, Function ***b, SLOTARRAY_TYPE c) {
        f = a;
        thisp = b;
        arg = c;
