@@ -247,15 +247,6 @@ static const char *getparam(int arg)
    return strdup(temp);
 }
 
-static const char *getPredicateText(unsigned predicate)
-{
-  return intmap_lookup(predText, predicate);
-}
-static const char *opstr(unsigned opcode)
-{
-  return intmap_lookup(opcodeMap, opcode);
-}
-
 static std::string getScope(const Value *val)
 {
     const MDNode *Node;
@@ -801,8 +792,7 @@ static void generateVerilog(const Instruction &I)
       {
       const char *op1 = getparam(1), *op2 = getparam(2);
       char temp[MAX_CHAR_BUFFER];
-      temp[0] = 0;
-      sprintf(temp, "((%s) %s (%s))", op1, opstr(opcode), op2);
+      sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(opcodeMap, opcode), op2);
       if (operand_list[0].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
@@ -844,18 +834,15 @@ static void generateVerilog(const Instruction &I)
   // Other instructions...
   case Instruction::ICmp: case Instruction::FCmp:
       {
-      const char *op1 = getparam(1), *op2 = getparam(2), *opstr = NULL;
-      char temp[MAX_CHAR_BUFFER];
-      temp[0] = 0;
-      if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
-          opstr = getPredicateText(CI->getPredicate());
-      sprintf(temp, "((%s) %s (%s))", op1, opstr, op2);
-      if (operand_list[0].type == OpTypeLocalRef)
-          slotarray[operand_list[0].value].name = strdup(temp);
-      else {
+      const char *op1 = getparam(1), *op2 = getparam(2);
+      const CmpInst *CI;
+      if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
+      char temp[MAX_CHAR_BUFFER];
+      sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(predText, CI->getPredicate()), op2);
+      slotarray[operand_list[0].value].name = strdup(temp);
       }
       break;
   case Instruction::PHI:
