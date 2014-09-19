@@ -990,10 +990,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 }
 static void processFunction(VTABLE_WORK *work, void (*proc)(const Instruction &I))
 {
-    int methodIndex = work->f;
-    Function ***thisp = work->thisp;
-    SLOTARRAY_TYPE &arg = work->arg;
-    Function *F = thisp[0][methodIndex];
+    Function *F = work->thisp[0][work->f];
     int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
@@ -1012,9 +1009,9 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(const Instruction &I
         if (trace_full)
             printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
         if (!strcmp(slotarray[slotindex].name, "this"))
-            slotarray[slotindex].svalue = (uint8_t *)thisp;
+            slotarray[slotindex].svalue = (uint8_t *)work->thisp;
         else if (!strcmp(slotarray[slotindex].name, "v")) {
-            slotarray[slotindex] = arg;
+            slotarray[slotindex] = work->arg;
         }
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
