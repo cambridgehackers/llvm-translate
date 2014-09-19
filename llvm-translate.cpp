@@ -59,10 +59,9 @@ static std::map<const MDNode *, int> metamap;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
-static const char *globalName;
+static const char *globalName, *globalGuardName;
 static FILE *outputFile;
 static int already_printed_header;
-static const char *globalGuardName;
 static CLASS_META *global_classp;
 static char vout[MAX_CHAR_BUFFER];
 
@@ -93,12 +92,6 @@ static int getLocalSlot(const Value *V)
      return getLocalSlot(V);
   }
   return (int)FI->second;
-}
-static void clearLocalSlot(void)
-{
-  slotmap.clear();
-  slotarray_index = 1;
-  memset(slotarray, 0, sizeof(slotarray));
 }
 
 void dump_class_data()
@@ -191,21 +184,6 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
         map++;
     }
     return "unknown";
-}
-
-static const char *getparam(int arg)
-{
-   char temp[MAX_CHAR_BUFFER];
-   temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeExternalFunction)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
-   else if (operand_list[arg].type == OpTypeString)
-       return (const char *)operand_list[arg].value;
-   return strdup(temp);
 }
 
 static std::string getScope(const Value *val)
@@ -618,6 +596,21 @@ retlab:
   operand_list_index++;
 }
 
+static const char *getparam(int arg)
+{
+   char temp[MAX_CHAR_BUFFER];
+   temp[0] = 0;
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeExternalFunction)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeInt)
+       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
+   else if (operand_list[arg].type == OpTypeString)
+       return (const char *)operand_list[arg].value;
+   return strdup(temp);
+}
+
 static void calculateGuardUpdate(const Instruction &I)
 {
   int opcode = I.getOpcode();
@@ -666,10 +659,6 @@ static void calculateGuardUpdate(const Instruction &I)
       {
       char temp[MAX_CHAR_BUFFER];
       const PHINode *PN = dyn_cast<PHINode>(&I);
-      if (!PN) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
       I.getType()->dump();
       sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
       slotarray[operand_list[0].value].name = strdup(temp);
@@ -1099,7 +1088,9 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
             printf("\n");
         }
     }
-    clearLocalSlot();
+    slotmap.clear();
+    slotarray_index = 1;
+    memset(slotarray, 0, sizeof(slotarray));
     if (globalGuardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
