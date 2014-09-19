@@ -627,7 +627,7 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void calculateGuardUpdate(int return_type, const Instruction &I)
+static void calculateGuardUpdate(const Instruction &I)
 {
   int opcode = I.getOpcode();
   switch (opcode) {
@@ -738,7 +738,7 @@ static void calculateGuardUpdate(int return_type, const Instruction &I)
   }
 }
 
-static void generateVerilog(int return_type, const Instruction &I)
+static void generateVerilog(const Instruction &I)
 {
   int dump_operands = trace_full;
   int opcode = I.getOpcode();
@@ -747,6 +747,7 @@ static void generateVerilog(int return_type, const Instruction &I)
   case Instruction::Ret:
       {
       int parent_block = getLocalSlot(I.getParent());
+      int return_type = I.getParent()->getParent()->getReturnType()->getTypeID();
       printf("parent %d ret=%d/%d;", parent_block, return_type, operand_list_index);
       if (return_type == Type::IntegerTyID && operand_list_index > 1) {
           operand_list[0].type = OpTypeString;
@@ -1010,7 +1011,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
     printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
-static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(int return_type, const Instruction &I))
+static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void (*proc)(const Instruction &I))
 {
     int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
@@ -1106,7 +1107,7 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
                 break;
             default:
                 vout[0] = 0;
-                proc(F->getReturnType()->getTypeID(), *ins);
+                proc(*ins);
                 if (strlen(vout)) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
@@ -1126,7 +1127,7 @@ static void processFunction(Function *F, void *thisp, SLOTARRAY_TYPE &arg, void 
 }
 
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
-       void (*proc)(int return_type, const Instruction &I))
+       void (*proc)(const Instruction &I))
 {
   *modfirst = NULL;       // init the Module list before calling constructors
   // run Constructors
