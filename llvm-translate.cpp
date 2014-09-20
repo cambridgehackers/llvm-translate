@@ -753,10 +753,15 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
                        AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
                   cloneVmap[AI] = TargetA;
               Instruction *newI = cloneTree(&I, TI);
+              newI->mutateType(Type::getInt1Ty(newI->getContext()));
+              Value *cond = TI->getOperand(0);
               Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
               Instruction *tempGEP = dyn_cast<Instruction>(tempL->getOperand(0));
               tempGEP->setOperand(1,
                   ConstantInt::get(tempGEP->getOperand(1)->getType(), guardName));
+              Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+              cond->replaceAllUsesWith(newBool);
+              newBool->setOperand(0, cond);
           }
       }
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
