@@ -639,16 +639,21 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     return NewInst;
 }
 
-Instruction *copyFunction(Function *peer_guard, Instruction *TI, const Instruction *I)
+Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex)
 {
-    Function *TargetF = TI->getParent()->getParent();
-    Function::arg_iterator TargetA = TargetF->arg_begin();
+    Function *F = TI->getParent()->getParent();
+    Function::arg_iterator TargetA = F->arg_begin();
     cloneVmap.clear();
     const Function *SourceF = I->getParent()->getParent();
     for (Function::const_arg_iterator AI = SourceF->arg_begin(),
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
-    return cloneTree(I, TI);
+    Instruction *newI = cloneTree(I, TI);
+    Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
+    Instruction *tempGEP = dyn_cast<Instruction>(tempL->getOperand(0));
+    tempGEP->setOperand(1,
+        ConstantInt::get(tempGEP->getOperand(1)->getType(), methodIndex));
+    return newI;
 }
 
 Module *global_mod;
@@ -756,15 +761,14 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
               printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, ret, parentGuardName);
               Function *peer_guard = parent_thisp[0][parentGuardName];
               TerminatorInst *TI = peer_guard->begin()->getTerminator();
-              Instruction *newI = copyFunction(peer_guard, TI, &I);
+              Instruction *newI = copyFunction(TI, &I, guardName);
+              // set return type to Int1
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
+              // 'And' return value into condition
               Value *cond = TI->getOperand(0);
-              Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
-              Instruction *tempGEP = dyn_cast<Instruction>(tempL->getOperand(0));
-              tempGEP->setOperand(1,
-                  ConstantInt::get(tempGEP->getOperand(1)->getType(), guardName));
               Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
               cond->replaceAllUsesWith(newBool);
+              // we must set this after the 'replaceAllUsesWith'
               newBool->setOperand(0, cond);
           }
       }
