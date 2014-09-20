@@ -752,15 +752,19 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           printf("[%s:%d] guard %d update %d value %d\n", __FUNCTION__, __LINE__, guardName, updateName, valueName);
           const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
           printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
-          if (guardName >= 0 && g) {
+          int parentGuardName = -1;
+          int parentUpdateName = -1;
+          if (g) {
               char temp[MAX_CHAR_BUFFER];
               int status;
               const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
               sprintf(temp, "class.%s", ret+11);
-              int parentGuardName = lookup_method(temp, "guard");
-              printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, ret, parentGuardName);
-              Function *peer_guard = parent_thisp[0][parentGuardName];
-              TerminatorInst *TI = peer_guard->begin()->getTerminator();
+              parentGuardName = lookup_method(temp, "guard");
+              parentUpdateName = lookup_method(temp, "update");
+          }
+          printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, parentGuardName);
+          if (guardName >= 0 && parentGuardName >= 0) {
+              TerminatorInst *TI = parent_thisp[0][parentGuardName]->begin()->getTerminator();
               Instruction *newI = copyFunction(TI, &I, guardName);
               // set return type to Int1
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
@@ -770,6 +774,11 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
               cond->replaceAllUsesWith(newBool);
               // we must set this after the 'replaceAllUsesWith'
               newBool->setOperand(0, cond);
+          }
+          if (updateName >= 0 && parentUpdateName >= 0) {
+              Function *peer_update = parent_thisp[0][parentUpdateName];
+              //Instruction *newI = 
+              copyFunction(peer_update->begin()->getTerminator(), &I, updateName);
           }
       }
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
