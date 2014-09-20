@@ -617,6 +617,28 @@ static const char *getparam(int arg)
    return strdup(temp);
 }
 
+static std::map<const Value *, Value *> cloneVmap;
+static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
+{
+    std::string NameSuffix = "foosuff";
+    Instruction *NewInst = I->clone();
+
+    if (I->hasName())
+        NewInst->setName(I->getName()+NameSuffix);
+    for (unsigned OI = 0, E = I->getNumOperands(); OI != E; ++OI) {
+        const Value *oval = I->getOperand(OI);
+        if (cloneVmap.find(oval) == cloneVmap.end()) {
+            if (const Instruction *IC = dyn_cast<Instruction>(oval))
+                cloneVmap[oval] = cloneTree(IC, insertPoint);
+            else
+                continue;
+        }
+        NewInst->setOperand(OI, cloneVmap[oval]);
+    }
+    NewInst->insertBefore(insertPoint);
+    return NewInst;
+}
+
 Module *global_mod;
 static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
 {
@@ -733,32 +755,15 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
             Function *peer_guard = parent_thisp[0][parentGuardName];
             BasicBlock *entry = peer_guard->begin();
             IRBuilder<> builder(entry);
-            //TerminatorInst *TI = entry->getTerminator();
+            TerminatorInst *TI = entry->getTerminator();
             builder.SetInsertPoint(entry->getTerminator());
-            Instruction *cloneI = I.clone();
-            CallInst *CI = dyn_cast<CallInst>(cloneI);
-            Value *calledval = CI->getCalledValue();
-            const GlobalValue *gfun = EE->getGlobalValueAtAddress(&thisp[0][guardName]);
-            printf("[%s:%d] gfun %p\n", __FUNCTION__, __LINE__, gfun);
-            //Function *Func = thisp[0][guardName];
-            Function *Func = (Function *)calledval;
-            Value *Args[] = {
-                cloneI->getOperand(0),
-            };
-            FunctionType *FTy = cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType()); 
-            printf("[%s:%d] num %d var %d\n", __FUNCTION__, __LINE__, FTy->getNumParams(), FTy->isVarArg());
-            const GlobalValue *gparam = EE->getGlobalValueAtAddress(Args[0]);
-            printf("[%s:%d] gparam %p\n", __FUNCTION__, __LINE__, gparam);
-            FTy->getParamType(0)->dump(); fprintf(stderr, "\n");
-            Args[0]->getType()->dump(); fprintf(stderr, "\n");
-            static int once = 0;
-            if (!once) {
-                CallInst *ca = builder.CreateCall(Func, Args, "tmp");
-                once++;
-                printf("[%s:%d] ca %p\n", __FUNCTION__, __LINE__, ca);
-            }
-          //%head.%d = getelementptr i8 *%arr, i32 %d
-          //void *curhead = builder.CreateGEP(ptr_arr, ConstantInt::get(C, APInt(32, memtotal/2)), headreg); 
+            const Function *SourceF = I.getParent()->getParent();
+            Function *TargetF = TI->getParent()->getParent();
+            Function::arg_iterator TargetA = TargetF->arg_begin();
+            for (Function::const_arg_iterator AI = SourceF->arg_begin(),
+                   AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
+                cloneVmap[AI] = TargetA;
+            cloneTree(&I, TI);
       }
   }
   //%0 = load %class.Echo** %module, align 8, !dbg !425^M
