@@ -725,55 +725,40 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           break;
       }
       printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
-      //jca
       if (const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0))) {
-        //const Function *F = IC->getParent() ? IC->getParent()->getParent() : 0;
-        IC->dump();
-        const Value *ldarg = IC->getOperand(0);
-        ldarg->getType()->dump();
-        const Type *p1 = ldarg->getType()->getPointerElementType();
-        p1->dump();
-        const Type *p2 = p1->getPointerElementType();
-        p2->dump();
-        const StructType *STy = cast<StructType>(p2);
-        const char *tname = strdup(STy->getName().str().c_str());
-        printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, tname);
-        int guardName = lookup_method(tname, "guard");
-        int updateName = lookup_method(tname, "update");
-        int valueName = lookup_method(tname, "value");
-        printf("[%s:%d] guard %d update %d value %d\n", __FUNCTION__, __LINE__, guardName, updateName, valueName);
-        const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-        printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
-        if (guardName >= 0 && g) {
-            char temp[MAX_CHAR_BUFFER];
-            int status;
-            const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-            sprintf(temp, "class.%s", ret+11);
-            int parentGuardName = lookup_method(temp, "guard");
-            printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, ret, parentGuardName);
-            g->dump();
-            Function *peer_guard = parent_thisp[0][parentGuardName];
-            BasicBlock *entry = peer_guard->begin();
-            IRBuilder<> builder(entry);
-            TerminatorInst *TI = entry->getTerminator();
-            builder.SetInsertPoint(entry->getTerminator());
-            const Function *SourceF = I.getParent()->getParent();
-            Function *TargetF = TI->getParent()->getParent();
-            Function::arg_iterator TargetA = TargetF->arg_begin();
-            for (Function::const_arg_iterator AI = SourceF->arg_begin(),
-                   AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
-                cloneVmap[AI] = TargetA;
-            cloneTree(&I, TI);
+          const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
+          const StructType *STy = cast<StructType>(p1->getPointerElementType());
+          const char *tname = strdup(STy->getName().str().c_str());
+          int guardName = lookup_method(tname, "guard");
+          int updateName = lookup_method(tname, "update");
+          int valueName = lookup_method(tname, "value");
+          printf("[%s:%d] guard %d update %d value %d\n", __FUNCTION__, __LINE__, guardName, updateName, valueName);
+          const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
+          printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
+          if (guardName >= 0 && g) {
+              char temp[MAX_CHAR_BUFFER];
+              int status;
+              const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+              sprintf(temp, "class.%s", ret+11);
+              int parentGuardName = lookup_method(temp, "guard");
+              printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, ret, parentGuardName);
+              Function *peer_guard = parent_thisp[0][parentGuardName];
+              BasicBlock *entry = peer_guard->begin();
+              TerminatorInst *TI = entry->getTerminator();
+              Function *TargetF = TI->getParent()->getParent();
+              Function::arg_iterator TargetA = TargetF->arg_begin();
+              cloneVmap.clear();
+              const Function *SourceF = I.getParent()->getParent();
+              for (Function::const_arg_iterator AI = SourceF->arg_begin(),
+                       AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
+                  cloneVmap[AI] = TargetA;
+              Instruction *newI = cloneTree(&I, TI);
+              Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
+              Instruction *tempGEP = dyn_cast<Instruction>(tempL->getOperand(0));
+              tempGEP->setOperand(1,
+                  ConstantInt::get(tempGEP->getOperand(1)->getType(), guardName));
+          }
       }
-  }
-  //%0 = load %class.Echo** %module, align 8, !dbg !425^M
-  //%deqreq = getelementptr inbounds %class.Echo* %0, i32 0, i32 5, !dbg !425^M
-  //%1 = load %class.Action** %deqreq, align 8, !dbg !425^M
-  //%2 = bitcast %class.Action* %1 to i1 (%class.Action*)***, !dbg !425^M
-  //%vtable = load i1 (%class.Action*)*** %2, !dbg !425^M
-  //%vfn = getelementptr inbounds i1 (%class.Action*)** %vtable, i64 2, !dbg !425^M
-  //%3 = load i1 (%class.Action*)** %vfn, !dbg !425^M
-  //%call = call zeroext i1 %3(%class.Action* %1), !dbg !425^M
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
           (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
