@@ -639,6 +639,18 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     return NewInst;
 }
 
+Instruction *copyFunction(Function *peer_guard, Instruction *TI, const Instruction *I)
+{
+    Function *TargetF = TI->getParent()->getParent();
+    Function::arg_iterator TargetA = TargetF->arg_begin();
+    cloneVmap.clear();
+    const Function *SourceF = I->getParent()->getParent();
+    for (Function::const_arg_iterator AI = SourceF->arg_begin(),
+             AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
+        cloneVmap[AI] = TargetA;
+    return cloneTree(I, TI);
+}
+
 Module *global_mod;
 static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
 {
@@ -743,16 +755,8 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
               int parentGuardName = lookup_method(temp, "guard");
               printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, ret, parentGuardName);
               Function *peer_guard = parent_thisp[0][parentGuardName];
-              BasicBlock *entry = peer_guard->begin();
-              TerminatorInst *TI = entry->getTerminator();
-              Function *TargetF = TI->getParent()->getParent();
-              Function::arg_iterator TargetA = TargetF->arg_begin();
-              cloneVmap.clear();
-              const Function *SourceF = I.getParent()->getParent();
-              for (Function::const_arg_iterator AI = SourceF->arg_begin(),
-                       AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
-                  cloneVmap[AI] = TargetA;
-              Instruction *newI = cloneTree(&I, TI);
+              TerminatorInst *TI = peer_guard->begin()->getTerminator();
+              Instruction *newI = copyFunction(peer_guard, TI, &I);
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
               Value *cond = TI->getOperand(0);
               Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
