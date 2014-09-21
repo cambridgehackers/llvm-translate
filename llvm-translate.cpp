@@ -587,14 +587,14 @@ static void writeOperand(const Value *Operand)
       slotarray[slotindex].offset = CI->getZExtValue();
       goto retlab;
     }
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
+    printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
+    //exit(1);
   }
   if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
    || Operand->getValueID() == Value::PseudoSourceValueVal ||
       Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
+      printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
+      //exit(1);
   }
 locallab:
   operand_list[operand_list_index].type = OpTypeLocalRef;
@@ -875,7 +875,6 @@ static void generateVerilog(Function ***thisp, const Instruction &I)
       break;
 
   // Memory instructions...
-  //case Instruction::Alloca: // ignore
   case Instruction::Store:
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
@@ -961,15 +960,17 @@ static void generateVerilog(Function ***thisp, const Instruction &I)
       {
       //const CallInst *CI = dyn_cast<CallInst>(&I);
       //const Value *val = CI->getCalledValue();
-      if (!slotarray[operand_list[operand_list_index-1].value].svalue) {
+      int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
+      Function *f = (Function *)slotarray[tcall].svalue;
+      if (!f) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-      Function *f = (Function *)slotarray[tcall].svalue;
+      SLOTARRAY_TYPE arg;
+      if (operand_list_index > 3)
+          arg = slotarray[operand_list[2].value];
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
-          (Function ***)slotarray[operand_list[1].value].svalue,
-          (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
+          (Function ***)slotarray[operand_list[1].value].svalue, arg));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
       }
       break;
@@ -1066,6 +1067,9 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, const Instruction &I))
 {
     Function *F = work->thisp[0][work->f];
+    slotmap.clear();
+    slotarray_index = 1;
+    memset(slotarray, 0, sizeof(slotarray));
     int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
@@ -1076,6 +1080,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
+        memset(&slotarray[slotindex], 0, sizeof(slotarray[0]));
         if (AI->hasByValAttr()) {
             printf("[%s] hasByVal param not supported\n", __FUNCTION__);
             exit(1);
@@ -1135,7 +1140,8 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
                 {
                 uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
                 if (!slotarray[operand_list[1].value].svalue) {
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
+                    break;
                     exit(1);
                 }
                 uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
@@ -1170,13 +1176,13 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
                     already_printed_header = 1;
                    fprintf(outputFile, "        %s\n", vout);
                 }
+            case Instruction::Alloca: // ignore
+                memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
+                break;
             }
             printf("\n");
         }
     }
-    slotmap.clear();
-    slotarray_index = 1;
-    memset(slotarray, 0, sizeof(slotarray));
     if (globalGuardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
@@ -1219,7 +1225,8 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   while (vtablework.begin() != vtablework.end()) {
       Function *f = vtablework.begin()->thisp[0][vtablework.begin()->f];
       globalName = strdup(f->getName().str().c_str());
-      processFunction(&*vtablework.begin(), proc);
+      VTABLE_WORK work = *vtablework.begin();
+      processFunction(&work, proc);
       vtablework.pop_front();
   }
 }
@@ -1319,7 +1326,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   EE->DisableLazyCompilation(true);
 
   std::vector<std::string> InputArgv;
-  InputArgv.insert(InputArgv.begin(), InputFile[0]);
+  InputArgv.push_back("param1");
+  InputArgv.push_back("param2");
 
   Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
   Function *EntryFn = Mod->getFunction("main");
