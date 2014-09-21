@@ -45,6 +45,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+static int trace_translate;// = 1;
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
@@ -933,8 +934,8 @@ static void generateVerilog(Function ***thisp, const Instruction &I)
           writeOperand(PN->getIncomingValue(op));
           writeOperand(PN->getIncomingBlock(op));
           TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-          printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-          TI->dump();
+          //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+          //TI->dump();
           const BranchInst *BI = dyn_cast<BranchInst>(TI);
           const char *trailch = "";
           if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
@@ -989,7 +990,7 @@ static void generateVerilog(Function ***thisp, const Instruction &I)
       exit(1);
       break;
   }
-  if (dump_operands)
+  if (dump_operands && trace_translate)
   for (int i = 0; i < operand_list_index; i++) {
       int t = operand_list[i].value;
       if (operand_list[i].type == OpTypeLocalRef)
@@ -1074,9 +1075,11 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
         opt_runOnBasicBlock(*I);
-    printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
-    F->dump();
-    printf("TRANSLATE:\n");
+    if (trace_translate) {
+        printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
+        F->dump();
+        printf("TRANSLATE:\n");
+    }
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
@@ -1108,6 +1111,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
     }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        if (trace_translate)
         if (generate && I->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", I->getName().str().c_str());
         for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins) {
@@ -1132,6 +1136,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
               operand_list_index++;
               sprintf(instruction_label, "            : ");
             }
+            if (trace_translate)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 writeOperand(ins->getOperand(i));
@@ -1180,7 +1185,8 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
             }
-            printf("\n");
+            if (trace_translate)
+                printf("\n");
         }
     }
     if (globalGuardName && already_printed_header)
@@ -1343,6 +1349,7 @@ global_mod = Mod;
   // Process the static constructors, generating code for all rules
   processConstructorAndRules(Mod, modfirst, generateVerilog);
 
+printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
