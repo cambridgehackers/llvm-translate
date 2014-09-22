@@ -641,34 +641,32 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     return NewInst;
 }
 
-Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex)
+Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
 {
-    Function *F = TI->getParent()->getParent();
-    Function::arg_iterator TargetA = F->arg_begin();
     cloneVmap.clear();
+    Function *TargetF = TI->getParent()->getParent();
     const Function *SourceF = I->getParent()->getParent();
+    Function::arg_iterator TargetA = TargetF->arg_begin();
     for (Function::const_arg_iterator AI = SourceF->arg_begin(),
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
     Instruction *thisp = cloneTree(orig_thisp, TI);
+    Type *Params[] = {thisp->getType()};
+    Type *castType = PointerType::get(
+                         PointerType::get(
+                             PointerType::get(
+                                 FunctionType::get(returnType,
+                                       ArrayRef<Type*>(Params, 1), false),
+                                 0), 0), 0);
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Type *Params[] = {thisp->getType()};
-    FunctionType *funcType = FunctionType::get(Type::getInt1Ty(TI->getContext()),
-          ArrayRef<Type*>(Params, 1), /*isVarArg=*/false);
-    Type *castType = PointerType::get(PointerType::get(PointerType::get(funcType, 0), 0), 0);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Value *tfc = builder.CreateBitCast(thisp, castType);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Value *tfcl = builder.CreateLoad(tfc);
-    Value *curhead = builder.CreateConstInBoundsGEP1_32(tfcl, methodIndex);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Value *cllp = builder.CreateLoad(curhead);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //Instruction *callp = dyn_cast<Instruction>(cllp);
-    Instruction *NewInst = CallInst::Create(cllp, thisp);
+    Value *tfcl = builder.CreateLoad(
+                      builder.CreateBitCast(thisp, castType));
+    Instruction *NewInst = CallInst::Create(
+                      builder.CreateLoad(
+                          builder.CreateConstInBoundsGEP1_32(
+                              tfcl, methodIndex)), thisp);
     NewInst->insertBefore(TI);
     return NewInst;
 }
@@ -784,7 +782,7 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           if (guardName >= 0 && parentGuardName >= 0) {
               Function *peer_guard = parent_thisp[0][parentGuardName];
               TerminatorInst *TI = peer_guard->begin()->getTerminator();
-              Instruction *newI = copyFunction(TI, &I, guardName);
+              Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
               // set return type to Int1
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
               // 'And' return value into condition
@@ -796,8 +794,8 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           }
           if (updateName >= 0 && parentUpdateName >= 0) {
               Function *peer_update = parent_thisp[0][parentUpdateName];
-              //Instruction *newI = 
-              copyFunction(peer_update->begin()->getTerminator(), &I, updateName);
+              TerminatorInst *TI = peer_update->begin()->getTerminator();
+              copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
           }
       }
 if (operand_list_index <= 3)
