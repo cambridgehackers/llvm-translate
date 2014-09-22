@@ -45,7 +45,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int trace_translate = 1;
+static int trace_translate;// = 1;
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
@@ -142,7 +142,8 @@ const MDNode *lookup_class_member(const char *cp, uint64_t Total)
 }
 static int lookup_method(const char *classname, std::string methodname)
 {
-printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
+  if (trace_translate)
+      printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
   CLASS_META *classp = lookup_class(classname);
   if (!classp)
       return -1;
@@ -661,14 +662,13 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
                                  0), 0), 0);
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
-    Value *tfcl = builder.CreateLoad(
+    Value *vtabbase = builder.CreateLoad(
                       builder.CreateBitCast(thisp, castType));
-    Instruction *NewInst = CallInst::Create(
+    Value *newCall = builder.CreateCall(
                       builder.CreateLoad(
                           builder.CreateConstInBoundsGEP1_32(
-                              tfcl, methodIndex)), thisp);
-    NewInst->insertBefore(TI);
-    return NewInst;
+                              vtabbase, methodIndex)), thisp);
+    return dyn_cast<Instruction>(newCall);
 }
 
 Module *global_mod;
@@ -756,16 +756,15 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
-//if (operand_list_index <= 3)
+      if (trace_translate)
+          printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
       if (const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0))) {
           const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
           const StructType *STy = cast<StructType>(p1->getPointerElementType());
           const char *tname = strdup(STy->getName().str().c_str());
           int guardName = lookup_method(tname, "guard");
           int updateName = lookup_method(tname, "update");
-          int valueName = lookup_method(tname, "value");
-          printf("[%s:%d] guard %d update %d value %d\n", __FUNCTION__, __LINE__, guardName, updateName, valueName);
+          printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
           const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
           printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
           int parentGuardName = -1;
@@ -778,7 +777,6 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
               parentGuardName = lookup_method(temp, "guard");
               parentUpdateName = lookup_method(temp, "update");
           }
-          printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, parentGuardName);
           if (guardName >= 0 && parentGuardName >= 0) {
               Function *peer_guard = parent_thisp[0][parentGuardName];
               TerminatorInst *TI = peer_guard->begin()->getTerminator();
