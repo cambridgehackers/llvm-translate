@@ -118,12 +118,8 @@ static CLASS_META *lookup_class(const char *cp)
 {
   CLASS_META *classp = class_data;
   for (int i = 0; i < class_data_index; i++) {
-//printf("[%s:%d] classname '%s' cp '%s'\n", __FUNCTION__, __LINE__, classp->name, cp);
-//printf("[%s:%d] classnamelen %d cp %d\n", __FUNCTION__, __LINE__, strlen(classp->name), strlen(cp));
-    if (!strcmp(cp, classp->name)) {
-//printf("[%s:%d] ok\n", __FUNCTION__, __LINE__);
+    if (!strcmp(cp, classp->name))
         return classp;
-}
     classp++;
   }
   return NULL;
@@ -149,7 +145,6 @@ static int lookup_method(const char *classname, std::string methodname)
       return -1;
   for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
       DISubprogram Ty(*MI);
-//printf("[%s:%d] typename %s meth %s\n", __FUNCTION__, __LINE__, Ty.getName().str().c_str(), methodname.c_str());
       if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
           return Ty.getVirtualIndex();
   }
@@ -657,21 +652,19 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     Instruction *thisp = cloneTree(orig_thisp, TI);
     Type *Params[] = {thisp->getType()};
     Type *castType = PointerType::get(
-                         PointerType::get(
-                             PointerType::get(
-                                 FunctionType::get(returnType,
-                                       ArrayRef<Type*>(Params, 1), false),
-                                 0), 0), 0);
+             PointerType::get(
+                 PointerType::get(
+                     FunctionType::get(returnType,
+                           ArrayRef<Type*>(Params, 1), false),
+                     0), 0), 0);
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
     Value *vtabbase = builder.CreateLoad(
-                      builder.CreateBitCast(thisp, castType));
+             builder.CreateBitCast(thisp, castType));
     Value *newCall = builder.CreateCall(
-                      builder.CreateLoad(
-                          builder.CreateConstInBoundsGEP1_32(
-                              vtabbase, methodIndex)), thisp);
-    if (CallInst *nc = dyn_cast<CallInst>(newCall))
-       nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+             builder.CreateLoad(
+                 builder.CreateConstInBoundsGEP1_32(
+                     vtabbase, methodIndex)), thisp);
     return dyn_cast<Instruction>(newCall);
 }
 
@@ -704,6 +697,7 @@ static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
   // Memory instructions...
   case Instruction::Store:
+      printf("%s: STORE %s=%s;", __FUNCTION__, getparam(2), getparam(1));
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
       if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
@@ -756,62 +750,57 @@ static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function *f = (Function *)slotarray[tcall].svalue;
       Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
-printf("[%s:%d] use_empty %d\n", __FUNCTION__, __LINE__, (int)I.use_empty());
       if (!f) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
       if (trace_translate)
           printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
-      if (const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0))) {
-          const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
-          const StructType *STy = cast<StructType>(p1->getPointerElementType());
-          const char *tname = strdup(STy->getName().str().c_str());
-          int guardName = lookup_method(tname, "guard");
-          int updateName = lookup_method(tname, "update");
-          printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
-          const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-          printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
-          int parentGuardName = -1;
-          int parentUpdateName = -1;
-          if (g) {
-              char temp[MAX_CHAR_BUFFER];
-              int status;
-              const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-              sprintf(temp, "class.%s", ret+11);
-              parentGuardName = lookup_method(temp, "guard");
-              parentUpdateName = lookup_method(temp, "update");
-          }
-          if (guardName >= 0 && parentGuardName >= 0) {
-              Function *peer_guard = parent_thisp[0][parentGuardName];
-              TerminatorInst *TI = peer_guard->begin()->getTerminator();
-              Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
-              // set return type to Int1
-              newI->mutateType(Type::getInt1Ty(newI->getContext()));
+      const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+      const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
+      const StructType *STy = cast<StructType>(p1->getPointerElementType());
+      const char *tname = strdup(STy->getName().str().c_str());
+      int guardName = lookup_method(tname, "guard");
+      int updateName = lookup_method(tname, "update");
+      printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
+      const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
+      printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
+      int parentGuardName = -1;
+      int parentUpdateName = -1;
+      if (g) {
+          char temp[MAX_CHAR_BUFFER];
+          int status;
+          const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+          sprintf(temp, "class.%s", ret+11);
+          parentGuardName = lookup_method(temp, "guard");
+          parentUpdateName = lookup_method(temp, "update");
+      }
+      if (guardName >= 0 && parentGuardName >= 0) {
+          Function *peer_guard = parent_thisp[0][parentGuardName];
+          TerminatorInst *TI = peer_guard->begin()->getTerminator();
+          Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
+          if (CallInst *nc = dyn_cast<CallInst>(newI))
+              nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+          Value *cond = TI->getOperand(0);
+          const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+          if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+              TI->setOperand(0, newI);
+          else {
               // 'And' return value into condition
-              Value *cond = TI->getOperand(0);
-              int skip_and = 0;
-              if (const ConstantInt *CI = dyn_cast<ConstantInt>(cond))
-                  if (CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-                      skip_and = 1;
-              if (skip_and)
-                  TI->setOperand(0, newI);
-              else {
-                  Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-                  cond->replaceAllUsesWith(newBool);
-                  // we must set this after the 'replaceAllUsesWith'
-                  newBool->setOperand(0, cond);
-              }
+              Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+              cond->replaceAllUsesWith(newBool);
+              // we must set this after the 'replaceAllUsesWith'
+              newBool->setOperand(0, cond);
           }
-          if (parentUpdateName >= 0) {
-              Function *peer_update = parent_thisp[0][parentUpdateName];
-              TerminatorInst *TI = peer_update->begin()->getTerminator();
-              if (updateName >= 0)
-                  copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
-              else if (I.use_empty()) {
-                  copyFunction(TI, &I, 0, NULL); // Move this call to the 'update()' method
-                  I.eraseFromParent(); // delete "Call" instruction
-              }
+      }
+      if (parentUpdateName >= 0) {
+          Function *peer_update = parent_thisp[0][parentUpdateName];
+          TerminatorInst *TI = peer_update->begin()->getTerminator();
+          if (updateName >= 0)
+              copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
+          else if (I.use_empty()) {
+              copyFunction(TI, &I, 0, NULL); // Move this call to the 'update()' method
+              I.eraseFromParent(); // delete "Call" instruction
           }
       }
 if (operand_list_index <= 3)
