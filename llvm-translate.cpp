@@ -651,109 +651,26 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
-    Instruction *orig_function = dyn_cast<Instruction>(I->getOperand(I->getNumOperands()-1));
-    Instruction *orig_GEP = dyn_cast<Instruction>(orig_function->getOperand(0));
     Instruction *thisp = cloneTree(orig_thisp, TI);
-#if 0
-    Instruction *tempFunction = cloneTree(orig_function, TI);
-    Instruction *tempGEP = dyn_cast<Instruction>(tempFunction->getOperand(0));
-    tempGEP->setOperand(1,
-        ConstantInt::get(tempGEP->getOperand(1)->getType(), methodIndex));
-#endif
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-thisp->getType()->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  Type *Params[] = {thisp->getType()};
-  FunctionType *funcType = FunctionType::get(Type::getInt1Ty(TI->getContext()),
-                                        ArrayRef<Type*>(Params, 1),
-                                        /*isVarArg=*/false);
-  Type *cParams[] = {funcType};
-   //Type *castType = PointerType::get(StructType::get(TI->getContext(), cParams, false), 0);
-   Type *castType = PointerType::get(PointerType::get(PointerType::get(funcType, 0), 0), 0);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-castType->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-orig_function->getType()->dump();
+    Type *Params[] = {thisp->getType()};
+    FunctionType *funcType = FunctionType::get(Type::getInt1Ty(TI->getContext()),
+          ArrayRef<Type*>(Params, 1), /*isVarArg=*/false);
+    Type *castType = PointerType::get(PointerType::get(PointerType::get(funcType, 0), 0), 0);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Value *tfc = builder.CreateBitCast(thisp, castType);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //Instruction *tempFunctionCast = dyn_cast<Instruction>(tfc);
     Value *tfcl = builder.CreateLoad(tfc);
-printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, tfcl->getType()->getTypeID());
-tfcl->getType()->dump();
-printf("[%s:%d]old %d\n", __FUNCTION__, __LINE__, orig_GEP->getOperand(0)->getType()->getTypeID());
-orig_GEP->getOperand(0)->getType()->dump();
-    //Instruction *tempFunctionCastl = dyn_cast<Instruction>(tfcl);
     Value *curhead = builder.CreateConstInBoundsGEP1_32(tfcl, methodIndex);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Value *cllp = builder.CreateLoad(curhead);
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Instruction *callp = dyn_cast<Instruction>(cllp);
-#if 0
-printf("[%s:%d] GEP\n", __FUNCTION__, __LINE__);
-tempGEP->dump();
-printf("[%s:%d] Func\n", __FUNCTION__, __LINE__);
-tempFunction->dump();
-printf("[%s:%d] Func1\n", __FUNCTION__, __LINE__);
-Instruction *top0 = dyn_cast<Instruction>(tempFunction->getOperand(0));
-top0->dump();
-printf("[%s:%d] Func1_1\n", __FUNCTION__, __LINE__);
-top0->setOperand(0, thisp);
-top0->getOperand(0)->dump();
-#endif
-FunctionType *oFTy = cast<FunctionType>(cast<PointerType>(orig_function->getType())->getElementType());
-printf("[%s:%d] onum %d\n", __FUNCTION__, __LINE__, oFTy->getNumParams());
-orig_function->getType()->dump();
-#if 1
-    //StructType *tgv = Mod->getTypeByName("class.Action");
-//tgv->dump();
-printf("[%s:%d]JJJJJJJJJJJJJ %d\n", __FUNCTION__, __LINE__, callp->getType()->getTypeID());
-callp->getType()->dump();
-Type *inn1 = cast<PointerType>(callp->getType())->getElementType();
-printf("[%s:%d]JJJuuuuu %d\n", __FUNCTION__, __LINE__, inn1->getTypeID());
-FunctionType *infun = cast<FunctionType>(cast<PointerType>(callp->getType())->getElementType());
-infun->dump();
-#if 0
-for (int kk = 0; kk < 9; kk++) {
-  if (infun->indexValid(kk)) {
-  Type *tempt = infun->getTypeAtIndex(kk);
-printf("[%s:%d] [%d] typeid %d\n", __FUNCTION__, __LINE__, kk, tempt->getTypeID());
-tempt->dump();
-Type *innp1 = cast<PointerType>(tempt)->getElementType();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-innp1->dump();
-Type *innp2 = cast<PointerType>(innp1)->getElementType();
-printf("[%s:%d] innp2id %d\n", __FUNCTION__, __LINE__, innp2->getTypeID());
-innp2->dump();
-FunctionType *inp4 = cast<FunctionType>(cast<PointerType>(innp1)->getElementType());
-printf("[%s:%d] inp4 %d\n", __FUNCTION__, __LINE__, inp4->getTypeID());
-inp4->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  }
-}
-#endif
-#endif
-FunctionType *FTy = cast<FunctionType>(cast<PointerType>(callp->getType())->getElementType());
-printf("[%s:%d] num %d\n", __FUNCTION__, __LINE__, FTy->getNumParams());
-#if 0
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-FTy->getParamType(0)->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-thisp->getType()->dump();
-#endif
-#if 1
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Instruction *NewInst = CallInst::Create(callp, thisp);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //Instruction *callp = dyn_cast<Instruction>(cllp);
+    Instruction *NewInst = CallInst::Create(cllp, thisp);
     NewInst->insertBefore(TI);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-TI->getParent()->dump();
     return NewInst;
-#else
-    return callp;
-#endif
 }
 
 Module *global_mod;
