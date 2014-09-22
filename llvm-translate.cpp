@@ -787,10 +787,18 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
               // 'And' return value into condition
               Value *cond = TI->getOperand(0);
-              Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-              cond->replaceAllUsesWith(newBool);
-              // we must set this after the 'replaceAllUsesWith'
-              newBool->setOperand(0, cond);
+              int skip_and = 0;
+              if (const ConstantInt *CI = dyn_cast<ConstantInt>(cond))
+                  if (CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+                      skip_and = 1;
+              if (skip_and)
+                  TI->setOperand(0, newI);
+              else {
+                  Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+                  cond->replaceAllUsesWith(newBool);
+                  // we must set this after the 'replaceAllUsesWith'
+                  newBool->setOperand(0, cond);
+              }
           }
           if (updateName >= 0 && parentUpdateName >= 0) {
               Function *peer_update = parent_thisp[0][parentUpdateName];
