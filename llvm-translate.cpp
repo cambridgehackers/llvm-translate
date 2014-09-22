@@ -1271,8 +1271,14 @@ static void adjustModuleSizes(Module *Mod)
           const char *ctype = strdup(STy->getName().str().c_str());
 printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().c_str(), ctype);
           StructType *tgv = Mod->getTypeByName(ctype);
-printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
-          STy->dump();
+printf("[%s:%d] %p %p number %d\n", __FUNCTION__, __LINE__, STy, tgv, STy->getNumElements());
+          for (StructType::element_iterator SI = STy->element_begin(), SE = STy->element_end(); SI != SE; SI++) {
+               const Type *Ty = *SI;
+printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ty);
+               Ty->dump();
+printf("\n");
+          }
+          //STy->dump();
       }
   }
   printf("\n");
