@@ -64,7 +64,6 @@ static int class_data_index;
 static const char *globalName, *globalGuardName;
 static FILE *outputFile;
 static int already_printed_header;
-static CLASS_META *global_classp;
 static char vout[MAX_CHAR_BUFFER];
 
 static struct {
@@ -202,8 +201,8 @@ static std::string getScope(const Value *val)
         //name = name.substr(0, ind);
     return name + "::";
 }
-static void dumpType(DIType litem);
-static void dumpTref(const Value *val)
+static void dumpType(DIType litem, CLASS_META *classp);
+static void dumpTref(const Value *val, CLASS_META *aclassp)
 {
     const MDNode *Node;
     if (!val || !(Node = dyn_cast<MDNode>(val)))
@@ -215,7 +214,7 @@ static void dumpTref(const Value *val)
     if (FI == metamap.end()) {
         metamap[Node] = 1;
         if (tag != dwarf::DW_TAG_class_type)
-            dumpType(nextitem);
+            dumpType(nextitem, aclassp);
         else {
             CLASS_META *classp = &class_data[class_data_index++];
             classp->node = Node;
@@ -227,15 +226,12 @@ static void dumpTref(const Value *val)
                 name = name.substr(0, ind);
                 classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             }
-            CLASS_META *saved_classp = global_classp;
-            global_classp = classp;
-            dumpType(nextitem);
-            global_classp = saved_classp;
+            dumpType(nextitem, classp);
         }
     }
 }
 
-static void dumpType(DIType litem)
+static void dumpType(DIType litem, CLASS_META *classp)
 {
     int tag = litem.getTag();
     if (!tag)     // Ignore elements with tag of 0
@@ -243,7 +239,7 @@ static void dumpType(DIType litem)
     if (tag == dwarf::DW_TAG_pointer_type) {
         dtlevel++;
         DICompositeType CTy(litem);
-        dumpTref(CTy.getTypeDerivedFrom());
+        dumpTref(CTy.getTypeDerivedFrom(), classp);
         dtlevel--;
         return;
     }
@@ -253,15 +249,15 @@ static void dumpType(DIType litem)
         //DIArray Elements = CTy.getTypeArray();
         const Value *v = CTy.getTypeDerivedFrom();
         const MDNode *Node;
-        if (v && (Node = dyn_cast<MDNode>(v)) && global_classp) {
-            if(global_classp->inherit) {
+        if (v && (Node = dyn_cast<MDNode>(v)) && classp) {
+            if(classp->inherit) {
                 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                 exit(1);
             }
-            global_classp->inherit = Node;
+            classp->inherit = Node;
         }
         dtlevel--;
-        dumpTref(v);
+        dumpTref(v, classp);
         return;
     }
     if (trace_meta)
@@ -280,18 +276,18 @@ static void dumpType(DIType litem)
         DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type) {
-            dumpTref(CTy.getTypeDerivedFrom());
-            dumpTref(CTy.getContainingType());
+            dumpTref(CTy.getTypeDerivedFrom(), classp);
+            dumpTref(CTy.getContainingType(), classp);
         }
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
                 const MDNode *Node = Ty;
-                if (global_classp)
-                    global_classp->memberl.push_back(Node);
+                if (classp)
+                    classp->memberl.push_back(Node);
             }
-            dumpType(Ty);
+            dumpType(Ty, classp);
         }
         dtlevel--;
     }
@@ -386,7 +382,7 @@ static void process_metadata(NamedMDNode *CU_Nodes)
           printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
               sub.getLinkageName().str().c_str(), sub.getVirtuality(),
               sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
-          dumpTref(sub.getContainingType());
+          dumpTref(sub.getContainingType(), NULL);
       DIArray tparam(sub.getTemplateParams());
       if (tparam.getNumElements() > 0) {
           if (trace_meta) {
@@ -398,19 +394,19 @@ static void process_metadata(NamedMDNode *CU_Nodes)
               }
           }
       }
-      dumpType(DICompositeType(sub.getType()));
+      dumpType(DICompositeType(sub.getType()), NULL);
     }
     DIArray EnumTypes = CU.getEnumTypes();
     for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
       if (trace_meta)
       printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
-      dumpType(DIType(EnumTypes.getElement(i)));
+      dumpType(DIType(EnumTypes.getElement(i)), NULL);
     }
     DIArray RetainedTypes = CU.getRetainedTypes();
     for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
       if (trace_meta)
       printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
-      dumpType(DIType(RetainedTypes.getElement(i)));
+      dumpType(DIType(RetainedTypes.getElement(i)), NULL);
     }
     DIArray Imports = CU.getImportedEntities();
     for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
@@ -419,7 +415,7 @@ static void process_metadata(NamedMDNode *CU_Nodes)
       if (Entity.isType()) {
         if (trace_meta)
         printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        dumpType(DIType(Entity));
+        dumpType(DIType(Entity), NULL);
       }
       else if (Entity.isSubprogram()) {
         if (trace_meta) {
@@ -697,7 +693,7 @@ static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
   // Memory instructions...
   case Instruction::Store:
-      printf("%s: STORE %s=%s;", __FUNCTION__, getparam(2), getparam(1));
+      printf("%s: STORE %s=%s\n", __FUNCTION__, getparam(2), getparam(1));
       if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
           operand_list[1].type = OpTypeInt;
       if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
