@@ -1259,6 +1259,24 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 
 static void adjustModuleSizes(Module *Mod)
 {
+  /* iterate through all global variables, adjusting size of types */
+  for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
+      if (!MI->isDeclaration() && !MI->isConstant()) {
+          PointerType *PTy = dyn_cast<PointerType>(MI->getType());
+//printf("[%s:%d] id %d\n", __FUNCTION__, __LINE__, PTy->getPointerElementType()->getTypeID());
+          const StructType *STy;
+          if (PTy->getPointerElementType()->getTypeID() != Type::StructTyID
+           || !(STy = cast<StructType>(PTy->getPointerElementType())))
+              continue;
+          const char *ctype = strdup(STy->getName().str().c_str());
+printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().c_str(), ctype);
+          StructType *tgv = Mod->getTypeByName(ctype);
+printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
+          STy->dump();
+      }
+  }
+  printf("\n");
+  /* iterate through all functions, adjusting size of 'new' operands */
   for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
       const char *fname = FI->getName().str().c_str();
       for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
@@ -1370,8 +1388,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   builder.setTargetOptions(Options);
 
+  adjustModuleSizes(Mod);
+
   // Create the execution environment for running the constructors
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   EE = builder.create();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!EE) {
     printf("%s: unknown error creating EE!\n", argv[0]);
     exit(1);
@@ -1392,8 +1414,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
   processConstructorAndRules(Mod, modfirst, calculateGuardUpdate);
-
-  adjustModuleSizes(Mod);
 
   // Process the static constructors, generating code for all rules
   processConstructorAndRules(Mod, modfirst, generateVerilog);
