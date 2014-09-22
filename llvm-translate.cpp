@@ -668,6 +668,8 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
                       builder.CreateLoad(
                           builder.CreateConstInBoundsGEP1_32(
                               vtabbase, methodIndex)), thisp);
+    if (CallInst *nc = dyn_cast<CallInst>(newCall))
+       nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
     return dyn_cast<Instruction>(newCall);
 }
 
