@@ -664,7 +664,6 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     return dyn_cast<Instruction>(newCall);
 }
 
-Module *global_mod;
 static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 {
   int opcode = I.getOpcode();
@@ -1258,6 +1257,35 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   }
 }
 
+static void adjustModuleSizes(Module *Mod)
+{
+  for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
+      const char *fname = FI->getName().str().c_str();
+      for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
+          for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ++II) {
+          switch (II->getOpcode()) {
+          case Instruction::Call:
+              Value *called = II->getOperand(II->getNumOperands()-1);
+              const char *cp = called->getName().str().c_str();
+              const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0));
+              if (!strcmp(cp, "_Znwm") && CI && CI->getType()->isIntegerTy(64)) {
+                  BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+                  if (PointerType *PTy = dyn_cast<PointerType>(PI->getType())) {
+                      const StructType *STy = cast<StructType>(PTy->getPointerElementType());
+                      const char *ctype = STy->getName().str().c_str();
+                      printf("%s: %s CALL %s CI %p bbsize %ld param %lld name %s\n",
+                           __FUNCTION__, fname, cp, CI, FI->size(), (long long)CI->getZExtValue(), ctype);
+                      StructType *tgv = Mod->getTypeByName(ctype);
+printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
+                  }
+              }
+              break;
+          }
+          }
+      }
+  }
+}
+
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
   OwningPtr<MemoryBuffer> File;
@@ -1307,10 +1335,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   }
   Linker L(Mod);
   for (unsigned i = 1; i < InputFile.size(); ++i) {
-    std::string ErrorMessage;
     Module *M = LoadFile(argv[0], InputFile[i], Context);
-    if (!M || L.linkInModule(M, &ErrorMessage)) {
-      errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMessage << "\n";
+    if (!M || L.linkInModule(M, &ErrorMsg)) {
+      errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMsg << "\n";
       return 1;
     }
   }
@@ -1363,9 +1390,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     return 1;
   }
 
-global_mod = Mod;
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
   processConstructorAndRules(Mod, modfirst, calculateGuardUpdate);
+
+  adjustModuleSizes(Mod);
 
   // Process the static constructors, generating code for all rules
   processConstructorAndRules(Mod, modfirst, generateVerilog);
