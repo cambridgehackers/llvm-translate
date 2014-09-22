@@ -45,7 +45,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int trace_translate;// = 1;
+static int trace_translate = 1;
 static int dump_interpret;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
@@ -54,7 +54,8 @@ static int output_stdout;// = 1;
 
 static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
-static ExecutionEngine *EE = 0;
+static ExecutionEngine *EE;
+static Module *Mod;
 static std::map<const Value *, int> slotmap;
 static std::map<const MDNode *, int> metamap;
 static CLASS_META class_data[MAX_CLASS_DEFS];
@@ -549,7 +550,7 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
               const Value *Operand = CI->getCalledValue();
                 if (Operand->hasName() && isa<Constant>(Operand)) {
                   const char *cp = Operand->getName().str().c_str();
-                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "printf")) {
+                  if (!strcmp(cp, "llvm.dbg.declare") /*|| !strcmp(cp, "printf")*/) {
                       I->eraseFromParent(); // delete this instruction
                       changed = true;
                   }
@@ -640,7 +641,7 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     return NewInst;
 }
 
-Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex)
+Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *methodType)
 {
     Function *F = TI->getParent()->getParent();
     Function::arg_iterator TargetA = F->arg_begin();
@@ -649,12 +650,110 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     for (Function::const_arg_iterator AI = SourceF->arg_begin(),
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
-    Instruction *newI = cloneTree(I, TI);
-    Instruction *tempL = dyn_cast<Instruction>(newI->getOperand(newI->getNumOperands()-1));
-    Instruction *tempGEP = dyn_cast<Instruction>(tempL->getOperand(0));
+    Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
+    Instruction *orig_function = dyn_cast<Instruction>(I->getOperand(I->getNumOperands()-1));
+    Instruction *orig_GEP = dyn_cast<Instruction>(orig_function->getOperand(0));
+    Instruction *thisp = cloneTree(orig_thisp, TI);
+#if 0
+    Instruction *tempFunction = cloneTree(orig_function, TI);
+    Instruction *tempGEP = dyn_cast<Instruction>(tempFunction->getOperand(0));
     tempGEP->setOperand(1,
         ConstantInt::get(tempGEP->getOperand(1)->getType(), methodIndex));
-    return newI;
+#endif
+    IRBuilder<> builder(TI->getParent());
+    builder.SetInsertPoint(TI);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+thisp->getType()->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  Type *Params[] = {thisp->getType()};
+  FunctionType *funcType = FunctionType::get(Type::getInt1Ty(TI->getContext()),
+                                        ArrayRef<Type*>(Params, 1),
+                                        /*isVarArg=*/false);
+  Type *cParams[] = {funcType};
+   //Type *castType = PointerType::get(StructType::get(TI->getContext(), cParams, false), 0);
+   Type *castType = PointerType::get(PointerType::get(PointerType::get(funcType, 0), 0), 0);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+castType->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+orig_function->getType()->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    Value *tfc = builder.CreateBitCast(thisp, castType);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //Instruction *tempFunctionCast = dyn_cast<Instruction>(tfc);
+    Value *tfcl = builder.CreateLoad(tfc);
+printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, tfcl->getType()->getTypeID());
+tfcl->getType()->dump();
+printf("[%s:%d]old %d\n", __FUNCTION__, __LINE__, orig_GEP->getOperand(0)->getType()->getTypeID());
+orig_GEP->getOperand(0)->getType()->dump();
+    //Instruction *tempFunctionCastl = dyn_cast<Instruction>(tfcl);
+    Value *curhead = builder.CreateConstInBoundsGEP1_32(tfcl, methodIndex);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    Value *cllp = builder.CreateLoad(curhead);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    Instruction *callp = dyn_cast<Instruction>(cllp);
+#if 0
+printf("[%s:%d] GEP\n", __FUNCTION__, __LINE__);
+tempGEP->dump();
+printf("[%s:%d] Func\n", __FUNCTION__, __LINE__);
+tempFunction->dump();
+printf("[%s:%d] Func1\n", __FUNCTION__, __LINE__);
+Instruction *top0 = dyn_cast<Instruction>(tempFunction->getOperand(0));
+top0->dump();
+printf("[%s:%d] Func1_1\n", __FUNCTION__, __LINE__);
+top0->setOperand(0, thisp);
+top0->getOperand(0)->dump();
+#endif
+FunctionType *oFTy = cast<FunctionType>(cast<PointerType>(orig_function->getType())->getElementType());
+printf("[%s:%d] onum %d\n", __FUNCTION__, __LINE__, oFTy->getNumParams());
+orig_function->getType()->dump();
+#if 1
+    //StructType *tgv = Mod->getTypeByName("class.Action");
+//tgv->dump();
+printf("[%s:%d]JJJJJJJJJJJJJ %d\n", __FUNCTION__, __LINE__, callp->getType()->getTypeID());
+callp->getType()->dump();
+Type *inn1 = cast<PointerType>(callp->getType())->getElementType();
+printf("[%s:%d]JJJuuuuu %d\n", __FUNCTION__, __LINE__, inn1->getTypeID());
+FunctionType *infun = cast<FunctionType>(cast<PointerType>(callp->getType())->getElementType());
+infun->dump();
+#if 0
+for (int kk = 0; kk < 9; kk++) {
+  if (infun->indexValid(kk)) {
+  Type *tempt = infun->getTypeAtIndex(kk);
+printf("[%s:%d] [%d] typeid %d\n", __FUNCTION__, __LINE__, kk, tempt->getTypeID());
+tempt->dump();
+Type *innp1 = cast<PointerType>(tempt)->getElementType();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+innp1->dump();
+Type *innp2 = cast<PointerType>(innp1)->getElementType();
+printf("[%s:%d] innp2id %d\n", __FUNCTION__, __LINE__, innp2->getTypeID());
+innp2->dump();
+FunctionType *inp4 = cast<FunctionType>(cast<PointerType>(innp1)->getElementType());
+printf("[%s:%d] inp4 %d\n", __FUNCTION__, __LINE__, inp4->getTypeID());
+inp4->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  }
+}
+#endif
+#endif
+FunctionType *FTy = cast<FunctionType>(cast<PointerType>(callp->getType())->getElementType());
+printf("[%s:%d] num %d\n", __FUNCTION__, __LINE__, FTy->getNumParams());
+#if 0
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+FTy->getParamType(0)->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+thisp->getType()->dump();
+#endif
+#if 1
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    Instruction *NewInst = CallInst::Create(callp, thisp);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    NewInst->insertBefore(TI);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+TI->getParent()->dump();
+    return NewInst;
+#else
+    return callp;
+#endif
 }
 
 Module *global_mod;
@@ -742,7 +841,28 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
+      char temp[MAX_CHAR_BUFFER];
+      strcpy(temp, f->getName().str().c_str());
+      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), temp, thisp);
+      char *p = NULL;
+      if (endswith(temp, "4bodyEi"))
+          p = &temp[strlen(temp) - 7];
+      else if (endswith(temp, "5valueEv"))
+          p = &temp[strlen(temp) - 8];
+      *p = 0;
+printf("[%s:%d] %s ZZZZZZZZZZZZZZZZZZZZZZZ\n", __FUNCTION__, __LINE__, temp);
+      strcat(temp, "6updateEv");
+      GlobalValue *updateFunction = Mod->getNamedValue(temp);
+printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, updateFunction);
+      if (updateFunction)
+          updateFunction->getType()->dump();
+      *p = 0;
+      strcat(temp, "5guardEv");
+      GlobalValue *guardFunction = Mod->getNamedValue(temp);
+printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, guardFunction);
+      if (guardFunction)
+          guardFunction->getType()->dump();
+//if (operand_list_index <= 3)
       if (const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0))) {
           const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
           const StructType *STy = cast<StructType>(p1->getPointerElementType());
@@ -765,8 +885,13 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           }
           printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, parentGuardName);
           if (guardName >= 0 && parentGuardName >= 0) {
-              TerminatorInst *TI = parent_thisp[0][parentGuardName]->begin()->getTerminator();
-              Instruction *newI = copyFunction(TI, &I, guardName);
+              Function *peer_guard = parent_thisp[0][parentGuardName];
+//peer_guard->dump();
+printf("[%s:%d] guardtype\n", __FUNCTION__, __LINE__);
+guardFunction->getType()->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+              TerminatorInst *TI = peer_guard->begin()->getTerminator();
+              Instruction *newI = copyFunction(TI, &I, guardName, guardFunction->getType());
               // set return type to Int1
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
               // 'And' return value into condition
@@ -779,9 +904,10 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           if (updateName >= 0 && parentUpdateName >= 0) {
               Function *peer_update = parent_thisp[0][parentUpdateName];
               //Instruction *newI = 
-              copyFunction(peer_update->begin()->getTerminator(), &I, updateName);
+              copyFunction(peer_update->begin()->getTerminator(), &I, updateName, updateFunction->getType());
           }
       }
+if (operand_list_index <= 3)
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
           (Function ***)slotarray[operand_list[1].value].svalue,
           (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
@@ -970,6 +1096,7 @@ static void generateVerilog(Function ***thisp, const Instruction &I)
       SLOTARRAY_TYPE arg;
       if (operand_list_index > 3)
           arg = slotarray[operand_list[2].value];
+else
       vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
           (Function ***)slotarray[operand_list[1].value].svalue, arg));
       slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
@@ -1083,7 +1210,6 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
-        memset(&slotarray[slotindex], 0, sizeof(slotarray[0]));
         if (AI->hasByValAttr()) {
             printf("[%s] hasByVal param not supported\n", __FUNCTION__);
             exit(1);
@@ -1181,6 +1307,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
                     already_printed_header = 1;
                    fprintf(outputFile, "        %s\n", vout);
                 }
+                break;
             case Instruction::Alloca: // ignore
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
@@ -1279,7 +1406,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
   // Load/link the input bitcode
-  Module *Mod = LoadFile(argv[0], InputFile[0], Context);
+  Mod = LoadFile(argv[0], InputFile[0], Context);
   if (!Mod) {
     errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
     return 1;
