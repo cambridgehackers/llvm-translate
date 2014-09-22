@@ -651,6 +651,8 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     for (Function::const_arg_iterator AI = SourceF->arg_begin(),
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
+    if (!returnType)
+        return cloneTree(I, TI);
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
     Instruction *thisp = cloneTree(orig_thisp, TI);
     Type *Params[] = {thisp->getType()};
@@ -674,7 +676,7 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
 }
 
 Module *global_mod;
-static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
+static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 {
   int opcode = I.getOpcode();
   switch (opcode) {
@@ -754,6 +756,7 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
       int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
       Function *f = (Function *)slotarray[tcall].svalue;
       Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
+printf("[%s:%d] use_empty %d\n", __FUNCTION__, __LINE__, (int)I.use_empty());
       if (!f) {
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
@@ -800,10 +803,15 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
                   newBool->setOperand(0, cond);
               }
           }
-          if (updateName >= 0 && parentUpdateName >= 0) {
+          if (parentUpdateName >= 0) {
               Function *peer_update = parent_thisp[0][parentUpdateName];
               TerminatorInst *TI = peer_update->begin()->getTerminator();
-              copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
+              if (updateName >= 0)
+                  copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
+              else if (I.use_empty()) {
+                  copyFunction(TI, &I, 0, NULL); // Move this call to the 'update()' method
+                  I.eraseFromParent(); // delete "Call" instruction
+              }
           }
       }
 if (operand_list_index <= 3)
@@ -828,7 +836,7 @@ if (operand_list_index <= 3)
   }
 }
 
-static void generateVerilog(Function ***thisp, const Instruction &I)
+static void generateVerilog(Function ***thisp, Instruction &I)
 {
   int dump_operands = trace_full;
   int opcode = I.getOpcode();
@@ -1091,7 +1099,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
     printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
-static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, const Instruction &I))
+static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, Instruction &I))
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
@@ -1139,9 +1147,10 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
         if (trace_translate)
         if (generate && I->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", I->getName().str().c_str());
-        for (BasicBlock::const_iterator ins = I->begin(), ins_end = I->end(); ins != ins_end; ++ins) {
+        for (BasicBlock::iterator ins = I->begin(), ins_end = I->end(); ins != ins_end;) {
             char instruction_label[MAX_CHAR_BUFFER];
 
+            BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
             operand_list_index = 0;
             memset(operand_list, 0, sizeof(operand_list));
             if (ins->hasName() || !ins->getType()->isVoidTy()) {
@@ -1213,6 +1222,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
             }
             if (trace_translate)
                 printf("\n");
+            ins = next_ins;
         }
     }
     if (globalGuardName && already_printed_header)
@@ -1220,7 +1230,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, c
 }
 
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
-       void (*proc)(Function ***thisp, const Instruction &I))
+       void (*proc)(Function ***thisp, Instruction &I))
 {
   int generate = proc == generateVerilog;
   *modfirst = NULL;       // init the Module list before calling constructors
