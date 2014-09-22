@@ -641,7 +641,7 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     return NewInst;
 }
 
-Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *methodType)
+Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex)
 {
     Function *F = TI->getParent()->getParent();
     Function::arg_iterator TargetA = F->arg_begin();
@@ -758,27 +758,7 @@ static void calculateGuardUpdate(Function ***parent_thisp, const Instruction &I)
           printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
           break;
       }
-      char temp[MAX_CHAR_BUFFER];
-      strcpy(temp, f->getName().str().c_str());
-      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), temp, thisp);
-      char *p = NULL;
-      if (endswith(temp, "4bodyEi"))
-          p = &temp[strlen(temp) - 7];
-      else if (endswith(temp, "5valueEv"))
-          p = &temp[strlen(temp) - 8];
-      *p = 0;
-printf("[%s:%d] %s ZZZZZZZZZZZZZZZZZZZZZZZ\n", __FUNCTION__, __LINE__, temp);
-      strcat(temp, "6updateEv");
-      GlobalValue *updateFunction = Mod->getNamedValue(temp);
-printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, updateFunction);
-      if (updateFunction)
-          updateFunction->getType()->dump();
-      *p = 0;
-      strcat(temp, "5guardEv");
-      GlobalValue *guardFunction = Mod->getNamedValue(temp);
-printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, guardFunction);
-      if (guardFunction)
-          guardFunction->getType()->dump();
+      printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
 //if (operand_list_index <= 3)
       if (const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0))) {
           const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
@@ -803,12 +783,8 @@ printf("[%s:%d] %s %p\n", __FUNCTION__, __LINE__, temp, guardFunction);
           printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, parentGuardName);
           if (guardName >= 0 && parentGuardName >= 0) {
               Function *peer_guard = parent_thisp[0][parentGuardName];
-//peer_guard->dump();
-printf("[%s:%d] guardtype\n", __FUNCTION__, __LINE__);
-guardFunction->getType()->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               TerminatorInst *TI = peer_guard->begin()->getTerminator();
-              Instruction *newI = copyFunction(TI, &I, guardName, guardFunction->getType());
+              Instruction *newI = copyFunction(TI, &I, guardName);
               // set return type to Int1
               newI->mutateType(Type::getInt1Ty(newI->getContext()));
               // 'And' return value into condition
@@ -821,7 +797,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           if (updateName >= 0 && parentUpdateName >= 0) {
               Function *peer_update = parent_thisp[0][parentUpdateName];
               //Instruction *newI = 
-              copyFunction(peer_update->begin()->getTerminator(), &I, updateName, updateFunction->getType());
+              copyFunction(peer_update->begin()->getTerminator(), &I, updateName);
           }
       }
 if (operand_list_index <= 3)
