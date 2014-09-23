@@ -5,3 +5,4 @@ set -x
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
 catchsegv ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 
+#    gdb ./Debug+Asserts/bin/llvm-translate

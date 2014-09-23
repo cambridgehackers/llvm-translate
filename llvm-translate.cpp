@@ -44,6 +44,7 @@
 using namespace llvm;
 
 #include "declarations.h"
+#define MAX_BASIC_BLOCK_FLAGS 10
 
 static int trace_translate;// = 1;
 static int dump_interpret;// = 1;
@@ -279,7 +280,14 @@ static void dumpType(DIType litem, CLASS_META *classp)
             dumpTref(CTy.getTypeDerivedFrom(), classp);
             dumpTref(CTy.getContainingType(), classp);
         }
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
+        unsigned N = Elements.getNumElements();
+        if (N >=MAX_BASIC_BLOCK_FLAGS) {
+            DIType Ty(Elements.getElement(N-1));
+printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
+             Ty->dump();
+             //N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
+        }
+        for (unsigned k = 0; k < N; ++k) {
             DIType Ty(Elements.getElement(k));
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
@@ -362,7 +370,16 @@ static void mapType(int derived, DICompositeType CTy, char *addr, std::string an
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
             mapwork.push_back(MAPTYPE_WORK(1, DICompositeType(derivedNode), addr, fname));
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
+        unsigned N = Elements.getNumElements();
+        if (N >=MAX_BASIC_BLOCK_FLAGS) {
+            DIType Ty(Elements.getElement(N-1));
+printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
+             Ty->dump();
+if (Ty.getTag() != dwarf::DW_TAG_subprogram && Ty.getTag() != dwarf::DW_TAG_friend)
+printf("[%s:%d]TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n", __FUNCTION__, __LINE__);
+             N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
+        }
+        for (unsigned k = 0; k < N; ++k)
             mapwork.push_back(MAPTYPE_WORK(0, DICompositeType(Elements.getElement(k)), addr, fname));
         slevel--;
     }
@@ -1222,8 +1239,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   // run Constructors
   EE->runStaticConstructorsDestructors(false);
   // Construct the address -> symbolic name map using dwarf debug info
-  if (!generate) // don't run after we have expanded datatypes!
-      constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
+  constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
@@ -1272,7 +1288,7 @@ static void remapStruct(StructType *arg)
     std::map<StructType *, StructType *>::iterator FI = structMap.find(arg);
     if (FI == structMap.end()) {
         structMap[arg] = arg;
-        int length = arg->getNumElements() * 2 + 10;
+        int length = arg->getNumElements() * 2 + MAX_BASIC_BLOCK_FLAGS;
         Type **data = (Type **)malloc(length * sizeof(data[0]));
         int i = 0, j = 0;
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
@@ -1283,11 +1299,12 @@ static void remapStruct(StructType *arg)
         }
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
             data[i++] = data[j++];
-        for (j = 0; j < 10; j++)
+        for (j = 0; j < MAX_BASIC_BLOCK_FLAGS; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
         TypeHack *bozo = (TypeHack *)arg;
         int val = bozo->hgetSubclassData();
         bozo->hsetSubclassData(0);
+//length = arg->getNumElements();
         arg->setBody(ArrayRef<Type *>(data, length));
         bozo->hsetSubclassData(val);
     }
@@ -1329,7 +1346,7 @@ printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().
                       printf("%s: %s CALL %s CI %p bbsize %ld param %lld name %s\n",
                            __FUNCTION__, fname, cp, CI, FI->size(), (long long)isize, ctype);
                       IRBuilder<> builder(II->getParent());
-                      II->setOperand(0, builder.getInt64(isize * 2 + 1000));
+                      II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + 1000));
 II->getParent()->dump();
                       StructType *tgv = Mod->getTypeByName(ctype);
 printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
