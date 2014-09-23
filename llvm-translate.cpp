@@ -162,23 +162,6 @@ static int lookup_field(const char *classname, std::string methodname)
   return -1;
 }
 
-static const char *map_address(void *arg, std::string name)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    if (g)
-        mapitem[arg] = g->getName().str();
-    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end())
-        return MI->second.c_str();
-    if (name.length() != 0) {
-        mapitem[arg] = name;
-        return name.c_str();
-    }
-    sprintf(temp, "%p", arg);
-    return temp;
-}
-
 static const char *intmap_lookup(INTMAP_TYPE *map, int value)
 {
     while (map->name) {
@@ -195,6 +178,9 @@ static const MDNode *getNode(const Value *val)
     return NULL;
 }
 
+/*
+ * Process dwarf metadata
+ */
 static std::string getScope(const Value *val)
 {
     const MDNode *Node = getNode(val);
@@ -364,6 +350,27 @@ static void process_metadata(NamedMDNode *CU_Nodes)
   }
 }
 
+/*
+ * Build up reverse address map from all data items after running constructors
+ */
+
+static const char *map_address(void *arg, std::string name)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
+    if (g)
+        mapitem[arg] = g->getName().str();
+    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
+    if (MI != mapitem.end())
+        return MI->second.c_str();
+    if (name.length() != 0) {
+        mapitem[arg] = name;
+        return name.c_str();
+    }
+    sprintf(temp, "%p", arg);
+    return temp;
+}
+
 static void mapType(int derived, const MDNode *aCTy, char *addr, std::string aname)
 {
     DICompositeType CTy(aCTy);
@@ -380,14 +387,14 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
         int status;
         const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
         if (!strncmp(ret, "vtable for ", 11)) {
+            name = ret+11;
             char temp[MAX_CHAR_BUFFER];
-            sprintf(temp, "class.%s", ret+11);
+            sprintf(temp, "class.%s", name.c_str());
             CLASS_META *classp = lookup_class(temp);
             if (!classp) {
                 printf("[%s:%d] ret %s\n", __FUNCTION__, __LINE__, ret);
                 exit(1);
             }
-            name = ret+11;
             if (!derived)
                 CTy = DICompositeType(classp->node);
         }
@@ -411,7 +418,7 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
             return;
         }
         if (trace_map)
-        printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
+            printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
         slevel++;
