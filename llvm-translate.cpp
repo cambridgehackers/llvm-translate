@@ -208,7 +208,7 @@ static std::string getScope(const Value *val)
     return name + "::";
 }
 static void dumpType(DIType litem, CLASS_META *classp);
-static void dumpTref(const MDNode *Node, CLASS_META *aclassp)
+static void dumpTref(const MDNode *Node, CLASS_META *classp)
 {
     if (!Node)
         return;
@@ -218,10 +218,8 @@ static void dumpTref(const MDNode *Node, CLASS_META *aclassp)
     std::map<const MDNode *, int>::iterator FI = metamap.find(Node);
     if (FI == metamap.end()) {
         metamap[Node] = 1;
-        if (tag != dwarf::DW_TAG_class_type)
-            dumpType(nextitem, aclassp);
-        else {
-            CLASS_META *classp = &class_data[class_data_index++];
+        if (tag == dwarf::DW_TAG_class_type) {
+            classp = &class_data[class_data_index++];
             classp->node = Node;
             classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             int ind = name.find("<");
@@ -231,8 +229,8 @@ static void dumpTref(const MDNode *Node, CLASS_META *aclassp)
                 name = name.substr(0, ind);
                 classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
             }
-            dumpType(nextitem, classp);
         }
+        dumpType(nextitem, classp);
     }
 }
 
@@ -335,7 +333,6 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             exit(1);
         }
-        //DICompositeType derivType(derivedNode);
         if (mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
             mapwork.push_back(MAPTYPE_WORK(0, derivedNode, addr_target, fname));
         return;
@@ -345,10 +342,10 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
         if (trace_map)
-        printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
+            printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
         if (CTy.isStaticMember()) {
-        if (trace_map)
-            printf("STATIC\n");
+            if (trace_map)
+                printf("STATIC\n");
             return;
         }
         if (trace_map)
@@ -1338,9 +1335,9 @@ printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().
                            __FUNCTION__, fname, cp, CI, FI->size(), (long long)isize, ctype);
                       IRBuilder<> builder(II->getParent());
                       II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + 1000));
-II->getParent()->dump();
-                      StructType *tgv = Mod->getTypeByName(ctype);
-printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
+//II->getParent()->dump();
+                      //StructType *tgv = Mod->getTypeByName(ctype);
+//printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
                   }
               }
               break;
