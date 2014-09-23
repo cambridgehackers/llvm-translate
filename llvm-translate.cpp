@@ -255,16 +255,16 @@ static void dumpType(DIType litem, CLASS_META *classp)
         return;
     }
     if (trace_meta)
-    printf("%d tag %s name %s off %3ld size %3ld", dtlevel,
-        dwarf::TagString(tag), litem.getName().str().c_str(),
-        (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
+        printf("%d tag %s name %s off %3ld size %3ld", dtlevel,
+            dwarf::TagString(tag), litem.getName().str().c_str(),
+            (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
     if (litem.getTag() == dwarf::DW_TAG_subprogram) {
         DISubprogram sub(litem);
         if (trace_meta)
-        printf(" link %s", sub.getLinkageName().str().c_str());
+            printf(" link %s", sub.getLinkageName().str().c_str());
     }
     if (trace_meta)
-    printf("\n");
+        printf("\n");
     if (litem.isCompositeType()) {
         dtlevel++;
         DICompositeType CTy(litem);
@@ -273,14 +273,7 @@ static void dumpType(DIType litem, CLASS_META *classp)
             dumpTref(getNode(CTy.getTypeDerivedFrom()), classp);
             dumpTref(getNode(CTy.getContainingType()), classp);
         }
-        unsigned N = Elements.getNumElements();
-        if (N >=MAX_BASIC_BLOCK_FLAGS) {
-            DIType Ty(Elements.getElement(N-1));
-printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
-             Ty->dump();
-             //N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
-        }
-        for (unsigned k = 0; k < N; ++k) {
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
             DIType Ty(Elements.getElement(k));
             int tag = Ty.getTag();
             if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
@@ -291,84 +284,6 @@ printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE_
             dumpType(Ty, classp);
         }
         dtlevel--;
-    }
-}
-
-static void mapType(int derived, const MDNode *aCTy, char *addr, std::string aname)
-{
-    DICompositeType CTy(aCTy);
-    int tag = CTy.getTag();
-    long offset = (long)CTy.getOffsetInBits()/8;
-    addr += offset;
-    char *addr_target = *(char **)addr;
-    std::string name = CTy.getName().str();
-    if (!name.length())
-        name = CTy.getName().str();
-    std::string fname = name;
-    const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
-    if (tag == dwarf::DW_TAG_class_type && g) {
-        int status;
-        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-        if (!strncmp(ret, "vtable for ", 11)) {
-            char temp[MAX_CHAR_BUFFER];
-            sprintf(temp, "class.%s", ret+11);
-            CLASS_META *classp = lookup_class(temp);
-            if (!classp) {
-                printf("[%s:%d] ret %s\n", __FUNCTION__, __LINE__, ret);
-                exit(1);
-            }
-            name = ret+11;
-            if (!derived)
-                CTy = DICompositeType(classp->node);
-        }
-    }
-    if (aname.length() > 0)
-        fname = aname + ":" + name;
-    const char *cp = fname.c_str();
-    if (tag == dwarf::DW_TAG_pointer_type) {
-        if (!addr_target)
-            return; // don't follow NULL pointers
-        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
-        if (!derivedNode) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        if (mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
-            mapwork.push_back(MAPTYPE_WORK(0, derivedNode, addr_target, fname));
-        return;
-    }
-    map_address(addr, fname);
-    if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
-     && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
-     && tag != dwarf::DW_TAG_base_type) {
-        if (trace_map)
-            printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), cp);
-        if (CTy.isStaticMember()) {
-            if (trace_map)
-                printf("STATIC\n");
-            return;
-        }
-        if (trace_map)
-        printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
-    }
-    if (CTy.isDerivedType() || CTy.isCompositeType()) {
-        slevel++;
-        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
-        DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
-            mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
-        unsigned N = Elements.getNumElements();
-        if (N >=MAX_BASIC_BLOCK_FLAGS) {
-            DIType Ty(Elements.getElement(N-1));
-printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
-             Ty->dump();
-if (Ty.getTag() != dwarf::DW_TAG_subprogram && Ty.getTag() != dwarf::DW_TAG_friend)
-printf("[%s:%d]TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n", __FUNCTION__, __LINE__);
-             N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
-        }
-        for (unsigned k = 0; k < N; ++k)
-            mapwork.push_back(MAPTYPE_WORK(0, Elements.getElement(k), addr, fname));
-        slevel--;
     }
 }
 
@@ -447,6 +362,76 @@ static void process_metadata(NamedMDNode *CU_Nodes)
       printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID(), addr);
     }
   }
+}
+
+static void mapType(int derived, const MDNode *aCTy, char *addr, std::string aname)
+{
+    DICompositeType CTy(aCTy);
+    int tag = CTy.getTag();
+    long offset = (long)CTy.getOffsetInBits()/8;
+    addr += offset;
+    char *addr_target = *(char **)addr;
+    std::string name = CTy.getName().str();
+    if (!name.length())
+        name = CTy.getName().str();
+    std::string fname = name;
+    const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
+    if (tag == dwarf::DW_TAG_class_type && g) {
+        int status;
+        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+        if (!strncmp(ret, "vtable for ", 11)) {
+            char temp[MAX_CHAR_BUFFER];
+            sprintf(temp, "class.%s", ret+11);
+            CLASS_META *classp = lookup_class(temp);
+            if (!classp) {
+                printf("[%s:%d] ret %s\n", __FUNCTION__, __LINE__, ret);
+                exit(1);
+            }
+            name = ret+11;
+            if (!derived)
+                CTy = DICompositeType(classp->node);
+        }
+    }
+    if (aname.length() > 0)
+        fname = aname + ":" + name;
+    if (tag == dwarf::DW_TAG_pointer_type) {
+        if (addr_target && mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
+            mapwork.push_back(MAPTYPE_WORK(0, getNode(CTy.getTypeDerivedFrom()), addr_target, fname));
+        return;
+    }
+    map_address(addr, fname);
+    if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
+     && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
+     && tag != dwarf::DW_TAG_base_type) {
+        if (trace_map)
+            printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), fname.c_str());
+        if (CTy.isStaticMember()) {
+            if (trace_map)
+                printf("STATIC\n");
+            return;
+        }
+        if (trace_map)
+        printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
+    }
+    if (CTy.isDerivedType() || CTy.isCompositeType()) {
+        slevel++;
+        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
+        DIArray Elements = CTy.getTypeArray();
+        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
+            mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
+        unsigned N = Elements.getNumElements();
+        if (N >=MAX_BASIC_BLOCK_FLAGS) {
+            DIType Ty(Elements.getElement(N-1));
+printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
+             Ty->dump();
+if (Ty.getTag() != dwarf::DW_TAG_subprogram && Ty.getTag() != dwarf::DW_TAG_friend)
+printf("[%s:%d]TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n", __FUNCTION__, __LINE__);
+             N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
+        }
+        for (unsigned k = 0; k < N; ++k)
+            mapwork.push_back(MAPTYPE_WORK(0, Elements.getElement(k), addr, fname));
+        slevel--;
+    }
 }
 
 static void constructAddressMap(NamedMDNode *CU_Nodes)
