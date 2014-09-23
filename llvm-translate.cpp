@@ -188,11 +188,17 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
     }
     return "unknown";
 }
+static const MDNode *getNode(const Value *val)
+{
+    if (val)
+        return dyn_cast<MDNode>(val);
+    return NULL;
+}
 
 static std::string getScope(const Value *val)
 {
-    const MDNode *Node;
-    if (!val || !(Node = dyn_cast<MDNode>(val)))
+    const MDNode *Node = getNode(val);
+    if (!Node)
         return "";
     DIType nextitem(Node);
     std::string name = getScope(nextitem.getContext()) + nextitem.getName().str();
@@ -202,10 +208,9 @@ static std::string getScope(const Value *val)
     return name + "::";
 }
 static void dumpType(DIType litem, CLASS_META *classp);
-static void dumpTref(const Value *val, CLASS_META *aclassp)
+static void dumpTref(const MDNode *Node, CLASS_META *aclassp)
 {
-    const MDNode *Node;
-    if (!val || !(Node = dyn_cast<MDNode>(val)))
+    if (!Node)
         return;
     DIType nextitem(Node);
     int tag = nextitem.getTag();
@@ -236,28 +241,19 @@ static void dumpType(DIType litem, CLASS_META *classp)
     int tag = litem.getTag();
     if (!tag)     // Ignore elements with tag of 0
         return;
-    if (tag == dwarf::DW_TAG_pointer_type) {
+    if (tag == dwarf::DW_TAG_pointer_type || tag == dwarf::DW_TAG_inheritance) {
         dtlevel++;
         DICompositeType CTy(litem);
-        dumpTref(CTy.getTypeDerivedFrom(), classp);
-        dtlevel--;
-        return;
-    }
-    if (tag == dwarf::DW_TAG_inheritance) {
-        dtlevel++;
-        DICompositeType CTy(litem);
-        //DIArray Elements = CTy.getTypeArray();
-        const Value *v = CTy.getTypeDerivedFrom();
-        const MDNode *Node;
-        if (v && (Node = dyn_cast<MDNode>(v)) && classp) {
+        const MDNode *Node = getNode(CTy.getTypeDerivedFrom());
+        if (tag == dwarf::DW_TAG_inheritance && Node && classp) {
             if(classp->inherit) {
                 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                 exit(1);
             }
             classp->inherit = Node;
         }
+        dumpTref(Node, classp);
         dtlevel--;
-        dumpTref(v, classp);
         return;
     }
     if (trace_meta)
@@ -276,8 +272,8 @@ static void dumpType(DIType litem, CLASS_META *classp)
         DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type) {
-            dumpTref(CTy.getTypeDerivedFrom(), classp);
-            dumpTref(CTy.getContainingType(), classp);
+            dumpTref(getNode(CTy.getTypeDerivedFrom()), classp);
+            dumpTref(getNode(CTy.getContainingType()), classp);
         }
         unsigned N = Elements.getNumElements();
         if (N >=MAX_BASIC_BLOCK_FLAGS) {
@@ -332,12 +328,9 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
         fname = aname + ":" + name;
     const char *cp = fname.c_str();
     if (tag == dwarf::DW_TAG_pointer_type) {
-        const Value *val = CTy.getTypeDerivedFrom();
-        const MDNode *derivedNode = NULL;
         if (!addr_target)
             return; // don't follow NULL pointers
-        if (val)
-            derivedNode = dyn_cast<MDNode>(val);
+        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
         if (!derivedNode) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             exit(1);
@@ -363,10 +356,7 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
     }
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
         slevel++;
-        const Value *val = CTy.getTypeDerivedFrom();
-        const MDNode *derivedNode = NULL;
-        if (val)
-            derivedNode = dyn_cast<MDNode>(val);
+        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
             mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
@@ -399,7 +389,7 @@ static void process_metadata(NamedMDNode *CU_Nodes)
           printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
               sub.getLinkageName().str().c_str(), sub.getVirtuality(),
               sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
-          dumpTref(sub.getContainingType(), NULL);
+          dumpTref(getNode(sub.getContainingType()), NULL);
       DIArray tparam(sub.getTemplateParams());
       if (tparam.getNumElements() > 0) {
           if (trace_meta) {
@@ -1478,7 +1468,7 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-  dump_class_data();
+  //dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
