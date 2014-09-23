@@ -1257,6 +1257,27 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   }
 }
 
+static std::map<StructType *, StructType *> structMap;
+StructType *remapStruct(StructType *arg)
+{
+    std::map<StructType *, StructType *>::iterator FI = structMap.find(arg);
+    if (FI == structMap.end()) {
+        int length = arg->getNumElements() * 2 + 10;
+        Type **data = (Type **)malloc(length * sizeof(data[0]));
+        int i = 0;
+        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
+            data[i++] = *SI;
+        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
+            data[i++] = *SI;
+        for (int j = 0; j < 10; j++)
+            data[i++] = Type::getInt1Ty(arg->getContext());
+        structMap[arg] = StructType::create(ArrayRef<Type *>(data, length));
+        std::string name = arg->getName();
+        arg->setName("");
+        structMap[arg]->setName(name);
+    }
+    return structMap[arg];
+}
 static void adjustModuleSizes(Module *Mod)
 {
   /* iterate through all global variables, adjusting size of types */
@@ -1264,7 +1285,7 @@ static void adjustModuleSizes(Module *Mod)
       if (!MI->isDeclaration() && !MI->isConstant()) {
           PointerType *PTy = dyn_cast<PointerType>(MI->getType());
 //printf("[%s:%d] id %d\n", __FUNCTION__, __LINE__, PTy->getPointerElementType()->getTypeID());
-          const StructType *STy;
+          StructType *STy;
           if (PTy->getPointerElementType()->getTypeID() != Type::StructTyID
            || !(STy = cast<StructType>(PTy->getPointerElementType())))
               continue;
@@ -1278,7 +1299,15 @@ printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ty);
                Ty->dump();
 printf("\n");
           }
-          //STy->dump();
+          STy->dump();
+          STy = remapStruct(STy);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          STy->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          tgv = Mod->getTypeByName(ctype);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          tgv->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
   }
   printf("\n");
