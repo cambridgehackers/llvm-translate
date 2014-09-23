@@ -74,7 +74,9 @@ static int operand_list_index;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static std::list<VTABLE_WORK> vtablework;
+static std::map<const Value *, Value *> cloneVmap;
 static int slevel, dtlevel;
+static NamedMDNode *CU_Nodes;
 
 static bool endswith(const char *str, const char *suffix)
 {
@@ -343,9 +345,8 @@ static void process_metadata(NamedMDNode *CU_Nodes)
       std::string cp = DIG.getLinkageName().str();
       if (!cp.length())
           cp = DIG.getName().str();
-      void *addr = EE->getPointerToGlobal(gv);
       if (trace_meta)
-      printf("%s: globalvar: %s GlobalVariable %p type %d address %p\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID(), addr);
+          printf("%s: globalvar: %s GlobalVariable %p type %d\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID());
     }
   }
 }
@@ -356,7 +357,6 @@ static void process_metadata(NamedMDNode *CU_Nodes)
 
 static const char *map_address(void *arg, std::string name)
 {
-    static char temp[MAX_CHAR_BUFFER];
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     if (g)
         mapitem[arg] = g->getName().str();
@@ -367,6 +367,7 @@ static const char *map_address(void *arg, std::string name)
         mapitem[arg] = name;
         return name.c_str();
     }
+    static char temp[MAX_CHAR_BUFFER];
     sprintf(temp, "%p", arg);
     return temp;
 }
@@ -441,13 +442,12 @@ printf("[%s:%d]TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n", __FUNCTION__, __
     }
 }
 
-static void constructAddressMap(NamedMDNode *CU_Nodes)
+static void constructAddressMap(void)
 {
   mapwork.clear();
   mapwork_non_class.clear();
   mapitem.clear();
   if (CU_Nodes) {
-      process_metadata(CU_Nodes);
       for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
         DICompileUnit CU(CU_Nodes->getOperand(i));
         DIArray GVs = CU.getGlobalVariables();
@@ -555,43 +555,38 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void writeOperand(const Value *Operand)
+static void prepareOperand(const Value *Operand)
 {
-  const Constant *CV;
-
-  if (!Operand)
-    return;
-  int slotindex = getLocalSlot(Operand);
-  operand_list[operand_list_index].value = slotindex;
-  if (Operand->hasName()) {
-    if (isa<Constant>(Operand)) {
-        operand_list[operand_list_index].type = OpTypeExternalFunction;
-        slotarray[slotindex].name = Operand->getName().str().c_str();
+    if (!Operand)
+        return;
+    int slotindex = getLocalSlot(Operand);
+    operand_list[operand_list_index].value = slotindex;
+    if (Operand->hasName()) {
+        if (isa<Constant>(Operand)) {
+            operand_list[operand_list_index].type = OpTypeExternalFunction;
+            slotarray[slotindex].name = Operand->getName().str().c_str();
+            goto retlab;
+        }
     }
-    else
-        goto locallab;
-    goto retlab;
-  }
-  CV = dyn_cast<Constant>(Operand);
-  if (CV && !isa<GlobalValue>(CV)) {
-    if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-      operand_list[operand_list_index].type = OpTypeInt;
-      slotarray[slotindex].offset = CI->getZExtValue();
-      goto retlab;
+    else {
+        const Constant *CV = dyn_cast<Constant>(Operand);
+        if (CV && !isa<GlobalValue>(CV)) {
+            if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+                operand_list[operand_list_index].type = OpTypeInt;
+                slotarray[slotindex].offset = CI->getZExtValue();
+                goto retlab;
+            }
+            printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
+        }
+        if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
+         || Operand->getValueID() == Value::PseudoSourceValueVal ||
+            Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
+            printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
+        }
     }
-    printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
-    //exit(1);
-  }
-  if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
-   || Operand->getValueID() == Value::PseudoSourceValueVal ||
-      Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-      printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
-      //exit(1);
-  }
-locallab:
-  operand_list[operand_list_index].type = OpTypeLocalRef;
+    operand_list[operand_list_index].type = OpTypeLocalRef;
 retlab:
-  operand_list_index++;
+    operand_list_index++;
 }
 
 static const char *getparam(int arg)
@@ -609,7 +604,6 @@ static const char *getparam(int arg)
    return strdup(temp);
 }
 
-static std::map<const Value *, Value *> cloneVmap;
 static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
 {
     std::string NameSuffix = "foosuff";
@@ -671,18 +665,18 @@ static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
       {
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         const BranchInst &BI(cast<BranchInst>(I));
-        writeOperand(BI.getCondition());
+        prepareOperand(BI.getCondition());
         int cond_item = getLocalSlot(BI.getCondition());
         char temp[MAX_CHAR_BUFFER];
         sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
         if (slotarray[cond_item].name) {
             slotarray[cond_item].name = strdup(temp);
         }
-        writeOperand(BI.getSuccessor(0));
-        writeOperand(BI.getSuccessor(1));
+        prepareOperand(BI.getSuccessor(0));
+        prepareOperand(BI.getSuccessor(1));
       } else if (isa<IndirectBrInst>(I)) {
         for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-          writeOperand(I.getOperand(i));
+          prepareOperand(I.getOperand(i));
         }
       }
       }
@@ -716,20 +710,20 @@ static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
       slotarray[operand_list[0].value].name = strdup(temp);
       for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
           int valuein = getLocalSlot(PN->getIncomingValue(op));
-          writeOperand(PN->getIncomingValue(op));
-          writeOperand(PN->getIncomingBlock(op));
+          prepareOperand(PN->getIncomingValue(op));
+          prepareOperand(PN->getIncomingBlock(op));
           TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
           //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
           //TI->dump();
           const BranchInst *BI = dyn_cast<BranchInst>(TI);
           const char *trailch = "";
           if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-            writeOperand(BI->getCondition());
+            prepareOperand(BI->getCondition());
             int cond_item = getLocalSlot(BI->getCondition());
             sprintf(temp, "%s ?", slotarray[cond_item].name);
             trailch = ":";
-            //writeOperand(BI->getSuccessor(0));
-            //writeOperand(BI->getSuccessor(1));
+            //prepareOperand(BI->getSuccessor(0));
+            //prepareOperand(BI->getSuccessor(1));
           }
           if (slotarray[valuein].name)
               sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
@@ -837,18 +831,18 @@ static void generateVerilog(Function ***thisp, Instruction &I)
       if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
         char temp[MAX_CHAR_BUFFER];
         const BranchInst &BI(cast<BranchInst>(I));
-        writeOperand(BI.getCondition());
+        prepareOperand(BI.getCondition());
         int cond_item = getLocalSlot(BI.getCondition());
         sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
         if (slotarray[cond_item].name) {
             sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
             slotarray[cond_item].name = strdup(temp);
         }
-        writeOperand(BI.getSuccessor(0));
-        writeOperand(BI.getSuccessor(1));
+        prepareOperand(BI.getSuccessor(0));
+        prepareOperand(BI.getSuccessor(1));
       } else if (isa<IndirectBrInst>(I)) {
         for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-          writeOperand(I.getOperand(i));
+          prepareOperand(I.getOperand(i));
         }
       }
       dump_operands = 1;
@@ -856,11 +850,11 @@ static void generateVerilog(Function ***thisp, Instruction &I)
       break;
   //case Instruction::Switch:
       //const SwitchInst& SI(cast<SwitchInst>(I));
-      //writeOperand(SI.getCondition());
-      //writeOperand(SI.getDefaultDest());
+      //prepareOperand(SI.getCondition());
+      //prepareOperand(SI.getDefaultDest());
       //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-        //writeOperand(i.getCaseValue());
-        //writeOperand(i.getCaseSuccessor());
+        //prepareOperand(i.getCaseValue());
+        //prepareOperand(i.getCaseSuccessor());
       //}
   //case Instruction::IndirectBr:
   //case Instruction::Invoke:
@@ -946,20 +940,20 @@ static void generateVerilog(Function ***thisp, Instruction &I)
       slotarray[operand_list[0].value].name = strdup(temp);
       for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
           int valuein = getLocalSlot(PN->getIncomingValue(op));
-          writeOperand(PN->getIncomingValue(op));
-          writeOperand(PN->getIncomingBlock(op));
+          prepareOperand(PN->getIncomingValue(op));
+          prepareOperand(PN->getIncomingBlock(op));
           TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
           //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
           //TI->dump();
           const BranchInst *BI = dyn_cast<BranchInst>(TI);
           const char *trailch = "";
           if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-            writeOperand(BI->getCondition());
+            prepareOperand(BI->getCondition());
             int cond_item = getLocalSlot(BI->getCondition());
             sprintf(temp, "%s ?", slotarray[cond_item].name);
             trailch = ":";
-            //writeOperand(BI->getSuccessor(0));
-            //writeOperand(BI->getSuccessor(1));
+            //prepareOperand(BI->getSuccessor(0));
+            //prepareOperand(BI->getSuccessor(1));
             strcat(vout, temp);
           }
           if (slotarray[valuein].name)
@@ -1032,16 +1026,16 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
   const DataLayout *TD = EE->getDataLayout();
   uint64_t Total = 0;
   for (; I != E; ++I) {
-    if (StructType *STy = dyn_cast<StructType>(*I)) {
-      const StructLayout *SLO = TD->getStructLayout(STy);
-      const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
-      Total += SLO->getElementOffset(CPU->getZExtValue());
-    } else {
-      SequentialType *ST = cast<SequentialType>(*I);
-      // Get the index number for the array... which must be long type...
-      Total += TD->getTypeAllocSize(ST->getElementType())
+      if (StructType *STy = dyn_cast<StructType>(*I)) {
+          const StructLayout *SLO = TD->getStructLayout(STy);
+          const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
+          Total += SLO->getElementOffset(CPU->getZExtValue());
+      } else {
+          SequentialType *ST = cast<SequentialType>(*I);
+          // Get the index number for the array... which must be long type...
+          Total += TD->getTypeAllocSize(ST->getElementType())
                * getOperandValue(I.getOperand());
-    }
+      }
   }
   return Total;
 }
@@ -1060,25 +1054,25 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
   uint64_t rv = 0;
 
   if (trace_full)
-    printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
+      printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
-    LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
-    break;
+      LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
+      break;
   case Type::PointerTyID:
-    if (!Ptr) {
-        printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ptr);
-        exit(1);
-    }
-    else
-        rv = (uint64_t) *((PointerTy*)Ptr);
-    break;
+      if (!Ptr) {
+          printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ptr);
+          exit(1);
+      }
+      else
+          rv = (uint64_t) *((PointerTy*)Ptr);
+      break;
   default:
-    errs() << "Cannot load value of type " << *Ty << "!";
-    exit(1);
+      errs() << "Cannot load value of type " << *Ty << "!";
+      exit(1);
   }
   if (trace_full)
-    printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
+      printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
   return rv;
 }
 static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, Instruction &I))
@@ -1155,7 +1149,7 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, I
             if (trace_translate)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
-                writeOperand(ins->getOperand(i));
+                prepareOperand(ins->getOperand(i));
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
@@ -1219,7 +1213,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   // run Constructors
   EE->runStaticConstructorsDestructors(false);
   // Construct the address -> symbolic name map using dwarf debug info
-  constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
+  constructAddressMap();
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
@@ -1383,16 +1377,16 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
   // Load/link the input bitcode
   Mod = LoadFile(argv[0], InputFile[0], Context);
   if (!Mod) {
-    errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
-    return 1;
+      errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
+      return 1;
   }
   Linker L(Mod);
   for (unsigned i = 1; i < InputFile.size(); ++i) {
-    Module *M = LoadFile(argv[0], InputFile[i], Context);
-    if (!M || L.linkInModule(M, &ErrorMsg)) {
-      errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMsg << "\n";
-      return 1;
-    }
+      Module *M = LoadFile(argv[0], InputFile[i], Context);
+      if (!M || L.linkInModule(M, &ErrorMsg)) {
+          errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMsg << "\n";
+          return 1;
+      }
   }
 
   // If not jitting lazily, load the whole bitcode file eagerly too.
@@ -1423,15 +1417,17 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
   builder.setTargetOptions(Options);
 
+  // preprocessing before running anything
+  CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+  if (CU_Nodes)
+      process_metadata(CU_Nodes);
   adjustModuleSizes(Mod);
 
   // Create the execution environment for running the constructors
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   EE = builder.create();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!EE) {
-    printf("%s: unknown error creating EE!\n", argv[0]);
-    exit(1);
+      printf("%s: unknown error creating EE!\n", argv[0]);
+      exit(1);
   }
 
   EE->DisableLazyCompilation(true);
@@ -1443,8 +1439,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
   Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn || !modfirst) {
-    printf("'main' function not found in module.\n");
-    return 1;
+      printf("'main' function not found in module.\n");
+      return 1;
   }
 
   // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
