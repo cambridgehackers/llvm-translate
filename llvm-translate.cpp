@@ -1264,12 +1264,16 @@ StructType *remapStruct(StructType *arg)
     if (FI == structMap.end()) {
         int length = arg->getNumElements() * 2 + 10;
         Type **data = (Type **)malloc(length * sizeof(data[0]));
-        int i = 0;
+        int i = 0, j = 0;
+        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
+            Type *Ty = *SI;
+            if (Ty->getTypeID() == Type::StructTyID)
+                Ty = remapStruct(cast<StructType>(Ty));
+            data[i++] = Ty;
+        }
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
-            data[i++] = *SI;
-        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
-            data[i++] = *SI;
-        for (int j = 0; j < 10; j++)
+            data[i++] = data[j++];
+        for (j = 0; j < 10; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
         structMap[arg] = StructType::create(ArrayRef<Type *>(data, length));
         std::string name = arg->getName();
@@ -1280,6 +1284,10 @@ StructType *remapStruct(StructType *arg)
 }
 static void adjustModuleSizes(Module *Mod)
 {
+  StructType *tgv = Mod->getTypeByName("class.Module");
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  tgv->dump();
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   /* iterate through all global variables, adjusting size of types */
   for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
       if (!MI->isDeclaration() && !MI->isConstant()) {
@@ -1311,6 +1319,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
   }
   printf("\n");
+  tgv = Mod->getTypeByName("class.Module");
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  tgv->dump();
+  tgv = Mod->getTypeByName("class.Rule");
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  tgv->dump();
+  tgv = Mod->getTypeByName("class.EchoTest::drive");
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  tgv->dump();
   /* iterate through all functions, adjusting size of 'new' operands */
   for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
       const char *fname = FI->getName().str().c_str();
