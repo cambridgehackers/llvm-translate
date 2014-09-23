@@ -448,6 +448,7 @@ static void process_metadata(NamedMDNode *CU_Nodes)
 static void constructAddressMap(NamedMDNode *CU_Nodes)
 {
   mapwork.clear();
+  mapwork_non_class.clear();
   mapitem.clear();
   if (CU_Nodes) {
       process_metadata(CU_Nodes);
@@ -465,7 +466,7 @@ static void constructAddressMap(NamedMDNode *CU_Nodes)
           DICompositeType CTy(DIG.getType());
           int tag = CTy.getTag();
           Value *contextp = DIG.getContext();
-          printf("%s: globalvar %s tag %s context %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp);
+          printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
           if (!contextp)
               mapwork.push_back(MAPTYPE_WORK(1, CTy, (char *)addr, cp));
           else
@@ -1221,7 +1222,8 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   // run Constructors
   EE->runStaticConstructorsDestructors(false);
   // Construct the address -> symbolic name map using dwarf debug info
-  constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
+  if (!generate) // don't run after we have expanded datatypes!
+      constructAddressMap(Mod->getNamedMetadata("llvm.dbg.cu"));
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
   int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
   int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
@@ -1257,77 +1259,57 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   }
 }
 
+class TypeHack: public Type {
+  friend class Type;
+public:
+  unsigned hgetSubclassData() const { return getSubclassData(); }
+  void hsetSubclassData(unsigned val) { setSubclassData(val); }
+};
+
 static std::map<StructType *, StructType *> structMap;
-StructType *remapStruct(StructType *arg)
+static void remapStruct(StructType *arg)
 {
     std::map<StructType *, StructType *>::iterator FI = structMap.find(arg);
     if (FI == structMap.end()) {
+        structMap[arg] = arg;
         int length = arg->getNumElements() * 2 + 10;
         Type **data = (Type **)malloc(length * sizeof(data[0]));
         int i = 0, j = 0;
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
             Type *Ty = *SI;
             if (Ty->getTypeID() == Type::StructTyID)
-                Ty = remapStruct(cast<StructType>(Ty));
+                remapStruct(cast<StructType>(Ty));
             data[i++] = Ty;
         }
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
             data[i++] = data[j++];
         for (j = 0; j < 10; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
-        structMap[arg] = StructType::create(ArrayRef<Type *>(data, length));
-        std::string name = arg->getName();
-        arg->setName("");
-        structMap[arg]->setName(name);
+        TypeHack *bozo = (TypeHack *)arg;
+        int val = bozo->hgetSubclassData();
+        bozo->hsetSubclassData(0);
+        arg->setBody(ArrayRef<Type *>(data, length));
+        bozo->hsetSubclassData(val);
     }
-    return structMap[arg];
 }
+
 static void adjustModuleSizes(Module *Mod)
 {
-  StructType *tgv = Mod->getTypeByName("class.Module");
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  tgv->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   /* iterate through all global variables, adjusting size of types */
   for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
       if (!MI->isDeclaration() && !MI->isConstant()) {
           PointerType *PTy = dyn_cast<PointerType>(MI->getType());
-//printf("[%s:%d] id %d\n", __FUNCTION__, __LINE__, PTy->getPointerElementType()->getTypeID());
           StructType *STy;
           if (PTy->getPointerElementType()->getTypeID() != Type::StructTyID
            || !(STy = cast<StructType>(PTy->getPointerElementType())))
               continue;
+          remapStruct(STy);
           const char *ctype = strdup(STy->getName().str().c_str());
 printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().c_str(), ctype);
-          StructType *tgv = Mod->getTypeByName(ctype);
-printf("[%s:%d] %p %p number %d\n", __FUNCTION__, __LINE__, STy, tgv, STy->getNumElements());
-          for (StructType::element_iterator SI = STy->element_begin(), SE = STy->element_end(); SI != SE; SI++) {
-               const Type *Ty = *SI;
-printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ty);
-               Ty->dump();
-printf("\n");
-          }
           STy->dump();
-          STy = remapStruct(STy);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          STy->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          tgv = Mod->getTypeByName(ctype);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          tgv->dump();
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
   }
   printf("\n");
-  tgv = Mod->getTypeByName("class.Module");
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  tgv->dump();
-  tgv = Mod->getTypeByName("class.Rule");
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  tgv->dump();
-  tgv = Mod->getTypeByName("class.EchoTest::drive");
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  tgv->dump();
   /* iterate through all functions, adjusting size of 'new' operands */
   for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
       const char *fname = FI->getName().str().c_str();
@@ -1343,8 +1325,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                   if (PointerType *PTy = dyn_cast<PointerType>(PI->getType())) {
                       const StructType *STy = cast<StructType>(PTy->getPointerElementType());
                       const char *ctype = STy->getName().str().c_str();
+                      uint64_t isize = CI->getZExtValue();
                       printf("%s: %s CALL %s CI %p bbsize %ld param %lld name %s\n",
-                           __FUNCTION__, fname, cp, CI, FI->size(), (long long)CI->getZExtValue(), ctype);
+                           __FUNCTION__, fname, cp, CI, FI->size(), (long long)isize, ctype);
+                      IRBuilder<> builder(II->getParent());
+                      II->setOperand(0, builder.getInt64(isize * 2 + 1000));
+II->getParent()->dump();
                       StructType *tgv = Mod->getTypeByName(ctype);
 printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
                   }
@@ -1474,7 +1460,7 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
   // Run main
   int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
-  //dump_class_data();
+  dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
   return Result;
