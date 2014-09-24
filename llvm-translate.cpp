@@ -44,9 +44,14 @@
 using namespace llvm;
 
 #include "declarations.h"
+#define GIANT_SIZE 1024
 
-static int trace_translate;// = 1;
+extern "C" struct {
+    void *p;
+    long size;
+} callfunhack[100];
 static int dump_interpret;// = 1;
+static int trace_translate;// = 1;
 static int trace_meta;// = 1;
 static int trace_full;// = 1;
 static int trace_map;// = 1;
@@ -77,6 +82,70 @@ static std::list<VTABLE_WORK> vtablework;
 static std::map<const Value *, Value *> cloneVmap;
 static int slevel, dtlevel;
 static NamedMDNode *CU_Nodes;
+
+void memdump(unsigned char *p, int len, const char *title)
+{
+int i;
+
+    i = 0;
+    while (len > 0) {
+        if (!(i & 0xf)) {
+            if (i > 0)
+                printf("\n");
+            printf("%s: ",title);
+        }
+        printf("%02x ", *p++);
+        i++;
+        len--;
+    }
+    printf("\n");
+}
+extern "C" void additemtolist(void *p, long size)
+{
+    int i = 0;
+
+    while(callfunhack[i].p)
+        i++;
+    callfunhack[i].p = p;
+    callfunhack[i].size = size;
+}
+static void callfun(int arg)
+{
+    int i = 0;
+
+return;
+    printf("%s: %d\n", __FUNCTION__, arg);
+    while(callfunhack[i].p) {
+        printf("[%d] = %p\n", i, callfunhack[i].p);
+        long size = callfunhack[i].size;
+        if (size > GIANT_SIZE) {
+           size -= GIANT_SIZE;
+           size -= 10 * sizeof(int);
+           size = size/2;
+        }
+        size += 16;
+        memdump((unsigned char *)callfunhack[i].p, size, "data");
+        i++;
+    }
+}
+static int validate_address(int arg, void *p)
+{
+    int i = 0;
+
+    while(callfunhack[i].p) {
+        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
+            return 0;
+        i++;
+    }
+    printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
+    i = 0;
+    while(callfunhack[i].p) {
+        printf("%p size 0x%lx\n", callfunhack[i].p, callfunhack[i].size);
+        i++;
+    }
+    //exit(1);
+    return 1;
+}
 
 static bool endswith(const char *str, const char *suffix)
 {
@@ -372,13 +441,16 @@ static const char *map_address(void *arg, std::string name)
     return temp;
 }
 
-static void mapType(int derived, const MDNode *aCTy, char *addr, std::string aname)
+static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string aname)
 {
     DICompositeType CTy(aCTy);
     int tag = CTy.getTag();
     long offset = (long)CTy.getOffsetInBits()/8;
-    addr += offset;
+    char *addr = aaddr + offset;
     char *addr_target = *(char **)addr;
+//printf("[%s:%d] tag %s addr %p offset %ld addr_target %p name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), addr, offset, addr_target, aname.c_str());
+    if (validate_address(5000, aaddr) || validate_address(5001, addr))
+        exit(1);
     std::string name = CTy.getName().str();
     if (!name.length())
         name = CTy.getName().str();
@@ -403,8 +475,26 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
     if (aname.length() > 0)
         fname = aname + ":" + name;
     if (tag == dwarf::DW_TAG_pointer_type) {
+        const MDNode *node = getNode(CTy.getTypeDerivedFrom());
+        DICompositeType pderiv(node);
+        int ptag = pderiv.getTag();
         if (addr_target && mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
-            mapwork.push_back(MAPTYPE_WORK(0, getNode(CTy.getTypeDerivedFrom()), addr_target, fname));
+ {
+        int pptag = 0;
+if (ptag == dwarf::DW_TAG_pointer_type) {
+        DICompositeType ppderiv(getNode(pderiv.getTypeDerivedFrom()));
+        pptag = ppderiv.getTag();
+}
+        if (pptag != dwarf::DW_TAG_subroutine_type) {
+            if (validate_address(5010, addr_target)) {
+                CTy.dump();
+        DICompositeType ppderiv(getNode(pderiv.getTypeDerivedFrom()));
+                ppderiv.dump();
+                exit(1);
+            }
+            mapwork.push_back(MAPTYPE_WORK(0, node, addr_target, fname));
+        }
+}
         return;
     }
     map_address(addr, fname);
@@ -424,19 +514,11 @@ static void mapType(int derived, const MDNode *aCTy, char *addr, std::string ana
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
         slevel++;
         const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
+        DICompositeType foo(derivedNode);
         DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type && derivedNode)
-            mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
-        unsigned N = Elements.getNumElements();
-        if (N >=MAX_BASIC_BLOCK_FLAGS) {
-            DIType Ty(Elements.getElement(N-1));
-printf("[%s:%d] NNNNNNNNNNNNNNNNNNNN %d tag %d name %s\n", __FUNCTION__, __LINE__, N, Ty.getTag(), Ty.getName().str().c_str());
-             Ty->dump();
-if (Ty.getTag() != dwarf::DW_TAG_subprogram && Ty.getTag() != dwarf::DW_TAG_friend)
-printf("[%s:%d]TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n", __FUNCTION__, __LINE__);
-             N = (N - MAX_BASIC_BLOCK_FLAGS)/2;
-        }
-        for (unsigned k = 0; k < N; ++k)
+        //if (tag != dwarf::DW_TAG_subroutine_type && tag != dwarf::DW_TAG_member && derivedNode)
+        mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
+        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapwork.push_back(MAPTYPE_WORK(0, Elements.getElement(k), addr, fname));
         slevel--;
     }
@@ -464,6 +546,7 @@ static void constructAddressMap(void)
           Value *contextp = DIG.getContext();
           printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
           const MDNode *node = CTy;
+          additemtolist(addr, sizeof(long));
           if (!contextp)
               mapwork.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
           else
@@ -1211,7 +1294,9 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
   int generate = proc == generateVerilog;
   *modfirst = NULL;       // init the Module list before calling constructors
   // run Constructors
+callfun(4000);
   EE->runStaticConstructorsDestructors(false);
+callfun(4010);
   // Construct the address -> symbolic name map using dwarf debug info
   constructAddressMap();
   int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
@@ -1257,35 +1342,54 @@ public:
 };
 
 static std::map<StructType *, StructType *> structMap;
+static StructType *classModule;
 static void remapStruct(StructType *arg)
 {
     std::map<StructType *, StructType *>::iterator FI = structMap.find(arg);
     if (FI == structMap.end()) {
         structMap[arg] = arg;
+        int copyme = 0;
+//if (arg->getNumElements() > 0 && arg->getElementType(0) == classModule) {
+if (arg->getNumElements() > 0 && arg->getElementType(0)->getTypeID() == Type::StructTyID) {
+StructType *temp = dyn_cast<StructType>(arg->getElementType(0));
+if (temp->isLayoutIdentical(classModule)) {
+printf("[%s] MATCHED %p\n", __FUNCTION__, arg);
+copyme = 1;
+}
+}
         int length = arg->getNumElements() * 2 + MAX_BASIC_BLOCK_FLAGS;
         Type **data = (Type **)malloc(length * sizeof(data[0]));
         int i = 0, j = 0;
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
             Type *Ty = *SI;
-            if (Ty->getTypeID() == Type::StructTyID)
+            if (Ty->getTypeID() == Type::StructTyID) {
                 remapStruct(cast<StructType>(Ty));
+            }
             data[i++] = Ty;
         }
-        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++)
-            data[i++] = data[j++];
+        for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
+            Type *Ty = data[j++];
+            if (Ty->getTypeID() == Type::StructTyID)
+                Ty = Type::getInt1Ty(arg->getContext());
+            data[i++] = Ty;
+        }
         for (j = 0; j < MAX_BASIC_BLOCK_FLAGS; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
+        if (copyme) {
         TypeHack *bozo = (TypeHack *)arg;
         int val = bozo->hgetSubclassData();
         bozo->hsetSubclassData(0);
 //length = arg->getNumElements();
         arg->setBody(ArrayRef<Type *>(data, length));
         bozo->hsetSubclassData(val);
+        }
     }
 }
 
 static void adjustModuleSizes(Module *Mod)
 {
+  classModule = Mod->getTypeByName("class.Module");
+printf("[%s:%d] classModule %p\n", __FUNCTION__, __LINE__, classModule);
   /* iterate through all global variables, adjusting size of types */
   for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
       if (!MI->isDeclaration() && !MI->isConstant()) {
@@ -1317,10 +1421,10 @@ printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().
                       const StructType *STy = cast<StructType>(PTy->getPointerElementType());
                       const char *ctype = STy->getName().str().c_str();
                       uint64_t isize = CI->getZExtValue();
-                      printf("%s: %s CALL %s CI %p bbsize %ld param %lld name %s\n",
+                      printf("%s: %s CALL %s CI %p bbsize %ld isize 0x%llx name %s\n",
                            __FUNCTION__, fname, cp, CI, FI->size(), (long long)isize, ctype);
                       IRBuilder<> builder(II->getParent());
-                      II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + 1000));
+                      II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE));
 //II->getParent()->dump();
                       //StructType *tgv = Mod->getTypeByName(ctype);
 //printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
