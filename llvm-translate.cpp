@@ -47,29 +47,28 @@ using namespace llvm;
 #include "declarations.h"
 #define GIANT_SIZE 1024
 
-extern "C" struct {
-    void *p;
-    long size;
-} callfunhack[100];
-static int dump_interpret;// = 1;
 int trace_translate;// = 1;
 int trace_full;// = 1;
+static int dump_interpret;// = 1;
 static int trace_map;// = 1;
 static int output_stdout;// = 1;
 
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
 ExecutionEngine *EE;
-static Module *Mod;
-static std::map<const Value *, int> slotmap;
-
 const char *globalName;
-static FILE *outputFile;
-static int already_printed_header;
 char vout[MAX_CHAR_BUFFER];
-
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
+
+static struct {
+    void *p;
+    long size;
+} callfunhack[100];
+static Module *Mod;
+static std::map<const Value *, int> slotmap;
+static FILE *outputFile;
+static int already_printed_header;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 std::list<VTABLE_WORK> vtablework;
