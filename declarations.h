@@ -23,8 +23,6 @@
 #include "llvm/DebugInfo.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 
-//using namespace llvm;
-
 #define SEPARATOR ":"
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
@@ -92,7 +90,6 @@ extern int trace_full;
 extern const char *globalName;
 
 extern std::list<VTABLE_WORK> vtablework;
-extern char vout[MAX_CHAR_BUFFER];
 extern SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 extern int operand_list_index;
@@ -110,11 +107,10 @@ void prepareOperand(const Value *Operand);
 const char *getparam(int arg);
 int getLocalSlot(const Value *V);
 
-void calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
-void generateVerilog(Function ***thisp, Instruction &I);
+const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
+const char *generateVerilog(Function ***thisp, Instruction &I);
 
 int validate_address(int arg, void *p);
 const char *map_address(void *arg, std::string name);
-//void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string aname);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);

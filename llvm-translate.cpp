@@ -270,7 +270,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK *work, const char *guardName, void (*proc)(Function ***thisp, Instruction &I))
+static void processFunction(VTABLE_WORK *work, const char *guardName, const char *(*proc)(Function ***thisp, Instruction &I))
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
@@ -365,9 +365,9 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
                 }
                 break;
             default:
-                vout[0] = 0;
-                proc(work->thisp, *ins);
-                if (strlen(vout)) {
+                {
+                const char *vout = proc(work->thisp, *ins);
+                if (vout) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
                         if (guardName)
@@ -375,6 +375,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
                     }
                     already_printed_header = 1;
                    fprintf(outputFile, "        %s\n", vout);
+                }
                 }
                 break;
             case Instruction::Alloca: // ignore
@@ -399,7 +400,7 @@ static bool endswith(const char *str, const char *suffix)
  * generating verilog.
  */
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
-       void (*proc)(Function ***thisp, Instruction &I))
+       const char *(*proc)(Function ***thisp, Instruction &I))
 {
     int generate = proc == generateVerilog;
     *modfirst = NULL;       // init the Module list before calling constructors

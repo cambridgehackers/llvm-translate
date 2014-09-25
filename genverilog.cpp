@@ -56,6 +56,7 @@ static INTMAP_TYPE opcodeMap[] = {
     {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
     {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
     {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
+static char vout[MAX_CHAR_BUFFER];
 
 static const char *intmap_lookup(INTMAP_TYPE *map, int value)
 {
@@ -70,10 +71,12 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
 /*
  * Generate Verilog output for Store and Call instructions
  */
-void generateVerilog(Function ***thisp, Instruction &I)
+const char *generateVerilog(Function ***thisp, Instruction &I)
 {
     int dump_operands = trace_full;
     int opcode = I.getOpcode();
+
+    vout[0] = 0;
     switch (opcode) {
     // Terminators
     case Instruction::Ret:
@@ -266,4 +269,7 @@ else
         else if (operand_list[i].type != OpTypeNone)
             printf(" op[%d]=%s;", i, getparam(i));
     }
+    if (vout[0])
+        return vout;
+    return NULL;
 }

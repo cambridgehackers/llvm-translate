@@ -91,7 +91,7 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
 /*
  * Perform guard(), confirm() hoisting.  Insert shadow variable access for store.
  */
-void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
+const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
     switch (opcode) {
@@ -242,4 +242,5 @@ if (operand_list_index <= 3)
     case Instruction::ICmp:
         break;
     }
+    return NULL;
 }
