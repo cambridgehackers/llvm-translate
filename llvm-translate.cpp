@@ -52,35 +52,27 @@ extern "C" struct {
     long size;
 } callfunhack[100];
 static int dump_interpret;// = 1;
-static int trace_translate;// = 1;
-static int trace_meta;// = 1;
-static int trace_full;// = 1;
+int trace_translate;// = 1;
+int trace_full;// = 1;
 static int trace_map;// = 1;
 static int output_stdout;// = 1;
 
-static SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
+SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 static int slotarray_index = 1;
-static ExecutionEngine *EE;
+ExecutionEngine *EE;
 static Module *Mod;
 static std::map<const Value *, int> slotmap;
-static std::map<const MDNode *, int> metamap;
-static CLASS_META class_data[MAX_CLASS_DEFS];
-static int class_data_index;
 
-static const char *globalName;
+const char *globalName;
 static FILE *outputFile;
 static int already_printed_header;
-static char vout[MAX_CHAR_BUFFER];
+char vout[MAX_CHAR_BUFFER];
 
-static struct {
-   int type;
-   uint64_t value;
-} operand_list[MAX_OPERAND_LIST];
-static int operand_list_index;
+OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
+int operand_list_index;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
-static std::list<VTABLE_WORK> vtablework;
-static std::map<const Value *, Value *> cloneVmap;
+std::list<VTABLE_WORK> vtablework;
 static NamedMDNode *CU_Nodes;
 
 /*
@@ -109,7 +101,7 @@ static bool endswith(const char *str, const char *suffix)
     return skipl >= 0 && !strcmp(str + skipl, suffix);
 }
 
-static const char *intmap_lookup(INTMAP_TYPE *map, int value)
+const char *intmap_lookup(INTMAP_TYPE *map, int value)
 {
     while (map->name) {
         if (map->value == value)
@@ -117,249 +109,6 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
         map++;
     }
     return "unknown";
-}
-
-/*
- * Read in dwarf metadata
- */
-static const MDNode *getNode(const Value *val)
-{
-    if (val)
-        return dyn_cast<MDNode>(val);
-    return NULL;
-}
-static std::string getScope(const Value *val)
-{
-    const MDNode *Node = getNode(val);
-    if (!Node)
-        return "";
-    DIType nextitem(Node);
-    std::string name = getScope(nextitem.getContext()) + nextitem.getName().str();
-    //int ind = name.find("<");
-    //if (ind >= 0)
-        //name = name.substr(0, ind);
-    return name + "::";
-}
-static void dumpType(DIType litem, CLASS_META *classp);
-static void dumpTref(const MDNode *Node, CLASS_META *classp)
-{
-    if (!Node)
-        return;
-    DIType nextitem(Node);
-    int tag = nextitem.getTag();
-    std::string name = nextitem.getName().str();
-    std::map<const MDNode *, int>::iterator FI = metamap.find(Node);
-    if (FI == metamap.end()) {
-        metamap[Node] = 1;
-        if (tag == dwarf::DW_TAG_class_type) {
-            classp = &class_data[class_data_index++];
-            classp->node = Node;
-            classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
-            int ind = name.find("<");
-            if (ind >= 0) { /* also insert the class w/o template parameters */
-                classp = &class_data[class_data_index++];
-                *classp = *(classp-1);
-                name = name.substr(0, ind);
-                classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
-            }
-        }
-        dumpType(nextitem, classp);
-    }
-}
-
-static void dumpType(DIType litem, CLASS_META *classp)
-{
-    int tag = litem.getTag();
-    if (!tag)     // Ignore elements with tag of 0
-        return;
-    if (tag == dwarf::DW_TAG_pointer_type || tag == dwarf::DW_TAG_inheritance) {
-        DICompositeType CTy(litem);
-        const MDNode *Node = getNode(CTy.getTypeDerivedFrom());
-        if (tag == dwarf::DW_TAG_inheritance && Node && classp) {
-            if(classp->inherit) {
-                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                exit(1);
-            }
-            classp->inherit = Node;
-        }
-        dumpTref(Node, classp);
-        return;
-    }
-    if (trace_meta)
-        printf("tag %s name %s off %3ld size %3ld",
-            dwarf::TagString(tag), litem.getName().str().c_str(),
-            (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
-    if (litem.getTag() == dwarf::DW_TAG_subprogram) {
-        DISubprogram sub(litem);
-        if (trace_meta)
-            printf(" link %s", sub.getLinkageName().str().c_str());
-    }
-    if (trace_meta)
-        printf("\n");
-    if (litem.isCompositeType()) {
-        DICompositeType CTy(litem);
-        DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type) {
-            dumpTref(getNode(CTy.getTypeDerivedFrom()), classp);
-            dumpTref(getNode(CTy.getContainingType()), classp);
-        }
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-            DIType Ty(Elements.getElement(k));
-            int tag = Ty.getTag();
-            if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
-                const MDNode *Node = Ty;
-                if (classp)
-                    classp->memberl.push_back(Node);
-            }
-            dumpType(Ty, classp);
-        }
-    }
-}
-
-static void process_metadata(NamedMDNode *CU_Nodes)
-{
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      DICompileUnit CU(CU_Nodes->getOperand(i));
-      printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
-           // from DIScope:
-           CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
-      DIArray SPs = CU.getSubprograms();
-      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-        DISubprogram sub(SPs.getElement(i));
-            if (trace_meta)
-            printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
-                sub.getLinkageName().str().c_str(), sub.getVirtuality(),
-                sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
-            dumpTref(getNode(sub.getContainingType()), NULL);
-        DIArray tparam(sub.getTemplateParams());
-        if (tparam.getNumElements() > 0) {
-            if (trace_meta) {
-                printf("tparam: ");
-                for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
-                   DIDescriptor ee(tparam.getElement(j));
-                   printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
-                   ee.dump();
-                }
-            }
-        }
-        dumpType(DICompositeType(sub.getType()), NULL);
-      }
-      DIArray EnumTypes = CU.getEnumTypes();
-      for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
-        if (trace_meta)
-        printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
-        dumpType(DIType(EnumTypes.getElement(i)), NULL);
-      }
-      DIArray RetainedTypes = CU.getRetainedTypes();
-      for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
-        if (trace_meta)
-        printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
-        dumpType(DIType(RetainedTypes.getElement(i)), NULL);
-      }
-      DIArray Imports = CU.getImportedEntities();
-      for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
-        DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
-        DIDescriptor Entity = Import.getEntity();
-        if (Entity.isType()) {
-          if (trace_meta)
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          dumpType(DIType(Entity), NULL);
-        }
-        else if (Entity.isSubprogram()) {
-          if (trace_meta) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          DISubprogram(Entity)->dump();
-          }
-        }
-        else if (Entity.isNameSpace()) {
-          //DINameSpace(Entity).getContext()->dump();
-        }
-        else
-          printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
-      }
-      DIArray GVs = CU.getGlobalVariables();
-      for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-        DIGlobalVariable DIG(GVs.getElement(i));
-        const GlobalVariable *gv = DIG.getGlobal();
-        //const Constant *con = DIG.getConstant();
-        const Value *val = dyn_cast<Value>(gv);
-        std::string cp = DIG.getLinkageName().str();
-        if (!cp.length())
-            cp = DIG.getName().str();
-        if (trace_meta)
-            printf("%s: globalvar: %s GlobalVariable %p type %d\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID());
-      }
-    }
-}
-
-/*
- * Lookup/usage of dwarf metadata
- */
-void dump_class_data()
-{
-    CLASS_META *classp = class_data;
-    for (int i = 0; i < class_data_index; i++) {
-      printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
-      for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-          DIType Ty(*MI);
-          DISubprogram CTy(*MI);
-          uint64_t off = Ty.getOffsetInBits()/8;
-          const char *cp = CTy.getLinkageName().str().c_str();
-          if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
-              cp = Ty.getName().str().c_str();
-          printf(" %s/%lld", cp, (long long)off);
-      }
-      printf("\n");
-      classp++;
-    }
-}
-static CLASS_META *lookup_class(const char *cp)
-{
-    CLASS_META *classp = class_data;
-    for (int i = 0; i < class_data_index; i++) {
-      if (!strcmp(cp, classp->name))
-          return classp;
-      classp++;
-    }
-    return NULL;
-}
-const MDNode *lookup_class_member(const char *cp, uint64_t Total)
-{
-    CLASS_META *classp = lookup_class(cp);
-    if (!classp)
-        return NULL;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getOffsetInBits()/8 == Total)
-            return *MI;
-    }
-    return NULL;
-}
-static int lookup_method(const char *classname, std::string methodname)
-{
-    if (trace_translate)
-        printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
-    CLASS_META *classp = lookup_class(classname);
-    if (!classp)
-        return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DISubprogram Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
-            return Ty.getVirtualIndex();
-    }
-    return -1;
-}
-static int lookup_field(const char *classname, std::string methodname)
-{
-    CLASS_META *classp = lookup_class(classname);
-    if (!classp)
-        return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member && Ty.getName().str() == methodname)
-            return Ty.getOffsetInBits()/8;
-    }
-    return -1;
 }
 
 /*
@@ -633,68 +382,13 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
 }
 
 /*
- * clone a DAG from one basic block to another
- */
-static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
-{
-    std::string NameSuffix = "foosuff";
-    Instruction *NewInst = I->clone();
-
-    if (I->hasName())
-        NewInst->setName(I->getName()+NameSuffix);
-    for (unsigned OI = 0, E = I->getNumOperands(); OI != E; ++OI) {
-        const Value *oval = I->getOperand(OI);
-        if (cloneVmap.find(oval) == cloneVmap.end()) {
-            if (const Instruction *IC = dyn_cast<Instruction>(oval))
-                cloneVmap[oval] = cloneTree(IC, insertPoint);
-            else
-                continue;
-        }
-        NewInst->setOperand(OI, cloneVmap[oval]);
-    }
-    NewInst->insertBefore(insertPoint);
-    return NewInst;
-}
-
-Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
-{
-    cloneVmap.clear();
-    Function *TargetF = TI->getParent()->getParent();
-    const Function *SourceF = I->getParent()->getParent();
-    Function::arg_iterator TargetA = TargetF->arg_begin();
-    for (Function::const_arg_iterator AI = SourceF->arg_begin(),
-             AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
-        cloneVmap[AI] = TargetA;
-    if (!returnType)
-        return cloneTree(I, TI);
-    Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
-    Instruction *thisp = cloneTree(orig_thisp, TI);
-    Type *Params[] = {thisp->getType()};
-    Type *castType = PointerType::get(
-             PointerType::get(
-                 PointerType::get(
-                     FunctionType::get(returnType,
-                           ArrayRef<Type*>(Params, 1), false),
-                     0), 0), 0);
-    IRBuilder<> builder(TI->getParent());
-    builder.SetInsertPoint(TI);
-    Value *vtabbase = builder.CreateLoad(
-             builder.CreateBitCast(thisp, castType));
-    Value *newCall = builder.CreateCall(
-             builder.CreateLoad(
-                 builder.CreateConstInBoundsGEP1_32(
-                     vtabbase, methodIndex)), thisp);
-    return dyn_cast<Instruction>(newCall);
-}
-
-/*
  * Common utilities for processing Instruction lists
  */
 static void makeLocalSlot(const Value *V)
 {
     slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
 }
-static int getLocalSlot(const Value *V)
+int getLocalSlot(const Value *V)
 {
     std::map<const Value *, int>::iterator FI = slotmap.find(V);
     if (FI == slotmap.end()) {
@@ -703,7 +397,7 @@ static int getLocalSlot(const Value *V)
     }
     return (int)FI->second;
 }
-static void prepareOperand(const Value *Operand)
+void prepareOperand(const Value *Operand)
 {
     if (!Operand)
         return;
@@ -737,7 +431,7 @@ retlab:
     operand_list_index++;
 }
 
-static const char *getparam(int arg)
+const char *getparam(int arg)
 {
    char temp[MAX_CHAR_BUFFER];
    temp[0] = 0;
@@ -750,363 +444,6 @@ static const char *getparam(int arg)
    else if (operand_list[arg].type == OpTypeString)
        return (const char *)operand_list[arg].value;
    return strdup(temp);
-}
-
-/*
- * Perform guard(), confirm() hoisting.  Insert shadow variable access for store.
- */
-static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
-{
-    int opcode = I.getOpcode();
-    switch (opcode) {
-    // Terminators
-    case Instruction::Br:
-        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-            const BranchInst &BI(cast<BranchInst>(I));
-            prepareOperand(BI.getCondition());
-            int cond_item = getLocalSlot(BI.getCondition());
-            char temp[MAX_CHAR_BUFFER];
-            sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-            if (slotarray[cond_item].name) {
-                slotarray[cond_item].name = strdup(temp);
-            }
-            prepareOperand(BI.getSuccessor(0));
-            prepareOperand(BI.getSuccessor(1));
-        } else if (isa<IndirectBrInst>(I)) {
-            for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i)
-                prepareOperand(I.getOperand(i));
-        }
-        break;
-
-    // Memory instructions...
-    case Instruction::Store:
-        printf("%s: STORE %s=%s\n", __FUNCTION__, getparam(2), getparam(1));
-        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
-            operand_list[1].type = OpTypeInt;
-        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            printf("%s: STORE %s;", __FUNCTION__, getparam(2));
-        else
-            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-        break;
-
-    // Convert instructions...
-    case Instruction::Trunc:
-    case Instruction::ZExt:
-    case Instruction::BitCast:
-        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        break;
-
-    // Other instructions...
-    case Instruction::PHI:
-        {
-        char temp[MAX_CHAR_BUFFER];
-        const PHINode *PN = dyn_cast<PHINode>(&I);
-        I.getType()->dump();
-        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
-        slotarray[operand_list[0].value].name = strdup(temp);
-        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-            int valuein = getLocalSlot(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingBlock(op));
-            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-            //TI->dump();
-            const BranchInst *BI = dyn_cast<BranchInst>(TI);
-            const char *trailch = "";
-            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-              prepareOperand(BI->getCondition());
-              int cond_item = getLocalSlot(BI->getCondition());
-              sprintf(temp, "%s ?", slotarray[cond_item].name);
-              trailch = ":";
-              //prepareOperand(BI->getSuccessor(0));
-              //prepareOperand(BI->getSuccessor(1));
-            }
-            if (slotarray[valuein].name)
-                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
-            else
-                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
-        }
-        }
-        break;
-    case Instruction::Call:
-        {
-        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *f = (Function *)slotarray[tcall].svalue;
-        Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
-        if (!f) {
-            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-            break;
-        }
-        if (trace_translate)
-            printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
-        const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-        const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
-        const StructType *STy = cast<StructType>(p1->getPointerElementType());
-        const char *tname = strdup(STy->getName().str().c_str());
-        int guardName = lookup_method(tname, "guard");
-        int updateName = lookup_method(tname, "update");
-        printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
-        const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-        printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
-        int parentGuardName = -1;
-        int parentUpdateName = -1;
-        if (g) {
-            char temp[MAX_CHAR_BUFFER];
-            int status;
-            const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-            sprintf(temp, "class.%s", ret+11);
-            parentGuardName = lookup_method(temp, "guard");
-            parentUpdateName = lookup_method(temp, "update");
-        }
-        if (guardName >= 0 && parentGuardName >= 0) {
-            Function *peer_guard = parent_thisp[0][parentGuardName];
-            TerminatorInst *TI = peer_guard->begin()->getTerminator();
-            Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
-            if (CallInst *nc = dyn_cast<CallInst>(newI))
-                nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
-            Value *cond = TI->getOperand(0);
-            const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
-            if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-                TI->setOperand(0, newI);
-            else {
-                // 'And' return value into condition
-                Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-                cond->replaceAllUsesWith(newBool);
-                // we must set this after the 'replaceAllUsesWith'
-                newBool->setOperand(0, cond);
-            }
-        }
-        if (parentUpdateName >= 0) {
-            Function *peer_update = parent_thisp[0][parentUpdateName];
-            TerminatorInst *TI = peer_update->begin()->getTerminator();
-            if (updateName >= 0)
-                copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
-            else if (I.use_empty()) {
-                copyFunction(TI, &I, 0, NULL); // Move this call to the 'update()' method
-                I.eraseFromParent(); // delete "Call" instruction
-            }
-        }
-if (operand_list_index <= 3)
-        vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
-            (Function ***)slotarray[operand_list[1].value].svalue,
-            (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
-        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
-        }
-        break;
-    default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
-        exit(1);
-    case Instruction::Ret: case Instruction::Unreachable:
-    case Instruction::Add: case Instruction::FAdd:
-    case Instruction::Sub: case Instruction::FSub:
-    case Instruction::Mul: case Instruction::FMul:
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    case Instruction::And: case Instruction::Or: case Instruction::Xor:
-    case Instruction::ICmp:
-        break;
-    }
-}
-
-/*
- * Generate Verilog output for Store and Call instructions
- */
-static void generateVerilog(Function ***thisp, Instruction &I)
-{
-    int dump_operands = trace_full;
-    int opcode = I.getOpcode();
-    switch (opcode) {
-    // Terminators
-    case Instruction::Ret:
-        if (I.getParent()->getParent()->getReturnType()->getTypeID()
-               == Type::IntegerTyID && operand_list_index > 1) {
-            operand_list[0].type = OpTypeString;
-            operand_list[0].value = (uint64_t)getparam(1);
-            sprintf(vout, "%s = %s;", globalName, getparam(1));
-        }
-        break;
-    case Instruction::Br:
-        {
-        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-          char temp[MAX_CHAR_BUFFER];
-          const BranchInst &BI(cast<BranchInst>(I));
-          prepareOperand(BI.getCondition());
-          int cond_item = getLocalSlot(BI.getCondition());
-          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-          if (slotarray[cond_item].name) {
-              sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
-              slotarray[cond_item].name = strdup(temp);
-          }
-          prepareOperand(BI.getSuccessor(0));
-          prepareOperand(BI.getSuccessor(1));
-        } else if (isa<IndirectBrInst>(I)) {
-          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-            prepareOperand(I.getOperand(i));
-          }
-        }
-        dump_operands = 1;
-        }
-        break;
-    //case Instruction::Switch:
-        //const SwitchInst& SI(cast<SwitchInst>(I));
-        //prepareOperand(SI.getCondition());
-        //prepareOperand(SI.getDefaultDest());
-        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-          //prepareOperand(i.getCaseValue());
-          //prepareOperand(i.getCaseSuccessor());
-        //}
-    //case Instruction::IndirectBr:
-    //case Instruction::Invoke:
-    //case Instruction::Resume:
-    case Instruction::Unreachable:
-        break;
-
-    // Standard binary operators...
-    case Instruction::Add: case Instruction::FAdd:
-    case Instruction::Sub: case Instruction::FSub:
-    case Instruction::Mul: case Instruction::FMul:
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    // Logical operators...
-    case Instruction::And:
-    case Instruction::Or:
-    case Instruction::Xor:
-        {
-        const char *op1 = getparam(1), *op2 = getparam(2);
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(opcodeMap, opcode), op2);
-        if (operand_list[0].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
-
-    // Memory instructions...
-    case Instruction::Store:
-        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
-            operand_list[1].type = OpTypeInt;
-        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            sprintf(vout, "%s = %s;", getparam(2), getparam(1));
-        else
-            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-        break;
-    //case Instruction::AtomicCmpXchg:
-    //case Instruction::AtomicRMW:
-    //case Instruction::Fence:
-
-    // Convert instructions...
-    //case Instruction::SExt:
-    //case Instruction::FPTrunc: //case Instruction::FPExt:
-    //case Instruction::FPToUI: //case Instruction::FPToSI:
-    //case Instruction::UIToFP: //case Instruction::SIToFP:
-    //case Instruction::IntToPtr: //case Instruction::PtrToInt:
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
-        if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        break;
-    //case Instruction::AddrSpaceCast:
-
-    // Other instructions...
-    case Instruction::ICmp: case Instruction::FCmp:
-        {
-        const char *op1 = getparam(1), *op2 = getparam(2);
-        const CmpInst *CI;
-        if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(predText, CI->getPredicate()), op2);
-        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
-    case Instruction::PHI:
-        {
-        char temp[MAX_CHAR_BUFFER];
-        const PHINode *PN = dyn_cast<PHINode>(&I);
-        if (!PN) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        I.getType()->dump();
-        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
-        sprintf(vout, "%s = ", temp);
-        slotarray[operand_list[0].value].name = strdup(temp);
-        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-            int valuein = getLocalSlot(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingBlock(op));
-            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-            //TI->dump();
-            const BranchInst *BI = dyn_cast<BranchInst>(TI);
-            const char *trailch = "";
-            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-              prepareOperand(BI->getCondition());
-              int cond_item = getLocalSlot(BI->getCondition());
-              sprintf(temp, "%s ?", slotarray[cond_item].name);
-              trailch = ":";
-              //prepareOperand(BI->getSuccessor(0));
-              //prepareOperand(BI->getSuccessor(1));
-              strcat(vout, temp);
-            }
-            if (slotarray[valuein].name)
-                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
-            else
-                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
-            strcat(vout, temp);
-        }
-        dump_operands = 1;
-        }
-        break;
-    //case Instruction::Select:
-    case Instruction::Call:
-        {
-        //const CallInst *CI = dyn_cast<CallInst>(&I);
-        //const Value *val = CI->getCalledValue();
-        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *f = (Function *)slotarray[tcall].svalue;
-        if (!f) {
-            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-            break;
-        }
-        SLOTARRAY_TYPE arg;
-        if (operand_list_index > 3)
-            arg = slotarray[operand_list[2].value];
-else
-        vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
-            (Function ***)slotarray[operand_list[1].value].svalue, arg));
-        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
-        }
-        break;
-    //case Instruction::Shl:
-    //case Instruction::LShr:
-    //case Instruction::AShr:
-    //case Instruction::VAArg:
-    //case Instruction::ExtractElement:
-    //case Instruction::InsertElement:
-    //case Instruction::ShuffleVector:
-    //case Instruction::ExtractValue:
-    //case Instruction::InsertValue:
-    //case Instruction::LandingPad:
-    default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
-        exit(1);
-        break;
-    }
-    if (dump_operands && trace_translate)
-    for (int i = 0; i < operand_list_index; i++) {
-        int t = operand_list[i].value;
-        if (operand_list[i].type == OpTypeLocalRef)
-            printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
-        else if (operand_list[i].type != OpTypeNone)
-            printf(" op[%d]=%s;", i, getparam(i));
-    }
 }
 
 /*

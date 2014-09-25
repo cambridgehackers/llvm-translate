@@ -78,6 +78,11 @@ typedef struct {
     const char *name;
 } INTMAP_TYPE;
 
+typedef struct {
+   int type;
+   uint64_t value;
+} OPERAND_ITEM_TYPE;
+
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
 static INTMAP_TYPE predText[] = {
@@ -101,3 +106,48 @@ static INTMAP_TYPE opcodeMap[] = {
     {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
     {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
     {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
+
+#if 0
+extern int dump_interpret;
+extern int trace_map;
+extern int output_stdout;
+
+extern int slotarray_index = 1;
+extern Module *Mod;
+extern std::map<const Value *, int> slotmap;
+extern FILE *outputFile;
+extern int already_printed_header;
+
+extern std::map<void *, std::string> mapitem;
+extern std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
+extern std::map<const Value *, Value *> cloneVmap;
+extern NamedMDNode *CU_Nodes;
+#endif
+
+extern ExecutionEngine *EE;
+extern int trace_translate;
+extern int trace_full;
+extern const char *globalName;
+
+extern std::list<VTABLE_WORK> vtablework;
+extern char vout[MAX_CHAR_BUFFER];
+extern SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
+extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
+extern int operand_list_index;
+
+const MDNode *getNode(const Value *val);
+void dumpType(DIType litem, CLASS_META *classp);
+void dumpTref(const MDNode *Node, CLASS_META *classp);
+void dumpType(DIType litem, CLASS_META *classp);
+void process_metadata(NamedMDNode *CU_Nodes);
+CLASS_META *lookup_class(const char *cp);
+int lookup_method(const char *classname, std::string methodname);
+int lookup_field(const char *classname, std::string methodname);
+
+void prepareOperand(const Value *Operand);
+const char *getparam(int arg);
+int getLocalSlot(const Value *V);
+const char *intmap_lookup(INTMAP_TYPE *map, int value);
+
+void calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
+void generateVerilog(Function ***thisp, Instruction &I);
