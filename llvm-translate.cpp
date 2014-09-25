@@ -24,13 +24,11 @@
 
 #include <stdio.h>
 #include <list>
-#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/Linker.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/IR/Operator.h"
@@ -278,7 +276,6 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
     slotmap.clear();
     slotarray_index = 1;
     memset(slotarray, 0, sizeof(slotarray));
-    int generate = proc == generateVerilog;
     /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
         opt_runOnBasicBlock(*I);
@@ -309,8 +306,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
     already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        if (trace_translate)
-        if (generate && I->hasName())         // Print out the label if it exists...
+        if (trace_translate && I->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", I->getName().str().c_str());
         for (BasicBlock::iterator ins = I->begin(), ins_end = I->end(); ins != ins_end;) {
             char instruction_label[MAX_CHAR_BUFFER];
@@ -511,13 +507,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         }
     }
 
-    // load the whole bitcode file eagerly
-    //if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
-        //printf("%s: bitcode didn't read correctly.\n", argv[0]);
-        //printf("Reason: %s\n", ErrorMsg.c_str());
-        //return 1;
-    //}
-
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
 
@@ -531,30 +520,16 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     builder.setMArch(MArch);
     builder.setMCPU("");
     builder.setMAttrs(MAttrs);
-    //builder.setRelocationModel(Reloc::Default);
-    //builder.setCodeModel(CodeModel::JITDefault);
     builder.setErrorStr(&ErrorMsg);
     builder.setEngineKind(EngineKind::Interpreter);
-    //builder.setJITMemoryManager(0);
     builder.setOptLevel(CodeGenOpt::None);
 
-    //TargetOptions Options;
-    //Options.UseSoftFloat = false;
-    //Options.JITEmitDebugInfo = true;
-    //Options.JITEmitDebugInfoToDisk = false;
-
     // Create the execution environment and allocate memory for static items
-    //builder.setTargetOptions(Options);
     EE = builder.create();
     if (!EE) {
         printf("%s: unknown error creating EE!\n", argv[0]);
         exit(1);
     }
-    //EE->DisableLazyCompilation(true);
-
-    std::vector<std::string> InputArgv;
-    InputArgv.push_back("param1");
-    InputArgv.push_back("param2");
 
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
     Function *EntryFn = Mod->getFunction("main");
@@ -571,6 +546,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
 printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     // Run main
+    std::vector<std::string> InputArgv;
+    InputArgv.push_back("param1");
+    InputArgv.push_back("param2");
     int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
     //dump_class_data();
