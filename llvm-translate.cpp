@@ -67,7 +67,7 @@ static std::map<const MDNode *, int> metamap;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 
-static const char *globalName, *globalGuardName;
+static const char *globalName;
 static FILE *outputFile;
 static int already_printed_header;
 static char vout[MAX_CHAR_BUFFER];
@@ -908,6 +908,9 @@ if (operand_list_index <= 3)
     }
 }
 
+/*
+ * Generate Verilog output for Store and Call instructions
+ */
 static void generateVerilog(Function ***thisp, Instruction &I)
 {
     int dump_operands = trace_full;
@@ -1106,6 +1109,10 @@ else
     }
 }
 
+/*
+ * GEP and Load instructions interpreter functions
+ * (just execute using the memory areas allocated by the constructors)
+ */
 static uint64_t getOperandValue(const Value *Operand)
 {
     const Constant *CV = dyn_cast<Constant>(Operand);
@@ -1116,11 +1123,6 @@ static uint64_t getOperandValue(const Value *Operand)
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
 }
-
-/*
- * GEP and Load instructions encountered during processing are
- * just 'executed', using the memory areas allocated by the constructors.
- */
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -1177,9 +1179,9 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 }
 
 /*
- * Walk all basic blocks for a Function, calling requested processing function
+ * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, Instruction &I))
+static void processFunction(VTABLE_WORK *work, const char *guardName, void (*proc)(Function ***thisp, Instruction &I))
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
@@ -1214,14 +1216,6 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, I
     }
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     already_printed_header = 0;
-    globalGuardName = NULL;
-    if (generate && endswith(globalName, "updateEv")) {
-        char temp[MAX_CHAR_BUFFER];
-        strcpy(temp, globalName);
-        //strcat(temp + strlen(globalName) - 8, "guardEv");
-        temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
-        globalGuardName = strdup(temp);
-    }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
         if (trace_translate)
@@ -1288,9 +1282,9 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, I
                 proc(work->thisp, *ins);
                 if (strlen(vout)) {
                     if (!already_printed_header) {
-                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
-                        if (globalGuardName)
-                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", globalGuardName, globalGuardName);
+                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", guardName);
+                        if (guardName)
+                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
                     }
                     already_printed_header = 1;
                    fprintf(outputFile, "        %s\n", vout);
@@ -1305,8 +1299,6 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, I
             ins = next_ins;
         }
     }
-    if (globalGuardName && already_printed_header)
-        fprintf(outputFile, "end;\n");
 }
 
 /*
@@ -1353,7 +1345,17 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
         Function *f = vtablework.begin()->thisp[0][vtablework.begin()->f];
         globalName = strdup(f->getName().str().c_str());
         VTABLE_WORK work = *vtablework.begin();
-        processFunction(&work, proc);
+        const char *guardName = NULL;
+        if (generate && endswith(globalName, "updateEv")) {
+            char temp[MAX_CHAR_BUFFER];
+            strcpy(temp, globalName);
+            //strcat(temp + strlen(globalName) - 8, "guardEv");
+            temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
+            guardName = strdup(temp);
+        }
+        processFunction(&work, guardName, proc);
+        if (guardName && already_printed_header)
+            fprintf(outputFile, "end;\n");
         vtablework.pop_front();
     }
 }
@@ -1440,7 +1442,6 @@ static void adjustModuleSizes(Module *Mod)
     printf("\n");
     /* iterate through all functions, adjusting size of 'new' operands */
     for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
-        const char *fname = FI->getName().str().c_str();
         for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
             for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ++II) {
                 if (II->getOpcode() != Instruction::Call)
@@ -1449,11 +1450,11 @@ static void adjustModuleSizes(Module *Mod)
                 const char *cp = called->getName().str().c_str();
                 const Function *CF = dyn_cast<Function>(called);
                 if (CF && CF->isDeclaration() && !strcmp(cp, "_Znwm")) {
-                    printf("[%s:%d]CALLLLLLLLLLLLLLL %d = %p\n", __FUNCTION__, __LINE__, called->getValueID(), CF);
-                    SmallVector<Type*, 8> ArgTys;
-                    ArgTys.push_back(Type::getInt64Ty(Mod->getContext()));
-                    FunctionType *fty = //dyn_cast<FunctionType>(called->getType());
-                    FunctionType::get(Type::getInt8PtrTy(Mod->getContext()), ArgTys, false);
+                    printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
+                    Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
+                    FunctionType *fty = FunctionType::get(
+                        Type::getInt8PtrTy(Mod->getContext()),
+                        ArrayRef<Type*>(Params, 1), false);
                     Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
                     Function *F = dyn_cast<Function>(newmalloc);
                     Function *cc = dyn_cast<Function>(called);
