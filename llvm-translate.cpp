@@ -46,22 +46,20 @@
 using namespace llvm;
 
 #include "declarations.h"
-#define GIANT_SIZE 1024
 
 int trace_translate;// = 1;
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
-//static int trace_map;// = 1;
 static int output_stdout;// = 1;
 
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
-static int slotarray_index = 1;
 ExecutionEngine *EE;
 const char *globalName;
 char vout[MAX_CHAR_BUFFER];
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
 
+static int slotarray_index = 1;
 static Module *Mod;
 static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
@@ -597,7 +595,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     // Process the static constructors, generating code for all rules
     processConstructorAndRules(Mod, modfirst, generateVerilog);
 
-  printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     // Run main
     int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 
