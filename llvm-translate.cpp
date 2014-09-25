@@ -1405,6 +1405,15 @@ printf("[%s:%d] REMAPME\n", __FUNCTION__, __LINE__);
     return rc;
 }
 
+extern "C" void *llvm_translate_malloc(size_t size)
+{
+    size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
+    void *ptr = malloc(newsize);
+    printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
+    additemtolist(ptr, newsize);
+    return ptr;
+}
+Value *newmalloc;
 static void adjustModuleSizes(Module *Mod)
 {
   classModule = Mod->getTypeByName("class.Module");
@@ -1425,8 +1434,26 @@ structMap.clear();
           case Instruction::Call:
               Value *called = II->getOperand(II->getNumOperands()-1);
               const char *cp = called->getName().str().c_str();
+const Function *CF = dyn_cast<Function>(called);
+if (CF && CF->isDeclaration() && !strcmp(cp, "_Znwm")) {
+printf("[%s:%d]CALLLLLLLLLLLLLLL %d = %p\n", __FUNCTION__, __LINE__, called->getValueID(), CF);
+if (!newmalloc) {
+  SmallVector<Type*, 8> ArgTys;
+    ArgTys.push_back(Type::getInt64Ty(Mod->getContext()));
+FunctionType *fty = //dyn_cast<FunctionType>(called->getType());
+FunctionType::get(Type::getInt8PtrTy(Mod->getContext()), ArgTys, false);
+newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
+  Function *F = dyn_cast<Function>(newmalloc);
+  Function *cc = dyn_cast<Function>(called);
+  F->setCallingConv(cc->getCallingConv());
+  F->setDoesNotAlias(0);
+  F->setAttributes(cc->getAttributes());
+                called->replaceAllUsesWith(newmalloc);
+}
+}
+#if 0
               const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0));
-              if (!strcmp(cp, "_Znwm") && CI && CI->getType()->isIntegerTy(64)) {
+              if (0 && !strcmp(cp, "_Znwm") && CI && CI->getType()->isIntegerTy(64)) {
                   BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
                   if (PointerType *PTy = dyn_cast<PointerType>(PI->getType())) {
                       const StructType *STy = cast<StructType>(PTy->getPointerElementType());
@@ -1446,6 +1473,7 @@ structMap.clear();
 tgv->dump();
                   }
               }
+#endif
               break;
           }
           }
