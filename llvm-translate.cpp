@@ -1343,28 +1343,45 @@ public:
 
 static std::map<StructType *, StructType *> structMap;
 static StructType *classModule;
-static void remapStruct(StructType *arg)
+static int remapStruct(Type *intype, int inherit)
 {
+    int rc = 0;
+    int id = intype->getTypeID();
+    switch(id) {
+    case Type::PointerTyID:
+        {
+        PointerType *PTy = dyn_cast<PointerType>(intype);
+        rc |= remapStruct(PTy->getPointerElementType(), inherit);
+        }
+        return rc;
+    case Type::StructTyID:
+        break;
+    default:
+        printf("%s: unused type %d\n", __FUNCTION__, id);
+    case Type::IntegerTyID:
+    case Type::FunctionTyID:
+    case Type::ArrayTyID:
+    //case Type::HalfTyID: //case Type::FloatTyID: //case Type::DoubleTyID:
+    //case Type::X86_FP80TyID: //case Type::FP128TyID: //case Type::PPC_FP128TyID:
+        return rc;
+    }
+    StructType *arg = cast<StructType>(intype);
     std::map<StructType *, StructType *>::iterator FI = structMap.find(arg);
     if (FI == structMap.end()) {
         structMap[arg] = arg;
-        int copyme = 0;
-//if (arg->getNumElements() > 0 && arg->getElementType(0) == classModule) {
-if (arg->getNumElements() > 0 && arg->getElementType(0)->getTypeID() == Type::StructTyID) {
-StructType *temp = dyn_cast<StructType>(arg->getElementType(0));
-if (temp->isLayoutIdentical(classModule)) {
-printf("[%s] MATCHED %p\n", __FUNCTION__, arg);
-copyme = 1;
-}
-}
+        if (arg->getNumElements() > 0 && arg->getElementType(0)->getTypeID() == Type::StructTyID) {
+            StructType *temp = dyn_cast<StructType>(arg->getElementType(0));
+            if (temp->isLayoutIdentical(classModule)) {
+                printf("[%s] MATCHED %p\n", __FUNCTION__, arg);
+                rc = 1;
+            }
+        }
         int length = arg->getNumElements() * 2 + MAX_BASIC_BLOCK_FLAGS;
         Type **data = (Type **)malloc(length * sizeof(data[0]));
         int i = 0, j = 0;
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
             Type *Ty = *SI;
-            if (Ty->getTypeID() == Type::StructTyID) {
-                remapStruct(cast<StructType>(Ty));
-            }
+            rc |= remapStruct(Ty, 1);
             data[i++] = Ty;
         }
         for (StructType::element_iterator SI = arg->element_begin(), SE = arg->element_end(); SI != SE; SI++) {
@@ -1375,7 +1392,8 @@ copyme = 1;
         }
         for (j = 0; j < MAX_BASIC_BLOCK_FLAGS; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
-        if (copyme) {
+        if (!inherit && rc) {
+printf("[%s:%d] REMAPME\n", __FUNCTION__, __LINE__);
         TypeHack *bozo = (TypeHack *)arg;
         int val = bozo->hgetSubclassData();
         bozo->hsetSubclassData(0);
@@ -1384,6 +1402,7 @@ copyme = 1;
         bozo->hsetSubclassData(val);
         }
     }
+    return rc;
 }
 
 static void adjustModuleSizes(Module *Mod)
@@ -1392,17 +1411,9 @@ static void adjustModuleSizes(Module *Mod)
 printf("[%s:%d] classModule %p\n", __FUNCTION__, __LINE__, classModule);
   /* iterate through all global variables, adjusting size of types */
   for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
-      if (!MI->isDeclaration() && !MI->isConstant()) {
-          PointerType *PTy = dyn_cast<PointerType>(MI->getType());
-          StructType *STy;
-          if (PTy->getPointerElementType()->getTypeID() != Type::StructTyID
-           || !(STy = cast<StructType>(PTy->getPointerElementType())))
-              continue;
-          remapStruct(STy);
-          const char *ctype = strdup(STy->getName().str().c_str());
-printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().c_str(), ctype);
-          STy->dump();
-      }
+structMap.clear();
+      if (!MI->isDeclaration() && !MI->isConstant())
+          remapStruct(MI->getType(), 0);
   }
   printf("\n");
   /* iterate through all functions, adjusting size of 'new' operands */
@@ -1426,8 +1437,13 @@ printf("[%s:%d] name %s type %s\n", __FUNCTION__, __LINE__, MI->getName().str().
                       IRBuilder<> builder(II->getParent());
                       II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE));
 //II->getParent()->dump();
-                      //StructType *tgv = Mod->getTypeByName(ctype);
-//printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
+        //BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+//PI->dump();
+                      StructType *tgv = Mod->getTypeByName(ctype);
+printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
+structMap.clear();
+                      remapStruct(tgv, 0);
+tgv->dump();
                   }
               }
               break;
