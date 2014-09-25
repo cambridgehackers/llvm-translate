@@ -1,0 +1,65 @@
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        echoTest:EchoTest:echo::Echo:response = 0;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN4Echo7respond5guardEv = ((_ZN5Fifo1IiE10FirstValue5guardEv) & (_ZN5Fifo1IiE9DeqAction5guardEv));
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN8EchoTest5drive5guardEv = _ZN5Fifo1IiE9EnqAction5guardEv;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN5Fifo1IiE10FirstValue5valueEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN5Fifo1IiE10FirstValue5guardEv = _ZNK5Fifo1IiE8notEmptyEv;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN5Fifo1IiE9DeqAction5guardEv = _ZNK5Fifo1IiE8notEmptyEv;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZN5Fifo1IiE9DeqAction
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+if (_ZN5Fifo1IiE9DeqAction5guardEv && _ZN5Fifo1IiE9DeqAction6enableEv) then begin
+        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full = 0;
+end;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZN5Fifo1IiE9EnqAction5guardEv = _ZNK5Fifo1IiE7notFullEv;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZN5Fifo1IiE9EnqAction
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+if (_ZN5Fifo1IiE9EnqAction5guardEv && _ZN5Fifo1IiE9EnqAction6enableEv) then begin
+        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element = 24;
+        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full = 1;
+end;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZNK5Fifo1IiE8notEmptyEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZNK5Fifo1IiE8notEmptyEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; (null)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        _ZNK5Fifo1IiE7notFullEv = ((echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full) ^ (1));
