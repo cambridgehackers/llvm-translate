@@ -18,8 +18,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Portions of this program were derived from source with the license:
+//     This file is distributed under the University of Illinois Open Source
+//     License. See LICENSE.TXT for details.
 
 #define DEBUG_TYPE "llvm-translate"
 
@@ -82,6 +83,9 @@ static std::list<VTABLE_WORK> vtablework;
 static std::map<const Value *, Value *> cloneVmap;
 static NamedMDNode *CU_Nodes;
 
+/*
+ * General utility functions
+ */
 void memdump(unsigned char *p, int len, const char *title)
 {
 int i;
@@ -418,7 +422,6 @@ static void process_metadata(NamedMDNode *CU_Nodes)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-
 static const char *map_address(void *arg, std::string name)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
@@ -552,6 +555,10 @@ static void constructAddressMap(void)
     }
 }
 
+/*
+ * Remove alloca and calls to 'llvm.dbg.declare()' that were added
+ * when compiling with '-g'
+ */
 static bool opt_runOnBasicBlock(BasicBlock &BB)
 {
     bool changed = false;
@@ -671,6 +678,9 @@ static const char *getparam(int arg)
    return strdup(temp);
 }
 
+/*
+ * clone a DAG from one basic block to another
+ */
 static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
 {
     std::string NameSuffix = "foosuff";
@@ -723,29 +733,29 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     return dyn_cast<Instruction>(newCall);
 }
 
+/*
+ * Perform guard(), confirm() hoisting.  Insert shadow variable access for store.
+ */
 static void calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
     switch (opcode) {
     // Terminators
     case Instruction::Br:
-        {
         if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-          const BranchInst &BI(cast<BranchInst>(I));
-          prepareOperand(BI.getCondition());
-          int cond_item = getLocalSlot(BI.getCondition());
-          char temp[MAX_CHAR_BUFFER];
-          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-          if (slotarray[cond_item].name) {
-              slotarray[cond_item].name = strdup(temp);
-          }
-          prepareOperand(BI.getSuccessor(0));
-          prepareOperand(BI.getSuccessor(1));
+            const BranchInst &BI(cast<BranchInst>(I));
+            prepareOperand(BI.getCondition());
+            int cond_item = getLocalSlot(BI.getCondition());
+            char temp[MAX_CHAR_BUFFER];
+            sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
+            if (slotarray[cond_item].name) {
+                slotarray[cond_item].name = strdup(temp);
+            }
+            prepareOperand(BI.getSuccessor(0));
+            prepareOperand(BI.getSuccessor(1));
         } else if (isa<IndirectBrInst>(I)) {
-          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-            prepareOperand(I.getOperand(i));
-          }
-        }
+            for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i)
+                prepareOperand(I.getOperand(i));
         }
         break;
 
@@ -1142,6 +1152,10 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
         printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
     return rv;
 }
+
+/*
+ * Translate Store and Call instructions into Verilog.
+ */
 static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, Instruction &I))
 {
     Function *F = work->thisp[0][work->f];
@@ -1272,6 +1286,10 @@ static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, I
         fprintf(outputFile, "end;\n");
 }
 
+/*
+ * Symbolically run through all rules, running either preprocessing or
+ * generating verilog.
+ */
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        void (*proc)(Function ***thisp, Instruction &I))
 {
@@ -1317,6 +1335,9 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
     }
 }
 
+/*
+ * Detect and allocate space for shadow variables
+ */
 class TypeHack: public Type {
     friend class Type;
 public:
@@ -1432,6 +1453,9 @@ static void adjustModuleSizes(Module *Mod)
     }
 }
 
+/*
+ * Read/load llvm input files
+ */
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
     OwningPtr<MemoryBuffer> File;
