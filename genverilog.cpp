@@ -30,6 +30,11 @@ using namespace llvm;
 
 #include "declarations.h"
 
+typedef struct {
+    int value;
+    const char *name;
+} INTMAP_TYPE;
+
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
     {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
@@ -51,6 +56,16 @@ static INTMAP_TYPE opcodeMap[] = {
     {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
     {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
     {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
+
+static const char *intmap_lookup(INTMAP_TYPE *map, int value)
+{
+    while (map->name) {
+        if (map->value == value)
+            return map->name;
+        map++;
+    }
+    return "unknown";
+}
 
 /*
  * Generate Verilog output for Store and Call instructions

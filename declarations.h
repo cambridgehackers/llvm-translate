@@ -80,11 +80,6 @@ typedef struct {
 } CLASS_META;
 
 typedef struct {
-    int value;
-    const char *name;
-} INTMAP_TYPE;
-
-typedef struct {
    int type;
    uint64_t value;
 } OPERAND_ITEM_TYPE;
@@ -114,7 +109,6 @@ int lookup_field(const char *classname, std::string methodname);
 void prepareOperand(const Value *Operand);
 const char *getparam(int arg);
 int getLocalSlot(const Value *V);
-const char *intmap_lookup(INTMAP_TYPE *map, int value);
 
 void calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 void generateVerilog(Function ***thisp, Instruction &I);

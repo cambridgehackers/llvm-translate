@@ -76,16 +76,6 @@ static bool endswith(const char *str, const char *suffix)
     return skipl >= 0 && !strcmp(str + skipl, suffix);
 }
 
-const char *intmap_lookup(INTMAP_TYPE *map, int value)
-{
-    while (map->name) {
-        if (map->value == value)
-            return map->name;
-        map++;
-    }
-    return "unknown";
-}
-
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
@@ -444,13 +434,10 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
             printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
             static std::string method[] = { "body", "guard", "update", ""};
             std::string *p = method;
-            while (*p != "") {
+            do {
                 vtablework.push_back(VTABLE_WORK(lookup_method("class.Rule", *p),
                     rulep, SLOTARRAY_TYPE()));
-                p++;
-                if (!generate) // only preprocess 'body'
-                    break;
-            }
+            } while (*++p != "" && generate); // only preprocess 'body'
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next
@@ -465,7 +452,6 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
         if (generate && endswith(globalName, "updateEv")) {
             char temp[MAX_CHAR_BUFFER];
             strcpy(temp, globalName);
-            //strcat(temp + strlen(globalName) - 8, "guardEv");
             temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
             guardName = strdup(temp);
         }
