@@ -103,137 +103,10 @@ int i;
     }
     printf("\n");
 }
-extern "C" void additemtolist(void *p, long size)
-{
-    int i = 0;
-
-    while(callfunhack[i].p)
-        i++;
-    callfunhack[i].p = p;
-    callfunhack[i].size = size;
-}
-static void callfun(int arg)
-{
-    int i = 0;
-
-return;
-    printf("%s: %d\n", __FUNCTION__, arg);
-    while(callfunhack[i].p) {
-        printf("[%d] = %p\n", i, callfunhack[i].p);
-        long size = callfunhack[i].size;
-        if (size > GIANT_SIZE) {
-           size -= GIANT_SIZE;
-           size -= 10 * sizeof(int);
-           size = size/2;
-        }
-        size += 16;
-        memdump((unsigned char *)callfunhack[i].p, size, "data");
-        i++;
-    }
-}
-static int validate_address(int arg, void *p)
-{
-    int i = 0;
-
-    while(callfunhack[i].p) {
-        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
-            return 0;
-        i++;
-    }
-    printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
-    i = 0;
-    while(callfunhack[i].p) {
-        printf("%p size 0x%lx\n", callfunhack[i].p, callfunhack[i].size);
-        i++;
-    }
-    //exit(1);
-    return 1;
-}
-
 static bool endswith(const char *str, const char *suffix)
 {
     int skipl = strlen(str) - strlen(suffix);
     return skipl >= 0 && !strcmp(str + skipl, suffix);
-}
-static void makeLocalSlot(const Value *V)
-{
-    slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
-}
-static int getLocalSlot(const Value *V)
-{
-    std::map<const Value *, int>::iterator FI = slotmap.find(V);
-    if (FI == slotmap.end()) {
-       makeLocalSlot(V);
-       return getLocalSlot(V);
-    }
-    return (int)FI->second;
-}
-
-void dump_class_data()
-{
-    CLASS_META *classp = class_data;
-    for (int i = 0; i < class_data_index; i++) {
-      printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
-      for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-          DIType Ty(*MI);
-          DISubprogram CTy(*MI);
-          uint64_t off = Ty.getOffsetInBits()/8;
-          const char *cp = CTy.getLinkageName().str().c_str();
-          if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
-              cp = Ty.getName().str().c_str();
-          printf(" %s/%lld", cp, (long long)off);
-      }
-      printf("\n");
-      classp++;
-    }
-}
-static CLASS_META *lookup_class(const char *cp)
-{
-    CLASS_META *classp = class_data;
-    for (int i = 0; i < class_data_index; i++) {
-      if (!strcmp(cp, classp->name))
-          return classp;
-      classp++;
-    }
-    return NULL;
-}
-const MDNode *lookup_class_member(const char *cp, uint64_t Total)
-{
-    CLASS_META *classp = lookup_class(cp);
-    if (!classp)
-        return NULL;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getOffsetInBits()/8 == Total)
-            return *MI;
-    }
-    return NULL;
-}
-static int lookup_method(const char *classname, std::string methodname)
-{
-    if (trace_translate)
-        printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
-    CLASS_META *classp = lookup_class(classname);
-    if (!classp)
-        return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DISubprogram Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
-            return Ty.getVirtualIndex();
-    }
-    return -1;
-}
-static int lookup_field(const char *classname, std::string methodname)
-{
-    CLASS_META *classp = lookup_class(classname);
-    if (!classp)
-        return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member && Ty.getName().str() == methodname)
-            return Ty.getOffsetInBits()/8;
-    }
-    return -1;
 }
 
 static const char *intmap_lookup(INTMAP_TYPE *map, int value)
@@ -245,16 +118,16 @@ static const char *intmap_lookup(INTMAP_TYPE *map, int value)
     }
     return "unknown";
 }
+
+/*
+ * Read in dwarf metadata
+ */
 static const MDNode *getNode(const Value *val)
 {
     if (val)
         return dyn_cast<MDNode>(val);
     return NULL;
 }
-
-/*
- * Process dwarf metadata
- */
 static std::string getScope(const Value *val)
 {
     const MDNode *Node = getNode(val);
@@ -417,6 +290,136 @@ static void process_metadata(NamedMDNode *CU_Nodes)
             printf("%s: globalvar: %s GlobalVariable %p type %d\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID());
       }
     }
+}
+
+/*
+ * Lookup/usage of dwarf metadata
+ */
+void dump_class_data()
+{
+    CLASS_META *classp = class_data;
+    for (int i = 0; i < class_data_index; i++) {
+      printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
+      for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+          DIType Ty(*MI);
+          DISubprogram CTy(*MI);
+          uint64_t off = Ty.getOffsetInBits()/8;
+          const char *cp = CTy.getLinkageName().str().c_str();
+          if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
+              cp = Ty.getName().str().c_str();
+          printf(" %s/%lld", cp, (long long)off);
+      }
+      printf("\n");
+      classp++;
+    }
+}
+static CLASS_META *lookup_class(const char *cp)
+{
+    CLASS_META *classp = class_data;
+    for (int i = 0; i < class_data_index; i++) {
+      if (!strcmp(cp, classp->name))
+          return classp;
+      classp++;
+    }
+    return NULL;
+}
+const MDNode *lookup_class_member(const char *cp, uint64_t Total)
+{
+    CLASS_META *classp = lookup_class(cp);
+    if (!classp)
+        return NULL;
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        if (Ty.getOffsetInBits()/8 == Total)
+            return *MI;
+    }
+    return NULL;
+}
+static int lookup_method(const char *classname, std::string methodname)
+{
+    if (trace_translate)
+        printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
+    CLASS_META *classp = lookup_class(classname);
+    if (!classp)
+        return -1;
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DISubprogram Ty(*MI);
+        if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
+            return Ty.getVirtualIndex();
+    }
+    return -1;
+}
+static int lookup_field(const char *classname, std::string methodname)
+{
+    CLASS_META *classp = lookup_class(classname);
+    if (!classp)
+        return -1;
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        if (Ty.getTag() == dwarf::DW_TAG_member && Ty.getName().str() == methodname)
+            return Ty.getOffsetInBits()/8;
+    }
+    return -1;
+}
+
+/*
+ * Allocated memory region management
+ */
+extern "C" void additemtolist(void *p, long size)
+{
+    int i = 0;
+
+    while(callfunhack[i].p)
+        i++;
+    callfunhack[i].p = p;
+    callfunhack[i].size = size;
+}
+
+extern "C" void *llvm_translate_malloc(size_t size)
+{
+    size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
+    void *ptr = malloc(newsize);
+    printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
+    additemtolist(ptr, newsize);
+    return ptr;
+}
+
+static void callfun(int arg)
+{
+    int i = 0;
+
+return;
+    printf("%s: %d\n", __FUNCTION__, arg);
+    while(callfunhack[i].p) {
+        printf("[%d] = %p\n", i, callfunhack[i].p);
+        long size = callfunhack[i].size;
+        if (size > GIANT_SIZE) {
+           size -= GIANT_SIZE;
+           size -= 10 * sizeof(int);
+           size = size/2;
+        }
+        size += 16;
+        memdump((unsigned char *)callfunhack[i].p, size, "data");
+        i++;
+    }
+}
+static int validate_address(int arg, void *p)
+{
+    int i = 0;
+
+    while(callfunhack[i].p) {
+        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
+            return 0;
+        i++;
+    }
+    printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
+    i = 0;
+    while(callfunhack[i].p) {
+        printf("%p size 0x%lx\n", callfunhack[i].p, callfunhack[i].size);
+        i++;
+    }
+    //exit(1);
+    return 1;
 }
 
 /*
@@ -629,55 +632,6 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
     return changed;
 }
 
-static void prepareOperand(const Value *Operand)
-{
-    if (!Operand)
-        return;
-    int slotindex = getLocalSlot(Operand);
-    operand_list[operand_list_index].value = slotindex;
-    if (Operand->hasName()) {
-        if (isa<Constant>(Operand)) {
-            operand_list[operand_list_index].type = OpTypeExternalFunction;
-            slotarray[slotindex].name = Operand->getName().str().c_str();
-            goto retlab;
-        }
-    }
-    else {
-        const Constant *CV = dyn_cast<Constant>(Operand);
-        if (CV && !isa<GlobalValue>(CV)) {
-            if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-                operand_list[operand_list_index].type = OpTypeInt;
-                slotarray[slotindex].offset = CI->getZExtValue();
-                goto retlab;
-            }
-            printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
-        }
-        if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
-         || Operand->getValueID() == Value::PseudoSourceValueVal ||
-            Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-            printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
-        }
-    }
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-retlab:
-    operand_list_index++;
-}
-
-static const char *getparam(int arg)
-{
-   char temp[MAX_CHAR_BUFFER];
-   temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeExternalFunction)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
-   else if (operand_list[arg].type == OpTypeString)
-       return (const char *)operand_list[arg].value;
-   return strdup(temp);
-}
-
 /*
  * clone a DAG from one basic block to another
  */
@@ -731,6 +685,71 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
                  builder.CreateConstInBoundsGEP1_32(
                      vtabbase, methodIndex)), thisp);
     return dyn_cast<Instruction>(newCall);
+}
+
+/*
+ * Common utilities for processing Instruction lists
+ */
+static void makeLocalSlot(const Value *V)
+{
+    slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
+}
+static int getLocalSlot(const Value *V)
+{
+    std::map<const Value *, int>::iterator FI = slotmap.find(V);
+    if (FI == slotmap.end()) {
+       makeLocalSlot(V);
+       return getLocalSlot(V);
+    }
+    return (int)FI->second;
+}
+static void prepareOperand(const Value *Operand)
+{
+    if (!Operand)
+        return;
+    int slotindex = getLocalSlot(Operand);
+    operand_list[operand_list_index].value = slotindex;
+    if (Operand->hasName()) {
+        if (isa<Constant>(Operand)) {
+            operand_list[operand_list_index].type = OpTypeExternalFunction;
+            slotarray[slotindex].name = Operand->getName().str().c_str();
+            goto retlab;
+        }
+    }
+    else {
+        const Constant *CV = dyn_cast<Constant>(Operand);
+        if (CV && !isa<GlobalValue>(CV)) {
+            if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
+                operand_list[operand_list_index].type = OpTypeInt;
+                slotarray[slotindex].offset = CI->getZExtValue();
+                goto retlab;
+            }
+            printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
+        }
+        if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
+         || Operand->getValueID() == Value::PseudoSourceValueVal ||
+            Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
+            printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
+        }
+    }
+    operand_list[operand_list_index].type = OpTypeLocalRef;
+retlab:
+    operand_list_index++;
+}
+
+static const char *getparam(int arg)
+{
+   char temp[MAX_CHAR_BUFFER];
+   temp[0] = 0;
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeExternalFunction)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeInt)
+       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
+   else if (operand_list[arg].type == OpTypeString)
+       return (const char *)operand_list[arg].value;
+   return strdup(temp);
 }
 
 /*
@@ -1098,6 +1117,10 @@ static uint64_t getOperandValue(const Value *Operand)
     exit(1);
 }
 
+/*
+ * GEP and Load instructions encountered during processing are
+ * just 'executed', using the memory areas allocated by the constructors.
+ */
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -1154,7 +1177,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 }
 
 /*
- * Translate Store and Call instructions into Verilog.
+ * Walk all basic blocks for a Function, calling requested processing function
  */
 static void processFunction(VTABLE_WORK *work, void (*proc)(Function ***thisp, Instruction &I))
 {
@@ -1404,15 +1427,6 @@ static int remapStruct(Type *intype, int inherit)
     return rc;
 }
 
-extern "C" void *llvm_translate_malloc(size_t size)
-{
-    size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
-    void *ptr = malloc(newsize);
-    printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
-    additemtolist(ptr, newsize);
-    return ptr;
-}
-
 static void adjustModuleSizes(Module *Mod)
 {
     classModule = Mod->getTypeByName("class.Module");
@@ -1493,9 +1507,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     if (output_stdout)
         outputFile = stdout;
 
-    LLVMContext &Context = getGlobalContext();
-
     cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
+
+    LLVMContext &Context = getGlobalContext();
 
     // Load/link the input bitcode
     Mod = LoadFile(argv[0], InputFile[0], Context);
@@ -1512,7 +1526,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         }
     }
 
-    // If not jitting lazily, load the whole bitcode file eagerly too.
+    // load the whole bitcode file eagerly
     if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
         printf("%s: bitcode didn't read correctly.\n", argv[0]);
         printf("Reason: %s\n", ErrorMsg.c_str());
@@ -1521,6 +1535,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
+
+    // preprocessing before running anything
+    CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+    if (CU_Nodes)
+        process_metadata(CU_Nodes);
+    adjustModuleSizes(Mod);
 
     EngineBuilder builder(Mod);
     builder.setMArch(MArch);
@@ -1539,12 +1559,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     Options.JITEmitDebugInfoToDisk = false;
 
     builder.setTargetOptions(Options);
-
-    // preprocessing before running anything
-    CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-    if (CU_Nodes)
-        process_metadata(CU_Nodes);
-    adjustModuleSizes(Mod);
 
     // Create the execution environment for running the constructors
     EE = builder.create();
