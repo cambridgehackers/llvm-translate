@@ -512,11 +512,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     // load the whole bitcode file eagerly
-    if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
-        printf("%s: bitcode didn't read correctly.\n", argv[0]);
-        printf("Reason: %s\n", ErrorMsg.c_str());
-        return 1;
-    }
+    //if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
+        //printf("%s: bitcode didn't read correctly.\n", argv[0]);
+        //printf("Reason: %s\n", ErrorMsg.c_str());
+        //return 1;
+    //}
 
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
