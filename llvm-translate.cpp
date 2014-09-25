@@ -373,7 +373,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
                 proc(work->thisp, *ins);
                 if (strlen(vout)) {
                     if (!already_printed_header) {
-                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", guardName);
+                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
                         if (guardName)
                             fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
                     }
@@ -531,26 +531,26 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     builder.setMArch(MArch);
     builder.setMCPU("");
     builder.setMAttrs(MAttrs);
-    builder.setRelocationModel(Reloc::Default);
-    builder.setCodeModel(CodeModel::JITDefault);
+    //builder.setRelocationModel(Reloc::Default);
+    //builder.setCodeModel(CodeModel::JITDefault);
     builder.setErrorStr(&ErrorMsg);
     builder.setEngineKind(EngineKind::Interpreter);
-    builder.setJITMemoryManager(0);
+    //builder.setJITMemoryManager(0);
     builder.setOptLevel(CodeGenOpt::None);
 
-    TargetOptions Options;
-    Options.UseSoftFloat = false;
-    Options.JITEmitDebugInfo = true;
-    Options.JITEmitDebugInfoToDisk = false;
+    //TargetOptions Options;
+    //Options.UseSoftFloat = false;
+    //Options.JITEmitDebugInfo = true;
+    //Options.JITEmitDebugInfoToDisk = false;
 
     // Create the execution environment and allocate memory for static items
-    builder.setTargetOptions(Options);
+    //builder.setTargetOptions(Options);
     EE = builder.create();
     if (!EE) {
         printf("%s: unknown error creating EE!\n", argv[0]);
         exit(1);
     }
-    EE->DisableLazyCompilation(true);
+    //EE->DisableLazyCompilation(true);
 
     std::vector<std::string> InputArgv;
     InputArgv.push_back("param1");
