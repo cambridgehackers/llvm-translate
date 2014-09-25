@@ -55,12 +55,10 @@ OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
 
 static int slotarray_index = 1;
-static Module *Mod;
 static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
-static NamedMDNode *CU_Nodes;
 
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
@@ -399,6 +397,7 @@ static bool endswith(const char *str, const char *suffix)
  * generating verilog.
  */
 static void processConstructorAndRules(Module *Mod, Function ****modfirst,
+       NamedMDNode *CU_Nodes,
        const char *(*proc)(Function ***thisp, Instruction &I))
 {
     int generate = proc == generateVerilog;
@@ -451,8 +450,9 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 /*
  * Read/load llvm input files
  */
-static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
+static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Context)
 {
+    SMDiagnostic Err;
     OwningPtr<MemoryBuffer> File;
     Module *M = new Module(Filename, Context);
     M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
@@ -471,7 +471,6 @@ namespace {
 int main(int argc, char **argv, char * const *envp)
 {
     std::string ErrorMsg;
-    SMDiagnostic Err;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     DebugFlag = dump_interpret != 0;
@@ -484,16 +483,16 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     LLVMContext &Context = getGlobalContext();
 
     // Load/link the input bitcode
-    Mod = llvm_ParseIRFile(InputFile[0], Err, Context);
+    Module *Mod = llvm_ParseIRFile(InputFile[0], Context);
     if (!Mod) {
         errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
         return 1;
     }
     Linker L(Mod);
     for (unsigned i = 1; i < InputFile.size(); ++i) {
-        Module *M = llvm_ParseIRFile(InputFile[i], Err, Context);
+        Module *M = llvm_ParseIRFile(InputFile[i], Context);
         if (!M || L.linkInModule(M, &ErrorMsg)) {
-            errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMsg << "\n";
+            errs() << argv[0] << ": load/link error in '" << InputFile[i] << "\n";
             return 1;
         }
     }
@@ -502,7 +501,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     //DebugIRPass->runOnModule(*Mod);
 
     // preprocessing before running anything
-    CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+    NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
         process_metadata(CU_Nodes);
     adjustModuleSizes(Mod);
@@ -530,10 +529,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processConstructorAndRules(Mod, modfirst, calculateGuardUpdate);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate);
 
     // Process the static constructors, generating code for all rules
-    processConstructorAndRules(Mod, modfirst, generateVerilog);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog);
 
 printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     // Run main
