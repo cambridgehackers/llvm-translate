@@ -80,7 +80,6 @@ static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static std::list<VTABLE_WORK> vtablework;
 static std::map<const Value *, Value *> cloneVmap;
-static int slevel, dtlevel;
 static NamedMDNode *CU_Nodes;
 
 void memdump(unsigned char *p, int len, const char *title)
@@ -297,7 +296,6 @@ static void dumpType(DIType litem, CLASS_META *classp)
     if (!tag)     // Ignore elements with tag of 0
         return;
     if (tag == dwarf::DW_TAG_pointer_type || tag == dwarf::DW_TAG_inheritance) {
-        dtlevel++;
         DICompositeType CTy(litem);
         const MDNode *Node = getNode(CTy.getTypeDerivedFrom());
         if (tag == dwarf::DW_TAG_inheritance && Node && classp) {
@@ -308,11 +306,10 @@ static void dumpType(DIType litem, CLASS_META *classp)
             classp->inherit = Node;
         }
         dumpTref(Node, classp);
-        dtlevel--;
         return;
     }
     if (trace_meta)
-        printf("%d tag %s name %s off %3ld size %3ld", dtlevel,
+        printf("tag %s name %s off %3ld size %3ld",
             dwarf::TagString(tag), litem.getName().str().c_str(),
             (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
     if (litem.getTag() == dwarf::DW_TAG_subprogram) {
@@ -323,7 +320,6 @@ static void dumpType(DIType litem, CLASS_META *classp)
     if (trace_meta)
         printf("\n");
     if (litem.isCompositeType()) {
-        dtlevel++;
         DICompositeType CTy(litem);
         DIArray Elements = CTy.getTypeArray();
         if (tag != dwarf::DW_TAG_subroutine_type) {
@@ -340,7 +336,6 @@ static void dumpType(DIType litem, CLASS_META *classp)
             }
             dumpType(Ty, classp);
         }
-        dtlevel--;
     }
 }
 
@@ -448,7 +443,6 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
     long offset = (long)CTy.getOffsetInBits()/8;
     char *addr = aaddr + offset;
     char *addr_target = *(char **)addr;
-//printf("[%s:%d] tag %s addr %p offset %ld addr_target %p name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), addr, offset, addr_target, aname.c_str());
     if (validate_address(5000, aaddr) || validate_address(5001, addr))
         exit(1);
     std::string name = CTy.getName().str();
@@ -475,26 +469,19 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
     if (aname.length() > 0)
         fname = aname + ":" + name;
     if (tag == dwarf::DW_TAG_pointer_type) {
-        const MDNode *node = getNode(CTy.getTypeDerivedFrom());
-        DICompositeType pderiv(node);
-        int ptag = pderiv.getTag();
-        if (addr_target && mapitem.find(addr_target) == mapitem.end()) // process item, if not seen before
- {
-        int pptag = 0;
-if (ptag == dwarf::DW_TAG_pointer_type) {
-        DICompositeType ppderiv(getNode(pderiv.getTypeDerivedFrom()));
-        pptag = ppderiv.getTag();
-}
-        if (pptag != dwarf::DW_TAG_subroutine_type) {
-            if (validate_address(5010, addr_target)) {
-                CTy.dump();
-        DICompositeType ppderiv(getNode(pderiv.getTypeDerivedFrom()));
-                ppderiv.dump();
-                exit(1);
+        if (addr_target && mapitem.find(addr_target) == mapitem.end()) { // process item, if not seen before
+            const MDNode *node = getNode(CTy.getTypeDerivedFrom());
+            DICompositeType pderiv(node);
+            int ptag = pderiv.getTag();
+            int pptag = 0;
+            if (ptag == dwarf::DW_TAG_pointer_type)
+                pptag = DICompositeType(getNode(pderiv.getTypeDerivedFrom())).getTag();
+            if (pptag != dwarf::DW_TAG_subroutine_type) {
+                if (validate_address(5010, addr_target))
+                    exit(1);
+                mapwork.push_back(MAPTYPE_WORK(0, node, addr_target, fname));
             }
-            mapwork.push_back(MAPTYPE_WORK(0, node, addr_target, fname));
         }
-}
         return;
     }
     map_address(addr, fname);
@@ -502,7 +489,7 @@ if (ptag == dwarf::DW_TAG_pointer_type) {
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
         if (trace_map)
-            printf(" %d SSSStag %20s name %30s ", slevel, dwarf::TagString(tag), fname.c_str());
+            printf(" SSSStag %20s name %30s ", dwarf::TagString(tag), fname.c_str());
         if (CTy.isStaticMember()) {
             if (trace_map)
                 printf("STATIC\n");
@@ -512,15 +499,12 @@ if (ptag == dwarf::DW_TAG_pointer_type) {
             printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
     }
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
-        slevel++;
         const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
         DICompositeType foo(derivedNode);
         DIArray Elements = CTy.getTypeArray();
-        //if (tag != dwarf::DW_TAG_subroutine_type && tag != dwarf::DW_TAG_member && derivedNode)
         mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
         for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
             mapwork.push_back(MAPTYPE_WORK(0, Elements.getElement(k), addr, fname));
-        slevel--;
     }
 }
 
@@ -1393,13 +1377,12 @@ static int remapStruct(Type *intype, int inherit)
         for (j = 0; j < MAX_BASIC_BLOCK_FLAGS; j++)
             data[i++] = Type::getInt1Ty(arg->getContext());
         if (!inherit && rc) {
-printf("[%s:%d] REMAPME\n", __FUNCTION__, __LINE__);
-        TypeHack *bozo = (TypeHack *)arg;
-        int val = bozo->hgetSubclassData();
-        bozo->hsetSubclassData(0);
-//length = arg->getNumElements();
-        arg->setBody(ArrayRef<Type *>(data, length));
-        bozo->hsetSubclassData(val);
+            printf("[%s:%d] REMAPME\n", __FUNCTION__, __LINE__);
+            TypeHack *bozo = (TypeHack *)arg;
+            int val = bozo->hgetSubclassData();
+            bozo->hsetSubclassData(0);
+            arg->setBody(ArrayRef<Type *>(data, length));
+            bozo->hsetSubclassData(val);
         }
     }
     return rc;
@@ -1413,14 +1396,13 @@ extern "C" void *llvm_translate_malloc(size_t size)
     additemtolist(ptr, newsize);
     return ptr;
 }
-Value *newmalloc;
 static void adjustModuleSizes(Module *Mod)
 {
   classModule = Mod->getTypeByName("class.Module");
-printf("[%s:%d] classModule %p\n", __FUNCTION__, __LINE__, classModule);
+  printf("[%s:%d] classModule %p\n", __FUNCTION__, __LINE__, classModule);
   /* iterate through all global variables, adjusting size of types */
   for (Module::global_iterator MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; ++MI) {
-structMap.clear();
+      structMap.clear();
       if (!MI->isDeclaration() && !MI->isConstant())
           remapStruct(MI->getType(), 0);
   }
@@ -1430,51 +1412,24 @@ structMap.clear();
       const char *fname = FI->getName().str().c_str();
       for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
           for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ++II) {
-          switch (II->getOpcode()) {
-          case Instruction::Call:
+          if (II->getOpcode() == Instruction::Call) {
               Value *called = II->getOperand(II->getNumOperands()-1);
               const char *cp = called->getName().str().c_str();
-const Function *CF = dyn_cast<Function>(called);
-if (CF && CF->isDeclaration() && !strcmp(cp, "_Znwm")) {
-printf("[%s:%d]CALLLLLLLLLLLLLLL %d = %p\n", __FUNCTION__, __LINE__, called->getValueID(), CF);
-if (!newmalloc) {
-  SmallVector<Type*, 8> ArgTys;
-    ArgTys.push_back(Type::getInt64Ty(Mod->getContext()));
-FunctionType *fty = //dyn_cast<FunctionType>(called->getType());
-FunctionType::get(Type::getInt8PtrTy(Mod->getContext()), ArgTys, false);
-newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
-  Function *F = dyn_cast<Function>(newmalloc);
-  Function *cc = dyn_cast<Function>(called);
-  F->setCallingConv(cc->getCallingConv());
-  F->setDoesNotAlias(0);
-  F->setAttributes(cc->getAttributes());
-                called->replaceAllUsesWith(newmalloc);
-}
-}
-#if 0
-              const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0));
-              if (0 && !strcmp(cp, "_Znwm") && CI && CI->getType()->isIntegerTy(64)) {
-                  BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
-                  if (PointerType *PTy = dyn_cast<PointerType>(PI->getType())) {
-                      const StructType *STy = cast<StructType>(PTy->getPointerElementType());
-                      const char *ctype = STy->getName().str().c_str();
-                      uint64_t isize = CI->getZExtValue();
-                      printf("%s: %s CALL %s CI %p bbsize %ld isize 0x%llx name %s\n",
-                           __FUNCTION__, fname, cp, CI, FI->size(), (long long)isize, ctype);
-                      IRBuilder<> builder(II->getParent());
-                      II->setOperand(0, builder.getInt64(isize * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE));
-//II->getParent()->dump();
-        //BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
-//PI->dump();
-                      StructType *tgv = Mod->getTypeByName(ctype);
-printf("[%s:%d] %p %p\n", __FUNCTION__, __LINE__, STy, tgv);
-structMap.clear();
-                      remapStruct(tgv, 0);
-tgv->dump();
-                  }
+              const Function *CF = dyn_cast<Function>(called);
+              if (CF && CF->isDeclaration() && !strcmp(cp, "_Znwm")) {
+              printf("[%s:%d]CALLLLLLLLLLLLLLL %d = %p\n", __FUNCTION__, __LINE__, called->getValueID(), CF);
+              SmallVector<Type*, 8> ArgTys;
+              ArgTys.push_back(Type::getInt64Ty(Mod->getContext()));
+              FunctionType *fty = //dyn_cast<FunctionType>(called->getType());
+              FunctionType::get(Type::getInt8PtrTy(Mod->getContext()), ArgTys, false);
+              Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
+              Function *F = dyn_cast<Function>(newmalloc);
+              Function *cc = dyn_cast<Function>(called);
+              F->setCallingConv(cc->getCallingConv());
+              F->setDoesNotAlias(0);
+              F->setAttributes(cc->getAttributes());
+              called->replaceAllUsesWith(newmalloc);
               }
-#endif
-              break;
           }
           }
       }
@@ -1483,23 +1438,23 @@ tgv->dump();
 
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
-  OwningPtr<MemoryBuffer> File;
-  if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
-    printf("llvm_ParseIRFile: could not open inpuf file %s\n", Filename.c_str());
-    return 0;
-  }
-  Module *M = new Module(Filename, Context);
-  M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-  return ParseAssembly(File.take(), M, Err, Context);
+    OwningPtr<MemoryBuffer> File;
+    if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
+        printf("llvm_ParseIRFile: could not open inpuf file %s\n", Filename.c_str());
+        return 0;
+    }
+    Module *M = new Module(Filename, Context);
+    M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+    return ParseAssembly(File.take(), M, Err, Context);
 }
 static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
 {
-  SMDiagnostic Err;
-  printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
-  Module* Result = llvm_ParseIRFile(FN, Err, Context);
-  if (!Result)
-      Err.print(argv0, errs());
-  return Result;
+    SMDiagnostic Err;
+    printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
+    Module* Result = llvm_ParseIRFile(FN, Err, Context);
+    if (!Result)
+        Err.print(argv0, errs());
+    return Result;
 }
 
 namespace {
