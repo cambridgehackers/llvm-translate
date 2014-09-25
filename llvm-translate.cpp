@@ -454,11 +454,12 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
     OwningPtr<MemoryBuffer> File;
-    if (MemoryBuffer::getFileOrSTDIN(Filename, File))
-        return 0;
     Module *M = new Module(Filename, Context);
     M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-    return ParseAssembly(File.take(), M, Err, Context);
+    if (MemoryBuffer::getFileOrSTDIN(Filename, File)
+     || !ParseAssembly(File.take(), M, Err, Context))
+        return 0;
+    return M;
 }
 
 namespace {
