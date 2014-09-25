@@ -76,7 +76,7 @@ int i;
 /*
  * Allocated memory region management
  */
-extern "C" void additemtolist(void *p, long size)
+static void additemtolist(void *p, long size)
 {
     int i = 0;
 
@@ -95,11 +95,11 @@ extern "C" void *llvm_translate_malloc(size_t size)
     return ptr;
 }
 
-void callfun(int arg)
+static void dump_memory_regions(int arg)
 {
     int i = 0;
 
-return;
+//return;
     printf("%s: %d\n", __FUNCTION__, arg);
     while(callfunhack[i].p) {
         printf("[%d] = %p\n", i, callfunhack[i].p);
@@ -231,28 +231,27 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
     mapwork_non_class.clear();
     mapitem.clear();
     if (CU_Nodes) {
-        for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-          DICompileUnit CU(CU_Nodes->getOperand(i));
-          DIArray GVs = CU.getGlobalVariables();
-          for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-            DIGlobalVariable DIG(GVs.getElement(i));
-            const GlobalVariable *gv = DIG.getGlobal();
-            std::string cp = DIG.getLinkageName().str();
-            if (!cp.length())
-                cp = DIG.getName().str();
-            void *addr = EE->getPointerToGlobal(gv);
-            mapitem[addr] = cp;
-            DICompositeType CTy(DIG.getType());
-            int tag = CTy.getTag();
-            Value *contextp = DIG.getContext();
-            printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
-            const MDNode *node = CTy;
-            additemtolist(addr, sizeof(long));
-            if (!contextp)
-                mapwork.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
-            else
-                mapwork_non_class.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
-          }
+        for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
+            DIArray GVs = DICompileUnit(CU_Nodes->getOperand(j)).getGlobalVariables();
+            for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+                DIGlobalVariable DIG(GVs.getElement(i));
+                const GlobalVariable *gv = DIG.getGlobal();
+                std::string cp = DIG.getLinkageName().str();
+                if (!cp.length())
+                    cp = DIG.getName().str();
+                void *addr = EE->getPointerToGlobal(gv);
+                mapitem[addr] = cp;
+                DICompositeType CTy(DIG.getType());
+                int tag = CTy.getTag();
+                Value *contextp = DIG.getContext();
+                printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
+                const MDNode *node = CTy;
+                additemtolist(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
+                if (!contextp)
+                    mapwork.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
+                else
+                    mapwork_non_class.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
+            }
         }
     }
     // process top level classes
@@ -267,6 +266,7 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
         mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
         mapwork.pop_front();
     }
+    //dump_memory_regions(4010);
 }
 
 /*

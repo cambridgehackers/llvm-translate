@@ -22,8 +22,6 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 
-//#define DEBUG_TYPE "llvm-translate"
-
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
@@ -66,15 +64,6 @@ static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
 static NamedMDNode *CU_Nodes;
-
-/*
- * General utility functions
- */
-static bool endswith(const char *str, const char *suffix)
-{
-    int skipl = strlen(str) - strlen(suffix);
-    return skipl >= 0 && !strcmp(str + skipl, suffix);
-}
 
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
@@ -153,15 +142,11 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
 /*
  * Common utilities for processing Instruction lists
  */
-static void makeLocalSlot(const Value *V)
-{
-    slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
-}
 int getLocalSlot(const Value *V)
 {
     std::map<const Value *, int>::iterator FI = slotmap.find(V);
     if (FI == slotmap.end()) {
-       makeLocalSlot(V);
+       slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
        return getLocalSlot(V);
     }
     return (int)FI->second;
@@ -407,6 +392,12 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, void (*pro
     }
 }
 
+static bool endswith(const char *str, const char *suffix)
+{
+    int skipl = strlen(str) - strlen(suffix);
+    return skipl >= 0 && !strcmp(str + skipl, suffix);
+}
+
 /*
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
@@ -418,7 +409,6 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
     *modfirst = NULL;       // init the Module list before calling constructors
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
-    callfun(4010);
     // Construct the address -> symbolic name map using dwarf debug info
     constructAddressMap(CU_Nodes);
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
@@ -553,15 +543,13 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     Options.JITEmitDebugInfo = true;
     Options.JITEmitDebugInfoToDisk = false;
 
+    // Create the execution environment and allocate memory for static items
     builder.setTargetOptions(Options);
-
-    // Create the execution environment for running the constructors
     EE = builder.create();
     if (!EE) {
         printf("%s: unknown error creating EE!\n", argv[0]);
         exit(1);
     }
-
     EE->DisableLazyCompilation(true);
 
     std::vector<std::string> InputArgv;

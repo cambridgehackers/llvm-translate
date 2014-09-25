@@ -45,7 +45,7 @@ end;
 ; _ZN5Fifo1IiE9EnqAction
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 if (_ZN5Fifo1IiE9EnqAction5guardEv && _ZN5Fifo1IiE9EnqAction6enableEv) then begin
-        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element = 24;
+        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element = 16;
         echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full = 1;
 end;
 

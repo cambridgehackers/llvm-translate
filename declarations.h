@@ -113,7 +113,6 @@ int getLocalSlot(const Value *V);
 void calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 void generateVerilog(Function ***thisp, Instruction &I);
 
-void callfun(int arg);
 int validate_address(int arg, void *p);
 const char *map_address(void *arg, std::string name);
 //void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string aname);
