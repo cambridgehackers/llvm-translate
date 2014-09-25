@@ -51,7 +51,6 @@ static int output_stdout;// = 1;
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 ExecutionEngine *EE;
 const char *globalName;
-char vout[MAX_CHAR_BUFFER];
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
 
@@ -374,7 +373,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
                             fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
                     }
                     already_printed_header = 1;
-                   fprintf(outputFile, "        %s\n", vout);
+                    fprintf(outputFile, "        %s\n", vout);
                 }
                 }
                 break;
@@ -455,22 +454,11 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
 static Module *llvm_ParseIRFile(const std::string &Filename, SMDiagnostic &Err, LLVMContext &Context)
 {
     OwningPtr<MemoryBuffer> File;
-    if (MemoryBuffer::getFileOrSTDIN(Filename, File)) {
-        printf("llvm_ParseIRFile: could not open inpuf file %s\n", Filename.c_str());
+    if (MemoryBuffer::getFileOrSTDIN(Filename, File))
         return 0;
-    }
     Module *M = new Module(Filename, Context);
     M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
     return ParseAssembly(File.take(), M, Err, Context);
-}
-static inline Module *LoadFile(const char *argv0, const std::string &FN, LLVMContext& Context)
-{
-    SMDiagnostic Err;
-    printf("[%s:%d] loading '%s'\n", __FUNCTION__, __LINE__, FN.c_str());
-    Module* Result = llvm_ParseIRFile(FN, Err, Context);
-    if (!Result)
-        Err.print(argv0, errs());
-    return Result;
 }
 
 namespace {
@@ -482,6 +470,7 @@ namespace {
 int main(int argc, char **argv, char * const *envp)
 {
     std::string ErrorMsg;
+    SMDiagnostic Err;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     DebugFlag = dump_interpret != 0;
@@ -494,14 +483,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     LLVMContext &Context = getGlobalContext();
 
     // Load/link the input bitcode
-    Mod = LoadFile(argv[0], InputFile[0], Context);
+    Mod = llvm_ParseIRFile(InputFile[0], Err, Context);
     if (!Mod) {
         errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
         return 1;
     }
     Linker L(Mod);
     for (unsigned i = 1; i < InputFile.size(); ++i) {
-        Module *M = LoadFile(argv[0], InputFile[i], Context);
+        Module *M = llvm_ParseIRFile(InputFile[i], Err, Context);
         if (!M || L.linkInModule(M, &ErrorMsg)) {
             errs() << argv[0] << ": link error in '" << InputFile[i] << "': " << ErrorMsg << "\n";
             return 1;
