@@ -22,29 +22,35 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 
-#define DEBUG_TYPE "llvm-translate"
-
 #include <stdio.h>
 #include <list>
-#include <cxxabi.h> // abi::__cxa_demangle
-#include "llvm/DebugInfo.h"
-#include "llvm/Linker.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Assembly/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
 #include "declarations.h"
+
+static INTMAP_TYPE predText[] = {
+    {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
+    {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
+    {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
+    {FCmpInst::FCMP_ONE, "one"}, {FCmpInst::FCMP_ORD, "ord"},
+    {FCmpInst::FCMP_UNO, "uno"}, {FCmpInst::FCMP_UEQ, "ueq"},
+    {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
+    {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
+    {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
+    {ICmpInst::ICMP_EQ, "eq"}, {ICmpInst::ICMP_NE, "ne"},
+    {ICmpInst::ICMP_SGT, "sgt"}, {ICmpInst::ICMP_SGE, "sge"},
+    {ICmpInst::ICMP_SLT, "slt"}, {ICmpInst::ICMP_SLE, "sle"},
+    {ICmpInst::ICMP_UGT, "ugt"}, {ICmpInst::ICMP_UGE, "uge"},
+    {ICmpInst::ICMP_ULT, "ult"}, {ICmpInst::ICMP_ULE, "ule"}, {}};
+static INTMAP_TYPE opcodeMap[] = {
+    {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
+    {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
+    {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
+    {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
+    {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
+    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
 
 /*
  * Generate Verilog output for Store and Call instructions

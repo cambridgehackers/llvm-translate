@@ -19,6 +19,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "llvm/IR/Module.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/ExecutionEngine/Interpreter.h"
+
+//using namespace llvm;
+
 #define SEPARATOR ":"
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
@@ -84,45 +90,6 @@ typedef struct {
 } OPERAND_ITEM_TYPE;
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
-
-static INTMAP_TYPE predText[] = {
-    {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
-    {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
-    {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
-    {FCmpInst::FCMP_ONE, "one"}, {FCmpInst::FCMP_ORD, "ord"},
-    {FCmpInst::FCMP_UNO, "uno"}, {FCmpInst::FCMP_UEQ, "ueq"},
-    {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
-    {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
-    {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
-    {ICmpInst::ICMP_EQ, "eq"}, {ICmpInst::ICMP_NE, "ne"},
-    {ICmpInst::ICMP_SGT, "sgt"}, {ICmpInst::ICMP_SGE, "sge"},
-    {ICmpInst::ICMP_SLT, "slt"}, {ICmpInst::ICMP_SLE, "sle"},
-    {ICmpInst::ICMP_UGT, "ugt"}, {ICmpInst::ICMP_UGE, "uge"},
-    {ICmpInst::ICMP_ULT, "ult"}, {ICmpInst::ICMP_ULE, "ule"}, {}};
-static INTMAP_TYPE opcodeMap[] = {
-    {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
-    {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
-    {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
-    {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
-    {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
-    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
-
-#if 0
-extern int dump_interpret;
-extern int trace_map;
-extern int output_stdout;
-
-extern int slotarray_index = 1;
-extern Module *Mod;
-extern std::map<const Value *, int> slotmap;
-extern FILE *outputFile;
-extern int already_printed_header;
-
-extern std::map<void *, std::string> mapitem;
-extern std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
-extern std::map<const Value *, Value *> cloneVmap;
-extern NamedMDNode *CU_Nodes;
-#endif
 
 extern ExecutionEngine *EE;
 extern int trace_translate;

@@ -22,21 +22,22 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 
-#define DEBUG_TYPE "llvm-translate"
+//#define DEBUG_TYPE "llvm-translate"
 
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
-#include "llvm/DebugInfo.h"
 #include "llvm/Linker.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/SourceMgr.h"
