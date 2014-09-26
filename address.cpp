@@ -358,7 +358,8 @@ void adjustModuleSizes(Module *Mod)
                 Value *called = II->getOperand(II->getNumOperands()-1);
                 const char *cp = called->getName().str().c_str();
                 const Function *CF = dyn_cast<Function>(called);
-                if (CF && CF->isDeclaration() && !strcmp(cp, "_Znwm")) {
+                if (CF && CF->isDeclaration()
+                 && (!strcmp(cp, "_Znwm") || !strcmp(cp, "malloc"))) {
                     printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
                     Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
                     FunctionType *fty = FunctionType::get(
