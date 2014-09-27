@@ -468,6 +468,11 @@ namespace {
     cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
+extern "C" int PIPELINE(int A)
+{
+    return A;
+}
+
 int main(int argc, char **argv, char * const *envp)
 {
     std::string ErrorMsg;
