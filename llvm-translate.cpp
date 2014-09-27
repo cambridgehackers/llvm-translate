@@ -468,7 +468,7 @@ namespace {
     cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
-extern "C" int PIPELINE(int A)
+extern "C" int _Z14PIPELINEMARKERIiET_S0_(int A)
 {
     return A;
 }
