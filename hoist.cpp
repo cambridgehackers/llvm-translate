@@ -275,8 +275,14 @@ bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
     if (!strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
         /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
         Function *F = II->getParent()->getParent();
-//_ZN4Echo7respond8respond14bodyEv
-        printf("FFFF %s\n", F->getName().str().c_str());
+        std::string Fname = F->getName().str();
+        std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "4bodyEv";
+        Function *otherBody = Mod->getFunction(otherName);
+        TerminatorInst *TI = otherBody->begin()->getTerminator();
+        Instruction *IC = dyn_cast<Instruction>(II->getOperand(0));
+        //Instruction *newI = cloneTree(IC, TI);
+printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+        otherBody->dump();
         II->replaceAllUsesWith(II->getOperand(0));
         II->eraseFromParent();
         return true;
