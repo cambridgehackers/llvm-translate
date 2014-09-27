@@ -468,11 +468,6 @@ namespace {
     cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
-extern "C" int _Z14PIPELINEMARKERIiET_S0_(int A)
-{
-    return A;
-}
-
 int main(int argc, char **argv, char * const *envp)
 {
     std::string ErrorMsg;
@@ -509,7 +504,16 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
         process_metadata(CU_Nodes);
-    adjustModuleSizes(Mod);
+
+    /* iterate through all functions, adjusting 'Call' operands */
+    for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI)
+        for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI)
+            for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ) {
+                BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+                if (II->getOpcode() == Instruction::Call)
+                    callProcess_runOnInstruction(Mod, II);
+                II = PI;
+            }
 
     EngineBuilder builder(Mod);
     builder.setMArch(MArch);

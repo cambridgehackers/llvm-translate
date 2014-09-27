@@ -109,6 +109,7 @@ int getLocalSlot(const Value *V);
 
 const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 const char *generateVerilog(Function ***thisp, Instruction &I);
+bool callProcess_runOnInstruction(Module *Mod, Instruction *II);
 
 int validate_address(int arg, void *p);
 const char *map_address(void *arg, std::string name);

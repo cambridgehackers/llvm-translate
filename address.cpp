@@ -268,39 +268,3 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
     }
     //dump_memory_regions(4010);
 }
-
-/*
- * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
- * This enables llvm-translate to easily maintain a list of valid memory regions
- * during processing.
- */
-void adjustModuleSizes(Module *Mod)
-{
-    /* iterate through all functions, adjusting size of 'new' operands */
-    for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI) {
-        for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
-            for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ++II) {
-                if (II->getOpcode() != Instruction::Call)
-                    continue;
-                Value *called = II->getOperand(II->getNumOperands()-1);
-                const char *cp = called->getName().str().c_str();
-                const Function *CF = dyn_cast<Function>(called);
-                if (CF && CF->isDeclaration()
-                 && (!strcmp(cp, "_Znwm") || !strcmp(cp, "malloc"))) {
-                    printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
-                    Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
-                    FunctionType *fty = FunctionType::get(
-                        Type::getInt8PtrTy(Mod->getContext()),
-                        ArrayRef<Type*>(Params, 1), false);
-                    Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
-                    Function *F = dyn_cast<Function>(newmalloc);
-                    Function *cc = dyn_cast<Function>(called);
-                    F->setCallingConv(cc->getCallingConv());
-                    F->setDoesNotAlias(0);
-                    F->setAttributes(cc->getAttributes());
-                    called->replaceAllUsesWith(newmalloc);
-                }
-            }
-        }
-    }
-}

@@ -244,3 +244,42 @@ if (operand_list_index <= 3)
     }
     return NULL;
 }
+
+/*
+ * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
+ * This enables llvm-translate to easily maintain a list of valid memory regions
+ * during processing.
+ */
+bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
+{
+    Value *called = II->getOperand(II->getNumOperands()-1);
+    const char *cp = called->getName().str().c_str();
+    const Function *CF = dyn_cast<Function>(called);
+    if (!CF || !CF->isDeclaration())
+        return false;
+    if (!strcmp(cp, "_Znwm") || !strcmp(cp, "malloc")) {
+        printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
+        Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
+        FunctionType *fty = FunctionType::get(
+            Type::getInt8PtrTy(Mod->getContext()),
+            ArrayRef<Type*>(Params, 1), false);
+        Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
+        Function *F = dyn_cast<Function>(newmalloc);
+        Function *cc = dyn_cast<Function>(called);
+        F->setCallingConv(cc->getCallingConv());
+        F->setDoesNotAlias(0);
+        F->setAttributes(cc->getAttributes());
+        called->replaceAllUsesWith(newmalloc);
+        return true;
+    }
+    if (!strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
+        /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
+        Function *F = II->getParent()->getParent();
+//_ZN4Echo7respond8respond14bodyEv
+        printf("FFFF %s\n", F->getName().str().c_str());
+        II->replaceAllUsesWith(II->getOperand(0));
+        II->eraseFromParent();
+        return true;
+    }
+    return false;
+}
