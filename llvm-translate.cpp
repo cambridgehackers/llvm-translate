@@ -45,7 +45,7 @@ using namespace llvm;
 
 int trace_translate;// = 1;
 int trace_full;// = 1;
-static int dump_interpret;// = 1;
+static int dump_interpret = 1;
 static int output_stdout;// = 1;
 
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
@@ -473,7 +473,7 @@ int main(int argc, char **argv, char * const *envp)
     std::string ErrorMsg;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-    DebugFlag = dump_interpret != 0;
+    //DebugFlag = dump_interpret != 0;
     outputFile = fopen("output.tmp", "w");
     if (output_stdout)
         outputFile = stdout;
@@ -544,6 +544,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog);
 
 printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
+    DebugFlag = dump_interpret != 0;
     // Run main
     std::vector<std::string> InputArgv;
     InputArgv.push_back("param1");
