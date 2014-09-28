@@ -110,7 +110,7 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
                     }
                     PN = PNN;
                 }
-                I->eraseFromParent(); // delete Alloca instruction
+                //I->eraseFromParent(); // delete Alloca instruction
                 changed = true;
             }
             break;

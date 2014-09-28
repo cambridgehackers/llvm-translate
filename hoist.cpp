@@ -280,11 +280,22 @@ bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
         Function *otherBody = Mod->getFunction(otherName);
         TerminatorInst *TI = otherBody->begin()->getTerminator();
         Instruction *IC = dyn_cast<Instruction>(II->getOperand(0));
-        //Instruction *newI = cloneTree(IC, TI);
+        Instruction *IT = dyn_cast<Instruction>(II->getOperand(1));
+        Instruction *newIC = cloneTree(IC, TI);
+        Instruction *newIT = cloneTree(IT, TI);
 printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+    IRBuilder<> builder(TI->getParent());
+    builder.SetInsertPoint(TI);
+    //Value *vtabbase = builder.CreateLoad(
+             //builder.CreateBitCast(thisp, castType));
+        Value *newStore = builder.CreateStore(newIC, newIT);
         otherBody->dump();
-        II->replaceAllUsesWith(II->getOperand(0));
+        IRBuilder<> buildero(II->getParent());
+        buildero.SetInsertPoint(II);
+        Value *newLoad = builder.CreateLoad(IT);
+        II->replaceAllUsesWith(newLoad);
         II->eraseFromParent();
+        F->dump();
         return true;
     }
     return false;
