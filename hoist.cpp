@@ -166,6 +166,38 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         break;
     case Instruction::Call:
         {
+{
+    Value *called = I.getOperand(I.getNumOperands()-1);
+    const char *cp = called->getName().str().c_str();
+    const Function *CF = dyn_cast<Function>(called);
+    if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
+        /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+        Function *F = I.getParent()->getParent();
+Module *Mod = F->getParent();
+        std::string Fname = F->getName().str();
+        std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "4bodyEv";
+        Function *otherBody = Mod->getFunction(otherName);
+        TerminatorInst *TI = otherBody->begin()->getTerminator();
+        Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+        Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+        Instruction *newIC = cloneTree(IC, TI);
+        Instruction *newIT = cloneTree(IT, TI);
+printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+    IRBuilder<> builder(TI->getParent());
+    builder.SetInsertPoint(TI);
+    //Value *vtabbase = builder.CreateLoad(
+             //builder.CreateBitCast(thisp, castType));
+        Value *newStore = builder.CreateStore(newIC, newIT);
+        otherBody->dump();
+        IRBuilder<> buildero(I.getParent());
+        buildero.SetInsertPoint(&I);
+        Value *newLoad = builder.CreateLoad(IT);
+        I.replaceAllUsesWith(newLoad);
+        I.eraseFromParent();
+        F->dump();
+break;
+    }
+}
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
         Function *f = (Function *)slotarray[tcall].svalue;
         Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
@@ -272,6 +304,7 @@ bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
         called->replaceAllUsesWith(newmalloc);
         return true;
     }
+#if 0
     if (!strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
         /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
         Function *F = II->getParent()->getParent();
@@ -298,5 +331,6 @@ printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), other
         F->dump();
         return true;
     }
+#endif
     return false;
 }
