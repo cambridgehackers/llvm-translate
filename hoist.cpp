@@ -32,6 +32,7 @@ using namespace llvm;
 #include "declarations.h"
 
 static std::map<const Value *, Value *> cloneVmap;
+int trace_clone;
 
 /*
  * clone a DAG from one basic block to another
@@ -54,10 +55,12 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
         NewInst->setOperand(OI, cloneVmap[oval]);
     }
     NewInst->insertBefore(insertPoint);
+    if (trace_clone)
+printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, NewInst->getOpcodeName(), NewInst->getNumOperands());
     return NewInst;
 }
 
-static Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
+static void prepareClone(Instruction *TI, const Instruction *I)
 {
     cloneVmap.clear();
     Function *TargetF = TI->getParent()->getParent();
@@ -66,6 +69,10 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
     for (Function::const_arg_iterator AI = SourceF->arg_begin(),
              AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
+}
+static Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
+{
+    prepareClone(TI, I);
     if (!returnType)
         return cloneTree(I, TI);
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
@@ -170,13 +177,16 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         const char *cp = called->getName().str().c_str();
         const Function *CF = dyn_cast<Function>(called);
         if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
+            cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+trace_clone++;
             Function *F = I.getParent()->getParent();
             Module *Mod = F->getParent();
             std::string Fname = F->getName().str();
             std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "4bodyEv";
             Function *otherBody = Mod->getFunction(otherName);
             TerminatorInst *TI = otherBody->begin()->getTerminator();
+            prepareClone(TI, &I);
             Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
             Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
             Instruction *newIC = cloneTree(IC, TI);
@@ -188,12 +198,13 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
              //builder.CreateBitCast(thisp, castType));
             Value *newStore = builder.CreateStore(newIC, newIT);
             otherBody->dump();
-            IRBuilder<> buildero(I.getParent());
-            buildero.SetInsertPoint(&I);
-            Value *newLoad = builder.CreateLoad(IT);
+            IRBuilder<> oldbuilder(I.getParent());
+            oldbuilder.SetInsertPoint(&I);
+            Value *newLoad = oldbuilder.CreateLoad(IT);
             I.replaceAllUsesWith(newLoad);
             I.eraseFromParent();
             F->dump();
+trace_clone--;
             break;
         }
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
@@ -302,33 +313,5 @@ bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
         called->replaceAllUsesWith(newmalloc);
         return true;
     }
-#if 0
-    if (!strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
-        /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
-        Function *F = II->getParent()->getParent();
-        std::string Fname = F->getName().str();
-        std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "4bodyEv";
-        Function *otherBody = Mod->getFunction(otherName);
-        TerminatorInst *TI = otherBody->begin()->getTerminator();
-        Instruction *IC = dyn_cast<Instruction>(II->getOperand(0));
-        Instruction *IT = dyn_cast<Instruction>(II->getOperand(1));
-        Instruction *newIC = cloneTree(IC, TI);
-        Instruction *newIT = cloneTree(IT, TI);
-printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
-    IRBuilder<> builder(TI->getParent());
-    builder.SetInsertPoint(TI);
-    //Value *vtabbase = builder.CreateLoad(
-             //builder.CreateBitCast(thisp, castType));
-        Value *newStore = builder.CreateStore(newIC, newIT);
-        otherBody->dump();
-        IRBuilder<> buildero(II->getParent());
-        buildero.SetInsertPoint(II);
-        Value *newLoad = builder.CreateLoad(IT);
-        II->replaceAllUsesWith(newLoad);
-        II->eraseFromParent();
-        F->dump();
-        return true;
-    }
-#endif
     return false;
 }

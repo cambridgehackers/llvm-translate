@@ -45,7 +45,7 @@ using namespace llvm;
 
 int trace_translate;// = 1;
 int trace_full;// = 1;
-static int dump_interpret = 1;
+static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
 
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
