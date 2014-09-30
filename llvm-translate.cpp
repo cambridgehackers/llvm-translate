@@ -37,8 +37,9 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;
 
@@ -579,6 +580,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     //DebugIRPass->runOnModule(*Mod);
     Passes.run(*Mod);
 
+    // write copy of optimized bitcode
+    raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
+    WriteBitcodeToFile(Mod, Out);
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return 0;
 }

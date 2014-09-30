@@ -2,7 +2,7 @@
 LEVEL := .
 TOOLNAME := llvm-translate
 
-LINK_COMPONENTS := jit instrumentation interpreter bitreader asmparser irreader selectiondag native linker
+LINK_COMPONENTS := jit instrumentation interpreter bitreader asmparser irreader selectiondag native linker bitwriter
 
 PROJECT_NAME := llvm-translate
 PROJ_VERSION := 0.1

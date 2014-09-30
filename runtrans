@@ -4,11 +4,11 @@ set -x
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc.ll
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
 #catchsegv ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
-./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
+#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 
 #    gdb ./Debug+Asserts/bin/llvm-translate
+#../llvm/build/Debug+Asserts/bin/llc -march=cpp foo.tmp.ll -o xx.jj
 
-#   llvm-dis-mp-3.3 foo.tmp.bc
-#   ../llvm/build/Debug+Asserts/bin/llc -march=cpp foo.tmp.ll -o xx.jj
-#   sed -i.001 -e "s/llvm_translate_malloc/malloc/" foo.tmp.ll
-#   ../llvm/build/Debug+Asserts/bin/lli foo.tmp.ll dd 
+llvm-dis-mp-3.3 foo.tmp.bc
+sed -i.001 -e "/^declare.*llvm_translate_malloc/d" -e "s/llvm_translate_malloc/malloc/" foo.tmp.ll
+../llvm/build/Debug+Asserts/bin/lli foo.tmp.ll dd 
