@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <list>
 #include "llvm/Linker.h"
+#include "llvm/PassManager.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
@@ -468,37 +469,19 @@ namespace {
     cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
-int main(int argc, char **argv, char * const *envp)
+static char ID;
+class Foo : public ModulePass {
+public:
+  bool runOnModule(Module &M);
+  Foo() : ModulePass(ID) {}
+};
+
+bool Foo::runOnModule(Module &M)
 {
     std::string ErrorMsg;
+Module *Mod = &M;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-    //DebugFlag = dump_interpret != 0;
-    outputFile = fopen("output.tmp", "w");
-    if (output_stdout)
-        outputFile = stdout;
-
-    cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
-
-    LLVMContext &Context = getGlobalContext();
-
-    // Load/link the input bitcode
-    Module *Mod = llvm_ParseIRFile(InputFile[0], Context);
-    if (!Mod) {
-        errs() << argv[0] << ": error loading file '" << InputFile[0] << "'\n";
-        return 1;
-    }
-    Linker L(Mod);
-    for (unsigned i = 1; i < InputFile.size(); ++i) {
-        Module *M = llvm_ParseIRFile(InputFile[i], Context);
-        if (!M || L.linkInModule(M, &ErrorMsg)) {
-            errs() << argv[0] << ": load/link error in '" << InputFile[i] << "\n";
-            return 1;
-        }
-    }
-
-    //ModulePass *DebugIRPass = createDebugIRPass();
-    //DebugIRPass->runOnModule(*Mod);
 
     // preprocessing before running anything
     NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
@@ -526,7 +509,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     // Create the execution environment and allocate memory for static items
     EE = builder.create();
     if (!EE) {
-        printf("%s: unknown error creating EE!\n", argv[0]);
+        printf("llvm-translate: unknown error creating EE!\n");
         exit(1);
     }
 
@@ -534,7 +517,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     Function *EntryFn = Mod->getFunction("main");
     if (!EntryFn || !modfirst) {
         printf("'main' function not found in module.\n");
-        return 1;
+        exit(1);
     }
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
@@ -549,10 +532,53 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     std::vector<std::string> InputArgv;
     InputArgv.push_back("param1");
     InputArgv.push_back("param2");
+    char *envp[] = {NULL};
     int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
 
     //dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
-    return Result;
+    return false;
+}
+
+int main(int argc, char **argv, char * const *envp)
+{
+    std::string ErrorMsg;
+    unsigned i = 0;
+
+printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
+    //DebugFlag = dump_interpret != 0;
+    outputFile = fopen("output.tmp", "w");
+    if (output_stdout)
+        outputFile = stdout;
+
+    cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
+
+    LLVMContext &Context = getGlobalContext();
+
+    // Load/link the input bitcode
+    Module *Mod = llvm_ParseIRFile(InputFile[0], Context);
+    if (!Mod) {
+        printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
+        return 1;
+    }
+    Linker L(Mod);
+    for (i = 1; i < InputFile.size(); ++i) {
+        Module *M = llvm_ParseIRFile(InputFile[i], Context);
+        if (!M || L.linkInModule(M, &ErrorMsg)) {
+            printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
+            return 1;
+        }
+    }
+    PassManager Passes;
+
+    Passes.add(new Foo());
+
+    //ModulePass *DebugIRPass = createDebugIRPass();
+    //DebugIRPass->runOnModule(*Mod);
+    Passes.run(*Mod);
+
+printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
+    return 0;
 }
