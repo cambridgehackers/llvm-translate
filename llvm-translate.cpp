@@ -88,14 +88,14 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     virtual const char *getPassName() const { return "C backend"; }
     virtual bool doInitialization(Module &M);
     bool runOnFunction(Function &F) {
-     if (F.hasAvailableExternallyLinkage())
-       return false;
+     //if (F.hasAvailableExternallyLinkage())
+       //return false;
       //lowerIntrinsics(F);
-      printFunction(F);
+      if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
+          printFunction(F);
       return false;
     }
     virtual bool doFinalization(Module &M) {
-      //delete TAsm;
       FPConstantMap.clear();
       ByValParams.clear();
       intrinsicPrototypesAlreadyGenerated.clear();
@@ -186,9 +186,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void visitInstruction(Instruction &I) {
       errs() << "C Writer does not know about " << I;
       llvm_unreachable(0);
-    }
-    void outputLValue(Instruction *I) {
-      Out << "  " << GetValueName(I) << " = ";
     }
     bool isGotoCodeNecessary(BasicBlock *From, BasicBlock *To);
     void printPHICopiesForSuccessor(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent);
@@ -712,21 +709,18 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     Passes.add(new Foo());
 
+    raw_fd_ostream Outc_fd("foo.tmp.xc", ErrorMsg);
+    formatted_raw_ostream Outc(Outc_fd);
+    Passes.add(new CWriter(Outc));
+
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
     Passes.run(*Mod);
 
     // write copy of optimized bitcode
-    raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
-    WriteBitcodeToFile(Mod, Out);
-    raw_fd_ostream Outc_fd("foo.tmp.xc", ErrorMsg);
-    formatted_raw_ostream Outc(Outc_fd);
-CWriter *ccl = new CWriter(Outc);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//ccl->doInitialization(*Mod);
+    //raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
+    //WriteBitcodeToFile(Mod, Out);
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
-    for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI)
-       ccl->runOnFunction(*FI);
     return 0;
 }
 #if 1
@@ -1533,8 +1527,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (I->hasExternalWeakLinkage())
       Out << "extern ";
     printFunctionSignature(I, true);
-    if (I->hasWeakLinkage() || I->hasLinkOnceLinkage())
-      Out << " __ATTRIBUTE_WEAK__";
     if (I->hasExternalWeakLinkage())
       Out << " __EXTERNAL_WEAK__";
     if (StaticCtors.count(I))
@@ -1560,13 +1552,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (I->isThreadLocal())
           Out << "__thread ";
         printType(Out, I->getType()->getElementType(), false, GetValueName(I));
-        if (I->hasLinkOnceLinkage())
-          Out << " __attribute__((common))";
-        else if (I->hasCommonLinkage())     // FIXME is this right?
-          Out << " __ATTRIBUTE_WEAK__";
-        else if (I->hasWeakLinkage())
-          Out << " __ATTRIBUTE_WEAK__";
-        else if (I->hasExternalWeakLinkage())
+        if (I->hasExternalWeakLinkage())
           Out << " __EXTERNAL_WEAK__";
         if (I->hasHiddenVisibility())
           Out << " __HIDDEN__";
@@ -1588,12 +1574,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (I->isThreadLocal())
           Out << "__thread ";
         printType(Out, I->getType()->getElementType(), false, GetValueName(I));
-        if (I->hasLinkOnceLinkage())
-          Out << " __attribute__((common))";
-        else if (I->hasWeakLinkage())
-          Out << " __ATTRIBUTE_WEAK__";
-        else if (I->hasCommonLinkage())
-          Out << " __ATTRIBUTE_WEAK__";
         if (I->hasHiddenVisibility())
           Out << " __HIDDEN__";
         if (!I->getInitializer()->isNullValue()) {
@@ -1782,7 +1762,7 @@ void CWriter::printBasicBlock(BasicBlock *BB)
   for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
     if (!isInlinableInst(*II) && !isDirectAlloca(II)) {
       if (II->getType() != Type::getVoidTy(BB->getContext()))
-        outputLValue(II);
+        Out << "  " << GetValueName(II) << " = ";
       else
         Out << "  ";
       writeInstComputationInline(*II);
