@@ -51,6 +51,7 @@ int trace_translate;// = 1;
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
+static int printout_initialization = 1;
 
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 ExecutionEngine *EE;
@@ -94,27 +95,14 @@ bool RemoveAllocaPass::runOnBasicBlock(BasicBlock &BB)
                 BasicBlock::iterator PN = PI;
                 while (PN != E) {
                     BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
-                    if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1))
-                        newt = PN->getOperand(0);
-                    for (User::op_iterator OI = PN->op_begin(), OE = PN->op_end(); OI != OE; ++OI) {
-                        if (*OI == retv && newt)
-                            *OI = newt;
-                    }
-                    PN = PNN;
-                }
-                PN = PI;
-                while (PN != E) {
-                    BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
-                    if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
+                    if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
+                        newt = PN->getOperand(0); // Remember value we were storing in temp
                         if (PI == PN)
                             PI = PNN;
                         PN->eraseFromParent(); // delete Store instruction
                     }
-                    if (PN->getOpcode() == Instruction::Load && newt == PN->getOperand(0)) {
-                        Value *v = PN;
-                        v->replaceAllUsesWith(newt);
-                        if (PI == PN)
-                            PI = PNN;
+                    else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
+                        PN->replaceAllUsesWith(newt); // replace with stored value
                         PN->eraseFromParent(); // delete Load instruction
                     }
                     PN = PNN;
@@ -1344,7 +1332,6 @@ static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
     return NotPrinted;
   return NotSpecial;
 }
-int printout_initialization;
 bool CWriter::doInitialization(Module &M)
 {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -1982,6 +1969,12 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
 }
 void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment)
 {
+if (IsVolatile) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+Operand->dump();
+exit(1);
+}
+IsVolatile = false;
   Out << '*';
   if (IsVolatile ) {
     Out << "((";
