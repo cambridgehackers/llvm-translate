@@ -1310,8 +1310,7 @@ std::string CWriter::GetValueName(const Value *Operand)
   }
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
     SmallString<128> Str;
-//printf("[%s:%d] manglegetname\n", __FUNCTION__, __LINE__);
-Str = GV->getName();
+    Str = GV->getName();
     //Mang->getNameWithPrefix(Str, GV, false);
     return CBEMangle(Str.str().str());
   }
@@ -1334,7 +1333,8 @@ Str = GV->getName();
     } else
       VarName += ch;
   }
-  return "llvm_cbe_" + VarName;
+  return "V" + VarName;
+  //return "llvm_cbe_" + VarName;
 }
 void CWriter::writeInstComputationInline(Instruction &I)
 {
