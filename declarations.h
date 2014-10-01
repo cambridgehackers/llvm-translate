@@ -131,11 +131,11 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
         writeOperandInternal(Operand);
       } else {
         Out << "*(";
-        writeOperand(Operand);
+        writeOperand(Operand, false);
         Out << ")";
       }
     }
-    void writeOperand(Value *Operand, bool Static = false);
+    void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
     void writeOperandInternal(Value *Operand, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);

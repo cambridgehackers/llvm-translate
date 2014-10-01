@@ -463,7 +463,7 @@ namespace {
 bool GeneratePass::runOnModule(Module &M)
 {
     std::string ErrorMsg;
-Module *Mod = &M;
+    Module *Mod = &M;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
@@ -471,18 +471,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
         process_metadata(CU_Nodes);
-
-#if 0
-    /* iterate through all functions, adjusting 'Call' operands */
-    for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI)
-        for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI)
-            for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE; ) {
-                BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
-                if (II->getOpcode() == Instruction::Call)
-                    callProcess_runOnInstruction(Mod, II);
-                II = PI;
-            }
-#endif
 
     EngineBuilder builder(Mod);
     builder.setMArch(MArch);
@@ -1086,7 +1074,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       Out << ")/*NULL*/0)";
       break;
     } else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV)) {
-      writeOperand(GV, Static);
+      writeOperand(GV, false, Static);
       break;
     }
   default:
@@ -1222,9 +1210,11 @@ void CWriter::writeOperandInternal(Value *Operand, bool Static)
   else
     Out << GetValueName(Operand);
 }
-void CWriter::writeOperand(Value *Operand, bool Static)
+void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
   bool isAddressImplicit = isAddressExposed(Operand);
+  if (Indirect)
+    Out << '*';
   if (isAddressImplicit)
     Out << "(&";  // Global variables are referenced as their addresses by llvm
   writeOperandInternal(Operand, Static);
@@ -1274,16 +1264,16 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
     Out << "((";
     printSimpleType(Out, OpTy, castIsSigned);
     Out << ")";
-    writeOperand(Operand);
+    writeOperand(Operand, false);
     Out << ")";
   } else
-    writeOperand(Operand);
+    writeOperand(Operand, false);
 }
 void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
 {
   bool shouldCast = Cmp.isRelational();
   if (!shouldCast) {
-    writeOperand(Operand);
+    writeOperand(Operand, false);
     return;
   }
   bool castIsSigned = Cmp.isSigned();
@@ -1296,7 +1286,7 @@ exit(1);
   Out << "((";
   printSimpleType(Out, OpTy, castIsSigned);
   Out << ")";
-  writeOperand(Operand);
+  writeOperand(Operand, false);
   Out << ")";
 }
 static void FindStaticTors(GlobalVariable *GV, std::set<Function*> &StaticTors){
@@ -1433,7 +1423,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           Out << " __HIDDEN__";
         if (!I->getInitializer()->isNullValue()) {
           Out << " = " ;
-          writeOperand(I->getInitializer(), true);
+          writeOperand(I->getInitializer(), false, true);
         } else if (I->hasWeakLinkage()) {
           Out << " = " ;
           if (I->getInitializer()->getType()->isStructTy() || I->getInitializer()->getType()->isVectorTy()) {
@@ -1441,7 +1431,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           } else if (I->getInitializer()->getType()->isArrayTy()) {
             Out << "{ { 0 } }";
           } else {
-            writeOperand(I->getInitializer(), true);
+            writeOperand(I->getInitializer(), false, true);
           }
         }
         Out << ";\n";
@@ -1641,14 +1631,14 @@ void CWriter::visitReturnInst(ReturnInst &I)
   Out << "  return";
   if (I.getNumOperands()) {
     Out << ' ';
-    writeOperand(I.getOperand(0));
+    writeOperand(I.getOperand(0), false);
   }
   Out << ";\n";
 }
 void CWriter::visitIndirectBrInst(IndirectBrInst &IBI)
 {
   Out << "  goto *(void*)(";
-  writeOperand(IBI.getOperand(0));
+  writeOperand(IBI.getOperand(0), false);
   Out << ");\n";
 }
 void CWriter::visitUnreachableInst(UnreachableInst &I)
@@ -1670,7 +1660,7 @@ void CWriter::printPHICopiesForSuccessor (BasicBlock *CurBlock, BasicBlock *Succ
     if (!isa<UndefValue>(IV)) {
       Out << std::string(Indent, ' ');
       Out << "  " << GetValueName(I) << "__PHI_TEMPORARY = ";
-      writeOperand(IV);
+      writeOperand(IV, false);
       Out << ";   /* for PHI node */\n";
     }
   }
@@ -1679,7 +1669,7 @@ void CWriter::printBranchToBlock(BasicBlock *CurBB, BasicBlock *Succ, unsigned I
 {
   if (isGotoCodeNecessary(CurBB, Succ)) {
     Out << std::string(Indent, ' ') << "  goto ";
-    writeOperand(Succ);
+    writeOperand(Succ, false);
     Out << ";\n";
   }
 }
@@ -1688,7 +1678,7 @@ void CWriter::visitBranchInst(BranchInst &I)
   if (I.isConditional()) {
     if (isGotoCodeNecessary(I.getParent(), I.getSuccessor(0))) {
       Out << "  if (";
-      writeOperand(I.getCondition());
+      writeOperand(I.getCondition(), false);
       Out << ") {\n";
       printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(0), 2);
       printBranchToBlock(I.getParent(), I.getSuccessor(0), 2);
@@ -1699,7 +1689,7 @@ void CWriter::visitBranchInst(BranchInst &I)
       }
     } else {
       Out << "  if (!";
-      writeOperand(I.getCondition());
+      writeOperand(I.getCondition(), false);
       Out << ") {\n";
       printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(1), 2);
       printBranchToBlock(I.getParent(), I.getSuccessor(1), 2);
@@ -1713,7 +1703,7 @@ void CWriter::visitBranchInst(BranchInst &I)
 }
 void CWriter::visitPHINode(PHINode &I)
 {
-  writeOperand(&I);
+  writeOperand(&I, false);
   Out << "__PHI_TEMPORARY";
 }
 void CWriter::visitBinaryOperator(Instruction &I)
@@ -1730,11 +1720,11 @@ void CWriter::visitBinaryOperator(Instruction &I)
   }
   if (BinaryOperator::isNeg(&I)) {
     Out << "-(";
-    writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)));
+    writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
     Out << ")";
   } else if (BinaryOperator::isFNeg(&I)) {
     Out << "-(";
-    writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)));
+    writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
     Out << ")";
   } else if (I.getOpcode() == Instruction::FRem) {
     if (I.getType() == Type::getFloatTy(I.getContext()))
@@ -1743,9 +1733,9 @@ void CWriter::visitBinaryOperator(Instruction &I)
       Out << "fmod(";
     else  // all 3 flavors of long double
       Out << "fmodl(";
-    writeOperand(I.getOperand(0));
+    writeOperand(I.getOperand(0), false);
     Out << ", ";
-    writeOperand(I.getOperand(1));
+    writeOperand(I.getOperand(1), false);
     Out << ")";
   } else {
     bool NeedsClosingParens = writeInstructionCast(I);
@@ -1805,7 +1795,7 @@ void CWriter::visitCastInst(CastInst &I)
   if (SrcTy == Type::getInt1Ty(I.getContext()) &&
       I.getOpcode() == Instruction::SExt)
     Out << "0-";
-  writeOperand(I.getOperand(0));
+  writeOperand(I.getOperand(0), false);
   if (DstTy == Type::getInt1Ty(I.getContext()) &&
       (I.getOpcode() == Instruction::Trunc || I.getOpcode() == Instruction::FPToUI ||
        I.getOpcode() == Instruction::FPToSI || I.getOpcode() == Instruction::PtrToInt)) {
@@ -1849,7 +1839,7 @@ void CWriter::visitCallInst(CallInst &I)
         printType(Out, I.getCalledValue()->getType());
       Out << ")(void*)";
     }
-    writeOperand(Callee);
+    writeOperand(Callee, false);
     if (NeedsCast) Out << ')';
   }
   Out << '(';
@@ -1874,7 +1864,7 @@ void CWriter::visitCallInst(CallInst &I)
       printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false); //PAL.paramHasAttr(ArgNo+1, Attribute::SExt));
       Out << ')';
     }
-      writeOperand(*AI);
+      writeOperand(*AI, false);
     PrintedArg = true;
   }
   Out << ')';
@@ -1897,14 +1887,14 @@ void CWriter::visitAllocaInst(AllocaInst &I)
   Out << ')';
   if (I.isArrayAllocation()) {
     Out << " * " ;
-    writeOperand(I.getOperand(0));
+    writeOperand(I.getOperand(0), false);
   }
   Out << ')';
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
   if (I == E) {
-    writeOperand(Ptr);
+    writeOperand(Ptr, false);
     return;
   }
   VectorType *LastIndexIsVector = 0;
@@ -1921,18 +1911,18 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
   Out << '&';
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-    writeOperand(Ptr);
+    writeOperand(Ptr, false);
   } else {
     ++I;  // Skip the zero index.
     if (isAddressExposed(Ptr)) {
       writeOperandInternal(Ptr, Static);
     } else if (I != E && (*I)->isStructTy()) {
-      writeOperand(Ptr);
+      writeOperand(Ptr, false);
       Out << "->field" << cast<ConstantInt>(I.getOperand())->getZExtValue();
       ++I;  // eat the struct index as well.
     } else {
       Out << "(*";
-      writeOperand(Ptr);
+      writeOperand(Ptr, false);
       Out << ")";
     }
   }
@@ -1942,12 +1932,12 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
     } else if ((*I)->isArrayTy()) {
       Out << ".array[";
       //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
-      writeOperand(I.getOperand());
+      writeOperand(I.getOperand(), false);
       Out << ']';
     } else if (!(*I)->isVectorTy()) {
       Out << '[';
       //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
-      writeOperand(I.getOperand());
+      writeOperand(I.getOperand(), false);
       Out << ']';
     } else {
       if (isa<Constant>(I.getOperand()) &&
@@ -1964,22 +1954,12 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
 }
 void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment)
 {
-if (IsVolatile) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-Operand->dump();
-exit(1);
-}
-IsVolatile = false;
-  Out << '*';
-  if (IsVolatile ) {
-    Out << "((";
-    printType(Out, OperandType, false, "volatile*");
-    Out << ")";
+  if (IsVolatile) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    Operand->dump();
+    exit(1);
   }
-  writeOperand(Operand);
-  if (IsVolatile ) {
-    Out << ')';
-  }
+  writeOperand(Operand, true);
 }
 void CWriter::visitLoadInst(LoadInst &I)
 {
@@ -1996,7 +1976,7 @@ void CWriter::visitStoreInst(StoreInst &I)
       BitMask = ConstantInt::get(ITy, ITy->getBitMask());
   if (BitMask)
     Out << "((";
-  writeOperand(Operand);
+  writeOperand(Operand, false);
   if (BitMask) {
     Out << ") & ";
     printConstant(BitMask, false);
