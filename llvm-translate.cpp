@@ -171,7 +171,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void visitPHINode(PHINode &I);
     void visitBinaryOperator(Instruction &I);
     void visitICmpInst(ICmpInst &I);
-    void visitFCmpInst(FCmpInst &I);
     void visitCastInst (CastInst &I);
     void visitCallInst (CallInst &I);
     bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
@@ -179,10 +178,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void visitLoadInst  (LoadInst   &I);
     void visitStoreInst (StoreInst  &I);
     void visitGetElementPtrInst(GetElementPtrInst &I);
-    void visitInsertElementInst(InsertElementInst &I);
-    void visitExtractElementInst(ExtractElementInst &I);
-    void visitInsertValueInst(InsertValueInst &I);
-    void visitExtractValueInst(ExtractValueInst &I);
     void visitInstruction(Instruction &I) {
       errs() << "C Writer does not know about " << I;
       llvm_unreachable(0);
@@ -1802,11 +1797,9 @@ void CWriter::visitUnreachableInst(UnreachableInst &I)
 }
 bool CWriter::isGotoCodeNecessary(BasicBlock *From, BasicBlock *To)
 {
-  return true;
+  //return true;
   if (llvm::next(Function::iterator(From)) != Function::iterator(To))
     return true;  // Not the direct successor, we need a goto.
-  //if (LI->getLoopFor(From) != LI->getLoopFor(To))
-    //return true;
   return false;
 }
 void CWriter::printPHICopiesForSuccessor (BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent)
@@ -1942,40 +1935,6 @@ void CWriter::visitICmpInst(ICmpInst &I)
   if (needsCast) {
     Out << "))";
   }
-}
-void CWriter::visitFCmpInst(FCmpInst &I)
-{
-  if (I.getPredicate() == FCmpInst::FCMP_FALSE) {
-    Out << "0";
-    return;
-  }
-  if (I.getPredicate() == FCmpInst::FCMP_TRUE) {
-    Out << "1";
-    return;
-  }
-  const char* op = 0;
-  switch (I.getPredicate()) {
-  default: llvm_unreachable("Illegal FCmp predicate");
-  case FCmpInst::FCMP_ORD: op = "ord"; break;
-  case FCmpInst::FCMP_UNO: op = "uno"; break;
-  case FCmpInst::FCMP_UEQ: op = "ueq"; break;
-  case FCmpInst::FCMP_UNE: op = "une"; break;
-  case FCmpInst::FCMP_ULT: op = "ult"; break;
-  case FCmpInst::FCMP_ULE: op = "ule"; break;
-  case FCmpInst::FCMP_UGT: op = "ugt"; break;
-  case FCmpInst::FCMP_UGE: op = "uge"; break;
-  case FCmpInst::FCMP_OEQ: op = "oeq"; break;
-  case FCmpInst::FCMP_ONE: op = "one"; break;
-  case FCmpInst::FCMP_OLT: op = "olt"; break;
-  case FCmpInst::FCMP_OLE: op = "ole"; break;
-  case FCmpInst::FCMP_OGT: op = "ogt"; break;
-  case FCmpInst::FCMP_OGE: op = "oge"; break;
-  }
-  Out << "llvm_fcmp_" << op << "(";
-  writeOperand(I.getOperand(0));
-  Out << ", ";
-  writeOperand(I.getOperand(1));
-  Out << ")";
 }
 void CWriter::visitCastInst(CastInst &I)
 {
@@ -2181,62 +2140,5 @@ void CWriter::visitStoreInst(StoreInst &I)
 void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
 {
   printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
-}
-void CWriter::visitInsertElementInst(InsertElementInst &I)
-{
-  Type *EltTy = I.getType()->getElementType();
-  writeOperand(I.getOperand(0));
-  Out << ";\n  ";
-  Out << "((";
-  printType(Out, PointerType::getUnqual(EltTy));
-  Out << ")(&" << GetValueName(&I) << "))[";
-  writeOperand(I.getOperand(2));
-  Out << "] = (";
-  writeOperand(I.getOperand(1));
-  Out << ")";
-}
-void CWriter::visitExtractElementInst(ExtractElementInst &I)
-{
-  Out << "((";
-  Type *EltTy =
-    cast<VectorType>(I.getOperand(0)->getType())->getElementType();
-  printType(Out, PointerType::getUnqual(EltTy));
-  Out << ")(&" << GetValueName(I.getOperand(0)) << "))[";
-  writeOperand(I.getOperand(1));
-  Out << "]";
-}
-void CWriter::visitInsertValueInst(InsertValueInst &IVI)
-{
-  writeOperand(IVI.getOperand(0));
-  Out << ";\n  ";
-  Out << GetValueName(&IVI);
-  for (const unsigned *b = IVI.idx_begin(), *i = b, *e = IVI.idx_end(); i != e; ++i) {
-    Type *IndexedTy = ExtractValueInst::getIndexedType(IVI.getOperand(0)->getType(), makeArrayRef(b, i+1));
-    if (IndexedTy->isArrayTy())
-      Out << ".array[" << *i << "]";
-    else
-      Out << ".field" << *i;
-  }
-  Out << " = ";
-  writeOperand(IVI.getOperand(1));
-}
-void CWriter::visitExtractValueInst(ExtractValueInst &EVI)
-{
-  Out << "(";
-  if (isa<UndefValue>(EVI.getOperand(0))) {
-    Out << "(";
-    printType(Out, EVI.getType());
-    Out << ") 0/*UNDEF*/";
-  } else {
-    Out << GetValueName(EVI.getOperand(0));
-    for (const unsigned *b = EVI.idx_begin(), *i = b, *e = EVI.idx_end(); i != e; ++i) {
-      Type *IndexedTy = ExtractValueInst::getIndexedType(EVI.getOperand(0)->getType(), makeArrayRef(b, i+1));
-      if (IndexedTy->isArrayTy())
-        Out << ".array[" << *i << "]";
-      else
-        Out << ".field" << *i;
-    }
-  }
-  Out << ")";
 }
 #endif
