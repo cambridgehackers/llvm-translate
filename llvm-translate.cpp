@@ -1469,6 +1469,7 @@ static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
     return NotPrinted;
   return NotSpecial;
 }
+int printout_initialization;
 bool CWriter::doInitialization(Module &M)
 {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -1506,6 +1507,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   Out << "\n/* Function Declarations */\n";
   SmallVector<const Function*, 8> intrinsicsToDefine;
+  if (printout_initialization)
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     if (I->isIntrinsic()) {
       switch (I->getIntrinsicID()) {
@@ -1536,6 +1538,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Declarations */\n";
+    if (printout_initialization)
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
         if (getGlobalVariableClass(I))
