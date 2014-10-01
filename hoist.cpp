@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
@@ -291,8 +292,9 @@ if (operand_list_index <= 3)
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
  */
-bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
+static bool callProcess_runOnInstruction(Instruction *II)
 {
+    Module *Mod = II->getParent()->getParent()->getParent();
     Value *called = II->getOperand(II->getNumOperands()-1);
     const char *cp = called->getName().str().c_str();
     const Function *CF = dyn_cast<Function>(called);
@@ -314,4 +316,17 @@ bool callProcess_runOnInstruction(Module *Mod, Instruction *II)
         return true;
     }
     return false;
+}
+
+char CallProcessPass::ID = 0;
+bool CallProcessPass::runOnBasicBlock(BasicBlock &BB)
+{
+    bool changed = false;
+    for (BasicBlock::iterator II = BB.begin(), IE = BB.end(); II != IE; ) {
+        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+        if (II->getOpcode() == Instruction::Call)
+            changed |= callProcess_runOnInstruction(II);
+        II = PI;
+    }
+    return changed;
 }

@@ -64,6 +64,7 @@ static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
+char GeneratePass::ID = 0;
 char CWriter::ID = 0;
 char RemoveAllocaPass::ID = 0;
 
@@ -459,14 +460,7 @@ namespace {
     cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 }
 
-static char ID;
-class Foo : public ModulePass {
-public:
-  bool runOnModule(Module &M);
-  Foo() : ModulePass(ID) {}
-};
-
-bool Foo::runOnModule(Module &M)
+bool GeneratePass::runOnModule(Module &M)
 {
     std::string ErrorMsg;
 Module *Mod = &M;
@@ -478,6 +472,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     if (CU_Nodes)
         process_metadata(CU_Nodes);
 
+#if 0
     /* iterate through all functions, adjusting 'Call' operands */
     for (Module::iterator FI = Mod->begin(), FE = Mod->end(); FI != FE; ++FI)
         for (Function::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI)
@@ -487,6 +482,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
                     callProcess_runOnInstruction(Mod, II);
                 II = PI;
             }
+#endif
 
     EngineBuilder builder(Mod);
     builder.setMArch(MArch);
@@ -561,19 +557,18 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
             return 1;
         }
     }
-    PassManager Passes;
-
-    Passes.add(new RemoveAllocaPass());
-
-    Passes.add(new Foo());
 
     raw_fd_ostream Outc_fd("foo.tmp.xc", ErrorMsg);
     formatted_raw_ostream Outc(Outc_fd);
-    Passes.add(new CWriter(Outc));
 
+    PassManager Passes;
+    Passes.add(new RemoveAllocaPass());
+    Passes.add(new CallProcessPass());
+    Passes.add(new GeneratePass());
+    Passes.add(new CWriter(Outc));
+    Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
-    Passes.run(*Mod);
 
     // write copy of optimized bitcode
     //raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);

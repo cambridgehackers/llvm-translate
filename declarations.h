@@ -113,7 +113,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       //lowerIntrinsics(F);
       if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
           printFunction(F);
-if (F.getName() == "_ZN8EchoTest5driveD1Ev") F.dump();
       return false;
     }
     virtual bool doFinalization(Module &M) {
@@ -214,15 +213,21 @@ class RemoveAllocaPass : public BasicBlockPass {
   public:
     static char ID;
     RemoveAllocaPass() : BasicBlockPass(ID) {}
-    //~RemoveAllocaPass(): {}
     bool runOnBasicBlock(BasicBlock &BB);
-// {
-      //(*Out) << Banner << BB;
-      //return false;
-    //}
-    //virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      //AU.setPreservesAll();
-    //}
+};
+
+class CallProcessPass : public BasicBlockPass {
+  public:
+    static char ID;
+    CallProcessPass() : BasicBlockPass(ID) {}
+    bool runOnBasicBlock(BasicBlock &BB);
+};
+
+class GeneratePass : public ModulePass {
+  public:
+    static char ID;
+    GeneratePass() : ModulePass(ID) {}
+    bool runOnModule(Module &M);
 };
 
 extern ExecutionEngine *EE;
