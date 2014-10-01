@@ -1213,8 +1213,12 @@ void CWriter::writeOperandInternal(Value *Operand, bool Static)
 void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
   bool isAddressImplicit = isAddressExposed(Operand);
-  if (Indirect)
-    Out << '*';
+  if (Indirect) {
+    if (isAddressImplicit)
+      isAddressImplicit = false;
+    else
+      Out << '*';
+  }
   if (isAddressImplicit)
     Out << "(&";  // Global variables are referenced as their addresses by llvm
   writeOperandInternal(Operand, Static);
@@ -1279,10 +1283,10 @@ void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
   bool castIsSigned = Cmp.isSigned();
   Type* OpTy = Operand->getType();
   if (OpTy->isPointerTy()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
     //OpTy = TD->getIntPtrType(Operand->getContext());
-}
+  }
   Out << "((";
   printSimpleType(Out, OpTy, castIsSigned);
   Out << ")";
