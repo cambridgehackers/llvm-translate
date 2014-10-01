@@ -166,27 +166,21 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     friend class InstVisitor<CWriter>;
     void visitReturnInst(ReturnInst &I);
     void visitBranchInst(BranchInst &I);
-    void visitSwitchInst(SwitchInst &I);
     void visitIndirectBrInst(IndirectBrInst &I);
-    void visitInvokeInst(InvokeInst &I) { llvm_unreachable("Lowerinvoke pass didn't work!"); }
-    void visitResumeInst(ResumeInst &I) { llvm_unreachable("DwarfEHPrepare pass didn't work!"); }
     void visitUnreachableInst(UnreachableInst &I);
     void visitPHINode(PHINode &I);
     void visitBinaryOperator(Instruction &I);
     void visitICmpInst(ICmpInst &I);
     void visitFCmpInst(FCmpInst &I);
     void visitCastInst (CastInst &I);
-    void visitSelectInst(SelectInst &I);
     void visitCallInst (CallInst &I);
     bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
     void visitAllocaInst(AllocaInst &I);
     void visitLoadInst  (LoadInst   &I);
     void visitStoreInst (StoreInst  &I);
     void visitGetElementPtrInst(GetElementPtrInst &I);
-    void visitVAArgInst (VAArgInst &I);
     void visitInsertElementInst(InsertElementInst &I);
     void visitExtractElementInst(ExtractElementInst &I);
-    void visitShuffleVectorInst(ShuffleVectorInst &SVI);
     void visitInsertValueInst(InsertValueInst &I);
     void visitExtractValueInst(ExtractValueInst &I);
     void visitInstruction(Instruction &I) {
@@ -1142,14 +1136,14 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     if (Ty == Type::getInt1Ty(CPV->getContext()))
       Out << (CI->getZExtValue() ? '1' : '0');
     else if (Ty == Type::getInt32Ty(CPV->getContext()))
-      Out << CI->getZExtValue() << 'u';
+      Out << CI->getZExtValue();// << 'u';
     else if (Ty->getPrimitiveSizeInBits() > 32)
-      Out << CI->getZExtValue() << "ull";
+      Out << CI->getZExtValue();// << "ull";
     else {
       Out << "((";
       printSimpleType(Out, Ty, false) << ')';
       if (CI->isMinValue(true))
-        Out << CI->getZExtValue() << 'u';
+        Out << CI->getZExtValue();// << 'u';
       else
         Out << CI->getSExtValue();
       Out << ')';
@@ -1157,52 +1151,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     return;
   }
   switch (CPV->getType()->getTypeID()) {
-  case Type::FloatTyID: case Type::DoubleTyID: case Type::X86_FP80TyID:
-  case Type::PPC_FP128TyID: case Type::FP128TyID: {
-    ConstantFP *FPC = cast<ConstantFP>(CPV);
-    std::map<const ConstantFP*, unsigned>::iterator I = FPConstantMap.find(FPC);
-    if (I != FPConstantMap.end()) {
-      Out << "(*(" << (FPC->getType() == Type::getFloatTy(CPV->getContext()) ?  "float" :
-                       FPC->getType() == Type::getDoubleTy(CPV->getContext()) ?  "double" : "long double")
-          << "*)&FPConstant" << I->second << ')';
-    } else {
-      double V;
-      if (FPC->getType() == Type::getFloatTy(CPV->getContext()))
-        V = FPC->getValueAPF().convertToFloat();
-      else if (FPC->getType() == Type::getDoubleTy(CPV->getContext()))
-        V = FPC->getValueAPF().convertToDouble();
-      else {
-        APFloat Tmp = FPC->getValueAPF();
-        bool LosesInfo;
-        Tmp.convert(APFloat::IEEEdouble, APFloat::rmTowardZero, &LosesInfo);
-        V = Tmp.convertToDouble();
-      }
-      if (IsNAN(V)) {
-        const unsigned long QuietNaN = 0x7ff8UL;
-        char Buffer[100];
-        uint64_t ll = DoubleToBits(V);
-        sprintf(Buffer, "0x%llx", static_cast<long long>(ll));
-        std::string Num(&Buffer[0], &Buffer[6]);
-        unsigned long Val = strtoul(Num.c_str(), 0, 16);
-        if (FPC->getType() == Type::getFloatTy(FPC->getContext()))
-          Out << "LLVM_NAN" << (Val == QuietNaN ? "" : "S") << "F(\""
-              << Buffer << "\") /*nan*/ ";
-        else
-          Out << "LLVM_NAN" << (Val == QuietNaN ? "" : "S") << "(\""
-              << Buffer << "\") /*nan*/ ";
-      } else if (IsInf(V)) {
-        if (V < 0) Out << '-';
-        Out << "LLVM_INF" <<
-            (FPC->getType() == Type::getFloatTy(FPC->getContext()) ? "F" : "")
-            << " /*inf*/ ";
-      } else {
-        std::string Num;
-Num = "BOZONUMBER";
-       Out << Num;
-      }
-    }
-    break;
-  }
   case Type::ArrayTyID:
     if (!Static) {
       Out << "(";
@@ -1818,12 +1766,7 @@ void CWriter::printFunction(Function &F)
   if (F.hasExternalLinkage() && F.getName() == "main")
     Out << "  CODE_FOR_MAIN();\n";
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
-    //if (Loop *L = LI->getLoopFor(BB)) {
-      //if (L->getHeader() == BB && L->getParentLoop() == 0)
-        //printLoop(L);
-    //} else {
       printBasicBlock(BB);
-    //}
   }
   Out << "}\n\n";
 }
@@ -1866,11 +1809,6 @@ void CWriter::visitReturnInst(ReturnInst &I)
     writeOperand(I.getOperand(0));
   }
   Out << ";\n";
-}
-void CWriter::visitSwitchInst(SwitchInst &SI)
-{
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
 }
 void CWriter::visitIndirectBrInst(IndirectBrInst &IBI)
 {
@@ -2076,16 +2014,6 @@ void CWriter::visitCastInst(CastInst &I)
   }
   Out << ')';
 }
-void CWriter::visitSelectInst(SelectInst &I)
-{
-  Out << "((";
-  writeOperand(I.getCondition());
-  Out << ") ? (";
-  writeOperand(I.getTrueValue());
-  Out << ") : (";
-  writeOperand(I.getFalseValue());
-  Out << "))";
-}
 void CWriter::visitCallInst(CallInst &I)
 {
   bool WroteCallee = false;
@@ -2212,11 +2140,13 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       Out << ".field" << cast<ConstantInt>(I.getOperand())->getZExtValue();
     } else if ((*I)->isArrayTy()) {
       Out << ".array[";
-      writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+      //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+      writeOperand(I.getOperand());
       Out << ']';
     } else if (!(*I)->isVectorTy()) {
       Out << '[';
-      writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+      //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+      writeOperand(I.getOperand());
       Out << ']';
     } else {
       if (isa<Constant>(I.getOperand()) &&
@@ -2270,14 +2200,6 @@ void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
 {
   printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
 }
-void CWriter::visitVAArgInst(VAArgInst &I)
-{
-  Out << "va_arg(*(va_list*)";
-  writeOperand(I.getOperand(0));
-  Out << ", ";
-  printType(Out, I.getType());
-  Out << ");\n ";
-}
 void CWriter::visitInsertElementInst(InsertElementInst &I)
 {
   Type *EltTy = I.getType()->getElementType();
@@ -2300,35 +2222,6 @@ void CWriter::visitExtractElementInst(ExtractElementInst &I)
   Out << ")(&" << GetValueName(I.getOperand(0)) << "))[";
   writeOperand(I.getOperand(1));
   Out << "]";
-}
-void CWriter::visitShuffleVectorInst(ShuffleVectorInst &SVI)
-{
-  Out << "(";
-  printType(Out, SVI.getType());
-  Out << "){ ";
-  VectorType *VT = SVI.getType();
-  unsigned NumElts = VT->getNumElements();
-  Type *EltTy = VT->getElementType();
-  for (unsigned i = 0; i != NumElts; ++i) {
-    if (i) Out << ", ";
-    int SrcVal = SVI.getMaskValue(i);
-    if ((unsigned)SrcVal >= NumElts*2) {
-      Out << " 0/*undef*/ ";
-    } else {
-      Value *Op = SVI.getOperand((unsigned)SrcVal >= NumElts);
-      if (isa<Instruction>(Op)) {
-        Out << "((";
-        printType(Out, PointerType::getUnqual(EltTy));
-        Out << ")(&" << GetValueName(Op)
-            << "))[" << (SrcVal & (NumElts-1)) << "]";
-      } else if (isa<ConstantAggregateZero>(Op) || isa<UndefValue>(Op)) {
-        Out << "0";
-      } else {
-        printConstant(cast<ConstantVector>(Op)->getOperand(SrcVal & (NumElts-1)), false);
-      }
-    }
-  }
-  Out << "}";
 }
 void CWriter::visitInsertValueInst(InsertValueInst &IVI)
 {
