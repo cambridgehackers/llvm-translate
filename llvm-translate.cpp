@@ -2083,9 +2083,11 @@ void CWriter::visitCallInst(CallInst &I)
 bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee)
 {
     Function *F = I.getCalledFunction();
+    bool was_dbg = !strcmp(F->getName().str().c_str(), "llvm.dbg.declare");
+    if (!was_dbg)
     Out << F->getName() + "BUILTINSTUB";
     WroteCallee = true;
-    return false;
+    return was_dbg;
 }
 void CWriter::visitAllocaInst(AllocaInst &I)
 {
