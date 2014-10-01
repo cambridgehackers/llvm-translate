@@ -812,13 +812,6 @@ raw_ostream & CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned
       return Out << (isSigned?"llvmInt128":"llvmUInt128") << " " << NameSoFar;
     }
   }
-  case Type::FloatTyID:  return Out << "float "   << NameSoFar;
-  case Type::DoubleTyID: return Out << "double "  << NameSoFar;
-  case Type::X86_FP80TyID:
-  case Type::PPC_FP128TyID:
-  case Type::FP128TyID:  return Out << "long double " << NameSoFar;
-  case Type::X86_MMXTyID:
-    return printSimpleType(Out, Type::getInt32Ty(Ty->getContext()), isSigned, " __attribute__((vector_size(64))) " + NameSoFar);
   case Type::VectorTyID: {
     VectorType *VTy = cast<VectorType>(Ty);
     return printSimpleType(Out, VTy->getElementType(), isSigned, " __attribute__((vector_size(" "utostr(TD->getTypeAllocSize(VTy))" " ))) " + NameSoFar);
@@ -878,8 +871,6 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
       Out << ";\n";
     }
     Out << '}';
-    if (STy->isPacked())
-      Out << " __attribute__ ((packed))";
     return Out;
   }
   case Type::PointerTyID: {
@@ -1722,19 +1713,6 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   if (F->hasLocalLinkage()) Out << "static ";
   if (F->hasDLLImportLinkage()) Out << "__declspec(dllimport) ";
   if (F->hasDLLExportLinkage()) Out << "__declspec(dllexport) ";
-  switch (F->getCallingConv()) {
-   case CallingConv::X86_StdCall:
-    Out << "__attribute__((stdcall)) ";
-    break;
-   case CallingConv::X86_FastCall:
-    Out << "__attribute__((fastcall)) ";
-    break;
-   case CallingConv::X86_ThisCall:
-    Out << "__attribute__((thiscall)) ";
-    break;
-   default:
-    break;
-  }
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   //const AttributeSet &PAL = F->getAttributes();
   std::string tstr;
@@ -2256,134 +2234,10 @@ void CWriter::visitCallInst(CallInst &I)
 }
 bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee)
 {
-  switch (ID) {
-  default: {
-    const char *BuiltinName = "";
     Function *F = I.getCalledFunction();
-//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, F->getName().str().c_str());
     Out << F->getName() + "BUILTINSTUB";
-//.str().c_str();
     WroteCallee = true;
     return false;
-  }
-  case Intrinsic::vastart:
-    Out << "0; ";
-    Out << "va_start(*(va_list*)";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    if (I.getParent()->getParent()->arg_empty())
-      Out << "vararg_dummy_arg";
-    else
-      writeOperand(--I.getParent()->getParent()->arg_end());
-    Out << ')';
-    return true;
-  case Intrinsic::vaend:
-    if (!isa<ConstantPointerNull>(I.getArgOperand(0))) {
-      Out << "0; va_end(*(va_list*)";
-      writeOperand(I.getArgOperand(0));
-      Out << ')';
-    } else {
-      Out << "va_end(*(va_list*)0)";
-    }
-    return true;
-  case Intrinsic::vacopy:
-    Out << "0; ";
-    Out << "va_copy(*(va_list*)";
-    writeOperand(I.getArgOperand(0));
-    Out << ", *(va_list*)";
-    writeOperand(I.getArgOperand(1));
-    Out << ')';
-    return true;
-  case Intrinsic::returnaddress:
-    Out << "__builtin_return_address(";
-    writeOperand(I.getArgOperand(0));
-    Out << ')';
-    return true;
-  case Intrinsic::frameaddress:
-    Out << "__builtin_frame_address(";
-    writeOperand(I.getArgOperand(0));
-    Out << ')';
-    return true;
-  case Intrinsic::powi:
-    Out << "__builtin_powi(";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    writeOperand(I.getArgOperand(1));
-    Out << ')';
-    return true;
-  case Intrinsic::setjmp:
-    Out << "setjmp(*(jmp_buf*)";
-    writeOperand(I.getArgOperand(0));
-    Out << ')';
-    return true;
-  case Intrinsic::longjmp:
-    Out << "longjmp(*(jmp_buf*)";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    writeOperand(I.getArgOperand(1));
-    Out << ')';
-    return true;
-  case Intrinsic::prefetch:
-    Out << "LLVM_PREFETCH((const void *)";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    writeOperand(I.getArgOperand(1));
-    Out << ", ";
-    writeOperand(I.getArgOperand(2));
-    Out << ")";
-    return true;
-  case Intrinsic::stacksave:
-    Out << "0; *((void**)&" << GetValueName(&I) << ") = __builtin_stack_save()";
-    return true;
-  case Intrinsic::x86_sse_cmp_ss:
-  case Intrinsic::x86_sse_cmp_ps:
-  case Intrinsic::x86_sse2_cmp_sd:
-  case Intrinsic::x86_sse2_cmp_pd:
-    Out << '(';
-    printType(Out, I.getType());
-    Out << ')';
-    switch (cast<ConstantInt>(I.getArgOperand(2))->getZExtValue()) {
-    default: llvm_unreachable("Invalid llvm.x86.sse.cmp!");
-    case 0: Out << "__builtin_ia32_cmpeq"; break;
-    case 1: Out << "__builtin_ia32_cmplt"; break;
-    case 2: Out << "__builtin_ia32_cmple"; break;
-    case 3: Out << "__builtin_ia32_cmpunord"; break;
-    case 4: Out << "__builtin_ia32_cmpneq"; break;
-    case 5: Out << "__builtin_ia32_cmpnlt"; break;
-    case 6: Out << "__builtin_ia32_cmpnle"; break;
-    case 7: Out << "__builtin_ia32_cmpord"; break;
-    }
-    if (ID == Intrinsic::x86_sse_cmp_ps || ID == Intrinsic::x86_sse2_cmp_pd)
-      Out << 'p';
-    else
-      Out << 's';
-    if (ID == Intrinsic::x86_sse_cmp_ss || ID == Intrinsic::x86_sse_cmp_ps)
-      Out << 's';
-    else
-      Out << 'd';
-    Out << "(";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    writeOperand(I.getArgOperand(1));
-    Out << ")";
-    return true;
-  case Intrinsic::ppc_altivec_lvsl:
-    Out << '(';
-    printType(Out, I.getType());
-    Out << ')';
-    Out << "__builtin_altivec_lvsl(0, (void*)";
-    writeOperand(I.getArgOperand(0));
-    Out << ")";
-    return true;
-  case Intrinsic::uadd_with_overflow:
-  case Intrinsic::sadd_with_overflow:
-    Out << GetValueName(I.getCalledFunction()) << "(";
-    writeOperand(I.getArgOperand(0));
-    Out << ", ";
-    writeOperand(I.getArgOperand(1));
-    Out << ")";
-    return true;
-  }
 }
 void CWriter::visitAllocaInst(AllocaInst &I)
 {
@@ -2459,27 +2313,15 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
 }
 void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment)
 {
-  bool IsUnaligned = Alignment &&
-    1; //Alignment < TD->getABITypeAlignment(OperandType);
-  if (!IsUnaligned)
-    Out << '*';
-  if (IsVolatile || IsUnaligned) {
+  Out << '*';
+  if (IsVolatile ) {
     Out << "((";
-    if (IsUnaligned)
-      Out << "struct __attribute__ ((packed, aligned(" << Alignment << "))) {";
-    printType(Out, OperandType, false, IsUnaligned ? "data" : "volatile*");
-    if (IsUnaligned) {
-      Out << "; } ";
-      if (IsVolatile) Out << "volatile ";
-      Out << "*";
-    }
+    printType(Out, OperandType, false, "volatile*");
     Out << ")";
   }
   writeOperand(Operand);
-  if (IsVolatile || IsUnaligned) {
+  if (IsVolatile ) {
     Out << ')';
-    if (IsUnaligned)
-      Out << "->data";
   }
 }
 void CWriter::visitLoadInst(LoadInst &I)
