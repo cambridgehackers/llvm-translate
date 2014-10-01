@@ -123,8 +123,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool writeInstructionCast(const Instruction &I);
     void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
   private :
-    //void lowerIntrinsics(Function &F);
-    void printIntrinsicDefinition(const Function &F, raw_ostream &Out);
     void printModuleTypes();
     void printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &);
     void printFunctionSignature(const Function *F, bool Prototype);
@@ -1668,9 +1666,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   if (!M.empty())
     Out << "\n\n/* Function Bodies */\n";
-  for (SmallVector<const Function*, 8>::const_iterator I = intrinsicsToDefine.begin(), E = intrinsicsToDefine.end(); I != E; ++I) {
-    printIntrinsicDefinition(**I, Out);
-  }
   return false;
 }
 void CWriter::printModuleTypes()
@@ -2090,81 +2085,6 @@ void CWriter::visitSelectInst(SelectInst &I)
   Out << ") : (";
   writeOperand(I.getFalseValue());
   Out << "))";
-}
-static void printLimitValue(IntegerType &Ty, bool isSigned, bool isMax, raw_ostream &Out)
-{
-  const char* type;
-  const char* sprefix = "";
-  unsigned NumBits = Ty.getBitWidth();
-  if (NumBits <= 8) {
-    type = "CHAR";
-    sprefix = "S";
-  } else if (NumBits <= 16) {
-    type = "SHRT";
-  } else if (NumBits <= 32) {
-    type = "INT";
-  } else if (NumBits <= 64) {
-    type = "LLONG";
-  } else {
-    llvm_unreachable("Bit widths > 64 not implemented yet");
-  }
-  if (isSigned)
-    Out << sprefix << type << (isMax ? "_MAX" : "_MIN");
-  else
-    Out << "U" << type << (isMax ? "_MAX" : "0");
-}
-static bool isSupportedIntegerSize(IntegerType &T)
-{
-  return T.getBitWidth() == 8 || T.getBitWidth() == 16 ||
-         T.getBitWidth() == 32 || T.getBitWidth() == 64;
-}
-void CWriter::printIntrinsicDefinition(const Function &F, raw_ostream &Out)
-{
-  FunctionType *funT = F.getFunctionType();
-  Type *retT = F.getReturnType();
-  IntegerType *elemT = cast<IntegerType>(funT->getParamType(1));
-  assert(isSupportedIntegerSize(*elemT) &&
-         "CBackend does not support arbitrary size integers.");
-  assert(cast<StructType>(retT)->getElementType(0) == elemT &&
-         elemT == funT->getParamType(0) && funT->getNumParams() == 2);
-  switch (F.getIntrinsicID()) {
-  default:
-    llvm_unreachable("Unsupported Intrinsic.");
-  case Intrinsic::uadd_with_overflow:
-    Out << "static inline ";
-    printType(Out, retT);
-    Out << GetValueName(&F);
-    Out << "(";
-    printSimpleType(Out, elemT, false);
-    Out << "a,";
-    printSimpleType(Out, elemT, false);
-    Out << "b) {\n  ";
-    printType(Out, retT);
-    Out << "r;\n";
-    Out << "  r.field0 = a + b;\n";
-    Out << "  r.field1 = (r.field0 < a);\n";
-    Out << "  return r;\n}\n";
-    break;
-  case Intrinsic::sadd_with_overflow:
-    Out << "static ";
-    printType(Out, retT);
-    Out << GetValueName(&F);
-    Out << "(";
-    printSimpleType(Out, elemT, true);
-    Out << "a,";
-    printSimpleType(Out, elemT, true);
-    Out << "b) {\n  ";
-    printType(Out, retT);
-    Out << "r;\n";
-    Out << "  r.field1 = (b > 0 && a > ";
-    printLimitValue(*elemT, true, true, Out);
-    Out << " - b) || (b < 0 && a < ";
-    printLimitValue(*elemT, true, false, Out);
-    Out << " - b);\n";
-    Out << "  r.field0 = r.field1 ? 0 : a + b;\n";
-    Out << "  return r;\n}\n";
-    break;
-  }
 }
 void CWriter::visitCallInst(CallInst &I)
 {
