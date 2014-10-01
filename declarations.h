@@ -19,9 +19,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "llvm/IR/Module.h"
+#include <set>
 #include "llvm/DebugInfo.h"
+#include "llvm/InstVisitor.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Support/FormattedStream.h"
 
 #define SEPARATOR ":"
 
@@ -83,6 +87,143 @@ typedef struct {
 } OPERAND_ITEM_TYPE;
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
+
+enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted };
+class CWriter : public FunctionPass, public InstVisitor<CWriter> {
+    formatted_raw_ostream &Out;
+    std::map<const ConstantFP *, unsigned> FPConstantMap;
+    std::set<Function*> intrinsicPrototypesAlreadyGenerated;
+    std::set<const Argument*> ByValParams;
+    unsigned FPCounter;
+    unsigned OpaqueCounter;
+    DenseMap<const Value*, unsigned> AnonValueNumbers;
+    unsigned NextAnonValueNumber;
+    DenseMap<StructType*, unsigned> UnnamedStructIDs;
+  public:
+    static char ID;
+    explicit CWriter(formatted_raw_ostream &o)
+      : FunctionPass(ID), Out(o), OpaqueCounter(0), NextAnonValueNumber(0) {
+      FPCounter = 0;
+    }
+    virtual const char *getPassName() const { return "C backend"; }
+    virtual bool doInitialization(Module &M);
+    bool runOnFunction(Function &F) {
+     //if (F.hasAvailableExternallyLinkage())
+       //return false;
+      //lowerIntrinsics(F);
+      if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
+          printFunction(F);
+if (F.getName() == "_ZN8EchoTest5driveD1Ev") F.dump();
+      return false;
+    }
+    virtual bool doFinalization(Module &M) {
+      FPConstantMap.clear();
+      ByValParams.clear();
+      intrinsicPrototypesAlreadyGenerated.clear();
+      UnnamedStructIDs.clear();
+      return false;
+    }
+    raw_ostream &printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, const AttributeSet &PAL = AttributeSet());
+    raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
+    void printStructReturnPointerFunctionType(raw_ostream &Out, const AttributeSet &PAL, PointerType *Ty);
+    std::string getStructName(StructType *ST);
+    void writeOperandDeref(Value *Operand) {
+      if (isAddressExposed(Operand)) {
+        writeOperandInternal(Operand);
+      } else {
+        Out << "*(";
+        writeOperand(Operand);
+        Out << ")";
+      }
+    }
+    void writeOperand(Value *Operand, bool Static = false);
+    void writeInstComputationInline(Instruction &I);
+    void writeOperandInternal(Value *Operand, bool Static = false);
+    void writeOperandWithCast(Value* Operand, unsigned Opcode);
+    void writeOperandWithCast(Value* Operand, const ICmpInst &I);
+    bool writeInstructionCast(const Instruction &I);
+    void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
+  private :
+    void printModuleTypes();
+    void printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &);
+    void printFunctionSignature(const Function *F, bool Prototype);
+    void printFunction(Function &);
+    void printBasicBlock(BasicBlock *BB);
+    void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
+    void printConstant(Constant *CPV, bool Static);
+    void printConstantWithCast(Constant *CPV, unsigned Opcode);
+    bool printConstExprCast(const ConstantExpr *CE, bool Static);
+    void printConstantArray(ConstantArray *CPA, bool Static);
+    void printConstantVector(ConstantVector *CV, bool Static);
+    bool isAddressExposed(const Value *V) const {
+      if (const Argument *A = dyn_cast<Argument>(V))
+        return ByValParams.count(A);
+      return isa<GlobalVariable>(V) || isDirectAlloca(V);
+    }
+    static bool isInlinableInst(const Instruction &I) {
+      if (isa<CmpInst>(I))
+        return true;
+      if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
+          isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I) ||
+          isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I) ||
+          isa<InsertValueInst>(I))
+        return false;
+      if (I.hasOneUse()) {
+        const Instruction &User = cast<Instruction>(*I.use_back());
+        if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
+          return false;
+      }
+      return I.getParent() == cast<Instruction>(I.use_back())->getParent();
+    }
+    static const AllocaInst *isDirectAlloca(const Value *V) {
+      const AllocaInst *AI = dyn_cast<AllocaInst>(V);
+      if (!AI) return 0;
+      if (AI->isArrayAllocation())
+        return 0;   // FIXME: we can also inline fixed size array allocas!
+      if (AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
+        return 0;
+      return AI;
+    }
+    friend class InstVisitor<CWriter>;
+    void visitReturnInst(ReturnInst &I);
+    void visitBranchInst(BranchInst &I);
+    void visitIndirectBrInst(IndirectBrInst &I);
+    void visitUnreachableInst(UnreachableInst &I);
+    void visitPHINode(PHINode &I);
+    void visitBinaryOperator(Instruction &I);
+    void visitICmpInst(ICmpInst &I);
+    void visitCastInst (CastInst &I);
+    void visitCallInst (CallInst &I);
+    bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
+    void visitAllocaInst(AllocaInst &I);
+    void visitLoadInst  (LoadInst   &I);
+    void visitStoreInst (StoreInst  &I);
+    void visitGetElementPtrInst(GetElementPtrInst &I);
+    void visitInstruction(Instruction &I) {
+      errs() << "C Writer does not know about " << I;
+      llvm_unreachable(0);
+    }
+    bool isGotoCodeNecessary(BasicBlock *From, BasicBlock *To);
+    void printPHICopiesForSuccessor(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent);
+    void printBranchToBlock(BasicBlock *CurBlock, BasicBlock *SuccBlock, unsigned Indent);
+    void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
+    std::string GetValueName(const Value *Operand);
+};
+
+class RemoveAllocaPass : public BasicBlockPass {
+  public:
+    static char ID;
+    RemoveAllocaPass() : BasicBlockPass(ID) {}
+    //~RemoveAllocaPass(): {}
+    bool runOnBasicBlock(BasicBlock &BB);
+// {
+      //(*Out) << Banner << BB;
+      //return false;
+    //}
+    //virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      //AU.setPreservesAll();
+    //}
+};
 
 extern ExecutionEngine *EE;
 extern int trace_translate;

@@ -24,7 +24,6 @@
 
 #include <stdio.h>
 #include <list>
-#include <set>
 #include "llvm/Linker.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/STLExtras.h"
@@ -33,7 +32,6 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
@@ -43,8 +41,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/InstVisitor.h"
 #include "llvm/Support/InstIterator.h"
 
 using namespace llvm;
@@ -67,134 +63,20 @@ static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
-
-enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted };
-class CWriter : public FunctionPass, public InstVisitor<CWriter> {
-    formatted_raw_ostream &Out;
-    std::map<const ConstantFP *, unsigned> FPConstantMap;
-    std::set<Function*> intrinsicPrototypesAlreadyGenerated;
-    std::set<const Argument*> ByValParams;
-    unsigned FPCounter;
-    unsigned OpaqueCounter;
-    DenseMap<const Value*, unsigned> AnonValueNumbers;
-    unsigned NextAnonValueNumber;
-    DenseMap<StructType*, unsigned> UnnamedStructIDs;
-  public:
-    static char ID;
-    explicit CWriter(formatted_raw_ostream &o)
-      : FunctionPass(ID), Out(o), OpaqueCounter(0), NextAnonValueNumber(0) {
-      FPCounter = 0;
-    }
-    virtual const char *getPassName() const { return "C backend"; }
-    virtual bool doInitialization(Module &M);
-    bool runOnFunction(Function &F) {
-     //if (F.hasAvailableExternallyLinkage())
-       //return false;
-      //lowerIntrinsics(F);
-      if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
-          printFunction(F);
-      return false;
-    }
-    virtual bool doFinalization(Module &M) {
-      FPConstantMap.clear();
-      ByValParams.clear();
-      intrinsicPrototypesAlreadyGenerated.clear();
-      UnnamedStructIDs.clear();
-      return false;
-    }
-    raw_ostream &printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, const AttributeSet &PAL = AttributeSet());
-    raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
-    void printStructReturnPointerFunctionType(raw_ostream &Out, const AttributeSet &PAL, PointerType *Ty);
-    std::string getStructName(StructType *ST);
-    void writeOperandDeref(Value *Operand) {
-      if (isAddressExposed(Operand)) {
-        writeOperandInternal(Operand);
-      } else {
-        Out << "*(";
-        writeOperand(Operand);
-        Out << ")";
-      }
-    }
-    void writeOperand(Value *Operand, bool Static = false);
-    void writeInstComputationInline(Instruction &I);
-    void writeOperandInternal(Value *Operand, bool Static = false);
-    void writeOperandWithCast(Value* Operand, unsigned Opcode);
-    void writeOperandWithCast(Value* Operand, const ICmpInst &I);
-    bool writeInstructionCast(const Instruction &I);
-    void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
-  private :
-    void printModuleTypes();
-    void printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &);
-    void printFunctionSignature(const Function *F, bool Prototype);
-    void printFunction(Function &);
-    void printBasicBlock(BasicBlock *BB);
-    void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
-    void printConstant(Constant *CPV, bool Static);
-    void printConstantWithCast(Constant *CPV, unsigned Opcode);
-    bool printConstExprCast(const ConstantExpr *CE, bool Static);
-    void printConstantArray(ConstantArray *CPA, bool Static);
-    void printConstantVector(ConstantVector *CV, bool Static);
-    bool isAddressExposed(const Value *V) const {
-      if (const Argument *A = dyn_cast<Argument>(V))
-        return ByValParams.count(A);
-      return isa<GlobalVariable>(V) || isDirectAlloca(V);
-    }
-    static bool isInlinableInst(const Instruction &I) {
-      if (isa<CmpInst>(I))
-        return true;
-      if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
-          isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I) ||
-          isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I) ||
-          isa<InsertValueInst>(I))
-        return false;
-      if (I.hasOneUse()) {
-        const Instruction &User = cast<Instruction>(*I.use_back());
-        if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
-          return false;
-      }
-      return I.getParent() == cast<Instruction>(I.use_back())->getParent();
-    }
-    static const AllocaInst *isDirectAlloca(const Value *V) {
-      const AllocaInst *AI = dyn_cast<AllocaInst>(V);
-      if (!AI) return 0;
-      if (AI->isArrayAllocation())
-        return 0;   // FIXME: we can also inline fixed size array allocas!
-      if (AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
-        return 0;
-      return AI;
-    }
-    friend class InstVisitor<CWriter>;
-    void visitReturnInst(ReturnInst &I);
-    void visitBranchInst(BranchInst &I);
-    void visitIndirectBrInst(IndirectBrInst &I);
-    void visitUnreachableInst(UnreachableInst &I);
-    void visitPHINode(PHINode &I);
-    void visitBinaryOperator(Instruction &I);
-    void visitICmpInst(ICmpInst &I);
-    void visitCastInst (CastInst &I);
-    void visitCallInst (CallInst &I);
-    bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
-    void visitAllocaInst(AllocaInst &I);
-    void visitLoadInst  (LoadInst   &I);
-    void visitStoreInst (StoreInst  &I);
-    void visitGetElementPtrInst(GetElementPtrInst &I);
-    void visitInstruction(Instruction &I) {
-      errs() << "C Writer does not know about " << I;
-      llvm_unreachable(0);
-    }
-    bool isGotoCodeNecessary(BasicBlock *From, BasicBlock *To);
-    void printPHICopiesForSuccessor(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent);
-    void printBranchToBlock(BasicBlock *CurBlock, BasicBlock *SuccBlock, unsigned Indent);
-    void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
-    std::string GetValueName(const Value *Operand);
-};
 char CWriter::ID = 0;
+char RemoveAllocaPass::ID = 0;
+
+static bool endswith(const char *str, const char *suffix)
+{
+    int skipl = strlen(str) - strlen(suffix);
+    return skipl >= 0 && !strcmp(str + skipl, suffix);
+}
 
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
  */
-static bool opt_runOnBasicBlock(BasicBlock &BB)
+bool RemoveAllocaPass::runOnBasicBlock(BasicBlock &BB)
 {
     bool changed = false;
     BasicBlock::iterator Start = BB.getFirstInsertionPt();
@@ -205,24 +87,9 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
         BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
         int opcode = I->getOpcode();
         Value *retv = (Value *)I;
-        //printf("[%s:%d] OP %d %p;", __FUNCTION__, __LINE__, opcode, retv);
-        //for (unsigned i = 0;  i < I->getNumOperands(); ++i) {
-            //printf(" %p", I->getOperand(i));
-        //}
-        //printf("\n");
         switch (opcode) {
-        case Instruction::Load:
-            {
-            const char *cp = I->getOperand(0)->getName().str().c_str();
-            if (!strcmp(cp, "this")) {
-                retv->replaceAllUsesWith(I->getOperand(0));
-                I->eraseFromParent(); // delete "Load 'this'" instruction
-                changed = true;
-            }
-            }
-            break;
         case Instruction::Alloca:
-            if (I->hasName()) {
+            if (I->hasName() && endswith(I->getName().str().c_str(), ".addr")) {
                 Value *newt = NULL;
                 BasicBlock::iterator PN = PI;
                 while (PN != E) {
@@ -233,14 +100,26 @@ static bool opt_runOnBasicBlock(BasicBlock &BB)
                         if (*OI == retv && newt)
                             *OI = newt;
                     }
+                    PN = PNN;
+                }
+                PN = PI;
+                while (PN != E) {
+                    BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
                     if (PN->getOpcode() == Instruction::Store && PN->getOperand(0) == PN->getOperand(1)) {
                         if (PI == PN)
                             PI = PNN;
                         PN->eraseFromParent(); // delete Store instruction
                     }
+                    if (PN->getOpcode() == Instruction::Load && newt == PN->getOperand(0)) {
+                        Value *v = PN;
+                        v->replaceAllUsesWith(newt);
+                        if (PI == PN)
+                            PI = PNN;
+                        PN->eraseFromParent(); // delete Load instruction
+                    }
                     PN = PNN;
                 }
-                //I->eraseFromParent(); // delete Alloca instruction
+                I->eraseFromParent(); // delete Alloca instruction
                 changed = true;
             }
             break;
@@ -403,9 +282,9 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
     slotmap.clear();
     slotarray_index = 1;
     memset(slotarray, 0, sizeof(slotarray));
-    /* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-        opt_runOnBasicBlock(*I);
+    ///* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
+    //for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
+        //opt_runOnBasicBlock(*I);
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
         F->dump();
@@ -514,12 +393,6 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
             ins = next_ins;
         }
     }
-}
-
-static bool endswith(const char *str, const char *suffix)
-{
-    int skipl = strlen(str) - strlen(suffix);
-    return skipl >= 0 && !strcmp(str + skipl, suffix);
 }
 
 /*
@@ -701,6 +574,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         }
     }
     PassManager Passes;
+
+    Passes.add(new RemoveAllocaPass());
 
     Passes.add(new Foo());
 
