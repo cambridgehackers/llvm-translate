@@ -729,20 +729,6 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
   }
   return Out;
 }
-void CWriter::flushStruct(void)
-{
-    structWork_run = 1;
-    while (structWork.begin() != structWork.end()) {
-        StructType *STy = *structWork.begin();
-        SmallPtrSet<Type *, 16> StructPrinted;
-        std::map<StructType *, int>::iterator FI = structMap.find(STy);
-        if (FI == structMap.end()) {
-            addStructType(STy);
-            printContainedStructs(STy, StructPrinted);
-        }
-        structWork.pop_front();
-    }
-}
 void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
 {
   Type *ETy = CPA->getType()->getElementType();
@@ -1357,20 +1343,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
     }
   }
-//  printModuleTypes();
   NextTypeID = 0;
-  std::vector<StructType*> StructTypes;
-  //TheModule->findUsedStructTypes(StructTypes);
-  if (!StructTypes.empty()) {
-      SmallPtrSet<Type *, 16> StructPrinted;
-      Out << "/* Structure forward decls */\n";
-      for (unsigned i = 0, e = StructTypes.size(); i != e; ++i)
-        addStructType(StructTypes[i]);
-      Out << "\n/* Structure contents */\n";
-      for (unsigned i = 0, e = StructTypes.size(); i != e; ++i)
-        if (StructTypes[i]->isStructTy())
-          printContainedStructs(StructTypes[i], StructPrinted);
-  }
   if (!M.global_empty()) {
     Out << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
@@ -1478,13 +1451,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Out << "\n\n/* Function Bodies */\n";
   return false;
 }
-void CWriter::addStructType(StructType *ST)
-{
-    if (ST->isLiteral() || ST->getName().empty())
-      UnnamedStructIDs[ST] = NextTypeID++;
-    std::string Name = getStructName(ST);
-    Out << "typedef struct " << Name << ' ' << Name << ";\n";
-}
 void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPrinted)
 {
   if (Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
@@ -1500,6 +1466,23 @@ void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPri
         Out << ";\n\n";
     }
   }
+}
+void CWriter::flushStruct(void)
+{
+    structWork_run = 1;
+    while (structWork.begin() != structWork.end()) {
+        StructType *STy = *structWork.begin();
+        SmallPtrSet<Type *, 16> StructPrinted;
+        std::map<StructType *, int>::iterator FI = structMap.find(STy);
+        if (FI == structMap.end()) {
+            if (STy->isLiteral() || STy->getName().empty())
+              UnnamedStructIDs[STy] = NextTypeID++;
+            std::string Name = getStructName(STy);
+            Out << "typedef struct " << Name << ' ' << Name << ";\n";
+            printContainedStructs(STy, StructPrinted);
+        }
+        structWork.pop_front();
+    }
 }
 void CWriter::printFunctionSignature(const Function *F, bool Prototype)
 {
