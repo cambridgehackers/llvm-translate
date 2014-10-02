@@ -99,6 +99,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     DenseMap<const Value*, unsigned> AnonValueNumbers;
     unsigned NextAnonValueNumber;
     DenseMap<StructType*, unsigned> UnnamedStructIDs;
+    unsigned NextTypeID;
   public:
     static char ID;
     explicit CWriter(formatted_raw_ostream &o)
@@ -116,6 +117,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       return false;
     }
     virtual bool doFinalization(Module &M) {
+      flushStruct();
       FPConstantMap.clear();
       ByValParams.clear();
       intrinsicPrototypesAlreadyGenerated.clear();
@@ -143,7 +145,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool writeInstructionCast(const Instruction &I);
     void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
   private :
-    void printModuleTypes();
+    void addStructType(StructType *ST);
     void printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &);
     void printFunctionSignature(const Function *F, bool Prototype);
     void printFunction(Function &);
@@ -154,6 +156,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool printConstExprCast(const ConstantExpr *CE, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
+    void flushStruct(void);
     bool isAddressExposed(const Value *V) const {
       if (const Argument *A = dyn_cast<Argument>(V))
         return ByValParams.count(A);

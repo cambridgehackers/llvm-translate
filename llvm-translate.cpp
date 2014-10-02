@@ -64,6 +64,10 @@ static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
+static std::list<StructType *> structWork;
+static std::map<StructType *, int> structMap;
+static int structWork_run;
+
 char GeneratePass::ID = 0;
 char CWriter::ID = 0;
 char RemoveAllocaPass::ID = 0;
@@ -688,6 +692,8 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
   }
   case Type::StructTyID: {
     StructType *STy = cast<StructType>(Ty);
+    if (!structWork_run)
+        structWork.push_back(STy);
     if (!IgnoreName)
       return Out << getStructName(STy) << ' ' << NameSoFar;
     Out << NameSoFar + " {\n";
@@ -722,6 +728,20 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
     llvm_unreachable("Unhandled case in getTypeProps!");
   }
   return Out;
+}
+void CWriter::flushStruct(void)
+{
+    structWork_run = 1;
+    while (structWork.begin() != structWork.end()) {
+        StructType *STy = *structWork.begin();
+        SmallPtrSet<Type *, 16> StructPrinted;
+        std::map<StructType *, int>::iterator FI = structMap.find(STy);
+        if (FI == structMap.end()) {
+            addStructType(STy);
+            printContainedStructs(STy, StructPrinted);
+        }
+        structWork.pop_front();
+    }
 }
 void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
 {
@@ -1337,7 +1357,20 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
     }
   }
-  printModuleTypes();
+//  printModuleTypes();
+  NextTypeID = 0;
+  std::vector<StructType*> StructTypes;
+  //TheModule->findUsedStructTypes(StructTypes);
+  if (!StructTypes.empty()) {
+      SmallPtrSet<Type *, 16> StructPrinted;
+      Out << "/* Structure forward decls */\n";
+      for (unsigned i = 0, e = StructTypes.size(); i != e; ++i)
+        addStructType(StructTypes[i]);
+      Out << "\n/* Structure contents */\n";
+      for (unsigned i = 0, e = StructTypes.size(); i != e; ++i)
+        if (StructTypes[i]->isStructTy())
+          printContainedStructs(StructTypes[i], StructPrinted);
+  }
   if (!M.global_empty()) {
     Out << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
@@ -1445,27 +1478,12 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Out << "\n\n/* Function Bodies */\n";
   return false;
 }
-void CWriter::printModuleTypes()
+void CWriter::addStructType(StructType *ST)
 {
-  Out << "/* Helper union for bitcasts */\n";
-  std::vector<StructType*> StructTypes;
-  //TheModule->findUsedStructTypes(StructTypes);
-  if (StructTypes.empty()) return;
-  Out << "/* Structure forward decls */\n";
-  unsigned NextTypeID = 0;
-  for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
-    StructType *ST = StructTypes[i];
     if (ST->isLiteral() || ST->getName().empty())
       UnnamedStructIDs[ST] = NextTypeID++;
     std::string Name = getStructName(ST);
     Out << "typedef struct " << Name << ' ' << Name << ";\n";
-  }
-  Out << '\n';
-  SmallPtrSet<Type *, 16> StructPrinted;
-  Out << "/* Structure contents */\n";
-  for (unsigned i = 0, e = StructTypes.size(); i != e; ++i)
-    if (StructTypes[i]->isStructTy())
-      printContainedStructs(StructTypes[i], StructPrinted);
 }
 void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPrinted)
 {
@@ -1475,8 +1493,12 @@ void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPri
     printContainedStructs(*I, StructPrinted);
   if (StructType *ST = dyn_cast<StructType>(Ty)) {
     if (!StructPrinted.insert(Ty)) return;
-    printType(Out, ST, false, getStructName(ST), true);
-    Out << ";\n\n";
+    std::map<StructType *, int>::iterator FI = structMap.find(ST);
+    if (FI == structMap.end()) {
+        structMap[ST] = 1;
+        printType(Out, ST, false, getStructName(ST), true);
+        Out << ";\n\n";
+    }
   }
 }
 void CWriter::printFunctionSignature(const Function *F, bool Prototype)
