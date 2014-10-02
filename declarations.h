@@ -128,15 +128,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
     void printStructReturnPointerFunctionType(raw_ostream &Out, const AttributeSet &PAL, PointerType *Ty);
     std::string getStructName(StructType *ST);
-    void writeOperandDeref(Value *Operand) {
-      if (isAddressExposed(Operand)) {
-        writeOperandInternal(Operand);
-      } else {
-        Out << "*(";
-        writeOperand(Operand, false);
-        Out << ")";
-      }
-    }
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
     void writeOperandInternal(Value *Operand, bool Static = false);
@@ -206,7 +197,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     }
     bool isGotoCodeNecessary(BasicBlock *From, BasicBlock *To);
     void printPHICopiesForSuccessor(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent);
-    void printBranchToBlock(BasicBlock *CurBlock, BasicBlock *SuccBlock, unsigned Indent);
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
     std::string GetValueName(const Value *Operand);
 };

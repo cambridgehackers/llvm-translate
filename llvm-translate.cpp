@@ -1453,19 +1453,23 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPrinted)
 {
-  if (Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
-    return;
-  for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-    printContainedStructs(*I, StructPrinted);
-  if (StructType *STy = dyn_cast<StructType>(Ty)) {
-    if (!StructPrinted.insert(Ty)) return;
-    std::map<StructType *, int>::iterator FI = structMap.find(STy);
-    if (FI == structMap.end()) {
-        structMap[STy] = 1;
-        printType(Out, STy, false, getStructName(STy), true);
-        Out << ";\n\n";
+    if (Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
+        return;
+    for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+        printContainedStructs(*I, StructPrinted);
+    if (StructType *STy = dyn_cast<StructType>(Ty)) {
+        if (!StructPrinted.insert(Ty)) return;
+        std::map<StructType *, int>::iterator FI = structMap.find(STy);
+        if (FI == structMap.end()) {
+            structMap[STy] = 1;
+            if (STy->isLiteral() || STy->getName().empty())
+                UnnamedStructIDs[STy] = NextTypeID++;
+            std::string Name = getStructName(STy);
+            Out << "typedef struct ";
+            printType(Out, STy, false, Name, true);
+            Out << ' ' << Name << ";\n\n";
+        }
     }
-  }
 }
 void CWriter::flushStruct(void)
 {
@@ -1473,14 +1477,7 @@ void CWriter::flushStruct(void)
     while (structWork.begin() != structWork.end()) {
         StructType *STy = *structWork.begin();
         SmallPtrSet<Type *, 16> StructPrinted;
-        std::map<StructType *, int>::iterator FI = structMap.find(STy);
-        if (FI == structMap.end()) {
-            if (STy->isLiteral() || STy->getName().empty())
-              UnnamedStructIDs[STy] = NextTypeID++;
-            std::string Name = getStructName(STy);
-            Out << "typedef struct " << Name << ' ' << Name << ";\n";
-            printContainedStructs(STy, StructPrinted);
-        }
+        printContainedStructs(STy, StructPrinted);
         structWork.pop_front();
     }
 }
@@ -1656,7 +1653,6 @@ void CWriter::visitUnreachableInst(UnreachableInst &I)
 }
 bool CWriter::isGotoCodeNecessary(BasicBlock *From, BasicBlock *To)
 {
-  //return true;
   if (llvm::next(Function::iterator(From)) != Function::iterator(To))
     return true;  // Not the direct successor, we need a goto.
   return false;
@@ -1673,12 +1669,15 @@ void CWriter::printPHICopiesForSuccessor (BasicBlock *CurBlock, BasicBlock *Succ
       Out << ";   /* for PHI node */\n";
     }
   }
+#if 0
+  printBranchToBlock(CurBlock, Successor, Indent);
 }
-void CWriter::printBranchToBlock(BasicBlock *CurBB, BasicBlock *Succ, unsigned Indent)
+void CWriter::printBranchToBlock(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent)
 {
-  if (isGotoCodeNecessary(CurBB, Succ)) {
+#endif
+  if (isGotoCodeNecessary(CurBlock, Successor)) {
     Out << std::string(Indent, ' ') << "  goto ";
-    writeOperand(Succ, false);
+    writeOperand(Successor, false);
     Out << ";\n";
   }
 }
@@ -1690,24 +1689,19 @@ void CWriter::visitBranchInst(BranchInst &I)
       writeOperand(I.getCondition(), false);
       Out << ") {\n";
       printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(0), 2);
-      printBranchToBlock(I.getParent(), I.getSuccessor(0), 2);
       if (isGotoCodeNecessary(I.getParent(), I.getSuccessor(1))) {
         Out << "  } else {\n";
         printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(1), 2);
-        printBranchToBlock(I.getParent(), I.getSuccessor(1), 2);
       }
     } else {
       Out << "  if (!";
       writeOperand(I.getCondition(), false);
       Out << ") {\n";
       printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(1), 2);
-      printBranchToBlock(I.getParent(), I.getSuccessor(1), 2);
     }
     Out << "  }\n";
-  } else {
+  } else
     printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(0), 0);
-    printBranchToBlock(I.getParent(), I.getSuccessor(0), 0);
-  }
   Out << "\n";
 }
 void CWriter::visitPHINode(PHINode &I)
@@ -1816,9 +1810,9 @@ void CWriter::visitCallInst(CallInst &I)
 {
   bool WroteCallee = false;
   if (Function *F = I.getCalledFunction())
-    if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID())
-      if (visitBuiltinCall(I, ID, WroteCallee))
-        return;
+      if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID())
+          if (visitBuiltinCall(I, ID, WroteCallee))
+              return;
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
@@ -1826,8 +1820,15 @@ void CWriter::visitCallInst(CallInst &I)
   bool hasByVal = I.hasByValArgument();
   bool isStructRet = I.hasStructRetAttr();
   if (isStructRet) {
-    writeOperandDeref(I.getArgOperand(0));
-    Out << " = ";
+      Value *Operand = I.getArgOperand(0);
+      if (isAddressExposed(Operand))
+          writeOperandInternal(Operand);
+      else {
+          Out << "*(";
+          writeOperand(Operand, false);
+          Out << ")";
+      }
+      Out << " = ";
   }
   if (I.isTailCall()) Out << " /*tail*/ ";
   if (!WroteCallee) {
