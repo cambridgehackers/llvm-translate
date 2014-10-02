@@ -1457,12 +1457,12 @@ void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPri
     return;
   for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
     printContainedStructs(*I, StructPrinted);
-  if (StructType *ST = dyn_cast<StructType>(Ty)) {
+  if (StructType *STy = dyn_cast<StructType>(Ty)) {
     if (!StructPrinted.insert(Ty)) return;
-    std::map<StructType *, int>::iterator FI = structMap.find(ST);
+    std::map<StructType *, int>::iterator FI = structMap.find(STy);
     if (FI == structMap.end()) {
-        structMap[ST] = 1;
-        printType(Out, ST, false, getStructName(ST), true);
+        structMap[STy] = 1;
+        printType(Out, STy, false, getStructName(STy), true);
         Out << ";\n\n";
     }
   }
