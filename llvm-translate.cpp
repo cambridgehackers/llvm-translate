@@ -65,7 +65,7 @@ static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
 static std::list<StructType *> structWork;
-static std::map<StructType *, int> structMap;
+static std::map<Type *, int> structMap;
 static int structWork_run;
 
 char GeneratePass::ID = 0;
@@ -551,13 +551,13 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     raw_fd_ostream Outc_fd("foo.tmp.xc", ErrorMsg);
-    formatted_raw_ostream Outc(Outc_fd);
+    raw_fd_ostream Outch_fd("foo.tmp.h", ErrorMsg);
 
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());
     Passes.add(new CallProcessPass());
     Passes.add(new GeneratePass());
-    Passes.add(new CWriter(Outc));
+    Passes.add(new CWriter(Outc_fd, Outch_fd));
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
@@ -588,37 +588,6 @@ std::string CWriter::getStructName(StructType *ST)
   if (!ST->isLiteral() && !ST->getName().empty())
     return CBEMangle("l_"+ST->getName().str());
   return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
-}
-void CWriter::printStructReturnPointerFunctionType(raw_ostream &Out, const AttributeSet &PAL, PointerType *TheTy)
-{
-  FunctionType *FTy = cast<FunctionType>(TheTy->getElementType());
-  std::string tstr;
-  raw_string_ostream FunctionInnards(tstr);
-  FunctionInnards << " (*) (";
-  bool PrintedType = false;
-  FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end();
-  Type *RetTy = cast<PointerType>(*I)->getElementType();
-  unsigned Idx = 1;
-  for (++I, ++Idx; I != E; ++I, ++Idx) {
-    if (PrintedType)
-      FunctionInnards << ", ";
-    Type *ArgTy = *I;
-    //if (PAL.paramHasAttr(Idx, Attribute::ByVal)) {
-      //assert(ArgTy->isPointerTy());
-      //ArgTy = cast<PointerType>(ArgTy)->getElementType();
-    //}
-    printType(FunctionInnards, ArgTy, /*isSigned=*/false/*PAL.paramHasAttr(Idx, Attribute::SExt)*/, "");
-    PrintedType = true;
-  }
-  if (FTy->isVarArg()) {
-    if (!PrintedType)
-      FunctionInnards << " int"; //dummy argument for empty vararg functs
-    FunctionInnards << ", ...";
-  } else if (!PrintedType) {
-    FunctionInnards << "void";
-  }
-  FunctionInnards << ')';
-  printType(Out, RetTy, /*isSigned=*/false/*PAL.paramHasAttr(0, Attribute::SExt)*/, FunctionInnards.str());
 }
 raw_ostream & CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar)
 {
@@ -695,7 +664,7 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
     if (!structWork_run)
         structWork.push_back(STy);
     if (!IgnoreName)
-      return Out << getStructName(STy) << ' ' << NameSoFar;
+      return Out << "struct " << getStructName(STy) << ' ' << NameSoFar;
     Out << NameSoFar + " {\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
@@ -1343,7 +1312,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       break;
     }
   }
-  NextTypeID = 0;
   if (!M.global_empty()) {
     Out << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
@@ -1376,6 +1344,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
       continue;
     }
+    if (I->getName() == "main")
+      continue;
     if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
       continue;
     if (I->hasExternalWeakLinkage())
@@ -1383,8 +1353,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     printFunctionSignature(I, true);
     if (I->hasExternalWeakLinkage())
       Out << " __EXTERNAL_WEAK__";
-    if (StaticCtors.count(I))
-      Out << " __ATTRIBUTE_CTOR__";
+    //if (StaticCtors.count(I))
+      //Out << " __ATTRIBUTE_CTOR__";
     if (StaticDtors.count(I))
       Out << " __ATTRIBUTE_DTOR__";
     if (I->hasHiddenVisibility())
@@ -1451,33 +1421,35 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Out << "\n\n/* Function Bodies */\n";
   return false;
 }
-void CWriter::printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &StructPrinted)
+void CWriter::printContainedStructs(Type *Ty)
 {
-    if (Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
+    if (Ty->isPointerTy()) {
+        PointerType *PTy = cast<PointerType>(Ty);
+        printContainedStructs(PTy->getElementType());
         return;
+    }
+    if (Ty->isPrimitiveType() || Ty->isIntegerTy())
+        return;
+    std::map<Type *, int>::iterator FI = structMap.find(Ty);
+    if (FI != structMap.end())
+        return;
+    structMap[Ty] = 1;
     for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-        printContainedStructs(*I, StructPrinted);
+        printContainedStructs(*I);
     if (StructType *STy = dyn_cast<StructType>(Ty)) {
-        if (!StructPrinted.insert(Ty)) return;
-        std::map<StructType *, int>::iterator FI = structMap.find(STy);
-        if (FI == structMap.end()) {
-            structMap[STy] = 1;
             if (STy->isLiteral() || STy->getName().empty())
                 UnnamedStructIDs[STy] = NextTypeID++;
             std::string Name = getStructName(STy);
-            Out << "typedef struct ";
-            printType(Out, STy, false, Name, true);
-            Out << ' ' << Name << ";\n\n";
-        }
+            OutHeader << "typedef struct ";
+            printType(OutHeader, STy, false, Name, true);
+            OutHeader << ' ' << Name << ";\n\n";
     }
 }
 void CWriter::flushStruct(void)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
-        StructType *STy = *structWork.begin();
-        SmallPtrSet<Type *, 16> StructPrinted;
-        printContainedStructs(STy, StructPrinted);
+        printContainedStructs(*structWork.begin());
         structWork.pop_front();
     }
 }
@@ -1841,8 +1813,10 @@ void CWriter::visitCallInst(CallInst &I)
         }
     if (NeedsCast) {
       Out << "((";
-      if (isStructRet)
-        printStructReturnPointerFunctionType(Out, PAL, cast<PointerType>(I.getCalledValue()->getType()));
+      if (isStructRet) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       else if (hasByVal)
         printType(Out, I.getCalledValue()->getType(), false, "", true, PAL);
       else

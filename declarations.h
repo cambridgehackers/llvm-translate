@@ -90,28 +90,20 @@ enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeStrin
 
 enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted };
 class CWriter : public FunctionPass, public InstVisitor<CWriter> {
-    formatted_raw_ostream &Out;
+    raw_fd_ostream &Out;
+    raw_fd_ostream &OutHeader;
     std::map<const ConstantFP *, unsigned> FPConstantMap;
-    std::set<Function*> intrinsicPrototypesAlreadyGenerated;
-    std::set<const Argument*> ByValParams;
-    unsigned FPCounter;
-    unsigned OpaqueCounter;
     DenseMap<const Value*, unsigned> AnonValueNumbers;
     unsigned NextAnonValueNumber;
     DenseMap<StructType*, unsigned> UnnamedStructIDs;
     unsigned NextTypeID;
   public:
     static char ID;
-    explicit CWriter(formatted_raw_ostream &o)
-      : FunctionPass(ID), Out(o), OpaqueCounter(0), NextAnonValueNumber(0) {
-      FPCounter = 0;
-    }
+    explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
+      : FunctionPass(ID), Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(0) { }
     virtual const char *getPassName() const { return "C backend"; }
     virtual bool doInitialization(Module &M);
     bool runOnFunction(Function &F) {
-     //if (F.hasAvailableExternallyLinkage())
-       //return false;
-      //lowerIntrinsics(F);
       if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
           printFunction(F);
       return false;
@@ -119,14 +111,11 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     virtual bool doFinalization(Module &M) {
       flushStruct();
       FPConstantMap.clear();
-      ByValParams.clear();
-      intrinsicPrototypesAlreadyGenerated.clear();
       UnnamedStructIDs.clear();
       return false;
     }
     raw_ostream &printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, const AttributeSet &PAL = AttributeSet());
     raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
-    void printStructReturnPointerFunctionType(raw_ostream &Out, const AttributeSet &PAL, PointerType *Ty);
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
@@ -136,7 +125,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool writeInstructionCast(const Instruction &I);
     void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
   private :
-    void printContainedStructs(Type *Ty, SmallPtrSet<Type *, 16> &);
+    void printContainedStructs(Type *Ty);
     void printFunctionSignature(const Function *F, bool Prototype);
     void printFunction(Function &);
     void printBasicBlock(BasicBlock *BB);
@@ -148,8 +137,8 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printConstantVector(ConstantVector *CV, bool Static);
     void flushStruct(void);
     bool isAddressExposed(const Value *V) const {
-      if (const Argument *A = dyn_cast<Argument>(V))
-        return ByValParams.count(A);
+      //if (const Argument *A = dyn_cast<Argument>(V))
+        //return ByValParams.count(A);
       return isa<GlobalVariable>(V) || isDirectAlloca(V);
     }
     static bool isInlinableInst(const Instruction &I) {
