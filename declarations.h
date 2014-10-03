@@ -133,6 +133,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printConstant(Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode);
     bool printConstExprCast(const ConstantExpr *CE, bool Static);
+    void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
     void flushStruct(void);

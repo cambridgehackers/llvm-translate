@@ -581,6 +581,7 @@ static std::string CBEMangle(const std::string &S)
       Result += 'A'+((S[i]>>4)&15);
       Result += '_';
     }
+//printf("[%s:%d] in %s out %s\n", __FUNCTION__, __LINE__, S.c_str(), Result.c_str());
   return Result;
 }
 std::string CWriter::getStructName(StructType *ST)
@@ -711,6 +712,54 @@ void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
     bool LastWasHex = false;
     for (unsigned i = 0, e = CPA->getNumOperands()-1; i != e; ++i) {
       unsigned char C = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
+      if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
+        LastWasHex = false;
+        if (C == '"' || C == '\\')
+          Out << "\\" << (char)C;
+        else
+          Out << (char)C;
+      } else {
+        LastWasHex = false;
+        switch (C) {
+        case '\n': Out << "\\n"; break;
+        case '\t': Out << "\\t"; break;
+        case '\r': Out << "\\r"; break;
+        case '\v': Out << "\\v"; break;
+        case '\a': Out << "\\a"; break;
+        case '\"': Out << "\\\""; break;
+        case '\'': Out << "\\\'"; break;
+        default:
+          Out << "\\x";
+          Out << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
+          Out << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
+          LastWasHex = true;
+          break;
+        }
+      }
+    }
+    Out << '\"';
+  } else {
+    Out << '{';
+    if (CPA->getNumOperands()) {
+      Out << ' ';
+      printConstant(cast<Constant>(CPA->getOperand(0)), Static);
+      for (unsigned i = 1, e = CPA->getNumOperands(); i != e; ++i) {
+        Out << ", ";
+        printConstant(cast<Constant>(CPA->getOperand(i)), Static);
+      }
+    }
+    Out << " }";
+  }
+}
+void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
+{
+  if (CPA->isString()) {
+    StringRef value = CPA->getAsString();
+const char *cp = value.str().c_str();
+    Out << '\"';
+    bool LastWasHex = false;
+    for (unsigned i = 0, e = value.str().length(); i != e; ++i) {
+      unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
         LastWasHex = false;
         if (C == '"' || C == '\\')
@@ -971,8 +1020,13 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
       printConstantArray(CA, Static);
     }
+    else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+      printConstantDataArray(CA, Static);
+    }
     else if(!isa<ConstantAggregateZero>(CPV) && !isa<UndefValue>(CPV)) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, CPV->getValueID());
+CPV->dump();
+exit(1);
     } else {
       assert(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
       ArrayType *AT = cast<ArrayType>(CPV->getType());
