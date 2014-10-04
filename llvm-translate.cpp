@@ -666,14 +666,17 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
         structWork.push_back(STy);
     if (!IgnoreName)
       return Out << "struct " << getStructName(STy) << ' ' << NameSoFar;
-    Out << NameSoFar + " {\n";
+    //Out << NameSoFar + " {\n";
+    std::string lname = strdup(NameSoFar.c_str());
+    Out << "struct {\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
       Out << "  ";
       printType(Out, *I, false, "field" + utostr(Idx++));
       Out << ";\n";
     }
-    Out << '}';
+    Out << "} ";
+    Out << lname;
     return Out;
   }
   case Type::PointerTyID: {
@@ -690,9 +693,12 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
     ArrayType *ATy = cast<ArrayType>(Ty);
     unsigned NumElements = ATy->getNumElements();
     if (NumElements == 0) NumElements = 1;
-    Out << NameSoFar << " { ";
+    //Out << NameSoFar << " { ";
+    std::string lname = strdup(NameSoFar.c_str());
+    Out << "struct { ";
     printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]");
-    return Out << "; }";
+    Out << "; } ";
+    return Out << lname;
   }
   default:
     llvm_unreachable("Unhandled case in getTypeProps!");
@@ -1417,6 +1423,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       Out << " LLVM_ASM(\"" << I->getName().substr(1) << "\")";
     Out << ";\n";
   }
+#if 0 // not needed?
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Declarations */\n";
     if (printout_initialization)
@@ -1438,6 +1445,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         Out << ";\n";
       }
   }
+#endif
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
