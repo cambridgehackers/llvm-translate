@@ -666,12 +666,13 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     StructType *STy = cast<StructType>(Ty);
     if (!structWork_run)
         structWork.push_back(STy);
-    if (!IgnoreName) {
+    //if (!IgnoreName || (!strncmp(getStructName(STy).c_str(), "l_unnamed_", 10) && getStructName(STy) != NameSoFar)) {
+    if (!IgnoreName || (!strncmp(getStructName(STy).c_str(), "l_", 2) && getStructName(STy) != NameSoFar)) {
       Out << "struct " << getStructName(STy) << ' ' << NameSoFar;
       break;
     }
     std::string lname = strdup(NameSoFar.c_str());
-    Out << "struct " << lname << " {\n";
+    Out << "struct " << getStructName(STy) << " {\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
       Out << "  ";
@@ -679,9 +680,6 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
       Out << ";\n";
     }
     Out << "} ";
-//Out << "KKKJJJ ";
-//Out << isStatic;
-//Out << " JJKKK";
     if (isStatic)
         break;
     Out << lname;
@@ -712,9 +710,6 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     Out << "struct " << lname << " {\n";
     printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, 0);
     Out << "; } ";
-//Out << "KKKJJJ2 ";
-//Out << isStatic;
-//Out << " JJKKK";
     if (isStatic)
         break;
     Out << lname;
@@ -1428,6 +1423,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     if (I->getName() == "main" || I->getName() == "atexit")
       continue;
+    if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
+      continue;
     if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
       continue;
     if (I->hasExternalWeakLinkage())
@@ -1445,7 +1442,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       Out << " LLVM_ASM(\"" << I->getName().substr(1) << "\")";
     Out << ";\n";
   }
-#if 1 // not needed?
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Declarations */\n";
     if (printout_initialization)
@@ -1460,9 +1456,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           Out << "extern ";
         if (I->isThreadLocal())
           Out << "__thread ";
-//Out << "JJJJJJJJJ ";
-//Out << (I->hasLocalLinkage()?1:0);
-//Out << " JJJJJ";
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
         if (I->hasExternalWeakLinkage())
           Out << " __EXTERNAL_WEAK__";
@@ -1471,7 +1464,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         Out << ";\n";
       }
   }
-#endif
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
@@ -1486,6 +1478,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           Out << "__declspec(dllexport) ";
         if (I->isThreadLocal())
           Out << "__thread ";
+        if (GetValueName(I) == "stop_main_program")
+            continue;
         //printType(Out, I->getType()->getElementType(), false, GetValueName(I));
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, 0);
         if (I->hasHiddenVisibility())
@@ -1908,6 +1902,8 @@ void CWriter::visitCallInst(CallInst &I)
     if (NeedsCast) Out << ')';
   }
   Out << '(';
+  if (Callee->getName() == "printf")
+      Out << "(const char *) ";
   bool PrintedArg = false;
   if(FTy->isVarArg() && !FTy->getNumParams()) {
     Out << "0 /*dummy arg*/";
@@ -1937,11 +1933,9 @@ void CWriter::visitCallInst(CallInst &I)
 bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee)
 {
     Function *F = I.getCalledFunction();
-    bool was_dbg = !strcmp(F->getName().str().c_str(), "llvm.dbg.declare");
-    if (!was_dbg)
     Out << F->getName() + "BUILTINSTUB";
     WroteCallee = true;
-    return was_dbg;
+    return 0;
 }
 void CWriter::visitAllocaInst(AllocaInst &I)
 {
