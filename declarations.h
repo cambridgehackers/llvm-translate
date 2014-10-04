@@ -100,7 +100,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
   public:
     static char ID;
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
-      : FunctionPass(ID), Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(0) { }
+      : FunctionPass(ID), Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
     virtual const char *getPassName() const { return "C backend"; }
     virtual bool doInitialization(Module &M);
     bool runOnFunction(Function &F) {
@@ -114,7 +114,8 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       UnnamedStructIDs.clear();
       return false;
     }
-    raw_ostream &printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, const AttributeSet &PAL = AttributeSet());
+    //void printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, int isStatic = 0);
+    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &VariableName, bool IgnoreName, bool isStatic);
     raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
