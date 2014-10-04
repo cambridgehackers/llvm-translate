@@ -668,7 +668,7 @@ raw_ostream &CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const
       return Out << "struct " << getStructName(STy) << ' ' << NameSoFar;
     //Out << NameSoFar + " {\n";
     std::string lname = strdup(NameSoFar.c_str());
-    Out << "struct {\n";
+    Out << "struct " << lname << " {\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
       Out << "  ";
@@ -764,7 +764,10 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
 const char *cp = value.str().c_str();
     Out << '\"';
     bool LastWasHex = false;
-    for (unsigned i = 0, e = value.str().length(); i != e; ++i) {
+    int len = value.str().length();
+    if (!cp[len-1])
+        len--;
+    for (unsigned i = 0, e = len; i != e; ++i) {
       unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
         LastWasHex = false;
@@ -1502,9 +1505,10 @@ void CWriter::printContainedStructs(Type *Ty)
             if (STy->isLiteral() || STy->getName().empty())
                 UnnamedStructIDs[STy] = NextTypeID++;
             std::string Name = getStructName(STy);
-            OutHeader << "typedef struct ";
+            OutHeader << "typedef ";
             printType(OutHeader, STy, false, Name, true);
-            OutHeader << ' ' << Name << ";\n\n";
+            //OutHeader << ' ' << Name << ";\n\n";
+            OutHeader << ";\n\n";
     }
 }
 void CWriter::flushStruct(void)
@@ -1703,12 +1707,6 @@ void CWriter::printPHICopiesForSuccessor (BasicBlock *CurBlock, BasicBlock *Succ
       Out << ";   /* for PHI node */\n";
     }
   }
-#if 0
-  printBranchToBlock(CurBlock, Successor, Indent);
-}
-void CWriter::printBranchToBlock(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent)
-{
-#endif
   if (isGotoCodeNecessary(CurBlock, Successor)) {
     Out << std::string(Indent, ' ') << "  goto ";
     writeOperand(Successor, false);
