@@ -1,0 +1,2 @@
+#
+clang++-mp-3.3 -g test/foo.tmp.cpp 
