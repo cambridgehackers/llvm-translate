@@ -1292,9 +1292,10 @@ void CWriter::visitCallInst(CallInst &I)
 {
   bool WroteCallee = false;
   if (Function *F = I.getCalledFunction())
-      if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID())
-          if (visitBuiltinCall(I, ID, WroteCallee))
-              return;
+      if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID()) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
@@ -1363,13 +1364,6 @@ void CWriter::visitCallInst(CallInst &I)
     PrintedArg = true;
   }
   Out << ')';
-}
-bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee)
-{
-    Function *F = I.getCalledFunction();
-    Out << F->getName() + "BUILTINSTUB";
-    WroteCallee = true;
-    return 0;
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {

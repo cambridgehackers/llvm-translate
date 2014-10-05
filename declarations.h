@@ -174,7 +174,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void visitICmpInst(ICmpInst &I);
     void visitCastInst (CastInst &I);
     void visitCallInst (CallInst &I);
-    bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
     void visitLoadInst  (LoadInst   &I);
     void visitStoreInst (StoreInst  &I);
     void visitGetElementPtrInst(GetElementPtrInst &I);
