@@ -739,19 +739,19 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 bool CWriter::writeInstructionCast(const Instruction &I)
 {
   Type *Ty = I.getOperand(0)->getType();
+  bool typeIsSigned = false;
   switch (I.getOpcode()) {
   case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
   case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
-    Out << "((";
-    printSimpleType(Out, Ty, false, "");
     break;
   case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
-    Out << "((";
-    printSimpleType(Out, Ty, true, "");
+    typeIsSigned = true;
     break;
   default:
     return false;
   }
+  Out << "((";
+  printSimpleType(Out, Ty, typeIsSigned, "");
   Out << ")(";
   return true;
 }
@@ -766,7 +766,6 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
     case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
     case Instruction::LShr: case Instruction::UDiv:
     case Instruction::URem: // Cast to unsigned first
-      castIsSigned = false;
       break;
     case Instruction::GetElementPtr: case Instruction::AShr: case Instruction::SDiv:
     case Instruction::SRem: // Cast to signed first
@@ -798,22 +797,6 @@ void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
   Out << ")";
   writeOperand(Operand, false);
   Out << ")";
-}
-static void FindStaticTors(GlobalVariable *GV, std::set<Function*> &StaticTors){
-  ConstantArray *InitList = dyn_cast<ConstantArray>(GV->getInitializer());
-  if (!InitList) return;
-  for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i)
-    if (ConstantStruct *CS = dyn_cast<ConstantStruct>(InitList->getOperand(i))){
-      if (CS->getNumOperands() != 2) return;  // Not array of 2-element structs.
-      if (CS->getOperand(1)->isNullValue())
-        return;  // Found a null terminator, exit printing.
-      Constant *FP = CS->getOperand(1);
-      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(FP))
-        if (CE->isCast())
-          FP = CE->getOperand(0);
-      if (Function *F = dyn_cast<Function>(FP))
-        StaticTors.insert(F);
-    }
 }
 static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
 {
@@ -979,15 +962,14 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
   bool PrintedArg = false;
+  if (isStructReturn || FT->isVarArg()) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
+  }
   if (!F->isDeclaration()) {
     if (!F->arg_empty()) {
       Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end();
       unsigned Idx = 1;
-      if (isStructReturn) {
-        assert(I != E && "Invalid struct return function!");
-        ++I;
-        ++Idx;
-      }
       std::string ArgName;
       for (; I != E; ++I) {
         if (PrintedArg) FunctionInnards << ", ";
@@ -1004,11 +986,6 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   } else {
     FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end();
     unsigned Idx = 1;
-    if (isStructReturn) {
-      assert(I != E && "Invalid struct return function!");
-      ++I;
-      ++Idx;
-    }
     for (; I != E; ++I) {
       if (PrintedArg) FunctionInnards << ", ";
       Type *ArgTy = *I;
@@ -1017,20 +994,10 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
       ++Idx;
     }
   }
-  if (FT->isVarArg()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-  }
-  if (!PrintedArg) {
+  if (!PrintedArg)
     FunctionInnards << "void"; // ret() -> ret(void) in C.
-  }
   FunctionInnards << ')';
-  Type *RetTy;
-  if (!isStructReturn)
-    RetTy = F->getReturnType();
-  else {
-    RetTy = cast<PointerType>(FT->getParamType(0))->getElementType();
-  }
+  Type *RetTy = F->getReturnType();
   printType(Out, RetTy, /*isSigned=*/false, FunctionInnards.str(), false, 0);
 }
 void CWriter::printFunction(Function &F)
@@ -1039,14 +1006,8 @@ void CWriter::printFunction(Function &F)
   printFunctionSignature(&F, false);
   Out << " {\n";
   if (isStructReturn) {
-    Type *StructTy =
-      cast<PointerType>(F.arg_begin()->getType())->getElementType();
-    Out << "  ";
-    printType(Out, StructTy, false, "StructReturn", false, 0);
-    Out << ";  /* Struct return temporary */\n";
-    Out << "  ";
-    printType(Out, F.arg_begin()->getType(), false, GetValueName(F.arg_begin()), false, 0);
-    Out << " = &StructReturn;\n";
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
   }
   bool PrintedVar = false;
   for (inst_iterator I = inst_begin(&F), E = inst_end(&F); I != E; ++I) {
@@ -1095,8 +1056,8 @@ void CWriter::visitReturnInst(ReturnInst &I)
 {
   bool isStructReturn = I.getParent()->getParent()->hasStructRetAttr();
   if (isStructReturn) {
-    Out << "  return StructReturn;\n";
-    return;
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
   }
   if (I.getNumOperands() == 0 &&
       &*--I.getParent()->getParent()->end() == I.getParent() &&
@@ -1219,19 +1180,12 @@ void CWriter::visitCallInst(CallInst &I)
   bool hasByVal = I.hasByValArgument();
   bool isStructRet = I.hasStructRetAttr();
   if (isStructRet) {
-      Value *Operand = I.getArgOperand(0);
-      if (isAddressExposed(Operand))
-          writeOperandInternal(Operand);
-      else {
-          Out << "*(";
-          writeOperand(Operand, false);
-          Out << ")";
-      }
-      Out << " = ";
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
   }
   if (I.isTailCall()) Out << " /*tail*/ ";
   if (!WroteCallee) {
-    bool NeedsCast = (hasByVal || isStructRet) && !isa<Function>(Callee);
+    bool NeedsCast = (hasByVal ) && !isa<Function>(Callee);
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee))
       if (CE->isCast())
         if (Function *RF = dyn_cast<Function>(CE->getOperand(0))) {
@@ -1240,14 +1194,7 @@ void CWriter::visitCallInst(CallInst &I)
         }
     if (NeedsCast) {
       Out << "((";
-      if (isStructRet) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      else if (hasByVal)
-        printType(Out, I.getCalledValue()->getType(), false, "", true, 0);
-      else
-        printType(Out, I.getCalledValue()->getType(), false, "", false, 0);
+      printType(Out, I.getCalledValue()->getType(), false, "", hasByVal, 0);
       Out << ")(void*)";
     }
     writeOperand(Callee, false);
@@ -1265,10 +1212,6 @@ void CWriter::visitCallInst(CallInst &I)
   CallSite CS(&I);
   CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
   unsigned ArgNo = 0;
-  if (isStructRet) {   // Skip struct return argument.
-    ++AI;
-    ++ArgNo;
-  }
   for (; AI != AE; ++AI, ++ArgNo) {
     if (PrintedArg) Out << ", ";
     if (ArgNo < NumDeclaredParams &&
