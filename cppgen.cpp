@@ -135,12 +135,13 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     StructType *STy = cast<StructType>(Ty);
     if (!structWork_run)
         structWork.push_back(STy);
+    Out << "struct " << getStructName(STy) << " ";
     if (!IgnoreName || (!strncmp(getStructName(STy).c_str(), "l_", 2) && getStructName(STy) != NameSoFar)) {
-      Out << "struct " << getStructName(STy) << ' ' << NameSoFar;
+      Out << NameSoFar;
       break;
     }
     std::string lname = strdup(NameSoFar.c_str());
-    Out << "struct " << getStructName(STy) << " {\n";
+    Out << "{\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
       Out << "  ";
@@ -148,9 +149,25 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
       Out << ";\n";
     }
     Out << "} ";
-    if (isStatic)
-        break;
-    Out << lname;
+    if (!isStatic)
+        Out << lname;
+    break;
+  }
+  case Type::ArrayTyID: {
+    ArrayType *ATy = cast<ArrayType>(Ty);
+    unsigned NumElements = ATy->getNumElements();
+    if (NumElements == 0) NumElements = 1;
+    Out << "struct " << NameSoFar << " ";
+    if (!IgnoreName) {
+      Out << NameSoFar;
+      break;
+    }
+    std::string lname = strdup(NameSoFar.c_str());
+    Out << "{\n";
+    printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, 0);
+    Out << "; } ";
+    if (!isStatic)
+        Out << lname;
     break;
   }
   case Type::PointerTyID: {
@@ -159,23 +176,6 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
       ptrName = "(" + ptrName + ")";
     printType(Out, PTy->getElementType(), false, ptrName, false, 0);
-    break;
-  }
-  case Type::ArrayTyID: {
-    ArrayType *ATy = cast<ArrayType>(Ty);
-    unsigned NumElements = ATy->getNumElements();
-    if (NumElements == 0) NumElements = 1;
-    if (!IgnoreName) {
-      Out << "struct " /*<< getStructName(STy) << ' '*/ << NameSoFar << " " << NameSoFar;
-      break;
-    }
-    std::string lname = strdup(NameSoFar.c_str());
-    Out << "struct " << lname << " {\n";
-    printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, 0);
-    Out << "; } ";
-    if (isStatic)
-        break;
-    Out << lname;
     break;
   }
   default:
