@@ -602,18 +602,19 @@ void CWriter::printConstant(Constant *CPV, bool Static)
 }
 bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
 {
-  bool NeedsExplicitCast = false;
   Type *Ty = CE->getOperand(0)->getType();
   bool TypeIsSigned = false;
   switch (CE->getOpcode()) {
   case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
   case Instruction::LShr: case Instruction::URem:
-  case Instruction::UDiv: NeedsExplicitCast = true; break;
+  case Instruction::UDiv: 
+    break;
   case Instruction::AShr: case Instruction::SRem:
-  case Instruction::SDiv: NeedsExplicitCast = true; TypeIsSigned = true; break;
+  case Instruction::SDiv: 
+    TypeIsSigned = true; 
+    break;
   case Instruction::SExt:
     Ty = CE->getType();
-    NeedsExplicitCast = true;
     TypeIsSigned = true;
     break;
   case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
@@ -621,19 +622,16 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
   case Instruction::FPToUI: case Instruction::FPToSI: case Instruction::PtrToInt:
   case Instruction::IntToPtr: case Instruction::BitCast:
     Ty = CE->getType();
-    NeedsExplicitCast = true;
     break;
-  default: break;
+  default: return false;
   }
-  if (NeedsExplicitCast) {
-    Out << "((";
-    if (Ty->isIntegerTy() && Ty != Type::getInt1Ty(Ty->getContext()))
+  Out << "((";
+  if (Ty->isIntegerTy() && Ty != Type::getInt1Ty(Ty->getContext()))
       printSimpleType(Out, Ty, TypeIsSigned, "");
-    else
+  else
       printType(Out, Ty, false, "", false, 0); // not integer, sign doesn't matter
-    Out << ")(";
-  }
-  return NeedsExplicitCast;
+  Out << ")(";
+  return true;
 }
 void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
 {
@@ -1096,8 +1094,7 @@ void CWriter::printFunction(Function &F)
 }
 void CWriter::printBasicBlock(BasicBlock *BB)
 {
-  bool NeedsLabel = true; //false;
-  if (NeedsLabel) Out << GetValueName(BB) << ":\n";
+  Out << GetValueName(BB) << ":\n";
   for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
     if (!isInlinableInst(*II) && !isDirectAlloca(II)) {
       if (II->getType() != Type::getVoidTy(BB->getContext()))
