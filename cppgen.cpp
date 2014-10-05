@@ -32,8 +32,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int printout_initialization = 1;
-
 static std::list<StructType *> structWork;
 static std::map<Type *, int> structMap;
 static int structWork_run;
@@ -64,6 +62,7 @@ std::string CWriter::getStructName(StructType *ST)
 }
 void CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar)
 {
+  const char *sp = (isSigned?"signed":"unsigned");
 restart_label:
   assert((Ty->isPrimitiveType() || Ty->isIntegerTy() || Ty->isVectorTy()) &&
          "Invalid type for printSimpleType");
@@ -73,20 +72,17 @@ restart_label:
       break;
   case Type::IntegerTyID: {
       unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+      assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
       if (NumBits == 1)
         Out << "bool";
       else if (NumBits <= 8)
-        Out << (isSigned?"signed":"unsigned") << " char";
+        Out << sp << " char";
       else if (NumBits <= 16)
-        Out << (isSigned?"signed":"unsigned") << " short";
+        Out << sp << " short";
       else if (NumBits <= 32)
-        Out << (isSigned?"signed":"unsigned") << " int";
+        Out << sp << " int";
       else if (NumBits <= 64)
-        Out << (isSigned?"signed":"unsigned") << " long long";
-      else {
-        assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
-        Out << (isSigned?"llvmInt128":"llvmUInt128");
-      }
+        Out << sp << " long long";
       }
       break;
   case Type::VectorTyID: {
@@ -186,68 +182,13 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     llvm_unreachable("Unhandled case in getTypeProps!");
   }
 }
-void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
+
+void CWriter::printString(const char *cp, int len)
 {
-  Type *ETy = CPA->getType()->getElementType();
-  bool isString = (ETy == Type::getInt8Ty(CPA->getContext()) ||
-                   ETy == Type::getInt8Ty(CPA->getContext()));
-  if (isString && (CPA->getNumOperands() == 0 ||
-                   !cast<Constant>(*(CPA->op_end()-1))->isNullValue()))
-    isString = false;
-  if (isString) {
-    Out << '\"';
-    bool LastWasHex = false;
-    for (unsigned i = 0, e = CPA->getNumOperands()-1; i != e; ++i) {
-      unsigned char C = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
-      if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
-        LastWasHex = false;
-        if (C == '"' || C == '\\')
-          Out << "\\" << (char)C;
-        else
-          Out << (char)C;
-      } else {
-        LastWasHex = false;
-        switch (C) {
-        case '\n': Out << "\\n"; break;
-        case '\t': Out << "\\t"; break;
-        case '\r': Out << "\\r"; break;
-        case '\v': Out << "\\v"; break;
-        case '\a': Out << "\\a"; break;
-        case '\"': Out << "\\\""; break;
-        case '\'': Out << "\\\'"; break;
-        default:
-          Out << "\\x";
-          Out << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
-          Out << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
-          LastWasHex = true;
-          break;
-        }
-      }
-    }
-    Out << '\"';
-  } else {
-    Out << '{';
-    if (CPA->getNumOperands()) {
-      Out << ' ';
-      printConstant(cast<Constant>(CPA->getOperand(0)), Static);
-      for (unsigned i = 1, e = CPA->getNumOperands(); i != e; ++i) {
-        Out << ", ";
-        printConstant(cast<Constant>(CPA->getOperand(i)), Static);
-      }
-    }
-    Out << " }";
-  }
-}
-void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
-{
-  if (CPA->isString()) {
-    StringRef value = CPA->getAsString();
-const char *cp = value.str().c_str();
-    Out << '\"';
-    bool LastWasHex = false;
-    int len = value.str().length();
     if (!cp[len-1])
         len--;
+    Out << '\"';
+    bool LastWasHex = false;
     for (unsigned i = 0, e = len; i != e; ++i) {
       unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
@@ -276,6 +217,42 @@ const char *cp = value.str().c_str();
       }
     }
     Out << '\"';
+}
+
+void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
+{
+  int len = CPA->getNumOperands();
+  Type *ETy = CPA->getType()->getElementType();
+  bool isString = (ETy == Type::getInt8Ty(CPA->getContext()) ||
+                   ETy == Type::getInt8Ty(CPA->getContext()));
+  if (isString && (CPA->getNumOperands() == 0 ||
+                   !cast<Constant>(*(CPA->op_end()-1))->isNullValue()))
+    isString = false;
+  if (isString) {
+    char *cp = (char *)malloc(len);
+    for (unsigned i = 0, e = CPA->getNumOperands()-1; i != e; ++i)
+        cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
+    printString(cp, len);
+    free(cp);
+  } else {
+    Out << '{';
+    if (CPA->getNumOperands()) {
+      Out << ' ';
+      printConstant(cast<Constant>(CPA->getOperand(0)), Static);
+      for (unsigned i = 1, e = CPA->getNumOperands(); i != e; ++i) {
+        Out << ", ";
+        printConstant(cast<Constant>(CPA->getOperand(i)), Static);
+      }
+    }
+    Out << " }";
+  }
+}
+void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
+{
+  if (CPA->isString()) {
+    StringRef value = CPA->getAsString();
+    const char *cp = value.str().c_str();
+    printString(cp, value.str().length());
   } else {
     Out << '{';
     if (CPA->getNumOperands()) {
@@ -834,7 +811,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   }
   Out << "\n/* Function Declarations */\n";
   SmallVector<const Function*, 8> intrinsicsToDefine;
-  if (printout_initialization)
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     if (I->isIntrinsic()) {
       switch (I->getIntrinsicID()) {
@@ -855,32 +831,35 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (I->hasExternalWeakLinkage())
       Out << "extern ";
     printFunctionSignature(I, true);
+#if 0
     if (I->hasExternalWeakLinkage())
       Out << " __EXTERNAL_WEAK__";
     if (I->hasHiddenVisibility())
       Out << " __HIDDEN__";
     if (I->hasName() && I->getName()[0] == 1)
       Out << " LLVM_ASM(\"" << I->getName().substr(1) << "\")";
+#endif
     Out << ";\n";
   }
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Declarations */\n";
-    if (printout_initialization)
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
         if (getGlobalVariableClass(I))
           continue;
-        if (I->hasLocalLinkage())
-          {} //Out << "static ";
-        else
+        if (!I->hasLocalLinkage())
           Out << "extern ";
+#if 0
         if (I->isThreadLocal())
           Out << "__thread ";
+#endif
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
+#if 0
         if (I->hasExternalWeakLinkage())
           Out << " __EXTERNAL_WEAK__";
         if (I->hasHiddenVisibility())
           Out << " __HIDDEN__";
+#endif
         Out << ";\n";
       }
   }
@@ -892,19 +871,25 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           continue;
         if (I->hasLocalLinkage())
           Out << "static ";
+#if 0
         else if (I->hasDLLImportLinkage())
           Out << "__declspec(dllimport) ";
         else if (I->hasDLLExportLinkage())
           Out << "__declspec(dllexport) ";
         if (I->isThreadLocal())
           Out << "__thread ";
+#endif
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, 0);
+#if 0
         if (I->hasHiddenVisibility())
           Out << " __HIDDEN__";
+#endif
         if (!I->getInitializer()->isNullValue()) {
           Out << " = " ;
           writeOperand(I->getInitializer(), false, true);
         } else if (I->hasWeakLinkage()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
           Out << " = " ;
           if (I->getInitializer()->getType()->isStructTy() || I->getInitializer()->getType()->isVectorTy()) {
             Out << "{ 0 }";
@@ -1030,8 +1015,10 @@ void CWriter::printFunction(Function &F)
   }
   if (PrintedVar)
     Out << '\n';
+#if 0
   if (F.hasExternalLinkage() && F.getName() == "main")
     Out << "  CODE_FOR_MAIN();\n";
+#endif
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
       printBasicBlock(BB);
   }
