@@ -153,7 +153,11 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
         if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
           return false;
       }
-      return I.getParent() == cast<Instruction>(I.use_back())->getParent();
+      if ( I.getParent() != cast<Instruction>(I.use_back())->getParent()) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      return true;
     }
     static const AllocaInst *isDirectAlloca(const Value *V) {
       const AllocaInst *AI = dyn_cast<AllocaInst>(V);

@@ -1122,11 +1122,9 @@ void CWriter::visitReturnInst(ReturnInst &I)
       !I.getParent()->size() == 1) {
     return;
   }
-  Out << "  return";
-  if (I.getNumOperands()) {
-    Out << ' ';
+  Out << "  return ";
+  if (I.getNumOperands())
     writeOperand(I.getOperand(0), false);
-  }
   Out << ";\n";
 }
 void CWriter::visitIndirectBrInst(IndirectBrInst &IBI)
@@ -1372,10 +1370,8 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
     return;
   }
   VectorType *LastIndexIsVector = 0;
-  {
-    for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
+  for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-  }
   Out << "(";
   if (LastIndexIsVector) {
     Out << "((";
@@ -1414,14 +1410,12 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       writeOperand(I.getOperand(), false);
       Out << ']';
     } else {
-      if (isa<Constant>(I.getOperand()) &&
-          cast<Constant>(I.getOperand())->isNullValue()) {
-        Out << "))";  // avoid "+0".
-      } else {
+      if (isa<Constant>(I.getOperand()) && cast<Constant>(I.getOperand())->isNullValue()) {}
+      else {
         Out << ")+(";
         writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
-        Out << "))";
       }
+      Out << "))";
     }
   }
   Out << ")";
