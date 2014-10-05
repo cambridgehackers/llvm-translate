@@ -812,6 +812,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   Out << "\n/* Function Declarations */\n";
   SmallVector<const Function*, 8> intrinsicsToDefine;
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+    if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        exit(1);
+    }
     if (I->isIntrinsic()) {
       switch (I->getIntrinsicID()) {
         default:
@@ -831,14 +835,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     if (I->hasExternalWeakLinkage())
       Out << "extern ";
     printFunctionSignature(I, true);
-#if 0
-    if (I->hasExternalWeakLinkage())
-      Out << " __EXTERNAL_WEAK__";
-    if (I->hasHiddenVisibility())
-      Out << " __HIDDEN__";
-    if (I->hasName() && I->getName()[0] == 1)
-      Out << " LLVM_ASM(\"" << I->getName().substr(1) << "\")";
-#endif
     Out << ";\n";
   }
   if (!M.global_empty()) {
@@ -849,17 +845,11 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           continue;
         if (!I->hasLocalLinkage())
           Out << "extern ";
-#if 0
-        if (I->isThreadLocal())
-          Out << "__thread ";
-#endif
+        if (I->isThreadLocal() || I->hasExternalWeakLinkage() || I->hasHiddenVisibility()) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
-#if 0
-        if (I->hasExternalWeakLinkage())
-          Out << " __EXTERNAL_WEAK__";
-        if (I->hasHiddenVisibility())
-          Out << " __HIDDEN__";
-#endif
         Out << ";\n";
       }
   }
@@ -871,33 +861,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           continue;
         if (I->hasLocalLinkage())
           Out << "static ";
-#if 0
-        else if (I->hasDLLImportLinkage())
-          Out << "__declspec(dllimport) ";
-        else if (I->hasDLLExportLinkage())
-          Out << "__declspec(dllexport) ";
-        if (I->isThreadLocal())
-          Out << "__thread ";
-#endif
+        if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, 0);
-#if 0
-        if (I->hasHiddenVisibility())
-          Out << " __HIDDEN__";
-#endif
         if (!I->getInitializer()->isNullValue()) {
           Out << " = " ;
           writeOperand(I->getInitializer(), false, true);
-        } else if (I->hasWeakLinkage()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-          Out << " = " ;
-          if (I->getInitializer()->getType()->isStructTy() || I->getInitializer()->getType()->isVectorTy()) {
-            Out << "{ 0 }";
-          } else if (I->getInitializer()->getType()->isArrayTy()) {
-            Out << "{ { 0 } }";
-          } else {
-            writeOperand(I->getInitializer(), false, true);
-          }
         }
         Out << ";\n";
       }
@@ -938,7 +909,6 @@ void CWriter::flushStruct(void)
 }
 void CWriter::printFunctionSignature(const Function *F, bool Prototype)
 {
-  bool isStructReturn = F->hasStructRetAttr();
   if (F->hasLocalLinkage()) Out << "static ";
   if (F->hasDLLImportLinkage()) Out << "__declspec(dllimport) ";
   if (F->hasDLLExportLinkage()) Out << "__declspec(dllexport) ";
@@ -947,7 +917,7 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
   bool PrintedArg = false;
-  if (isStructReturn || FT->isVarArg()) {
+  if (F->hasStructRetAttr() || FT->isVarArg()) {
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
   }
@@ -987,14 +957,9 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
 }
 void CWriter::printFunction(Function &F)
 {
-  bool isStructReturn = F.hasStructRetAttr();
+  bool PrintedVar = false;
   printFunctionSignature(&F, false);
   Out << " {\n";
-  if (isStructReturn) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
-  bool PrintedVar = false;
   for (inst_iterator I = inst_begin(&F), E = inst_end(&F); I != E; ++I) {
     if (const AllocaInst *AI = isDirectAlloca(&*I)) {
       Out << "  ";
@@ -1015,13 +980,8 @@ void CWriter::printFunction(Function &F)
   }
   if (PrintedVar)
     Out << '\n';
-#if 0
-  if (F.hasExternalLinkage() && F.getName() == "main")
-    Out << "  CODE_FOR_MAIN();\n";
-#endif
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
       printBasicBlock(BB);
-  }
   Out << "}\n\n";
 }
 void CWriter::printBasicBlock(BasicBlock *BB)
