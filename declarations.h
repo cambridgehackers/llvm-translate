@@ -170,10 +170,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     }
     friend class InstVisitor<CWriter>;
     void visitReturnInst(ReturnInst &I);
-    void visitBranchInst(BranchInst &I);
-    void visitIndirectBrInst(IndirectBrInst &I);
-    void visitUnreachableInst(UnreachableInst &I);
-    void visitPHINode(PHINode &I);
     void visitBinaryOperator(Instruction &I);
     void visitICmpInst(ICmpInst &I);
     void visitCastInst (CastInst &I);
@@ -185,8 +181,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       errs() << "C Writer does not know about " << I;
       llvm_unreachable(0);
     }
-    bool isGotoCodeNecessary(BasicBlock *From, BasicBlock *To);
-    void printPHICopiesForSuccessor(BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent);
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
     std::string GetValueName(const Value *Operand);
 };

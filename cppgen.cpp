@@ -831,18 +831,6 @@ bool CWriter::doInitialization(Module &M)
 {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
-  std::set<Function*> StaticCtors, StaticDtors;
-  for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-    switch (getGlobalVariableClass(I)) {
-    default: break;
-    case GlobalCtors:
-      FindStaticTors(I, StaticCtors);
-      break;
-    case GlobalDtors:
-      FindStaticTors(I, StaticDtors);
-      break;
-    }
-  }
   if (!M.global_empty()) {
     Out << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
@@ -886,10 +874,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     printFunctionSignature(I, true);
     if (I->hasExternalWeakLinkage())
       Out << " __EXTERNAL_WEAK__";
-    //if (StaticCtors.count(I))
-      //Out << " __ATTRIBUTE_CTOR__";
-    if (StaticDtors.count(I))
-      Out << " __ATTRIBUTE_DTOR__";
     if (I->hasHiddenVisibility())
       Out << " __HIDDEN__";
     if (I->hasName() && I->getName()[0] == 1)
@@ -1123,68 +1107,6 @@ void CWriter::visitReturnInst(ReturnInst &I)
   if (I.getNumOperands())
     writeOperand(I.getOperand(0), false);
   Out << ";\n";
-}
-void CWriter::visitIndirectBrInst(IndirectBrInst &IBI)
-{
-  Out << "  goto *(void*)(";
-  writeOperand(IBI.getOperand(0), false);
-  Out << ");\n";
-}
-void CWriter::visitUnreachableInst(UnreachableInst &I)
-{
-  Out << "  /*UNREACHABLE*/;\n";
-}
-bool CWriter::isGotoCodeNecessary(BasicBlock *From, BasicBlock *To)
-{
-  if (llvm::next(Function::iterator(From)) != Function::iterator(To))
-    return true;  // Not the direct successor, we need a goto.
-  return false;
-}
-void CWriter::printPHICopiesForSuccessor (BasicBlock *CurBlock, BasicBlock *Successor, unsigned Indent)
-{
-  for (BasicBlock::iterator I = Successor->begin(); isa<PHINode>(I); ++I) {
-    PHINode *PN = cast<PHINode>(I);
-    Value *IV = PN->getIncomingValueForBlock(CurBlock);
-    if (!isa<UndefValue>(IV)) {
-      Out << std::string(Indent, ' ');
-      Out << "  " << GetValueName(I) << "__PHI_TEMPORARY = ";
-      writeOperand(IV, false);
-      Out << ";   /* for PHI node */\n";
-    }
-  }
-  if (isGotoCodeNecessary(CurBlock, Successor)) {
-    Out << std::string(Indent, ' ') << "  goto ";
-    writeOperand(Successor, false);
-    Out << ";\n";
-  }
-}
-void CWriter::visitBranchInst(BranchInst &I)
-{
-  if (I.isConditional()) {
-    if (isGotoCodeNecessary(I.getParent(), I.getSuccessor(0))) {
-      Out << "  if (";
-      writeOperand(I.getCondition(), false);
-      Out << ") {\n";
-      printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(0), 2);
-      if (isGotoCodeNecessary(I.getParent(), I.getSuccessor(1))) {
-        Out << "  } else {\n";
-        printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(1), 2);
-      }
-    } else {
-      Out << "  if (!";
-      writeOperand(I.getCondition(), false);
-      Out << ") {\n";
-      printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(1), 2);
-    }
-    Out << "  }\n";
-  } else
-    printPHICopiesForSuccessor (I.getParent(), I.getSuccessor(0), 0);
-  Out << "\n";
-}
-void CWriter::visitPHINode(PHINode &I)
-{
-  writeOperand(&I, false);
-  Out << "__PHI_TEMPORARY";
 }
 void CWriter::visitBinaryOperator(Instruction &I)
 {
