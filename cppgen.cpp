@@ -62,8 +62,9 @@ std::string CWriter::getStructName(StructType *ST)
         UnnamedStructIDs[ST] = NextTypeID++;
     return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
 }
-void CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar)
+void CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar)
 {
+restart_label:
   assert((Ty->isPrimitiveType() || Ty->isIntegerTy() || Ty->isVectorTy()) &&
          "Invalid type for printSimpleType");
   switch (Ty->getTypeID()) {
@@ -90,9 +91,10 @@ void CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const s
       break;
   case Type::VectorTyID: {
       VectorType *VTy = cast<VectorType>(Ty);
-      printSimpleType(Out, VTy->getElementType(), isSigned, " __attribute__((vector_size(" "utostr(TD->getTypeAllocSize(VTy))" " ))) " + NameSoFar);
+      Ty = VTy->getElementType();
+      NameSoFar = " __attribute__((vector_size(""utostr(TD->getTypeAllocSize(VTy))"" ))) " + NameSoFar;
+      goto restart_label;
       }
-      return;
   case Type::MetadataTyID:
       Out << "MetadataTyIDSTUB\n";
       break;
@@ -317,13 +319,13 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
     case Instruction::ZExt: case Instruction::PtrToInt:
     case Instruction::FPToUI: // For these, make sure we get an unsigned dest
       Out << '(';
-      printSimpleType(Out, DstTy, false);
+      printSimpleType(Out, DstTy, false, "");
       Out << ')';
       break;
     case Instruction::SExt:
     case Instruction::FPToSI: // For these, make sure we get a signed dest
       Out << '(';
-      printSimpleType(Out, DstTy, true);
+      printSimpleType(Out, DstTy, true, "");
       Out << ')';
       break;
     default:
@@ -332,12 +334,12 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   switch (opc) {
     case Instruction::UIToFP: case Instruction::ZExt:
       Out << '(';
-      printSimpleType(Out, SrcTy, false);
+      printSimpleType(Out, SrcTy, false, "");
       Out << ')';
       break;
     case Instruction::SIToFP: case Instruction::SExt:
       Out << '(';
-      printSimpleType(Out, SrcTy, true);
+      printSimpleType(Out, SrcTy, true, "");
       Out << ')';
       break;
     case Instruction::IntToPtr: case Instruction::PtrToInt:
@@ -492,7 +494,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       Out << CI->getZExtValue();// << "ull";
     else {
       Out << "((";
-      printSimpleType(Out, Ty, false);
+      printSimpleType(Out, Ty, false, "");
       Out << ')';
       if (CI->isMinValue(true))
         Out << CI->getZExtValue();// << 'u';
@@ -632,7 +634,7 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
   if (NeedsExplicitCast) {
     Out << "((";
     if (Ty->isIntegerTy() && Ty != Type::getInt1Ty(Ty->getContext()))
-      printSimpleType(Out, Ty, TypeIsSigned);
+      printSimpleType(Out, Ty, TypeIsSigned, "");
     else
       printType(Out, Ty, false, "", false, 0); // not integer, sign doesn't matter
     Out << ")(";
@@ -658,7 +660,7 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
   }
   if (shouldCast) {
     Out << "((";
-    printSimpleType(Out, OpTy, typeIsSigned);
+    printSimpleType(Out, OpTy, typeIsSigned, "");
     Out << ")";
     printConstant(CPV, false);
     Out << ")";
@@ -754,12 +756,12 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
   case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
     Out << "((";
-    printSimpleType(Out, Ty, false);
+    printSimpleType(Out, Ty, false, "");
     Out << ")(";
     return true;
   case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
     Out << "((";
-    printSimpleType(Out, Ty, true);
+    printSimpleType(Out, Ty, true, "");
     Out << ")(";
     return true;
   default: break;
@@ -788,7 +790,7 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
   }
   if (shouldCast) {
     Out << "((";
-    printSimpleType(Out, OpTy, castIsSigned);
+    printSimpleType(Out, OpTy, castIsSigned, "");
     Out << ")";
     writeOperand(Operand, false);
     Out << ")";
@@ -810,7 +812,7 @@ void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
     //OpTy = TD->getIntPtrType(Operand->getContext());
   }
   Out << "((";
-  printSimpleType(Out, OpTy, castIsSigned);
+  printSimpleType(Out, OpTy, castIsSigned, "");
   Out << ")";
   writeOperand(Operand, false);
   Out << ")";
