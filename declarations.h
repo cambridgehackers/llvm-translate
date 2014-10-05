@@ -114,9 +114,8 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       UnnamedStructIDs.clear();
       return false;
     }
-    //void printType(raw_ostream &Out, Type *Ty, bool isSigned = false, const std::string &VariableName = "", bool IgnoreName = false, int isStatic = 0);
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &VariableName, bool IgnoreName, bool isStatic);
-    raw_ostream &printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
+    void printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar = "");
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
@@ -139,8 +138,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printConstantVector(ConstantVector *CV, bool Static);
     void flushStruct(void);
     bool isAddressExposed(const Value *V) const {
-      //if (const Argument *A = dyn_cast<Argument>(V))
-        //return ByValParams.count(A);
       return isa<GlobalVariable>(V) || isDirectAlloca(V);
     }
     static bool isInlinableInst(const Instruction &I) {

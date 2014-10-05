@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-unsigned int stop_main_program;
 unsigned char *llvm_translate_malloc(size_t size)
 {
     return (unsigned char *)malloc(size);

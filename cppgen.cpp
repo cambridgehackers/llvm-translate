@@ -62,40 +62,45 @@ std::string CWriter::getStructName(StructType *ST)
         UnnamedStructIDs[ST] = NextTypeID++;
     return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
 }
-raw_ostream & CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar)
+void CWriter::printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar)
 {
   assert((Ty->isPrimitiveType() || Ty->isIntegerTy() || Ty->isVectorTy()) &&
          "Invalid type for printSimpleType");
   switch (Ty->getTypeID()) {
-  case Type::VoidTyID:   return Out << "void " << NameSoFar;
+  case Type::VoidTyID:
+      Out << "void";
+      break;
   case Type::IntegerTyID: {
-    unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
-    if (NumBits == 1)
-      return Out << "bool " << NameSoFar;
-    else if (NumBits <= 8)
-      return Out << (isSigned?"signed":"unsigned") << " char " << NameSoFar;
-    else if (NumBits <= 16)
-      return Out << (isSigned?"signed":"unsigned") << " short " << NameSoFar;
-    else if (NumBits <= 32)
-      return Out << (isSigned?"signed":"unsigned") << " int " << NameSoFar;
-    else if (NumBits <= 64)
-      return Out << (isSigned?"signed":"unsigned") << " long long "<< NameSoFar;
-    else {
-      assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
-      return Out << (isSigned?"llvmInt128":"llvmUInt128") << " " << NameSoFar;
-    }
-  }
+      unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+      if (NumBits == 1)
+        Out << "bool";
+      else if (NumBits <= 8)
+        Out << (isSigned?"signed":"unsigned") << " char";
+      else if (NumBits <= 16)
+        Out << (isSigned?"signed":"unsigned") << " short";
+      else if (NumBits <= 32)
+        Out << (isSigned?"signed":"unsigned") << " int";
+      else if (NumBits <= 64)
+        Out << (isSigned?"signed":"unsigned") << " long long";
+      else {
+        assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
+        Out << (isSigned?"llvmInt128":"llvmUInt128");
+      }
+      }
+      break;
   case Type::VectorTyID: {
-    VectorType *VTy = cast<VectorType>(Ty);
-    return printSimpleType(Out, VTy->getElementType(), isSigned, " __attribute__((vector_size(" "utostr(TD->getTypeAllocSize(VTy))" " ))) " + NameSoFar);
-  }
-  case Type::MetadataTyID: {
-      return Out << "MetadataTyIDSTUB\n";
-  }
+      VectorType *VTy = cast<VectorType>(Ty);
+      printSimpleType(Out, VTy->getElementType(), isSigned, " __attribute__((vector_size(" "utostr(TD->getTypeAllocSize(VTy))" " ))) " + NameSoFar);
+      }
+      return;
+  case Type::MetadataTyID:
+      Out << "MetadataTyIDSTUB\n";
+      break;
   default:
-    errs() << "Unknown primitive type: " << *Ty << "\n";
-    llvm_unreachable(0);
+      errs() << "Unknown primitive type: " << *Ty << "\n";
+      llvm_unreachable(0);
   }
+  Out << " " << NameSoFar;
 }
 void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &NameSoFar, bool IgnoreName, bool isStatic)
 {
@@ -487,7 +492,8 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       Out << CI->getZExtValue();// << "ull";
     else {
       Out << "((";
-      printSimpleType(Out, Ty, false) << ')';
+      printSimpleType(Out, Ty, false);
+      Out << ')';
       if (CI->isMinValue(true))
         Out << CI->getZExtValue();// << 'u';
       else
