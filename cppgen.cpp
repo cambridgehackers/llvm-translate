@@ -119,10 +119,6 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     unsigned Idx = 1;
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
       Type *ArgTy = *I;
-      //if (PAL.paramHasAttr(Idx, Attribute::ByVal)) {
-        //assert(ArgTy->isPointerTy());
-        //ArgTy = cast<PointerType>(ArgTy)->getElementType();
-      //}
       if (I != FTy->param_begin())
         FunctionInnards << ", ";
       printType(FunctionInnards, ArgTy, /*isSigned=*/false/*PAL.paramHasAttr(Idx, Attribute::SExt)*/, "", false, 0);
@@ -566,9 +562,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       printType(Out, CPV->getType(), false, "", false, 0);
       Out << ")";
     }
+    Out << '{';
     if (isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV)) {
       StructType *ST = cast<StructType>(CPV->getType());
-      Out << '{';
       if (ST->getNumElements()) {
         Out << ' ';
         printConstant(Constant::getNullValue(ST->getElementType(0)), Static);
@@ -577,9 +573,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
           printConstant(Constant::getNullValue(ST->getElementType(i)), Static);
         }
       }
-      Out << " }";
     } else {
-      Out << '{';
       if (CPV->getNumOperands()) {
         Out << ' ';
         printConstant(cast<Constant>(CPV->getOperand(0)), Static);
@@ -588,8 +582,8 @@ void CWriter::printConstant(Constant *CPV, bool Static)
           printConstant(cast<Constant>(CPV->getOperand(i)), Static);
         }
       }
-      Out << " }";
     }
+    Out << " }";
     break;
   case Type::PointerTyID:
     if (isa<ConstantPointerNull>(CPV)) {
@@ -644,28 +638,23 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
 void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
 {
   Type* OpTy = CPV->getType();
-  bool shouldCast = false;
   bool typeIsSigned = false;
   switch (Opcode) {
     default:
-      break;
+      printConstant(CPV, false);
+      return;
     case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
     case Instruction::LShr: case Instruction::UDiv: case Instruction::URem:
-      shouldCast = true;
       break;
     case Instruction::AShr: case Instruction::SDiv: case Instruction::SRem:
-      shouldCast = true;
       typeIsSigned = true;
       break;
   }
-  if (shouldCast) {
-    Out << "((";
-    printSimpleType(Out, OpTy, typeIsSigned, "");
-    Out << ")";
-    printConstant(CPV, false);
-    Out << ")";
-  } else
-    printConstant(CPV, false);
+  Out << "((";
+  printSimpleType(Out, OpTy, typeIsSigned, "");
+  Out << ")";
+  printConstant(CPV, false);
+  Out << ")";
 }
 std::string CWriter::GetValueName(const Value *Operand)
 {
@@ -708,7 +697,7 @@ void CWriter::writeInstComputationInline(Instruction &I)
         Ty!=Type::getInt8Ty(I.getContext()) && Ty!=Type::getInt16Ty(I.getContext()) &&
         Ty!=Type::getInt32Ty(I.getContext()) && Ty!=Type::getInt64Ty(I.getContext()))) {
       report_fatal_error("The C backend does not currently support integer "
-                        "types of widths other than 1, 8, 16, 32, 64.\n" "This is being tracked as PR 4158.");
+           "types of widths other than 1, 8, 16, 32, 64.\n" "This is being tracked as PR 4158.");
   }
   bool NeedBoolTrunc = false;
   if (I.getType() == Type::getInt1Ty(I.getContext()) && !isa<ICmpInst>(I) && !isa<FCmpInst>(I))
@@ -757,45 +746,40 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
     Out << "((";
     printSimpleType(Out, Ty, false, "");
-    Out << ")(";
-    return true;
+    break;
   case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
     Out << "((";
     printSimpleType(Out, Ty, true, "");
-    Out << ")(";
-    return true;
-  default: break;
+    break;
+  default:
+    return false;
   }
-  return false;
+  Out << ")(";
+  return true;
 }
 void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 {
   Type* OpTy = Operand->getType();
-  bool shouldCast = false;
   bool castIsSigned = false;
   switch (Opcode) {
     default:
-      break;
+      writeOperand(Operand, false);
+      return;
     case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
     case Instruction::LShr: case Instruction::UDiv:
     case Instruction::URem: // Cast to unsigned first
-      shouldCast = true;
       castIsSigned = false;
       break;
     case Instruction::GetElementPtr: case Instruction::AShr: case Instruction::SDiv:
     case Instruction::SRem: // Cast to signed first
-      shouldCast = true;
       castIsSigned = true;
       break;
   }
-  if (shouldCast) {
-    Out << "((";
-    printSimpleType(Out, OpTy, castIsSigned, "");
-    Out << ")";
-    writeOperand(Operand, false);
-    Out << ")";
-  } else
-    writeOperand(Operand, false);
+  Out << "((";
+  printSimpleType(Out, OpTy, castIsSigned, "");
+  Out << ")";
+  writeOperand(Operand, false);
+  Out << ")";
 }
 void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
 {
@@ -1056,13 +1040,11 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
       ++Idx;
     }
   }
-  if (!PrintedArg && FT->isVarArg()) {
-    FunctionInnards << "int vararg_dummy_arg";
-    PrintedArg = true;
+  if (FT->isVarArg()) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
   }
-  if (FT->isVarArg() && PrintedArg) {
-    FunctionInnards << ",...";  // Output varargs portion of signature!
-  } else if (!FT->isVarArg() && !PrintedArg) {
+  if (!PrintedArg) {
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   }
   FunctionInnards << ')';
@@ -1395,19 +1377,6 @@ bool CWriter::visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee)
     Out << F->getName() + "BUILTINSTUB";
     WroteCallee = true;
     return 0;
-}
-void CWriter::visitAllocaInst(AllocaInst &I)
-{
-  Out << '(';
-  printType(Out, I.getType(), false, "", false, 0);
-  Out << ") alloca(sizeof(";
-  printType(Out, I.getType()->getElementType(), false, "", false, 0);
-  Out << ')';
-  if (I.isArrayAllocation()) {
-    Out << " * " ;
-    writeOperand(I.getOperand(0), false);
-  }
-  Out << ')';
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
