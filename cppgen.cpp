@@ -99,13 +99,11 @@ restart_label:
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
     FunctionInnards << " (" << NameSoFar << ") (";
-    unsigned Idx = 1;
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
       Type *ArgTy = *I;
       if (I != FTy->param_begin())
         FunctionInnards << ", ";
       printType(FunctionInnards, ArgTy, /*isSigned=*/false, "", false, false);
-      ++Idx;
     }
     if (FTy->isVarArg()) {
       if (!FTy->getNumParams())
@@ -886,7 +884,6 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   if (!F->isDeclaration()) {
     if (!F->arg_empty()) {
       Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end();
-      unsigned Idx = 1;
       std::string ArgName;
       for (; I != E; ++I) {
         if (PrintedArg) FunctionInnards << ", ";
@@ -897,18 +894,15 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
         Type *ArgTy = I->getType();
         printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, false);
         PrintedArg = true;
-        ++Idx;
       }
     }
   } else {
     FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end();
-    unsigned Idx = 1;
     for (; I != E; ++I) {
       if (PrintedArg) FunctionInnards << ", ";
       Type *ArgTy = *I;
       printType(FunctionInnards, ArgTy, /*isSigned=*/false, "", false, false);
       PrintedArg = true;
-      ++Idx;
     }
   }
   if (!PrintedArg)
@@ -1086,8 +1080,8 @@ void CWriter::visitCallInst(CallInst &I)
       Out << "(const char *) ";
   bool PrintedArg = false;
   if(FTy->isVarArg() && !FTy->getNumParams()) {
-    Out << "0 /*dummy arg*/";
-    PrintedArg = true;
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
   }
   unsigned NumDeclaredParams = FTy->getNumParams();
   CallSite CS(&I);
