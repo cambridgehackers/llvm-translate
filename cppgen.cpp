@@ -642,7 +642,6 @@ std::string CWriter::GetValueName(const Value *Operand)
       VarName += ch;
   }
   return "V" + VarName;
-  //return "llvm_cbe_" + VarName;
 }
 void CWriter::writeInstComputationInline(Instruction &I)
 {
@@ -831,8 +830,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         printType(Out, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
         Out << ";\n";
       }
-  }
-  if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
@@ -980,11 +977,6 @@ void CWriter::printBasicBlock(BasicBlock *BB)
 }
 void CWriter::visitReturnInst(ReturnInst &I)
 {
-  bool isStructReturn = I.getParent()->getParent()->hasStructRetAttr();
-  if (isStructReturn) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
   if (I.getNumOperands() == 0 &&
       &*--I.getParent()->getParent()->end() == I.getParent() &&
       !I.getParent()->size() == 1) {
@@ -1084,8 +1076,7 @@ void CWriter::visitCallInst(CallInst &I)
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
   bool hasByVal = I.hasByValArgument();
-  bool isStructRet = I.hasStructRetAttr();
-  if (isStructRet) {
+  if (I.hasStructRetAttr()) {
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
   }
