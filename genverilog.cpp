@@ -30,12 +30,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-typedef struct {
-    int value;
-    const char *name;
-} INTMAP_TYPE;
-
-static INTMAP_TYPE predText[] = {
+INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
     {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
     {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
@@ -44,21 +39,22 @@ static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
     {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
     {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
-    {ICmpInst::ICMP_EQ, "eq"}, {ICmpInst::ICMP_NE, "ne"},
-    {ICmpInst::ICMP_SGT, "sgt"}, {ICmpInst::ICMP_SGE, "sge"},
-    {ICmpInst::ICMP_SLT, "slt"}, {ICmpInst::ICMP_SLE, "sle"},
-    {ICmpInst::ICMP_UGT, "ugt"}, {ICmpInst::ICMP_UGE, "uge"},
-    {ICmpInst::ICMP_ULT, "ult"}, {ICmpInst::ICMP_ULE, "ule"}, {}};
-static INTMAP_TYPE opcodeMap[] = {
+    {ICmpInst::ICMP_EQ, "=="}, {ICmpInst::ICMP_NE, "!="},
+    {ICmpInst::ICMP_SGT, ">"}, {ICmpInst::ICMP_SGE, ">="},
+    {ICmpInst::ICMP_SLT, "<"}, {ICmpInst::ICMP_SLE, "<="},
+    {ICmpInst::ICMP_UGT, ">"}, {ICmpInst::ICMP_UGE, ">="},
+    {ICmpInst::ICMP_ULT, "<"}, {ICmpInst::ICMP_ULE, "<="}, {}};
+INTMAP_TYPE opcodeMap[] = {
     {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
     {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
     {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
     {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
     {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
-    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"}, {}};
+    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"},
+    {Instruction::Shl, "<<"}, {Instruction::LShr, ">>"}, {Instruction::AShr, " >> "}, {}};
 static char vout[MAX_CHAR_BUFFER];
 
-static const char *intmap_lookup(INTMAP_TYPE *map, int value)
+const char *intmap_lookup(INTMAP_TYPE *map, int value)
 {
     while (map->name) {
         if (map->value == value)
@@ -129,10 +125,9 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     case Instruction::Mul: case Instruction::FMul:
     case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
     // Logical operators...
-    case Instruction::And:
-    case Instruction::Or:
-    case Instruction::Xor:
+    case Instruction::And: case Instruction::Or: case Instruction::Xor:
         {
         const char *op1 = getparam(1), *op2 = getparam(2);
         char temp[MAX_CHAR_BUFFER];
@@ -246,9 +241,6 @@ else
         slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
         }
         break;
-    //case Instruction::Shl:
-    //case Instruction::LShr:
-    //case Instruction::AShr:
     //case Instruction::VAArg:
     //case Instruction::ExtractElement:
     //case Instruction::InsertElement:

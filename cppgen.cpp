@@ -49,7 +49,6 @@ static std::string CBEMangle(const std::string &S)
       Result += 'A'+((S[i]>>4)&15);
       Result += '_';
     }
-//printf("[%s:%d] in %s out %s\n", __FUNCTION__, __LINE__, S.c_str(), Result.c_str());
   return Result;
 }
 std::string CWriter::getStructName(StructType *ST)
@@ -140,7 +139,6 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
       Out << NameSoFar;
       break;
     }
-    std::string lname = strdup(NameSoFar.c_str());
     Out << "{\n";
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
@@ -150,7 +148,7 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
     }
     Out << "} ";
     if (!isStatic)
-        Out << lname;
+        Out << NameSoFar;
     break;
   }
   case Type::ArrayTyID: {
@@ -162,12 +160,11 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::st
       Out << NameSoFar;
       break;
     }
-    std::string lname = strdup(NameSoFar.c_str());
     Out << "{\n";
     printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, 0);
     Out << "; } ";
     if (!isStatic)
-        Out << lname;
+        Out << NameSoFar;
     break;
   }
   case Type::PointerTyID: {
@@ -375,30 +372,12 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       Out << '(';
       bool NeedsClosingParens = printConstExprCast(CE, Static);
       printConstantWithCast(CE->getOperand(0), CE->getOpcode());
-      switch (CE->getOpcode()) {
-      case Instruction::Add: case Instruction::FAdd: Out << " + "; break;
-      case Instruction::Sub: case Instruction::FSub: Out << " - "; break;
-      case Instruction::Mul: case Instruction::FMul: Out << " * "; break;
-      case Instruction::URem: case Instruction::SRem: case Instruction::FRem: Out << " % "; break;
-      case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv: Out << " / "; break;
-      case Instruction::And: Out << " & "; break;
-      case Instruction::Or:  Out << " | "; break;
-      case Instruction::Xor: Out << " ^ "; break;
-      case Instruction::Shl: Out << " << "; break;
-      case Instruction::LShr: case Instruction::AShr: Out << " >> "; break;
-      case Instruction::ICmp:
-        switch (CE->getPredicate()) {
-          case ICmpInst::ICMP_EQ: Out << " == "; break;
-          case ICmpInst::ICMP_NE: Out << " != "; break;
-          case ICmpInst::ICMP_SLT: case ICmpInst::ICMP_ULT: Out << " < "; break;
-          case ICmpInst::ICMP_SLE: case ICmpInst::ICMP_ULE: Out << " <= "; break;
-          case ICmpInst::ICMP_SGT: case ICmpInst::ICMP_UGT: Out << " > "; break;
-          case ICmpInst::ICMP_SGE: case ICmpInst::ICMP_UGE: Out << " >= "; break;
-          default: llvm_unreachable("Illegal ICmp predicate");
-        }
-        break;
-      default: llvm_unreachable("Illegal opcode here!");
-      }
+      Out << " ";
+      if (CE->getOpcode() == Instruction::ICmp)
+        Out << intmap_lookup(predText, CE->getPredicate());
+      else
+        Out << intmap_lookup(opcodeMap, CE->getOpcode());
+      Out << " ";
       printConstantWithCast(CE->getOperand(1), CE->getOpcode());
       if (NeedsClosingParens)
         Out << "))";
@@ -1050,21 +1029,9 @@ void CWriter::visitBinaryOperator(Instruction &I)
   } else {
     bool NeedsClosingParens = writeInstructionCast(I);
     writeOperandWithCast(I.getOperand(0), I.getOpcode());
-    switch (I.getOpcode()) {
-    case Instruction::Add: case Instruction::FAdd: Out << " + "; break;
-    case Instruction::Sub: case Instruction::FSub: Out << " - "; break;
-    case Instruction::Mul: case Instruction::FMul: Out << " * "; break;
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem: Out << " % "; break;
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv: Out << " / "; break;
-    case Instruction::And:  Out << " & "; break;
-    case Instruction::Or:   Out << " | "; break;
-    case Instruction::Xor:  Out << " ^ "; break;
-    case Instruction::Shl : Out << " << "; break;
-    case Instruction::LShr: case Instruction::AShr: Out << " >> "; break;
-    default:
-       errs() << "Invalid operator type!" << I;
-       llvm_unreachable(0);
-    }
+    Out << " ";
+    Out << intmap_lookup(opcodeMap, I.getOpcode());
+    Out << " ";
     writeOperandWithCast(I.getOperand(1), I.getOpcode());
     if (NeedsClosingParens)
       Out << "))";
@@ -1078,17 +1045,9 @@ void CWriter::visitICmpInst(ICmpInst &I)
   bool needsCast = false;
   bool NeedsClosingParens = writeInstructionCast(I);
   writeOperandWithCast(I.getOperand(0), I);
-  switch (I.getPredicate()) {
-  case ICmpInst::ICMP_EQ:  Out << " == "; break;
-  case ICmpInst::ICMP_NE:  Out << " != "; break;
-  case ICmpInst::ICMP_ULE: case ICmpInst::ICMP_SLE: Out << " <= "; break;
-  case ICmpInst::ICMP_UGE: case ICmpInst::ICMP_SGE: Out << " >= "; break;
-  case ICmpInst::ICMP_ULT: case ICmpInst::ICMP_SLT: Out << " < "; break;
-  case ICmpInst::ICMP_UGT: case ICmpInst::ICMP_SGT: Out << " > "; break;
-  default:
-    errs() << "Invalid icmp predicate!" << I;
-    llvm_unreachable(0);
-  }
+  Out << " ";
+  Out << intmap_lookup(predText, I.getPredicate());
+  Out << " ";
   writeOperandWithCast(I.getOperand(1), I);
   if (NeedsClosingParens)
     Out << "))";

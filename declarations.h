@@ -86,6 +86,11 @@ typedef struct {
    uint64_t value;
 } OPERAND_ITEM_TYPE;
 
+typedef struct {
+    int value;
+    const char *name;
+} INTMAP_TYPE;
+
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
 enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted };
@@ -216,7 +221,10 @@ extern std::list<VTABLE_WORK> vtablework;
 extern SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 extern int operand_list_index;
+extern INTMAP_TYPE predText[];
+extern INTMAP_TYPE opcodeMap[];
 
+const char *intmap_lookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
 void dumpType(DIType litem, CLASS_META *classp);
 void dumpTref(const MDNode *Node, CLASS_META *classp);
