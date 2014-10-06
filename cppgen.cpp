@@ -370,7 +370,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     case Instruction::AShr:
     {
       Out << '(';
-      bool NeedsClosingParens = printConstExprCast(CE, Static);
       printConstantWithCast(CE->getOperand(0), CE->getOpcode());
       Out << " ";
       if (CE->getOpcode() == Instruction::ICmp)
@@ -379,14 +378,13 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         Out << intmap_lookup(opcodeMap, CE->getOpcode());
       Out << " ";
       printConstantWithCast(CE->getOperand(1), CE->getOpcode());
-      if (NeedsClosingParens)
+      if (printConstExprCast(CE, Static))
         Out << "))";
       Out << ')';
       return;
     }
     case Instruction::FCmp: {
       Out << '(';
-      bool NeedsClosingParens = printConstExprCast(CE, Static);
       if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
         Out << "0";
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
@@ -416,7 +414,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         printConstantWithCast(CE->getOperand(1), CE->getOpcode());
         Out << ")";
       }
-      if (NeedsClosingParens)
+      if (printConstExprCast(CE, Static))
         Out << "))";
       Out << ')';
       return;
@@ -1019,13 +1017,12 @@ void CWriter::visitBinaryOperator(Instruction &I)
     writeOperand(I.getOperand(1), false);
     Out << ")";
   } else {
-    bool NeedsClosingParens = writeInstructionCast(I);
     writeOperandWithCast(I.getOperand(0), I.getOpcode());
     Out << " ";
     Out << intmap_lookup(opcodeMap, I.getOpcode());
     Out << " ";
     writeOperandWithCast(I.getOperand(1), I.getOpcode());
-    if (NeedsClosingParens)
+    if (writeInstructionCast(I))
       Out << "))";
   }
   if (needsCast) {
@@ -1035,13 +1032,12 @@ void CWriter::visitBinaryOperator(Instruction &I)
 void CWriter::visitICmpInst(ICmpInst &I)
 {
   bool needsCast = false;
-  bool NeedsClosingParens = writeInstructionCast(I);
   writeOperandWithCast(I.getOperand(0), I);
   Out << " ";
   Out << intmap_lookup(predText, I.getPredicate());
   Out << " ";
   writeOperandWithCast(I.getOperand(1), I);
-  if (NeedsClosingParens)
+  if (writeInstructionCast(I))
     Out << "))";
   if (needsCast) {
     Out << "))";
