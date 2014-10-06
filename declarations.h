@@ -121,7 +121,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
-    void writeOperandInternal(Value *Operand, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCast(Value* Operand, const ICmpInst &I);
     bool writeInstructionCast(const Instruction &I);

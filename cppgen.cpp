@@ -110,9 +110,8 @@ restart_label:
       if (!FTy->getNumParams())
         FunctionInnards << " int"; //dummy argument for empty vaarg functs
       FunctionInnards << ", ...";
-    } else if (!FTy->getNumParams()) {
+    } else if (!FTy->getNumParams())
       FunctionInnards << "void";
-    }
     FunctionInnards << ')';
     printType(Out, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, false);
     break;
@@ -266,23 +265,23 @@ void CWriter::printConstantVector(ConstantVector *CP, bool Static)
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
   Out << '(';
+  bool TypeIsSigned = false;
   switch (opc) {
     case Instruction::UIToFP: case Instruction::SIToFP: case Instruction::IntToPtr:
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: // For these the DstTy sign doesn't matter
-      printType(Out, DstTy, false, "", false, false);
       break;
     case Instruction::ZExt: case Instruction::PtrToInt:
     case Instruction::FPToUI: // For these, make sure we get an unsigned dest
-      printType(Out, DstTy, false, "", false, false);
       break;
     case Instruction::SExt:
     case Instruction::FPToSI: // For these, make sure we get a signed dest
-      printType(Out, DstTy, true, "", false, false);
+      TypeIsSigned = true;
       break;
     default:
       llvm_unreachable("Invalid cast opcode");
   }
+  printType(Out, DstTy, TypeIsSigned, "", false, false);
   Out << ")";
   switch (opc) {
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
@@ -291,19 +290,11 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   }
   Out << "(";
   switch (opc) {
-    case Instruction::UIToFP: case Instruction::ZExt:
-      printType(Out, SrcTy, false, "", false, false);
-      break;
-    case Instruction::SIToFP: case Instruction::SExt:
-      printType(Out, SrcTy, true, "", false, false);
-      break;
     case Instruction::IntToPtr: case Instruction::PtrToInt:
-      Out << "unsigned long";
-      break;
-    default:
-      llvm_unreachable("Invalid cast opcode");
-      break;
+      Out << "unsigned long)";
+      return;
   }
+  printType(Out, SrcTy, TypeIsSigned, "", false, false);
   Out << ')';
 }
 void CWriter::printConstant(Constant *CPV, bool Static)
@@ -428,13 +419,14 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     }
     return;
   }
-  switch (CPV->getType()->getTypeID()) {
-  case Type::ArrayTyID:
-    if (!Static) {
+  int tid = CPV->getType()->getTypeID();
+  if (tid != Type::PointerTyID && !Static) {
       Out << "(";
       printType(Out, CPV->getType(), false, "", false, false);
       Out << ")";
-    }
+  }
+  switch (tid) {
+  case Type::ArrayTyID:
     Out << "{ "; // Arrays are wrapped in struct types.
     if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
       printConstantArray(CA, Static);
@@ -447,7 +439,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       CPV->dump();
       exit(1);
     } else {
-      assert(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
       ArrayType *AT = cast<ArrayType>(CPV->getType());
       Out << '{';
       if (AT->getNumElements()) {
@@ -464,11 +455,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     Out << " }"; // Arrays are wrapped in struct types.
     break;
   case Type::VectorTyID:
-    if (!Static) {
-      Out << "(";
-      printType(Out, CPV->getType(), false, "", false, false);
-      Out << ")";
-    }
     if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
       printConstantVector(CV, Static);
     } else {
@@ -485,11 +471,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     }
     break;
   case Type::StructTyID:
-    if (!Static) {
-      Out << "(";
-      printType(Out, CPV->getType(), false, "", false, false);
-      Out << ")";
-    }
     Out << '{';
     if (isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV)) {
       StructType *ST = cast<StructType>(CPV->getType());
@@ -501,15 +482,13 @@ void CWriter::printConstant(Constant *CPV, bool Static)
           printConstant(Constant::getNullValue(ST->getElementType(i)), Static);
         }
       }
-    } else {
-      if (CPV->getNumOperands()) {
+    } else if (CPV->getNumOperands()) {
         Out << ' ';
         printConstant(cast<Constant>(CPV->getOperand(0)), Static);
         for (unsigned i = 1, e = CPV->getNumOperands(); i != e; ++i) {
           Out << ", ";
           printConstant(cast<Constant>(CPV->getOperand(i)), Static);
         }
-      }
     }
     Out << " }";
     break;
@@ -633,23 +612,9 @@ void CWriter::writeInstComputationInline(Instruction &I)
   if (NeedBoolTrunc)
     Out << ")&1)";
 }
-void CWriter::writeOperandInternal(Value *Operand, bool Static)
-{
-  if (Instruction *I = dyn_cast<Instruction>(Operand))
-    if (isInlinableInst(*I) && !isDirectAlloca(I)) {
-      Out << '(';
-      writeInstComputationInline(*I);
-      Out << ')';
-      return;
-    }
-  Constant* CPV = dyn_cast<Constant>(Operand);
-  if (CPV && !isa<GlobalValue>(CPV))
-    printConstant(CPV, Static);
-  else
-    Out << GetValueName(Operand);
-}
 void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
+  Instruction *I = dyn_cast<Instruction>(Operand);
   bool isAddressImplicit = isAddressExposed(Operand);
   if (Indirect) {
     if (isAddressImplicit)
@@ -659,7 +624,18 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   }
   if (isAddressImplicit)
     Out << "(&";  // Global variables are referenced as their addresses by llvm
-  writeOperandInternal(Operand, Static);
+  if (I && isInlinableInst(*I) && !isDirectAlloca(I)) {
+      Out << '(';
+      writeInstComputationInline(*I);
+      Out << ')';
+  }
+  else {
+      Constant* CPV = dyn_cast<Constant>(Operand);
+      if (CPV && !isa<GlobalValue>(CPV))
+        printConstant(CPV, Static);
+      else
+        Out << GetValueName(Operand);
+  }
   if (isAddressImplicit)
     Out << ')';
 }
@@ -1108,14 +1084,14 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
   } else {
     ++I;  // Skip the zero index.
     if (isAddressExposed(Ptr)) {
-      writeOperandInternal(Ptr, Static);
+      writeOperand(Ptr, true, Static);
     } else if (I != E && (*I)->isStructTy()) {
       writeOperand(Ptr, false);
       Out << "->field" << cast<ConstantInt>(I.getOperand())->getZExtValue();
       ++I;  // eat the struct index as well.
     } else {
-      Out << "(*";
-      writeOperand(Ptr, false);
+      Out << "(";
+      writeOperand(Ptr, true);
       Out << ")";
     }
   }
