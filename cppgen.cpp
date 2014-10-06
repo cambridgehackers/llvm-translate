@@ -355,25 +355,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
         Out << "1";
       else {
-        const char* op = 0;
-        switch (CE->getPredicate()) {
-        default: llvm_unreachable("Illegal FCmp predicate");
-        case FCmpInst::FCMP_ORD: op = "ord"; break;
-        case FCmpInst::FCMP_UNO: op = "uno"; break;
-        case FCmpInst::FCMP_UEQ: op = "ueq"; break;
-        case FCmpInst::FCMP_UNE: op = "une"; break;
-        case FCmpInst::FCMP_ULT: op = "ult"; break;
-        case FCmpInst::FCMP_ULE: op = "ule"; break;
-        case FCmpInst::FCMP_UGT: op = "ugt"; break;
-        case FCmpInst::FCMP_UGE: op = "uge"; break;
-        case FCmpInst::FCMP_OEQ: op = "oeq"; break;
-        case FCmpInst::FCMP_ONE: op = "one"; break;
-        case FCmpInst::FCMP_OLT: op = "olt"; break;
-        case FCmpInst::FCMP_OLE: op = "ole"; break;
-        case FCmpInst::FCMP_OGT: op = "ogt"; break;
-        case FCmpInst::FCMP_OGE: op = "oge"; break;
-        }
-        Out << "llvm_fcmp_" << op << "(";
+        Out << "llvm_fcmp_" << intmap_lookup(predText, CE->getPredicate()) << "(";
         printConstantWithCast(CE->getOperand(0), CE->getOpcode());
         Out << ", ";
         printConstantWithCast(CE->getOperand(1), CE->getOpcode());
@@ -720,8 +702,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   if (!M.global_empty()) {
     Out << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-      if (I->hasExternalLinkage() || I->hasExternalWeakLinkage() ||
-          I->hasCommonLinkage())
+      if (I->hasExternalLinkage() || I->hasExternalWeakLinkage() || I->hasCommonLinkage())
         Out << "extern ";
       else if (I->hasDLLImportLinkage())
         Out << "__declspec(dllimport) ";
@@ -834,17 +815,16 @@ void CWriter::flushStruct(void)
 void CWriter::printFunctionSignature(const Function *F, bool Prototype)
 {
   if (F->hasLocalLinkage()) Out << "static ";
-  if (F->hasDLLImportLinkage()) Out << "__declspec(dllimport) ";
-  if (F->hasDLLExportLinkage()) Out << "__declspec(dllexport) ";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+  if (F->hasDLLImportLinkage() || F->hasDLLExportLinkage()
+   || F->hasStructRetAttr() || FT->isVarArg()) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    exit(1);
+  }
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
   bool PrintedArg = false;
-  if (F->hasStructRetAttr() || FT->isVarArg()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-  }
   if (!F->isDeclaration()) {
     if (!F->arg_empty()) {
       std::string ArgName;
