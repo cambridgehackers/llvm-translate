@@ -99,11 +99,12 @@ restart_label:
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
     FunctionInnards << " (" << NameSoFar << ") (";
+    bool PrintedArg = false;
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-      Type *ArgTy = *I;
-      if (I != FTy->param_begin())
-        FunctionInnards << ", ";
-      printType(FunctionInnards, ArgTy, /*isSigned=*/false, "", false, false);
+      if (PrintedArg)
+          FunctionInnards << ", ";
+      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, false);
+      PrintedArg = true;
     }
     if (FTy->isVarArg()) {
       if (!FTy->getNumParams())
@@ -264,60 +265,56 @@ void CWriter::printConstantVector(ConstantVector *CP, bool Static)
 }
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
+  Out << '(';
   switch (opc) {
     case Instruction::UIToFP: case Instruction::SIToFP: case Instruction::IntToPtr:
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: // For these the DstTy sign doesn't matter
-      Out << '(';
       printType(Out, DstTy, false, "", false, false);
-      Out << ')';
       break;
     case Instruction::ZExt: case Instruction::PtrToInt:
     case Instruction::FPToUI: // For these, make sure we get an unsigned dest
-      Out << '(';
       printType(Out, DstTy, false, "", false, false);
-      Out << ')';
       break;
     case Instruction::SExt:
     case Instruction::FPToSI: // For these, make sure we get a signed dest
-      Out << '(';
       printType(Out, DstTy, true, "", false, false);
-      Out << ')';
       break;
     default:
       llvm_unreachable("Invalid cast opcode");
   }
+  Out << ")";
   switch (opc) {
-    case Instruction::UIToFP: case Instruction::ZExt:
-      Out << '(';
-      printType(Out, SrcTy, false, "", false, false);
-      Out << ')';
-      break;
-    case Instruction::SIToFP: case Instruction::SExt:
-      Out << '(';
-      printType(Out, SrcTy, true, "", false, false);
-      Out << ')';
-      break;
-    case Instruction::IntToPtr: case Instruction::PtrToInt:
-      Out << "(unsigned long)";
-      break;
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
-      break; // These don't need a source cast.
+      return; // These don't need a source cast.
+  }
+  Out << "(";
+  switch (opc) {
+    case Instruction::UIToFP: case Instruction::ZExt:
+      printType(Out, SrcTy, false, "", false, false);
+      break;
+    case Instruction::SIToFP: case Instruction::SExt:
+      printType(Out, SrcTy, true, "", false, false);
+      break;
+    case Instruction::IntToPtr: case Instruction::PtrToInt:
+      Out << "unsigned long";
+      break;
     default:
       llvm_unreachable("Invalid cast opcode");
       break;
   }
+  Out << ')';
 }
 void CWriter::printConstant(Constant *CPV, bool Static)
 {
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
+    Out << "(";
     switch (CE->getOpcode()) {
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
     case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
     case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-      Out << "(";
       printCast(CE->getOpcode(), CE->getOperand(0)->getType(), CE->getType());
       if (CE->getOpcode() == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext())) {
@@ -331,22 +328,17 @@ void CWriter::printConstant(Constant *CPV, bool Static)
            CE->getOpcode() == Instruction::PtrToInt)) {
         Out << "&1u";
       }
-      Out << ')';
-      return;
+      break;
     case Instruction::GetElementPtr:
-      Out << "(";
       printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
-      Out << ")";
-      return;
+      break;
     case Instruction::Select:
-      Out << '(';
       printConstant(CE->getOperand(0), Static);
       Out << '?';
       printConstant(CE->getOperand(1), Static);
       Out << ':';
       printConstant(CE->getOperand(2), Static);
-      Out << ')';
-      return;
+      break;
     case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
     case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
     case Instruction::SDiv: case Instruction::UDiv: case Instruction::FDiv:
@@ -355,7 +347,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
     case Instruction::AShr:
     {
-      Out << '(';
       printConstantWithCast(CE->getOperand(0), CE->getOpcode());
       Out << " ";
       if (CE->getOpcode() == Instruction::ICmp)
@@ -366,11 +357,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       printConstantWithCast(CE->getOperand(1), CE->getOpcode());
       if (printConstExprCast(CE, Static))
         Out << "))";
-      Out << ')';
-      return;
+      break;
     }
     case Instruction::FCmp: {
-      Out << '(';
       if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
         Out << "0";
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
@@ -402,13 +391,14 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       }
       if (printConstExprCast(CE, Static))
         Out << "))";
-      Out << ')';
-      return;
+      break;
     }
     default:
       errs() << "CWriter Error: Unhandled constant expression: " << *CE << "\n";
       llvm_unreachable(0);
     }
+    Out << ')';
+    return;
   } else if (isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()) {
     Out << "((";
     printType(Out, CPV->getType(), false, "", false, false); // sign doesn't matter
@@ -883,9 +873,8 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
   }
   if (!F->isDeclaration()) {
     if (!F->arg_empty()) {
-      Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end();
       std::string ArgName;
-      for (; I != E; ++I) {
+      for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
         if (PrintedArg) FunctionInnards << ", ";
         if (I->hasName() || !Prototype)
           ArgName = GetValueName(I);
@@ -897,11 +886,10 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
       }
     }
   } else {
-    FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end();
-    for (; I != E; ++I) {
-      if (PrintedArg) FunctionInnards << ", ";
-      Type *ArgTy = *I;
-      printType(FunctionInnards, ArgTy, /*isSigned=*/false, "", false, false);
+    for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
+      if (PrintedArg)
+          FunctionInnards << ", ";
+      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, false);
       PrintedArg = true;
     }
   }
