@@ -355,8 +355,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         Out << intmap_lookup(opcodeMap, CE->getOpcode());
       Out << " ";
       printConstantWithCast(CE->getOperand(1), CE->getOpcode());
-      if (printConstExprCast(CE, Static))
-        Out << "))";
+      printConstExprCast(CE, Static);
       break;
     }
     case Instruction::FCmp: {
@@ -389,8 +388,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         printConstantWithCast(CE->getOperand(1), CE->getOpcode());
         Out << ")";
       }
-      if (printConstExprCast(CE, Static))
-        Out << "))";
+      printConstExprCast(CE, Static);
       break;
     }
     default:
@@ -556,11 +554,11 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
   default: return false;
   }
   Out << "((";
-  if (Ty->isIntegerTy() && Ty != Type::getInt1Ty(Ty->getContext()))
-      printType(Out, Ty, TypeIsSigned, "", false, false);
-  else
-      printType(Out, Ty, false, "", false, false); // not integer, sign doesn't matter
+  if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
+      TypeIsSigned = false; // not integer, sign doesn't matter
+  printType(Out, Ty, TypeIsSigned, "", false, false);
   Out << ")(";
+  Out << "))";
   return true;
 }
 void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
