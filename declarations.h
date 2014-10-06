@@ -97,7 +97,6 @@ enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted }
 class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
-    std::map<const ConstantFP *, unsigned> FPConstantMap;
     DenseMap<const Value*, unsigned> AnonValueNumbers;
     unsigned NextAnonValueNumber;
     DenseMap<StructType*, unsigned> UnnamedStructIDs;
@@ -115,12 +114,10 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     }
     virtual bool doFinalization(Module &M) {
       flushStruct();
-      FPConstantMap.clear();
       UnnamedStructIDs.clear();
       return false;
     }
-    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string &VariableName, bool IgnoreName, bool isStatic);
-    void printSimpleType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar);
+    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, bool IgnoreName, bool isStatic);
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);
