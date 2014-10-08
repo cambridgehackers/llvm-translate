@@ -666,22 +666,20 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
 {
   bool shouldCast = Cmp.isRelational();
-  if (!shouldCast) {
-    writeOperand(Operand, false);
-    return;
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      if (OpTy->isPointerTy()) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        exit(1);
+        //OpTy = TD->getIntPtrType(Operand->getContext());
+      }
+      Out << "((";
+      printType(Out, OpTy, Cmp.isSigned(), "", false, false);
+      Out << ")";
   }
-  bool castIsSigned = Cmp.isSigned();
-  Type* OpTy = Operand->getType();
-  if (OpTy->isPointerTy()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-    //OpTy = TD->getIntPtrType(Operand->getContext());
-  }
-  Out << "((";
-  printType(Out, OpTy, castIsSigned, "", false, false);
-  Out << ")";
   writeOperand(Operand, false);
-  Out << ")";
+  if (shouldCast)
+      Out << ")";
 }
 static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
 {
@@ -1115,17 +1113,14 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
     } else if ((*I)->isArrayTy()) {
       Out << ".array[";
-      //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
       writeOperand(I.getOperand(), false);
       Out << ']';
     } else if (!(*I)->isVectorTy()) {
       Out << '[';
-      //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
       writeOperand(I.getOperand(), false);
       Out << ']';
     } else {
-      if (isa<Constant>(I.getOperand()) && cast<Constant>(I.getOperand())->isNullValue()) {}
-      else {
+      if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
         Out << ")+(";
         writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
       }
