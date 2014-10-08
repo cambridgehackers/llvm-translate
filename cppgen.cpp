@@ -700,20 +700,6 @@ bool CWriter::doInitialization(Module &M)
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   if (!M.global_empty()) {
-    Out << "\n\n/* Global Variable Declarations */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!I->isDeclaration()) {
-        if (getGlobalVariableClass(I))
-          continue;
-        if (!I->hasLocalLinkage())
-          Out << "extern ";
-        if (I->isThreadLocal() || I->hasExternalWeakLinkage() || I->hasHiddenVisibility()) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        printType(Out, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
-        Out << ";\n";
-      }
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
@@ -795,7 +781,6 @@ bool CWriter::doFinalization(Module &M)
         printContainedStructs(*structWork.begin());
         structWork.pop_front();
     }
-    UnnamedStructIDs.clear();
     if (!M.global_empty()) {
       OutHeader << "\n/* External Global Variable Declarations */\n";
       for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
@@ -841,6 +826,23 @@ bool CWriter::doFinalization(Module &M)
       printFunctionSignature(OutHeader, I, true);
       OutHeader << ";\n";
     }
+    if (!M.global_empty()) {
+      OutHeader << "\n\n/* Global Variable Declarations */\n";
+      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
+        if (!I->isDeclaration()) {
+          if (getGlobalVariableClass(I))
+            continue;
+          if (!I->hasLocalLinkage())
+            OutHeader << "extern ";
+          if (I->isThreadLocal() || I->hasExternalWeakLinkage() || I->hasHiddenVisibility()) {
+              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+              exit(1);
+          }
+          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), true, I->hasLocalLinkage());
+          OutHeader << ";\n";
+        }
+    }
+    UnnamedStructIDs.clear();
     return false;
 }
 void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype)
