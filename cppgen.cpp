@@ -721,8 +721,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             }
       }
   }
-  if (!M.empty())
-    Out << "\n\n/* Function Bodies */\n";
   return false;
 }
 const char *CWriter::fieldName(StructType *STy, uint64_t ind)
@@ -867,22 +865,21 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
 }
 void CWriter::printFunction(Function &F)
 {
-  bool PrintedVar = false;
   printFunctionSignature(Out, &F, false);
   Out << " {\n";
   for (inst_iterator I = inst_begin(&F), E = inst_end(&F); I != E; ++I) {
     if (const AllocaInst *AI = isDirectAlloca(&*I)) {
       printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "  ", ";    /* Address-exposed local */\n");
-      PrintedVar = true;
     } else if (I->getType() != Type::getVoidTy(F.getContext()) && !isInlinableInst(*I)) {
       printType(Out, I->getType(), false, GetValueName(&*I), false, false, "  ", ";\n");
       if (isa<PHINode>(*I))  // Print out PHI node temporaries as well...
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
         printType(Out, I->getType(), false, GetValueName(&*I)+"__PHI_TEMPORARY", false, false, "  ", ";\n");
-      PrintedVar = true;
+}
     }
   }
-  if (PrintedVar)
-    Out << '\n';
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
       printBasicBlock(BB);
   Out << "}\n\n";
