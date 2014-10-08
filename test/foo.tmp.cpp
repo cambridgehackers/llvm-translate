@@ -3,11 +3,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-unsigned char *llvm_translate_malloc(size_t size)
+unsigned char *llvm_translate_malloc(unsigned long long size)
 {
     return (unsigned char *)malloc(size);
 }
-unsigned char *memset(unsigned char *b, int c, size_t len)
+unsigned char *memset(unsigned char *b, int c, unsigned long long len)
 {
     return (unsigned char *)memset((void *)b, c, len);
 }

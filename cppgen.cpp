@@ -146,7 +146,7 @@ restart_label:
       Out << NameSoFar;
       break;
     }
-    Out << "{\n";
+    Out << "{ ";
     printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, false);
     Out << "; } ";
     if (!isStatic)
@@ -496,11 +496,11 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
   switch (CE->getOpcode()) {
   case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
   case Instruction::LShr: case Instruction::URem:
-  case Instruction::UDiv: 
+  case Instruction::UDiv:
     break;
   case Instruction::AShr: case Instruction::SRem:
-  case Instruction::SDiv: 
-    TypeIsSigned = true; 
+  case Instruction::SDiv:
+    TypeIsSigned = true;
     break;
   case Instruction::SExt:
     Ty = CE->getType();
@@ -700,51 +700,6 @@ bool CWriter::doInitialization(Module &M)
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   if (!M.global_empty()) {
-    Out << "\n/* External Global Variable Declarations */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-      if (I->hasExternalLinkage() || I->hasExternalWeakLinkage() || I->hasCommonLinkage())
-        Out << "extern ";
-      else if (I->hasDLLImportLinkage())
-        Out << "__declspec(dllimport) ";
-      else
-        continue; // Internal Global
-      if (I->isThreadLocal())
-        Out << "__thread ";
-      printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, false);
-      if (I->hasExternalWeakLinkage())
-         Out << " __EXTERNAL_WEAK__";
-      Out << ";\n";
-    }
-  }
-  Out << "\n/* Function Declarations */\n";
-  SmallVector<const Function*, 8> intrinsicsToDefine;
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        exit(1);
-    }
-    if (I->isIntrinsic()) {
-      switch (I->getIntrinsicID()) {
-        default:
-          break;
-        case Intrinsic::uadd_with_overflow: case Intrinsic::sadd_with_overflow:
-          intrinsicsToDefine.push_back(I);
-          break;
-      }
-      continue;
-    }
-    if (I->getName() == "main" || I->getName() == "atexit")
-      continue;
-    if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
-      continue;
-    if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
-      continue;
-    if (I->hasExternalWeakLinkage())
-      Out << "extern ";
-    printFunctionSignature(I, true);
-    Out << ";\n";
-  }
-  if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Declarations */\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
@@ -833,15 +788,62 @@ void CWriter::printContainedStructs(Type *Ty)
         OutHeader << ";\n\n";
     }
 }
-void CWriter::flushStruct(void)
+bool CWriter::doFinalization(Module &M)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
         printContainedStructs(*structWork.begin());
         structWork.pop_front();
     }
+    UnnamedStructIDs.clear();
+    if (!M.global_empty()) {
+      OutHeader << "\n/* External Global Variable Declarations */\n";
+      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+        if (I->hasExternalLinkage() || I->hasExternalWeakLinkage() || I->hasCommonLinkage())
+          OutHeader << "extern ";
+        else if (I->hasDLLImportLinkage())
+          OutHeader << "__declspec(dllimport) ";
+        else
+          continue; // Internal Global
+        if (I->isThreadLocal())
+          OutHeader << "__thread ";
+        printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, false);
+        if (I->hasExternalWeakLinkage())
+           OutHeader << " __EXTERNAL_WEAK__";
+        OutHeader << ";\n";
+      }
+    }
+    OutHeader << "\n/* Function Declarations */\n";
+    SmallVector<const Function*, 8> intrinsicsToDefine;
+    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+      if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      if (I->isIntrinsic()) {
+        switch (I->getIntrinsicID()) {
+          default:
+            break;
+          case Intrinsic::uadd_with_overflow: case Intrinsic::sadd_with_overflow:
+            intrinsicsToDefine.push_back(I);
+            break;
+        }
+        continue;
+      }
+      if (I->getName() == "main" || I->getName() == "atexit")
+        continue;
+      if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
+        continue;
+      if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
+        continue;
+      if (I->hasExternalWeakLinkage())
+        OutHeader << "extern ";
+      printFunctionSignature(OutHeader, I, true);
+      OutHeader << ";\n";
+    }
+    return false;
 }
-void CWriter::printFunctionSignature(const Function *F, bool Prototype)
+void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype)
 {
   if (F->hasLocalLinkage()) Out << "static ";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
@@ -885,7 +887,7 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype)
 void CWriter::printFunction(Function &F)
 {
   bool PrintedVar = false;
-  printFunctionSignature(&F, false);
+  printFunctionSignature(Out, &F, false);
   Out << " {\n";
   for (inst_iterator I = inst_begin(&F), E = inst_end(&F); I != E; ++I) {
     if (const AllocaInst *AI = isDirectAlloca(&*I)) {

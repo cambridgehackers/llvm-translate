@@ -112,11 +112,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
           printFunction(F);
       return false;
     }
-    virtual bool doFinalization(Module &M) {
-      flushStruct();
-      UnnamedStructIDs.clear();
-      return false;
-    }
+    virtual bool doFinalization(Module &M);
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, bool IgnoreName, bool isStatic);
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
@@ -128,7 +124,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     const char *fieldName(StructType *STy, uint64_t ind);
   private :
     void printContainedStructs(Type *Ty);
-    void printFunctionSignature(const Function *F, bool Prototype);
+    void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype);
     void printFunction(Function &);
     void printBasicBlock(BasicBlock *BB);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
@@ -139,7 +135,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
-    void flushStruct(void);
     bool isAddressExposed(const Value *V) const {
       return isa<GlobalVariable>(V) || isDirectAlloca(V);
     }
