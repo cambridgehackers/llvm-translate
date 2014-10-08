@@ -113,7 +113,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       return false;
     }
     virtual bool doFinalization(Module &M);
-    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, bool IgnoreName, bool isStatic);
+    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, bool IgnoreName, bool isStatic, const std::string prefix, const std::string postfix);
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeInstComputationInline(Instruction &I);

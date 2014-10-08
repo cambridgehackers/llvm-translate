@@ -180,7 +180,6 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
             cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-trace_clone++;
             Function *F = I.getParent()->getParent();
             Module *Mod = F->getParent();
             std::string Fname = F->getName().str();
@@ -195,17 +194,12 @@ trace_clone++;
             printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
             IRBuilder<> builder(TI->getParent());
             builder.SetInsertPoint(TI);
-            //Value *vtabbase = builder.CreateLoad(
-             //builder.CreateBitCast(thisp, castType));
             Value *newStore = builder.CreateStore(newIC, newIT);
-            otherBody->dump();
             IRBuilder<> oldbuilder(I.getParent());
             oldbuilder.SetInsertPoint(&I);
             Value *newLoad = oldbuilder.CreateLoad(IT);
             I.replaceAllUsesWith(newLoad);
             I.eraseFromParent();
-            F->dump();
-trace_clone--;
             break;
         }
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
