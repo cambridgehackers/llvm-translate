@@ -129,7 +129,7 @@ restart_label:
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
       Out << "  ";
-      printType(Out, *I, false, "field" + utostr(Idx++), false, false);
+      printType(Out, *I, false, fieldName(STy, Idx++), false, false);
       Out << ";\n";
     }
     Out << "} ";
@@ -782,30 +782,35 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Out << "\n\n/* Function Bodies */\n";
   return false;
 }
-void CWriter::fieldName(StructType *STy, int ind)
+const char *CWriter::fieldName(StructType *STy, uint64_t ind)
 {
-        if (STy->isLiteral()) { // unnamed items
-            printf("[%s:%d] isLiteral\n", __FUNCTION__, __LINE__);
-            STy->dump();
-        }
-        else {
-            CLASS_META *classp = lookup_class(STy->getName().str().c_str());
-            if (!classp)
-                printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
-            else {
-                if (classp->inherit) {
-                    DIType Ty(classp->inherit);
+    const char *cp = NULL;
+    char temp[MAX_CHAR_BUFFER];
+    if (STy->isLiteral()) { // unnamed items
+        printf("[%s:%d] isLiteral\n", __FUNCTION__, __LINE__);
+        //STy->dump();
+        sprintf(temp, "field%d", (int)ind);
+        return temp;
+    }
+    sprintf(temp, "field%d", (int)ind);
+    return temp;
+    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
+    if (!classp) {
+        printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
+        exit(1);
+    }
+    if (classp->inherit) {
+        DIType Ty(classp->inherit);
 printf("[%s:%d] inherit %p name %s\n", __FUNCTION__, __LINE__, classp->inherit, Ty.getName().str().c_str());
-                    OutHeader << "    inherit:" << Ty.getName() << "\n";
-                }
-                for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-                    DIType Ty(*MI);
-                    if (Ty.getTag() == dwarf::DW_TAG_member)
-                        OutHeader << "    member:" << Ty.getName() << "\n";
-                }
-                OutHeader << "******************************\n";
-            }
-        }
+        OutHeader << "    inherit:" << Ty.getName() << "\n";
+    }
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        if (Ty.getTag() == dwarf::DW_TAG_member)
+            OutHeader << "    member:" << Ty.getName() << "\n";
+    }
+    OutHeader << "******************************\n";
+    return cp;
 }
 void CWriter::printContainedStructs(Type *Ty)
 {
@@ -1092,7 +1097,8 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       writeOperand(Ptr, true, Static);
     } else if (I != E && (*I)->isStructTy()) {
       writeOperand(Ptr, false);
-      Out << "->field" << cast<ConstantInt>(I.getOperand())->getZExtValue();
+      StructType *STy = dyn_cast<StructType>(*I);
+      Out << "->" << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
       ++I;  // eat the struct index as well.
     } else {
       Out << "(";
@@ -1102,7 +1108,8 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
   }
   for (; I != E; ++I) {
     if ((*I)->isStructTy()) {
-      Out << ".field" << cast<ConstantInt>(I.getOperand())->getZExtValue();
+      StructType *STy = dyn_cast<StructType>(*I);
+      Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
     } else if ((*I)->isArrayTy()) {
       Out << ".array[";
       //writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
