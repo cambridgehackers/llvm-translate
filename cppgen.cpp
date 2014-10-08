@@ -867,19 +867,6 @@ void CWriter::printFunction(Function &F)
 {
   printFunctionSignature(Out, &F, false);
   Out << " {\n";
-  for (inst_iterator I = inst_begin(&F), E = inst_end(&F); I != E; ++I) {
-    if (const AllocaInst *AI = isDirectAlloca(&*I)) {
-      printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "  ", ";    /* Address-exposed local */\n");
-    } else if (I->getType() != Type::getVoidTy(F.getContext()) && !isInlinableInst(*I)) {
-      printType(Out, I->getType(), false, GetValueName(&*I), false, false, "  ", ";\n");
-      if (isa<PHINode>(*I))  // Print out PHI node temporaries as well...
-{
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-        printType(Out, I->getType(), false, GetValueName(&*I)+"__PHI_TEMPORARY", false, false, "  ", ";\n");
-}
-    }
-  }
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
       printBasicBlock(BB);
   Out << "}\n\n";
@@ -888,7 +875,16 @@ void CWriter::printBasicBlock(BasicBlock *BB)
 {
   Out << GetValueName(BB) << ":\n";
   for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-    if (!isInlinableInst(*II) && !isDirectAlloca(II)) {
+    if (const AllocaInst *AI = isDirectAlloca(&*II)) {
+      printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "  ", ";    /* Address-exposed local */\n");
+    } else if (!isInlinableInst(*II)) {
+      if (II->getType() != Type::getVoidTy(BB->getContext()))
+          printType(Out, II->getType(), false, GetValueName(&*II), false, false, "  ", ";\n");
+      if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+          printType(Out, II->getType(), false, GetValueName(&*II)+"__PHI_TEMPORARY", false, false, "  ", ";\n");
+      }
       if (II->getType() != Type::getVoidTy(BB->getContext()))
         Out << "  " << GetValueName(II) << " = ";
       else
