@@ -788,6 +788,11 @@ bool CWriter::doFinalization(Module &M)
         }
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, false, "extern ", ";\n");
+        if (!I->isDeclaration()) {
+          Type *Ty = I->getType()->getElementType();
+          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID)
+              printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
+        }
       }
     }
     OutHeader << "\n/* Function Declarations */\n";
@@ -815,15 +820,6 @@ bool CWriter::doFinalization(Module &M)
         continue;
       printFunctionSignature(OutHeader, I, true);
       OutHeader << ";\n";
-    }
-    if (!M.global_empty()) {
-      OutHeader << "\n\n/* Array Type Declarations */\n";
-      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-        if (!I->isDeclaration()) {
-          Type *Ty = I->getType()->getElementType();
-          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID)
-              printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
-        }
     }
     UnnamedStructIDs.clear();
     return false;
