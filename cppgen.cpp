@@ -782,6 +782,31 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     Out << "\n\n/* Function Bodies */\n";
   return false;
 }
+void CWriter::fieldName(StructType *STy, int ind)
+{
+        if (STy->isLiteral()) { // unnamed items
+            printf("[%s:%d] isLiteral\n", __FUNCTION__, __LINE__);
+            STy->dump();
+        }
+        else {
+            CLASS_META *classp = lookup_class(STy->getName().str().c_str());
+            if (!classp)
+                printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
+            else {
+                if (classp->inherit) {
+                    DIType Ty(classp->inherit);
+printf("[%s:%d] inherit %p name %s\n", __FUNCTION__, __LINE__, classp->inherit, Ty.getName().str().c_str());
+                    OutHeader << "    inherit:" << Ty.getName() << "\n";
+                }
+                for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+                    DIType Ty(*MI);
+                    if (Ty.getTag() == dwarf::DW_TAG_member)
+                        OutHeader << "    member:" << Ty.getName() << "\n";
+                }
+                OutHeader << "******************************\n";
+            }
+        }
+}
 void CWriter::printContainedStructs(Type *Ty)
 {
     if (Ty->isPointerTy()) {
@@ -798,10 +823,10 @@ void CWriter::printContainedStructs(Type *Ty)
     for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
         printContainedStructs(*I);
     if (StructType *STy = dyn_cast<StructType>(Ty)) {
-            std::string Name = getStructName(STy);
-            OutHeader << "typedef ";
-            printType(OutHeader, STy, false, Name, true, false);
-            OutHeader << ";\n\n";
+        std::string Name = getStructName(STy);
+        OutHeader << "typedef ";
+        printType(OutHeader, STy, false, Name, true, false);
+        OutHeader << ";\n\n";
     }
 }
 void CWriter::flushStruct(void)
