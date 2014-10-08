@@ -293,6 +293,7 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 }
 void CWriter::printConstant(Constant *CPV, bool Static)
 {
+  /* handle expressions */
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
     Out << "(";
     switch (CE->getOpcode()) {
@@ -364,7 +365,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     }
     Out << ')';
     return;
-  } else if (isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()) {
+  }
+  /* handle 'undefined' */
+  if (isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()) {
     printType(Out, CPV->getType(), false, "", false, false, "((", ")/*UNDEF*/"); // sign doesn't matter
     if (!CPV->getType()->isVectorTy()) {
       Out << "0)";
@@ -373,6 +376,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     }
     return;
   }
+  /* handle int */
   if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
     Type* Ty = CI->getType();
     if (Ty == Type::getInt1Ty(CPV->getContext()))
@@ -394,15 +398,14 @@ void CWriter::printConstant(Constant *CPV, bool Static)
   int tid = CPV->getType()->getTypeID();
   if (tid != Type::PointerTyID && !Static)
       printType(Out, CPV->getType(), false, "", false, false, "(", ")");
+  /* handle structured types */
   switch (tid) {
   case Type::ArrayTyID:
     Out << "{ "; // Arrays are wrapped in struct types.
-    if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+    if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV))
       printConstantArray(CA, Static);
-    }
-    else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+    else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
       printConstantDataArray(CA, Static);
-    }
     else if(!isa<ConstantAggregateZero>(CPV) && !isa<UndefValue>(CPV)) {
       printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, CPV->getValueID());
       CPV->dump();
@@ -424,9 +427,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     Out << " }"; // Arrays are wrapped in struct types.
     break;
   case Type::VectorTyID:
-    if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
+    if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV))
       printConstantVector(CV, Static);
-    } else {
+    else {
       assert(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
       VectorType *VT = cast<VectorType>(CPV->getType());
       Out << "{ ";
@@ -682,40 +685,40 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (getGlobalVariableClass(I))
           continue;
         Type *Ty = I->getType()->getElementType();
-        if (Ty->getTypeID() == Type::StructTyID)
-          if (StructType *STy = cast<StructType>(Ty)) {
-            if (!STy->isLiteral())
-               continue;
-          }
-          else continue;
-        else continue;
+        if (Ty->getTypeID() == Type::ArrayTyID)
+            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
+                if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
+                    continue;
+                ATy->getElementType()->dump();
+            }
         if (I->hasLocalLinkage())
           Out << "static ";
-        printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, false, "", "");
+        printType(Out, Ty, false, GetValueName(I), false, false, "", "");
         if (!I->getInitializer()->isNullValue()) {
           Out << " = " ;
           writeOperand(I->getInitializer(), false, true);
         }
         Out << ";\n";
       }
-Out << "//**************************************\n";
+    Out << "//vtables for Classes\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
         if (getGlobalVariableClass(I))
           continue;
         Type *Ty = I->getType()->getElementType();
-        if (Ty->getTypeID() == Type::StructTyID)
-        if (StructType *STy = cast<StructType>(I->getType()->getElementType()))
-          if (STy->isLiteral())
-             continue;
-        if (I->hasLocalLinkage())
-          Out << "static ";
-        printType(Out, I->getType()->getElementType(), false, GetValueName(I), false, false, "", "");
-        if (!I->getInitializer()->isNullValue()) {
-          Out << " = " ;
-          writeOperand(I->getInitializer(), false, true);
-        }
-        Out << ";\n";
+        if (Ty->getTypeID() == Type::ArrayTyID)
+            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
+                if (ATy->getElementType()->getTypeID() == Type::PointerTyID) {
+                    if (I->hasLocalLinkage())
+                      Out << "static ";
+                    printType(Out, Ty, false, GetValueName(I), false, false, "", "");
+                    if (!I->getInitializer()->isNullValue()) {
+                      Out << " = " ;
+                      writeOperand(I->getInitializer(), false, true);
+                    }
+                    Out << ";\n";
+                }
+            }
       }
   }
   if (!M.empty())
