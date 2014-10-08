@@ -784,16 +784,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 const char *CWriter::fieldName(StructType *STy, uint64_t ind)
 {
-    const char *cp = NULL;
-    char temp[MAX_CHAR_BUFFER];
+    static char temp[MAX_CHAR_BUFFER];
     if (STy->isLiteral()) { // unnamed items
         printf("[%s:%d] isLiteral\n", __FUNCTION__, __LINE__);
         //STy->dump();
         sprintf(temp, "field%d", (int)ind);
         return temp;
     }
-    sprintf(temp, "field%d", (int)ind);
-    return temp;
     CLASS_META *classp = lookup_class(STy->getName().str().c_str());
     if (!classp) {
         printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
@@ -801,16 +798,18 @@ const char *CWriter::fieldName(StructType *STy, uint64_t ind)
     }
     if (classp->inherit) {
         DIType Ty(classp->inherit);
-printf("[%s:%d] inherit %p name %s\n", __FUNCTION__, __LINE__, classp->inherit, Ty.getName().str().c_str());
-        OutHeader << "    inherit:" << Ty.getName() << "\n";
+        if (!ind--)
+            return CBEMangle(Ty.getName().str()).c_str();
     }
     for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member)
-            OutHeader << "    member:" << Ty.getName() << "\n";
+        if (Ty.getTag() == dwarf::DW_TAG_member) {
+            if (!ind--)
+                return CBEMangle(Ty.getName().str()).c_str();
+        }
     }
-    OutHeader << "******************************\n";
-    return cp;
+    sprintf(temp, "field%d", (int)ind);
+    return temp;
 }
 void CWriter::printContainedStructs(Type *Ty)
 {
