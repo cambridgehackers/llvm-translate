@@ -782,11 +782,11 @@ bool CWriter::doFinalization(Module &M)
     if (!M.global_empty()) {
       OutHeader << "\n/* External Global Variable Declarations */\n";
       for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-        if (I->hasDLLImportLinkage() || I->hasExternalWeakLinkage() || I->isThreadLocal()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        if (I->hasDLLImportLinkage() || I->hasExternalWeakLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             exit(1);
         }
-        if (I->hasExternalLinkage() || I->hasExternalWeakLinkage() || I->hasCommonLinkage())
+        if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, false, "extern ", ";\n");
       }
     }
@@ -813,30 +813,16 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         continue;
       if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
         continue;
-      if (I->hasExternalWeakLinkage())
-        OutHeader << "extern ";
       printFunctionSignature(OutHeader, I, true);
       OutHeader << ";\n";
     }
     if (!M.global_empty()) {
-      OutHeader << "\n\n/* Global Variable Declarations */\n";
+      OutHeader << "\n\n/* Array Type Declarations */\n";
       for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
         if (!I->isDeclaration()) {
-          if (getGlobalVariableClass(I))
-            continue;
           Type *Ty = I->getType()->getElementType();
-          if (Ty->getTypeID() == Type::StructTyID)
-          if (StructType *STy = cast<StructType>(Ty))
-            if (STy->isLiteral())
-               continue;
-else printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str());
-          if (!I->hasLocalLinkage())
-            OutHeader << "extern ";
-          if (I->isThreadLocal() || I->hasExternalWeakLinkage() || I->hasHiddenVisibility()) {
-              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-              exit(1);
-          }
-          printType(OutHeader, Ty, false, GetValueName(I), true, I->hasLocalLinkage(), "", ";\n");
+          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID)
+              printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
         }
     }
     UnnamedStructIDs.clear();
