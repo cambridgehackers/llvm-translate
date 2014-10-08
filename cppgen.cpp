@@ -875,20 +875,16 @@ void CWriter::printBasicBlock(BasicBlock *BB)
 {
   Out << GetValueName(BB) << ":\n";
   for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+    Out << "    ";
     if (const AllocaInst *AI = isDirectAlloca(&*II)) {
-      printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "  ", ";    /* Address-exposed local */\n");
+      printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "", ";    /* Address-exposed local */\n");
     } else if (!isInlinableInst(*II)) {
       if (II->getType() != Type::getVoidTy(BB->getContext()))
-          printType(Out, II->getType(), false, GetValueName(&*II), false, false, "  ", ";\n");
+          printType(Out, II->getType(), false, GetValueName(&*II), false, false, "", " = ");
       if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
-          printType(Out, II->getType(), false, GetValueName(&*II)+"__PHI_TEMPORARY", false, false, "  ", ";\n");
       }
-      if (II->getType() != Type::getVoidTy(BB->getContext()))
-        Out << "  " << GetValueName(II) << " = ";
-      else
-        Out << "  ";
       writeInstComputationInline(*II);
       Out << ";\n";
     }
