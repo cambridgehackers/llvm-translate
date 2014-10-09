@@ -62,6 +62,10 @@ std::string CWriter::getStructName(StructType *ST)
 void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar, bool IgnoreName, bool isStatic, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
+if (isStatic) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+}
   Out << prefix;
 restart_label:
   switch (Ty->getTypeID()) {
@@ -141,20 +145,8 @@ restart_label:
     unsigned NumElements = ATy->getNumElements();
     Type *ET = ATy->getElementType();
     if (NumElements == 0) NumElements = 1;
-    if (!IgnoreName && ET == Type::getInt8Ty(ET->getContext())) {
-      printf("[%s:%d] zzztypeid %d\n", __FUNCTION__, __LINE__, ET->getTypeID());
-      Out << "unsigned char " << NameSoFar << "[]";
-      break;
-    }
-    else
-      Out << "struct " << NameSoFar << " ";
-    if (!IgnoreName) {
-      Out << NameSoFar;
-      break;
-    }
-    printType(Out, ET, false, "array[" + utostr(NumElements) + "]", false, false, "{ ", "; } ");
-    if (!isStatic)
-        Out << NameSoFar;
+    printType(Out, ET, false, "", false, false, "", "");
+    Out << NameSoFar << "[" + utostr(NumElements) + "]";
     break;
   }
   case Type::PointerTyID: {
@@ -408,7 +400,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
   /* handle structured types */
   switch (tid) {
   case Type::ArrayTyID:
-    Out << "{ "; // Arrays are wrapped in struct types.
     if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV))
       printConstantArray(CA, Static);
     else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
@@ -431,7 +422,6 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       }
       Out << " }";
     }
-    Out << " }"; // Arrays are wrapped in struct types.
     break;
   case Type::VectorTyID:
     if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV))
@@ -791,15 +781,6 @@ bool CWriter::doFinalization(Module &M)
         }
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, false, "extern ", ";\n");
-        if (!I->isDeclaration()) {
-          Type *Ty = I->getType()->getElementType();
-          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID) {
-              ArrayType *ATy = cast<ArrayType>(Ty);
-              Type *ET = ATy->getElementType();
-              if (ET != Type::getInt8Ty(ET->getContext()))
-                  printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
-          }
-        }
       }
     }
     OutHeader << "\n/* Function Declarations */\n";
@@ -1055,14 +1036,11 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
     ++I;  // Skip the zero index.
     if (isAddressExposed(Ptr)) {
       if (I != E && (*I)->isArrayTy()) {
-         ArrayType *ATy = cast<ArrayType>(*I);
-         Type *ET = ATy->getElementType();
-         ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand());
-         if (ET == Type::getInt8Ty(ET->getContext()) && CI) {
+         if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
              Type* Ty = CI->getType();
              if (Ty == Type::getInt32Ty(Ty->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
                  uint64_t val = CI->getZExtValue();
-                 ++I;
+                 ++I;     // we processed this index
                  writeOperand(Ptr, true, Static);
                  if (val)
                      Out << "+" << val;
@@ -1072,7 +1050,6 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       }
       Out << "&";
       writeOperand(Ptr, true, Static);
-done:;
     } else if (I != E && (*I)->isStructTy()) {
       Out << "&";
       writeOperand(Ptr, false);
@@ -1086,19 +1063,12 @@ done:;
       Out << ")";
     }
   }
+done:
   for (; I != E; ++I) {
     if ((*I)->isStructTy()) {
       StructType *STy = dyn_cast<StructType>(*I);
       Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-    } else if ((*I)->isArrayTy()) {
-      ArrayType *ATy = cast<ArrayType>(*I);
-      Type *ET = ATy->getElementType();
-      if (ET != Type::getInt8Ty(ET->getContext()))
-          Out << ".array";
-      Out << "[";
-      writeOperand(I.getOperand(), false);
-      Out << ']';
-    } else if (!(*I)->isVectorTy()) {
+    } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
       Out << '[';
       writeOperand(I.getOperand(), false);
       Out << ']';
