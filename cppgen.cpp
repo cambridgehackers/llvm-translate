@@ -689,23 +689,6 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     Out << ')';
 }
-bool CWriter::writeInstructionCast(const Instruction &I)
-{
-  Type *Ty = I.getOperand(0)->getType();
-  bool typeIsSigned = false;
-  switch (I.getOpcode()) {
-  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
-    break;
-  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
-    typeIsSigned = true;
-    break;
-  default:
-    return false;
-  }
-  printType(Out, Ty, typeIsSigned, "", false, "((", ")(");
-  return true;
-}
 void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 {
   Type* OpTy = Operand->getType();
@@ -727,7 +710,7 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
   writeOperand(Operand, false);
   Out << ")";
 }
-void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
+void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
 {
   bool shouldCast = Cmp.isRelational();
   if (shouldCast) {
@@ -792,13 +775,31 @@ void CWriter::visitReturnInst(ReturnInst &I)
     Out << ";\n";
   }
 }
+bool CWriter::writeInstructionCast(const Instruction &I)
+{
+  Type *Ty = I.getOperand(0)->getType();
+  bool typeIsSigned = false;
+  switch (I.getOpcode()) {
+  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
+  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
+    break;
+  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
+    typeIsSigned = true;
+    break;
+  default:
+    return false;
+  }
+  printType(Out, Ty, typeIsSigned, "", false, "((", ")(");
+  Out << "))";
+  return true;
+}
 void CWriter::visitBinaryOperator(Instruction &I)
 {
   assert(!I.getType()->isPointerTy());
   bool needsCast = false;
-  if ((I.getType() == Type::getInt8Ty(I.getContext())) ||
-      (I.getType() == Type::getInt16Ty(I.getContext()))
-      || (I.getType() == Type::getFloatTy(I.getContext()))) {
+  if (I.getType() ==  Type::getInt8Ty(I.getContext())
+   || I.getType() == Type::getInt16Ty(I.getContext())
+   || I.getType() == Type::getFloatTy(I.getContext())) {
     needsCast = true;
     printType(Out, I.getType(), false, "", false, "((", ")(");
   }
@@ -827,8 +828,7 @@ void CWriter::visitBinaryOperator(Instruction &I)
     Out << intmap_lookup(opcodeMap, I.getOpcode());
     Out << " ";
     writeOperandWithCast(I.getOperand(1), I.getOpcode());
-    if (writeInstructionCast(I))
-      Out << "))";
+    writeInstructionCast(I);
   }
   if (needsCast) {
     Out << "))";
@@ -837,13 +837,12 @@ void CWriter::visitBinaryOperator(Instruction &I)
 void CWriter::visitICmpInst(ICmpInst &I)
 {
   bool needsCast = false;
-  writeOperandWithCast(I.getOperand(0), I);
+  writeOperandWithCastICmp(I.getOperand(0), I);
   Out << " ";
   Out << intmap_lookup(predText, I.getPredicate());
   Out << " ";
-  writeOperandWithCast(I.getOperand(1), I);
-  if (writeInstructionCast(I))
-    Out << "))";
+  writeOperandWithCastICmp(I.getOperand(1), I);
+  writeInstructionCast(I);
   if (needsCast) {
     Out << "))";
   }
