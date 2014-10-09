@@ -139,13 +139,20 @@ restart_label:
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
     unsigned NumElements = ATy->getNumElements();
+    Type *ET = ATy->getElementType();
     if (NumElements == 0) NumElements = 1;
-    Out << "struct " << NameSoFar << " ";
+    if (!IgnoreName && ET == Type::getInt8Ty(ET->getContext())) {
+      printf("[%s:%d] zzztypeid %d\n", __FUNCTION__, __LINE__, ET->getTypeID());
+      Out << "unsigned char " << NameSoFar << "[]";
+      break;
+    }
+    else
+      Out << "struct " << NameSoFar << " ";
     if (!IgnoreName) {
       Out << NameSoFar;
       break;
     }
-    printType(Out, ATy->getElementType(), false, "array[" + utostr(NumElements) + "]", false, false, "{ ", "; } ");
+    printType(Out, ET, false, "array[" + utostr(NumElements) + "]", false, false, "{ ", "; } ");
     if (!isStatic)
         Out << NameSoFar;
     break;
@@ -698,7 +705,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         }
         Out << ";\n";
       }
-    Out << "//vtables for Classes\n";
+    Out << "\n\n//******************** vtables for Classes *******************\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
         if (getGlobalVariableClass(I))
@@ -786,8 +793,12 @@ bool CWriter::doFinalization(Module &M)
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, false, "extern ", ";\n");
         if (!I->isDeclaration()) {
           Type *Ty = I->getType()->getElementType();
-          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID)
-              printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
+          if (!getGlobalVariableClass(I) && Ty->getTypeID() == Type::ArrayTyID) {
+              ArrayType *ATy = cast<ArrayType>(Ty);
+              Type *ET = ATy->getElementType();
+              if (ET != Type::getInt8Ty(ET->getContext()))
+                  printType(OutHeader, Ty, false, GetValueName(I), true, true, "", ";\n");
+          }
         }
       }
     }
@@ -1060,7 +1071,11 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       StructType *STy = dyn_cast<StructType>(*I);
       Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
     } else if ((*I)->isArrayTy()) {
-      Out << ".array[";
+      ArrayType *ATy = cast<ArrayType>(*I);
+      Type *ET = ATy->getElementType();
+      if (ET != Type::getInt8Ty(ET->getContext()))
+          Out << ".array";
+      Out << "[";
       writeOperand(I.getOperand(), false);
       Out << ']';
     } else if (!(*I)->isVectorTy()) {
