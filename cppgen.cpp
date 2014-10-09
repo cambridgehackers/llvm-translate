@@ -135,10 +135,9 @@ restart_label:
   }
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
+    printType(Out, ATy->getElementType(), false, "", false, "", "");
     unsigned NumElements = ATy->getNumElements();
-    Type *ET = ATy->getElementType();
     if (NumElements == 0) NumElements = 1;
-    printType(Out, ET, false, "", false, "", "");
     Out << NameSoFar << "[" + utostr(NumElements) + "]";
     break;
   }
@@ -373,10 +372,8 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     Type* Ty = CI->getType();
     if (Ty == Type::getInt1Ty(CPV->getContext()))
       Out << (CI->getZExtValue() ? '1' : '0');
-    else if (Ty == Type::getInt32Ty(CPV->getContext()))
-      Out << CI->getZExtValue();// << 'u';
-    else if (Ty->getPrimitiveSizeInBits() > 32)
-      Out << CI->getZExtValue();// << "ull";
+    else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32)
+      Out << CI->getZExtValue();
     else {
       printType(Out, Ty, false, "", false, "((", ")");
       if (CI->isMinValue(true))
@@ -493,7 +490,6 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
   if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
       TypeIsSigned = false; // not integer, sign doesn't matter
   printType(Out, Ty, TypeIsSigned, "", false, "((", ")(");
-  //Out << ")(";
   Out << "))";
   return true;
 }
@@ -523,9 +519,7 @@ std::string CWriter::GetValueName(const Value *Operand)
       Operand = V;
   }
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
-    SmallString<128> Str;
-    Str = GV->getName();
-    //Mang->getNameWithPrefix(Str, GV, false);
+    SmallString<128> Str = GV->getName();
     return CBEMangle(Str.str().str());
   }
   std::string Name = Operand->getName();
@@ -820,13 +814,13 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   bool PrintedArg = false;
   if (!F->isDeclaration()) {
     if (!F->arg_empty()) {
-      std::string ArgName;
       for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+        std::string ArgName = "";
         if (PrintedArg) FunctionInnards << ", ";
         if (I->hasName() || !Prototype)
           ArgName = GetValueName(I);
-        else
-          ArgName = "";
+        //else
+          //ArgName = "";
         Type *ArgTy = I->getType();
         printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, "", "");
         PrintedArg = true;
@@ -843,8 +837,7 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   if (!PrintedArg)
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
-  Type *RetTy = F->getReturnType();
-  printType(Out, RetTy, /*isSigned=*/false, FunctionInnards.str(), false, "", "");
+  printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
 }
 void CWriter::printFunction(Function &F)
 {
@@ -959,7 +952,6 @@ void CWriter::visitCastInst(CastInst &I)
 }
 void CWriter::visitCallInst(CallInst &I)
 {
-  bool WroteCallee = false;
   if (Function *F = I.getCalledFunction())
       if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID()) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -968,23 +960,20 @@ void CWriter::visitCallInst(CallInst &I)
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
-  if (I.hasStructRetAttr() || I.hasByValArgument()) {
+  if (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall()) {
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
   }
-  if (I.isTailCall()) Out << " /*tail*/ ";
-  if (!WroteCallee) {
-    bool NeedsCast = false;
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee))
-      if (CE->isCast())
-        if (Function *RF = dyn_cast<Function>(CE->getOperand(0))) {
-          NeedsCast = true;
-          Callee = RF;
-          printType(Out, I.getCalledValue()->getType(), false, "", false, "((", ")(void*)");
-        }
-    writeOperand(Callee, false);
-    if (NeedsCast) Out << ')';
-  }
+  bool NeedsCast = false;
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee))
+    if (CE->isCast())
+      if (Function *RF = dyn_cast<Function>(CE->getOperand(0))) {
+        NeedsCast = true;
+        Callee = RF;
+        printType(Out, I.getCalledValue()->getType(), false, "", false, "((", ")(void*)");
+      }
+  writeOperand(Callee, false);
+  if (NeedsCast) Out << ')';
   Out << '(';
   if (Callee->getName() == "printf")
       Out << "(const char *) ";
@@ -1016,9 +1005,8 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
   Out << "(";
-  if (LastIndexIsVector) {
+  if (LastIndexIsVector)
     printType(Out, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", false, "((", ")(");
-  }
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
     Out << "&";
