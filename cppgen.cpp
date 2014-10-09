@@ -37,6 +37,9 @@ static std::map<Type *, int> structMap;
 static int structWork_run;
 char CWriter::ID = 0;
 
+/*
+ * Name functions
+ */
 static std::string CBEMangle(const std::string &S)
 {
   std::string Result;
@@ -59,6 +62,36 @@ std::string CWriter::getStructName(StructType *ST)
         UnnamedStructIDs[ST] = NextTypeID++;
     return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
 }
+const char *CWriter::fieldName(StructType *STy, uint64_t ind)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    if (STy->isLiteral()) { // unnamed items
+        sprintf(temp, "field%d", (int)ind);
+        return temp;
+    }
+    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
+    if (!classp) {
+        printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
+        exit(1);
+    }
+    if (classp->inherit) {
+        DIType Ty(classp->inherit);
+        if (!ind--)
+            return CBEMangle(Ty.getName().str()).c_str();
+    }
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        if (Ty.getTag() == dwarf::DW_TAG_member) {
+            if (!ind--)
+                return CBEMangle(Ty.getName().str()).c_str();
+        }
+    }
+    sprintf(temp, "field%d", (int)ind);
+    return temp;
+}
+/*
+ * Output types
+ */
 void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar, bool IgnoreName, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
@@ -155,6 +188,9 @@ restart_label:
   Out << postfix;
 }
 
+/*
+ * Output expressions
+ */
 void CWriter::printString(const char *cp, int len)
 {
     if (!cp[len-1])
@@ -282,6 +318,67 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   }
   printType(Out, SrcTy, TypeIsSigned, "", false, "(", ")");
 }
+void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
+{
+  if (I == E) {
+    writeOperand(Ptr, false);
+    return;
+  }
+  VectorType *LastIndexIsVector = 0;
+  for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
+      LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
+  Out << "(";
+  if (LastIndexIsVector)
+    printType(Out, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", false, "((", ")(");
+  Value *FirstOp = I.getOperand();
+  if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
+    Out << "&";
+    writeOperand(Ptr, false);
+  } else {
+    ++I;  // Skip the zero index.
+    if (isAddressExposed(Ptr) && I != E && (*I)->isArrayTy()) {
+      if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
+        uint64_t val = CI->getZExtValue();
+        ++I;     // we processed this index
+        writeOperand(Ptr, true, Static);
+        if (val)
+            Out << "+" << val;
+        goto done;
+      }
+    }
+    Out << "&";
+    if (isAddressExposed(Ptr)) {
+      writeOperand(Ptr, true, Static);
+    } else if (I != E && (*I)->isStructTy()) {
+      writeOperand(Ptr, false);
+      StructType *STy = dyn_cast<StructType>(*I);
+      Out << "->" << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+      ++I;  // eat the struct index as well.
+    } else {
+      Out << "(";
+      writeOperand(Ptr, true);
+      Out << ")";
+    }
+  }
+done:
+  for (; I != E; ++I) {
+    if ((*I)->isStructTy()) {
+      StructType *STy = dyn_cast<StructType>(*I);
+      Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+    } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
+      Out << '[';
+      writeOperand(I.getOperand(), false);
+      Out << ']';
+    } else {
+      if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
+        Out << ")+(";
+        writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+      }
+      Out << "))";
+    }
+  }
+  Out << ")";
+}
 void CWriter::printConstant(Constant *CPV, bool Static)
 {
   /* handle expressions */
@@ -332,7 +429,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         Out << intmap_lookup(opcodeMap, CE->getOpcode());
       Out << " ";
       printConstantWithCast(CE->getOperand(1), CE->getOpcode());
-      printConstExprCast(CE, Static);
+      printConstExprCast(CE);
       break;
     }
     case Instruction::FCmp: {
@@ -347,7 +444,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         printConstantWithCast(CE->getOperand(1), CE->getOpcode());
         Out << ")";
       }
-      printConstExprCast(CE, Static);
+      printConstExprCast(CE);
       break;
     }
     default:
@@ -385,6 +482,10 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     return;
   }
   int tid = CPV->getType()->getTypeID();
+  if (tid != Type::PointerTyID && !Static) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+}
   if (tid != Type::PointerTyID && !Static)
       printType(Out, CPV->getType(), false, "", false, "(", ")");
   /* handle structured types */
@@ -462,7 +563,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     llvm_unreachable(0);
   }
 }
-bool CWriter::printConstExprCast(const ConstantExpr* CE, bool Static)
+bool CWriter::printConstExprCast(const ConstantExpr* CE)
 {
   Type *Ty = CE->getOperand(0)->getType();
   bool TypeIsSigned = false;
@@ -642,163 +743,6 @@ void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp)
   if (shouldCast)
       Out << ")";
 }
-static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
-{
-  if (GV->hasAppendingLinkage() && GV->use_empty()) {
-    if (GV->getName() == "llvm.global_ctors")
-      return GlobalCtors;
-    else if (GV->getName() == "llvm.global_dtors")
-      return GlobalDtors;
-  }
-  if (GV->getSection() == "llvm.metadata")
-    return NotPrinted;
-  return NotSpecial;
-}
-bool CWriter::doInitialization(Module &M)
-{
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  FunctionPass::doInitialization(M);
-  if (!M.global_empty()) {
-    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!I->isDeclaration()) {
-        if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        if (getGlobalVariableClass(I))
-          continue;
-        Type *Ty = I->getType()->getElementType();
-        if (Ty->getTypeID() == Type::ArrayTyID)
-            if (ArrayType *ATy = cast<ArrayType>(Ty))
-                if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
-                    continue;
-        if (I->hasLocalLinkage())
-          Out << "static ";
-        printType(Out, Ty, false, GetValueName(I), false, "", "");
-        if (!I->getInitializer()->isNullValue()) {
-          Out << " = " ;
-          writeOperand(I->getInitializer(), false, true);
-        }
-        Out << ";\n";
-      }
-    Out << "\n\n//******************** vtables for Classes *******************\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!I->isDeclaration()) {
-        if (getGlobalVariableClass(I))
-          continue;
-        Type *Ty = I->getType()->getElementType();
-        if (Ty->getTypeID() == Type::ArrayTyID)
-            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
-                if (ATy->getElementType()->getTypeID() == Type::PointerTyID) {
-                    if (I->hasLocalLinkage())
-                      Out << "static ";
-                    printType(Out, Ty, false, GetValueName(I), false, "", "");
-                    if (!I->getInitializer()->isNullValue()) {
-                      Out << " = " ;
-                      writeOperand(I->getInitializer(), false, true);
-                    }
-                    Out << ";\n";
-                }
-            }
-      }
-  }
-  return false;
-}
-const char *CWriter::fieldName(StructType *STy, uint64_t ind)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    if (STy->isLiteral()) { // unnamed items
-        sprintf(temp, "field%d", (int)ind);
-        return temp;
-    }
-    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
-    if (!classp) {
-        printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
-        exit(1);
-    }
-    if (classp->inherit) {
-        DIType Ty(classp->inherit);
-        if (!ind--)
-            return CBEMangle(Ty.getName().str()).c_str();
-    }
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member) {
-            if (!ind--)
-                return CBEMangle(Ty.getName().str()).c_str();
-        }
-    }
-    sprintf(temp, "field%d", (int)ind);
-    return temp;
-}
-void CWriter::printContainedStructs(Type *Ty)
-{
-    if (Ty->isPointerTy()) {
-        PointerType *PTy = cast<PointerType>(Ty);
-        printContainedStructs(PTy->getElementType());
-        return;
-    }
-    if (Ty->isPrimitiveType() || Ty->isIntegerTy())
-        return;
-    std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    if (FI != structMap.end())
-        return;
-    structMap[Ty] = 1;
-    for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-        printContainedStructs(*I);
-    if (StructType *STy = dyn_cast<StructType>(Ty)) {
-        std::string Name = getStructName(STy);
-        printType(OutHeader, STy, false, Name, true, "typedef ", ";\n\n");
-    }
-}
-bool CWriter::doFinalization(Module &M)
-{
-    structWork_run = 1;
-    while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin());
-        structWork.pop_front();
-    }
-    if (!M.global_empty()) {
-      OutHeader << "\n/* External Global Variable Declarations */\n";
-      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-        if (I->hasDLLImportLinkage() || I->hasExternalWeakLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        if (I->hasExternalLinkage() || I->hasCommonLinkage())
-          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, "extern ", ";\n");
-      }
-    }
-    OutHeader << "\n/* Function Declarations */\n";
-    SmallVector<const Function*, 8> intrinsicsToDefine;
-    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-      if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      if (I->isIntrinsic()) {
-        switch (I->getIntrinsicID()) {
-          default:
-            break;
-          case Intrinsic::uadd_with_overflow: case Intrinsic::sadd_with_overflow:
-            intrinsicsToDefine.push_back(I);
-            break;
-        }
-        continue;
-      }
-      if (I->getName() == "main" || I->getName() == "atexit")
-        continue;
-      if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
-        continue;
-      if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
-        continue;
-      printFunctionSignature(OutHeader, I, true);
-      OutHeader << ";\n";
-    }
-    UnnamedStructIDs.clear();
-    return false;
-}
 void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype)
 {
   if (F->hasLocalLinkage()) Out << "static ";
@@ -839,33 +783,10 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   FunctionInnards << ')';
   printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
 }
-bool CWriter::runOnFunction(Function &F)
-{
-    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main") {
-        printFunctionSignature(Out, &F, false);
-        Out << " {\n";
-        for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
-            for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-              if (const AllocaInst *AI = isDirectAlloca(&*II))
-                printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, "    ", ";    /* Address-exposed local */\n");
-              else if (!isInlinableInst(*II)) {
-                Out << "    ";
-                if (II->getType() != Type::getVoidTy(BB->getContext()))
-                    printType(Out, II->getType(), false, GetValueName(&*II), false, "", " = ");
-                if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
-                writeInstComputationInline(*II);
-                Out << ";\n";
-              }
-            }
-            visit(*BB->getTerminator());
-        }
-        Out << "}\n\n";
-    }
-    return false;
-}
+
+/*
+ * Output instructions
+ */
 void CWriter::visitReturnInst(ReturnInst &I)
 {
   if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
@@ -993,67 +914,6 @@ void CWriter::visitCallInst(CallInst &I)
   }
   Out << ')';
 }
-void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
-{
-  if (I == E) {
-    writeOperand(Ptr, false);
-    return;
-  }
-  VectorType *LastIndexIsVector = 0;
-  for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
-      LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-  Out << "(";
-  if (LastIndexIsVector)
-    printType(Out, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", false, "((", ")(");
-  Value *FirstOp = I.getOperand();
-  if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-    Out << "&";
-    writeOperand(Ptr, false);
-  } else {
-    ++I;  // Skip the zero index.
-    if (isAddressExposed(Ptr) && I != E && (*I)->isArrayTy()) {
-      if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
-        uint64_t val = CI->getZExtValue();
-        ++I;     // we processed this index
-        writeOperand(Ptr, true, Static);
-        if (val)
-            Out << "+" << val;
-        goto done;
-      }
-    }
-    Out << "&";
-    if (isAddressExposed(Ptr)) {
-      writeOperand(Ptr, true, Static);
-    } else if (I != E && (*I)->isStructTy()) {
-      writeOperand(Ptr, false);
-      StructType *STy = dyn_cast<StructType>(*I);
-      Out << "->" << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-      ++I;  // eat the struct index as well.
-    } else {
-      Out << "(";
-      writeOperand(Ptr, true);
-      Out << ")";
-    }
-  }
-done:
-  for (; I != E; ++I) {
-    if ((*I)->isStructTy()) {
-      StructType *STy = dyn_cast<StructType>(*I);
-      Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-    } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
-      Out << '[';
-      writeOperand(I.getOperand(), false);
-      Out << ']';
-    } else {
-      if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
-        Out << ")+(";
-        writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
-      }
-      Out << "))";
-    }
-  }
-  Out << ")";
-}
 void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
 {
   printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
@@ -1088,4 +948,165 @@ void CWriter::visitStoreInst(StoreInst &I)
     printConstant(BitMask, false);
     Out << ")";
   }
+}
+
+/*
+ * Pass control functions
+ */
+static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
+{
+  if (GV->hasAppendingLinkage() && GV->use_empty()) {
+    if (GV->getName() == "llvm.global_ctors")
+      return GlobalCtors;
+    else if (GV->getName() == "llvm.global_dtors")
+      return GlobalDtors;
+  }
+  if (GV->getSection() == "llvm.metadata")
+    return NotPrinted;
+  return NotSpecial;
+}
+bool CWriter::doInitialization(Module &M)
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+  FunctionPass::doInitialization(M);
+  if (!M.global_empty()) {
+    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
+      if (!I->isDeclaration()) {
+        if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
+        if (getGlobalVariableClass(I))
+          continue;
+        Type *Ty = I->getType()->getElementType();
+        if (Ty->getTypeID() == Type::ArrayTyID)
+            if (ArrayType *ATy = cast<ArrayType>(Ty))
+                if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
+                    continue;
+        if (I->hasLocalLinkage())
+          Out << "static ";
+        printType(Out, Ty, false, GetValueName(I), false, "", "");
+        if (!I->getInitializer()->isNullValue()) {
+          Out << " = " ;
+          writeOperand(I->getInitializer(), false, true);
+        }
+        Out << ";\n";
+      }
+    Out << "\n\n//******************** vtables for Classes *******************\n";
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
+      if (!I->isDeclaration()) {
+        if (getGlobalVariableClass(I))
+          continue;
+        Type *Ty = I->getType()->getElementType();
+        if (Ty->getTypeID() == Type::ArrayTyID)
+            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
+                if (ATy->getElementType()->getTypeID() == Type::PointerTyID) {
+                    if (I->hasLocalLinkage())
+                      Out << "static ";
+                    printType(Out, Ty, false, GetValueName(I), false, "", "");
+                    if (!I->getInitializer()->isNullValue()) {
+                      Out << " = " ;
+                      writeOperand(I->getInitializer(), false, true);
+                    }
+                    Out << ";\n";
+                }
+            }
+      }
+  }
+  return false;
+}
+bool CWriter::runOnFunction(Function &F)
+{
+    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main") {
+        printFunctionSignature(Out, &F, false);
+        Out << " {\n";
+        for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+            for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+              if (const AllocaInst *AI = isDirectAlloca(&*II))
+                printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, "    ", ";    /* Address-exposed local */\n");
+              else if (!isInlinableInst(*II)) {
+                Out << "    ";
+                if (II->getType() != Type::getVoidTy(BB->getContext()))
+                    printType(Out, II->getType(), false, GetValueName(&*II), false, "", " = ");
+                if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
+                }
+                writeInstComputationInline(*II);
+                Out << ";\n";
+              }
+            }
+            visit(*BB->getTerminator());
+        }
+        Out << "}\n\n";
+    }
+    return false;
+}
+void CWriter::printContainedStructs(Type *Ty)
+{
+    if (Ty->isPointerTy()) {
+        PointerType *PTy = cast<PointerType>(Ty);
+        printContainedStructs(PTy->getElementType());
+        return;
+    }
+    if (Ty->isPrimitiveType() || Ty->isIntegerTy())
+        return;
+    std::map<Type *, int>::iterator FI = structMap.find(Ty);
+    if (FI != structMap.end())
+        return;
+    structMap[Ty] = 1;
+    for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+        printContainedStructs(*I);
+    if (StructType *STy = dyn_cast<StructType>(Ty)) {
+        std::string Name = getStructName(STy);
+        printType(OutHeader, STy, false, Name, true, "typedef ", ";\n\n");
+    }
+}
+bool CWriter::doFinalization(Module &M)
+{
+    structWork_run = 1;
+    while (structWork.begin() != structWork.end()) {
+        printContainedStructs(*structWork.begin());
+        structWork.pop_front();
+    }
+    if (!M.global_empty()) {
+      OutHeader << "\n/* External Global Variable Declarations */\n";
+      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+        if (I->hasDLLImportLinkage() || I->hasExternalWeakLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
+        if (I->hasExternalLinkage() || I->hasCommonLinkage())
+          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, "extern ", ";\n");
+      }
+    }
+    OutHeader << "\n/* Function Declarations */\n";
+    SmallVector<const Function*, 8> intrinsicsToDefine;
+    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+      if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
+      if (I->isIntrinsic()) {
+        switch (I->getIntrinsicID()) {
+          default:
+            break;
+          case Intrinsic::uadd_with_overflow: case Intrinsic::sadd_with_overflow:
+            intrinsicsToDefine.push_back(I);
+            break;
+        }
+        continue;
+      }
+      if (I->getName() == "main" || I->getName() == "atexit")
+        continue;
+      if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
+        continue;
+      if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
+        continue;
+      printFunctionSignature(OutHeader, I, true);
+      OutHeader << ";\n";
+    }
+    UnnamedStructIDs.clear();
+    return false;
 }

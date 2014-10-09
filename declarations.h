@@ -124,7 +124,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode);
-    bool printConstExprCast(const ConstantExpr *CE, bool Static);
+    bool printConstExprCast(const ConstantExpr *CE);
     void printString(const char *cp, int len);
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
