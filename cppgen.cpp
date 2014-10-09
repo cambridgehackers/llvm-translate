@@ -1054,9 +1054,25 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
   } else {
     ++I;  // Skip the zero index.
     if (isAddressExposed(Ptr)) {
-      ///////////////////////////////////////// JCAJCAJjcajca
-      Out << "&  ";
+      if (I != E && (*I)->isArrayTy()) {
+         ArrayType *ATy = cast<ArrayType>(*I);
+         Type *ET = ATy->getElementType();
+         ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand());
+         if (ET == Type::getInt8Ty(ET->getContext()) && CI) {
+             Type* Ty = CI->getType();
+             if (Ty == Type::getInt32Ty(Ty->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
+                 uint64_t val = CI->getZExtValue();
+                 ++I;
+                 writeOperand(Ptr, true, Static);
+                 if (val)
+                     Out << "+" << val;
+                 goto done;
+             }
+         }
+      }
+      Out << "&";
       writeOperand(Ptr, true, Static);
+done:;
     } else if (I != E && (*I)->isStructTy()) {
       Out << "&";
       writeOperand(Ptr, false);
