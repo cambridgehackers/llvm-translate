@@ -1034,30 +1034,25 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
     writeOperand(Ptr, false);
   } else {
     ++I;  // Skip the zero index.
-    if (isAddressExposed(Ptr)) {
-      if (I != E && (*I)->isArrayTy()) {
-         if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
-             Type* Ty = CI->getType();
-             if (Ty == Type::getInt32Ty(Ty->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
-                 uint64_t val = CI->getZExtValue();
-                 ++I;     // we processed this index
-                 writeOperand(Ptr, true, Static);
-                 if (val)
-                     Out << "+" << val;
-                 goto done;
-             }
-         }
+    if (isAddressExposed(Ptr) && I != E && (*I)->isArrayTy()) {
+      if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
+        uint64_t val = CI->getZExtValue();
+        ++I;     // we processed this index
+        writeOperand(Ptr, true, Static);
+        if (val)
+            Out << "+" << val;
+        goto done;
       }
-      Out << "&";
+    }
+    Out << "&";
+    if (isAddressExposed(Ptr)) {
       writeOperand(Ptr, true, Static);
     } else if (I != E && (*I)->isStructTy()) {
-      Out << "&";
       writeOperand(Ptr, false);
       StructType *STy = dyn_cast<StructType>(*I);
       Out << "->" << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
       ++I;  // eat the struct index as well.
     } else {
-      Out << "&";
       Out << "(";
       writeOperand(Ptr, true);
       Out << ")";
