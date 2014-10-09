@@ -839,34 +839,32 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   FunctionInnards << ')';
   printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
 }
-void CWriter::printFunction(Function &F)
+bool CWriter::runOnFunction(Function &F)
 {
-  printFunctionSignature(Out, &F, false);
-  Out << " {\n";
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-      printBasicBlock(BB);
-  Out << "}\n\n";
-}
-void CWriter::printBasicBlock(BasicBlock *BB)
-{
-  //Out << GetValueName(BB) << ":\n";
-  for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-    if (const AllocaInst *AI = isDirectAlloca(&*II)) {
-      Out << "    ";
-      printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, "", ";    /* Address-exposed local */\n");
-    } else if (!isInlinableInst(*II)) {
-      Out << "    ";
-      if (II->getType() != Type::getVoidTy(BB->getContext()))
-          printType(Out, II->getType(), false, GetValueName(&*II), false, "", " = ");
-      if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      writeInstComputationInline(*II);
-      Out << ";\n";
+    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main") {
+        printFunctionSignature(Out, &F, false);
+        Out << " {\n";
+        for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+            for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+              if (const AllocaInst *AI = isDirectAlloca(&*II))
+                printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, "    ", ";    /* Address-exposed local */\n");
+              else if (!isInlinableInst(*II)) {
+                Out << "    ";
+                if (II->getType() != Type::getVoidTy(BB->getContext()))
+                    printType(Out, II->getType(), false, GetValueName(&*II), false, "", " = ");
+                if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
+                }
+                writeInstComputationInline(*II);
+                Out << ";\n";
+              }
+            }
+            visit(*BB->getTerminator());
+        }
+        Out << "}\n\n";
     }
-  }
-  visit(*BB->getTerminator());
+    return false;
 }
 void CWriter::visitReturnInst(ReturnInst &I)
 {
@@ -1056,6 +1054,10 @@ done:
   }
   Out << ")";
 }
+void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
+{
+  printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
+}
 void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment)
 {
   if (IsVolatile) {
@@ -1086,8 +1088,4 @@ void CWriter::visitStoreInst(StoreInst &I)
     printConstant(BitMask, false);
     Out << ")";
   }
-}
-void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
-{
-  printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
 }

@@ -107,12 +107,9 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
       : FunctionPass(ID), Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
     virtual const char *getPassName() const { return "C backend"; }
     virtual bool doInitialization(Module &M);
-    bool runOnFunction(Function &F) {
-      if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main")
-          printFunction(F);
-      return false;
-    }
+    bool runOnFunction(Function &F);
     virtual bool doFinalization(Module &M);
+  private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, bool IgnoreName, const std::string prefix, const std::string postfix);
     std::string getStructName(StructType *ST);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
@@ -122,11 +119,8 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool writeInstructionCast(const Instruction &I);
     void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
     const char *fieldName(StructType *STy, uint64_t ind);
-  private :
     void printContainedStructs(Type *Ty);
     void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype);
-    void printFunction(Function &);
-    void printBasicBlock(BasicBlock *BB);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode);
