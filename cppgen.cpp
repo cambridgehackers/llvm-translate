@@ -384,22 +384,21 @@ void CWriter::printConstant(Constant *CPV, bool Static)
   /* handle expressions */
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
     Out << "(";
-    switch (CE->getOpcode()) {
+    int op = CE->getOpcode();
+    switch (op) {
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
     case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
     case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-      printCast(CE->getOpcode(), CE->getOperand(0)->getType(), CE->getType());
-      if (CE->getOpcode() == Instruction::SExt &&
+      printCast(op, CE->getOperand(0)->getType(), CE->getType());
+      if (op == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext())) {
         Out << "0-";
       }
       printConstant(CE->getOperand(0), Static);
       if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
-          (CE->getOpcode() == Instruction::Trunc ||
-           CE->getOpcode() == Instruction::FPToUI ||
-           CE->getOpcode() == Instruction::FPToSI ||
-           CE->getOpcode() == Instruction::PtrToInt)) {
+          (op == Instruction::Trunc || op == Instruction::FPToUI ||
+           op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
         Out << "&1u";
       }
       break;
@@ -421,14 +420,14 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
     case Instruction::AShr:
     {
-      printConstantWithCast(CE->getOperand(0), CE->getOpcode());
+      printConstantWithCast(CE->getOperand(0), op);
       Out << " ";
-      if (CE->getOpcode() == Instruction::ICmp)
+      if (op == Instruction::ICmp)
         Out << intmap_lookup(predText, CE->getPredicate());
       else
-        Out << intmap_lookup(opcodeMap, CE->getOpcode());
+        Out << intmap_lookup(opcodeMap, op);
       Out << " ";
-      printConstantWithCast(CE->getOperand(1), CE->getOpcode());
+      printConstantWithCast(CE->getOperand(1), op);
       printConstExprCast(CE);
       break;
     }
@@ -439,9 +438,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
         Out << "1";
       else {
         Out << "llvm_fcmp_" << intmap_lookup(predText, CE->getPredicate()) << "(";
-        printConstantWithCast(CE->getOperand(0), CE->getOpcode());
+        printConstantWithCast(CE->getOperand(0), op);
         Out << ", ";
-        printConstantWithCast(CE->getOperand(1), CE->getOpcode());
+        printConstantWithCast(CE->getOperand(1), op);
         Out << ")";
       }
       printConstExprCast(CE);
@@ -620,8 +619,7 @@ std::string CWriter::GetValueName(const Value *Operand)
       Operand = V;
   }
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
-    SmallString<128> Str = GV->getName();
-    return CBEMangle(Str.str().str());
+    return CBEMangle(GV->getName().str());
   }
   std::string Name = Operand->getName();
   if (Name.empty()) { // Assign unique names to local temporaries.
