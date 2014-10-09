@@ -686,11 +686,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           continue;
         Type *Ty = I->getType()->getElementType();
         if (Ty->getTypeID() == Type::ArrayTyID)
-            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
+            if (ArrayType *ATy = cast<ArrayType>(Ty))
                 if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
                     continue;
-                ATy->getElementType()->dump();
-            }
         if (I->hasLocalLinkage())
           Out << "static ";
         printType(Out, Ty, false, GetValueName(I), false, false, "", "");
@@ -873,12 +871,13 @@ void CWriter::printFunction(Function &F)
 }
 void CWriter::printBasicBlock(BasicBlock *BB)
 {
-  Out << GetValueName(BB) << ":\n";
+  //Out << GetValueName(BB) << ":\n";
   for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-    Out << "    ";
     if (const AllocaInst *AI = isDirectAlloca(&*II)) {
+      Out << "    ";
       printType(Out, AI->getAllocatedType(), false, GetValueName(AI), false, false, "", ";    /* Address-exposed local */\n");
     } else if (!isInlinableInst(*II)) {
+      Out << "    ";
       if (II->getType() != Type::getVoidTy(BB->getContext()))
           printType(Out, II->getType(), false, GetValueName(&*II), false, false, "", " = ");
       if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
@@ -893,15 +892,12 @@ void CWriter::printBasicBlock(BasicBlock *BB)
 }
 void CWriter::visitReturnInst(ReturnInst &I)
 {
-  if (I.getNumOperands() == 0 &&
-      &*--I.getParent()->getParent()->end() == I.getParent() &&
-      !I.getParent()->size() == 1) {
-    return;
+  if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+    Out << "  return ";
+    if (I.getNumOperands())
+      writeOperand(I.getOperand(0), false);
+    Out << ";\n";
   }
-  Out << "  return ";
-  if (I.getNumOperands())
-    writeOperand(I.getOperand(0), false);
-  Out << ";\n";
 }
 void CWriter::visitBinaryOperator(Instruction &I)
 {
