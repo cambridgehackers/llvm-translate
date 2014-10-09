@@ -756,25 +756,21 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
   bool PrintedArg = false;
-  if (!F->isDeclaration()) {
-    if (!F->arg_empty()) {
-      for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-        std::string ArgName = "";
-        if (PrintedArg) FunctionInnards << ", ";
-        if (I->hasName() || !Prototype)
-          ArgName = GetValueName(I);
-        //else
-          //ArgName = "";
-        Type *ArgTy = I->getType();
-        printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, "", "");
-        PrintedArg = true;
-      }
-    }
-  } else {
+  if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
       if (PrintedArg)
           FunctionInnards << ", ";
       printType(FunctionInnards, *I, /*isSigned=*/false, "", false, "", "");
+      PrintedArg = true;
+    }
+  } else if (!F->arg_empty()) {
+    for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+      std::string ArgName = "";
+      if (PrintedArg) FunctionInnards << ", ";
+      if (I->hasName() || !Prototype)
+        ArgName = GetValueName(I);
+      Type *ArgTy = I->getType();
+      printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, "", "");
       PrintedArg = true;
     }
   }
