@@ -122,16 +122,14 @@ restart_label:
     if (!structWork_run)
         structWork.push_back(STy);
     Out << "struct " << getStructName(STy) << " ";
-    if (!IgnoreName || (!strncmp(getStructName(STy).c_str(), "l_", 2) && getStructName(STy) != NameSoFar)) {
-      Out << NameSoFar;
-      break;
+    if (IgnoreName && (strncmp(getStructName(STy).c_str(), "l_", 2) || getStructName(STy) == NameSoFar)) {
+        Out << "{\n";
+        unsigned Idx = 0;
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
+          printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
+        }
+        Out << "} ";
     }
-    Out << "{\n";
-    unsigned Idx = 0;
-    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
-      printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
-    }
-    Out << "} ";
     Out << NameSoFar;
     break;
   }
@@ -970,22 +968,20 @@ void CWriter::visitCallInst(CallInst &I)
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
-  bool hasByVal = I.hasByValArgument();
-  if (I.hasStructRetAttr()) {
+  if (I.hasStructRetAttr() || I.hasByValArgument()) {
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
   }
   if (I.isTailCall()) Out << " /*tail*/ ";
   if (!WroteCallee) {
-    bool NeedsCast = (hasByVal ) && !isa<Function>(Callee);
+    bool NeedsCast = false;
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee))
       if (CE->isCast())
         if (Function *RF = dyn_cast<Function>(CE->getOperand(0))) {
           NeedsCast = true;
           Callee = RF;
+          printType(Out, I.getCalledValue()->getType(), false, "", false, "((", ")(void*)");
         }
-    if (NeedsCast)
-      printType(Out, I.getCalledValue()->getType(), false, "", hasByVal, "((", ")(void*)");
     writeOperand(Callee, false);
     if (NeedsCast) Out << ')';
   }
