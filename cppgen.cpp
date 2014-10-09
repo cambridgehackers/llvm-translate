@@ -1091,11 +1091,9 @@ bool CWriter::doFinalization(Module &M)
         }
         continue;
       }
-      if (I->getName() == "main" || I->getName() == "atexit")
-        continue;
-      if (I->getName() == "printf" || I->getName() == "__cxa_pure_virtual")
-        continue;
-      if (I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
+      if (I->getName() == "main" || I->getName() == "atexit"
+       || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
+       || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
         continue;
       printFunctionSignature(OutHeader, I, true);
       OutHeader << ";\n";
