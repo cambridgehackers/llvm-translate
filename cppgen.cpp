@@ -645,6 +645,7 @@ std::string CWriter::GetValueName(const Value *Operand)
 void CWriter::writeInstComputationInline(Instruction &I)
 {
   Type *Ty = I.getType();
+#if 0
   if (Ty->isIntegerTy() && (Ty!=Type::getInt1Ty(I.getContext()) &&
         Ty!=Type::getInt8Ty(I.getContext()) && Ty!=Type::getInt16Ty(I.getContext()) &&
         Ty!=Type::getInt32Ty(I.getContext()) && Ty!=Type::getInt64Ty(I.getContext()))) {
@@ -656,9 +657,12 @@ void CWriter::writeInstComputationInline(Instruction &I)
     NeedBoolTrunc = true;
   if (NeedBoolTrunc)
     Out << "((";
+#endif
   visit(I);
+#if 0
   if (NeedBoolTrunc)
     Out << ")&1)";
+#endif
 }
 void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
@@ -964,12 +968,13 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   if (!M.global_empty()) {
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+      if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
+      || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage()) {
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+          exit(1);
+      }
       if (!I->isDeclaration()) {
-        if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
         if (getGlobalVariableClass(I))
           continue;
         Type *Ty = I->getType()->getElementType();
@@ -986,6 +991,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         }
         Out << ";\n";
       }
+    }
     Out << "\n\n//******************** vtables for Classes *******************\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!I->isDeclaration()) {
@@ -1066,32 +1072,17 @@ bool CWriter::doFinalization(Module &M)
     if (!M.global_empty()) {
       OutHeader << "\n/* External Global Variable Declarations */\n";
       for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-        if (I->hasDLLImportLinkage() || I->hasExternalWeakLinkage() || I->isThreadLocal() || I->hasHiddenVisibility()) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, "extern ", ";\n");
       }
     }
     OutHeader << "\n/* Function Declarations */\n";
-    SmallVector<const Function*, 8> intrinsicsToDefine;
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
       if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      if (I->isIntrinsic()) {
-        switch (I->getIntrinsicID()) {
-          default:
-            break;
-          case Intrinsic::uadd_with_overflow: case Intrinsic::sadd_with_overflow:
-            intrinsicsToDefine.push_back(I);
-            break;
-        }
-        continue;
-      }
-      if (I->getName() == "main" || I->getName() == "atexit"
+      if (I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
        || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
        || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
         continue;
