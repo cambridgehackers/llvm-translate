@@ -340,7 +340,35 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
       if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
         uint64_t val = CI->getZExtValue();
         ++I;     // we processed this index
-        writeOperand(Ptr, true, Static);
+        GlobalVariable *gv = dyn_cast<GlobalVariable>(Ptr);
+        if (gv && !gv->getInitializer()->isNullValue()) {
+printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getType()->getTypeID());
+            gv->getInitializer()->getType()->dump();
+            gv->getInitializer()->dump();
+            Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
+            if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, val);
+                if (val != 2) {
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
+                }
+                //printConstantArray(CA, Static);
+                writeOperand(Ptr, true, Static);
+            }
+            else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+                printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, val);
+                if (val) {
+                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    exit(1);
+                }
+                Out << "(unsigned char *)";
+                printConstantDataArray(CA, Static);
+            }
+        else
+            writeOperand(Ptr, true, Static);
+        }
+        else
+            writeOperand(Ptr, true, Static);
         if (val)
             Out << "+" << val;
         goto done;
@@ -642,28 +670,6 @@ std::string CWriter::GetValueName(const Value *Operand)
   }
   return "V" + VarName;
 }
-void CWriter::writeInstComputationInline(Instruction &I)
-{
-  Type *Ty = I.getType();
-#if 0
-  if (Ty->isIntegerTy() && (Ty!=Type::getInt1Ty(I.getContext()) &&
-        Ty!=Type::getInt8Ty(I.getContext()) && Ty!=Type::getInt16Ty(I.getContext()) &&
-        Ty!=Type::getInt32Ty(I.getContext()) && Ty!=Type::getInt64Ty(I.getContext()))) {
-      report_fatal_error("The C backend does not currently support integer "
-           "types of widths other than 1, 8, 16, 32, 64.\n" "This is being tracked as PR 4158.");
-  }
-  bool NeedBoolTrunc = false;
-  if (I.getType() == Type::getInt1Ty(I.getContext()) && !isa<ICmpInst>(I) && !isa<FCmpInst>(I))
-    NeedBoolTrunc = true;
-  if (NeedBoolTrunc)
-    Out << "((";
-#endif
-  visit(I);
-#if 0
-  if (NeedBoolTrunc)
-    Out << ")&1)";
-#endif
-}
 void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
   Instruction *I = dyn_cast<Instruction>(Operand);
@@ -678,7 +684,7 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
     Out << "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I) && !isDirectAlloca(I)) {
       Out << '(';
-      writeInstComputationInline(*I);
+      visit(*I);
       Out << ')';
   }
   else {
@@ -982,6 +988,14 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             if (ArrayType *ATy = cast<ArrayType>(Ty))
                 if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
                     continue;
+#if 1
+        if (!I->getInitializer()->isNullValue()) {
+            Constant* CPV = dyn_cast<Constant>(I->getInitializer());
+            if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+                continue;
+            }
+        } 
+#endif
         if (I->hasLocalLinkage())
           Out << "static ";
         printType(Out, Ty, false, GetValueName(I), false, "", "");
@@ -1032,7 +1046,7 @@ bool CWriter::runOnFunction(Function &F)
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
-                writeInstComputationInline(*II);
+                visit(*II);
                 Out << ";\n";
               }
             }
