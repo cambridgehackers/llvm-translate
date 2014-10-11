@@ -346,7 +346,6 @@ printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getTyp
             gv->getInitializer()->getType()->dump();
             gv->getInitializer()->dump();
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
-#if 0
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
                 printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val != 2) {
@@ -354,7 +353,9 @@ printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getTyp
                     exit(1);
                 }
                 //printConstantArray(CA, Static);
-                //writeOperand(Ptr, true, Static);
+                writeOperand(Ptr, true, Static);
+val = 0;
+#if 0
 //void CWriter::printConstantArray(ConstantArray *CA, bool Static)
 {
   int len = CA->getNumOperands();
@@ -386,8 +387,8 @@ exit(1);
     val = 0;
   }
 }
-            } else 
 #endif
+            } else 
             if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
                 printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val) {
@@ -1021,14 +1022,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             if (ArrayType *ATy = cast<ArrayType>(Ty))
                 if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
                     continue;
-#if 1
-        if (!I->getInitializer()->isNullValue()) {
-            Constant* CPV = dyn_cast<Constant>(I->getInitializer());
-            if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+        if (!I->getInitializer()->isNullValue())
                 continue;
-            }
-        } 
-#endif
         if (I->hasLocalLinkage())
           Out << "static ";
         printType(Out, Ty, false, GetValueName(I), false, "", "");
@@ -1053,7 +1048,26 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     printType(Out, Ty, false, GetValueName(I), false, "", "");
                     if (!I->getInitializer()->isNullValue()) {
                       Out << " = " ;
-                      writeOperand(I->getInitializer(), false, true);
+                      //writeOperand(I->getInitializer(), false, true);
+#if 1
+                      Constant* CPV = dyn_cast<Constant>(I->getInitializer());
+                      if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                          Type *ETy = CA->getType()->getElementType();
+                          if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
+                              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                              exit(1);
+                          } else {
+                            Out << '{';
+                            const char *sep = " ";
+                            for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
+                              Out << sep;
+                              printConstant(cast<Constant>(CA->getOperand(i)), true);
+                              sep = ", ";
+                            }
+                            Out << " }";
+                          }
+                        }
+#endif
                     }
                     Out << ";\n";
                 }
