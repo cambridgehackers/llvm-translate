@@ -64,6 +64,20 @@ const char *intmap_lookup(INTMAP_TYPE *map, int value)
     return "unknown";
 }
 
+static void recursiveDelete(Value *V)
+{
+    Instruction *I = dyn_cast<Instruction>(V);
+    if (!I)
+        return;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+        Value *OpV = I->getOperand(i);
+        I->setOperand(i, 0);
+        if (OpV->use_empty())
+            recursiveDelete(OpV);
+    }
+    I->eraseFromParent();
+}
+
 /*
  * Generate Verilog output for Store and Call instructions
  */
@@ -224,14 +238,15 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     //case Instruction::Select:
     case Instruction::Call:
         {
-        //const CallInst *CI = dyn_cast<CallInst>(&I);
-        //const Value *val = CI->getCalledValue();
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
         Function *f = (Function *)slotarray[tcall].svalue;
         if (!f) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
             break;
         }
+        Value *oldcall = I.getOperand(I.getNumOperands()-1);
+        I.setOperand(I.getNumOperands()-1, f);
+        recursiveDelete(oldcall);
         SLOTARRAY_TYPE arg;
         if (operand_list_index > 3)
             arg = slotarray[operand_list[2].value];

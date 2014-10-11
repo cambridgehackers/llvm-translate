@@ -342,55 +342,19 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
         ++I;     // we processed this index
         GlobalVariable *gv = dyn_cast<GlobalVariable>(Ptr);
         if (gv && !gv->getInitializer()->isNullValue()) {
-printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getType()->getTypeID());
-            gv->getInitializer()->getType()->dump();
-            gv->getInitializer()->dump();
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, (int)val);
+                //printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val != 2) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
                 //printConstantArray(CA, Static);
                 writeOperand(Ptr, true, Static);
-val = 0;
-#if 0
-//void CWriter::printConstantArray(ConstantArray *CA, bool Static)
-{
-  int len = CA->getNumOperands();
-  Type *ETy = CA->getType()->getElementType();
-  bool isString = (ETy == Type::getInt8Ty(CA->getContext()) ||
-                   ETy == Type::getInt8Ty(CA->getContext()));
-  if (isString && (CA->getNumOperands() == 0 ||
-                   !cast<Constant>(*(CA->op_end()-1))->isNullValue()))
-    isString = false;
-  if (isString) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-    char *cp = (char *)malloc(len);
-    for (unsigned i = 0, e = CA->getNumOperands()-1; i != e; ++i)
-        cp[i] = cast<ConstantInt>(CA->getOperand(i))->getZExtValue();
-    printString(cp, len);
-    free(cp);
-  } else {
-//Out << "(unsigned char *[])";
-    printType(Out, ETy, false, "", false, "(", "[])");
-    Out << '{';
-    const char *sep = " ";
-    for (unsigned i = val, e = CA->getNumOperands(); i != e; ++i) {
-      Out << sep;
-      printConstant(cast<Constant>(CA->getOperand(i)), Static);
-      sep = ", ";
-    }
-    Out << " }";
-    val = 0;
-  }
-}
-#endif
+                val = 0;
             } else 
             if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
-                printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, (int)val);
+                //printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
@@ -1061,7 +1025,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                             const char *sep = " ";
                             for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                               Out << sep;
-                              printConstant(cast<Constant>(CA->getOperand(i)), true);
+#if 0
+#include <cxxabi.h> // abi::__cxa_demangle
+            int status;
+            const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+#endif
+                              Constant* V = dyn_cast<Constant>(CA->getOperand(i));
+#if 0
+printf("[%s:%d] vtab[%d] ", __FUNCTION__, __LINE__, i);
+V->dump();
+printf("\n");
+#endif
+                              printConstant(V, true);
                               sep = ", ";
                             }
                             Out << " }";
@@ -1105,15 +1080,8 @@ bool CWriter::runOnFunction(Function &F)
 }
 void CWriter::printContainedStructs(Type *Ty)
 {
-    if (Ty->isPointerTy()) {
-        PointerType *PTy = cast<PointerType>(Ty);
-        printContainedStructs(PTy->getElementType());
-        return;
-    }
-    if (Ty->isPrimitiveType() || Ty->isIntegerTy())
-        return;
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    if (FI != structMap.end())
+    if (FI != structMap.end() || Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
         return;
     structMap[Ty] = 1;
     for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
