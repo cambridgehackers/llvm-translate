@@ -346,17 +346,50 @@ printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getTyp
             gv->getInitializer()->getType()->dump();
             gv->getInitializer()->dump();
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
+#if 0
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, val);
+                printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val != 2) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
                 //printConstantArray(CA, Static);
-                writeOperand(Ptr, true, Static);
-            }
-            else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
-                printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, val);
+                //writeOperand(Ptr, true, Static);
+//void CWriter::printConstantArray(ConstantArray *CA, bool Static)
+{
+  int len = CA->getNumOperands();
+  Type *ETy = CA->getType()->getElementType();
+  bool isString = (ETy == Type::getInt8Ty(CA->getContext()) ||
+                   ETy == Type::getInt8Ty(CA->getContext()));
+  if (isString && (CA->getNumOperands() == 0 ||
+                   !cast<Constant>(*(CA->op_end()-1))->isNullValue()))
+    isString = false;
+  if (isString) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(1);
+    char *cp = (char *)malloc(len);
+    for (unsigned i = 0, e = CA->getNumOperands()-1; i != e; ++i)
+        cp[i] = cast<ConstantInt>(CA->getOperand(i))->getZExtValue();
+    printString(cp, len);
+    free(cp);
+  } else {
+//Out << "(unsigned char *[])";
+    printType(Out, ETy, false, "", false, "(", "[])");
+    Out << '{';
+    const char *sep = " ";
+    for (unsigned i = val, e = CA->getNumOperands(); i != e; ++i) {
+      Out << sep;
+      printConstant(cast<Constant>(CA->getOperand(i)), Static);
+      sep = ", ";
+    }
+    Out << " }";
+    val = 0;
+  }
+}
+            } else 
+#endif
+            if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+                printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
@@ -364,8 +397,8 @@ printf("[%s:%d] type %d\n", __FUNCTION__, __LINE__, gv->getInitializer()->getTyp
                 Out << "(unsigned char *)";
                 printConstantDataArray(CA, Static);
             }
-        else
-            writeOperand(Ptr, true, Static);
+            else
+                writeOperand(Ptr, true, Static);
         }
         else
             writeOperand(Ptr, true, Static);
