@@ -344,7 +344,6 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
         if (gv && !gv->getInitializer()->isNullValue()) {
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                //printf("[%s:%d]constarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val != 2) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
@@ -354,12 +353,10 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
                 val = 0;
             } else 
             if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
-                //printf("[%s:%d]constdataarr val %d\n", __FUNCTION__, __LINE__, (int)val);
                 if (val) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
-                Out << "(unsigned char *)";
                 printConstantDataArray(CA, Static);
             }
             else
@@ -895,8 +892,6 @@ void CWriter::visitCallInst(CallInst &I)
   writeOperand(Callee, false);
   if (NeedsCast) Out << ')';
   Out << '(';
-  if (Callee->getName() == "printf")
-      Out << "(const char *) ";
   bool PrintedArg = false;
   if(FTy->isVarArg() && !FTy->getNumParams()) {
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
