@@ -244,7 +244,8 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                 DICompositeType CTy(DIG.getType());
                 int tag = CTy.getTag();
                 Value *contextp = DIG.getContext();
-                printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
+                if (trace_map)
+                    printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
                 const MDNode *node = CTy;
                 additemtolist(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
                 if (!contextp)

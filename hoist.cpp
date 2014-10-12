@@ -295,7 +295,7 @@ static bool callProcess_runOnInstruction(Instruction *II)
     if (!CF || !CF->isDeclaration())
         return false;
     if (!strcmp(cp, "_Znwm") || !strcmp(cp, "malloc")) {
-        printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
+        //printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
         Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
         FunctionType *fty = FunctionType::get(
             Type::getInt8PtrTy(Mod->getContext()),
