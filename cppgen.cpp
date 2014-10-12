@@ -999,6 +999,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (getGlobalVariableClass(I))
           continue;
         Type *Ty = I->getType()->getElementType();
+        int dumpme = 0;
         if (Ty->getTypeID() == Type::ArrayTyID)
             if (ArrayType *ATy = cast<ArrayType>(Ty)) {
                 if (ATy->getElementType()->getTypeID() == Type::PointerTyID) {
@@ -1018,19 +1019,23 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                           } else {
                             Out << '{';
                             const char *sep = " ";
+                            if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CA->getOperand(3)))
+                            if (CE->getOpcode() == Instruction::BitCast)
+                            if (PointerType *PTy = cast<PointerType>(CE->getOperand(0)->getType()))
+                            if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
+                            if (FT->getNumParams() >= 1)
+                            if (PointerType *PPTy = cast<PointerType>(FT->getParamType(0)))
+                            if (StructType *STy = cast<StructType>(PPTy->getElementType()))
+                            if (STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID)
+                            if (StructType *ISTy = cast<StructType>(STy->getElementType(0)))
+                            if (!strcmp(ISTy->getName().str().c_str(), "class.Rule"))
+                                dumpme = 1;
+                            if (!dumpme)
+                                Out << 0;
+                            else
                             for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                               Out << sep;
-#if 0
-#include <cxxabi.h> // abi::__cxa_demangle
-            int status;
-            const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-#endif
                               Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-#if 0
-printf("[%s:%d] vtab[%d] ", __FUNCTION__, __LINE__, i);
-V->dump();
-printf("\n");
-#endif
                               printConstant(V, true);
                               sep = ", ";
                             }
