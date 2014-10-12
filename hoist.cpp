@@ -174,6 +174,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         break;
     case Instruction::Call:
         {
+        int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Value *called = I.getOperand(I.getNumOperands()-1);
         const char *cp = called->getName().str().c_str();
         const Function *CF = dyn_cast<Function>(called);
@@ -207,21 +208,21 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
         if (!f) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-            break;
         }
-        if (trace_translate)
-            printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), f->getName().str().c_str(), thisp);
-        const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-        const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
-        const StructType *STy = cast<StructType>(p1->getPointerElementType());
-        const char *tname = strdup(STy->getName().str().c_str());
-        int guardName = lookup_method(tname, "guard");
-        int updateName = lookup_method(tname, "update");
+        else {
+            if (trace_translate)
+                printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
+                      f->getName().str().c_str(), thisp);
+            const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+            const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
+            const StructType *STy = cast<StructType>(p1->getPointerElementType());
+            const char *tname = strdup(STy->getName().str().c_str());
+            guardName = lookup_method(tname, "guard");
+            updateName = lookup_method(tname, "update");
+        }
         printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
         const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
         printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
-        int parentGuardName = -1;
-        int parentUpdateName = -1;
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
@@ -258,11 +259,13 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-if (operand_list_index <= 3)
-        vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
-            (Function ***)slotarray[operand_list[1].value].svalue,
-            (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
-        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+//if (operand_list_index <= 3)
+        if (f && thisp) {
+            vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
+                thisp,
+                (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
+            slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+        }
         }
         break;
     default:
