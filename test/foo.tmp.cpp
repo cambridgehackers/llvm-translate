@@ -49,9 +49,9 @@ int main(int argc, const char *argv[])
         while (curmod) {
             struct l_class_OC_Rule *currule = curmod->rfirst;
             while (currule) {
-                ((void (*)(void *))currule->_vptr_EC_Rule[3])(currule);
-                if (((int (*)(void *))currule->_vptr_EC_Rule[2])(currule)) {
-                    ((void (*)(void *))currule->_vptr_EC_Rule[4])(currule);
+                ((void (*)(void *))currule->_vptr_EC_Rule[1])(currule);
+                if (((int (*)(void *))currule->_vptr_EC_Rule[0])(currule)) {
+                    ((void (*)(void *))currule->_vptr_EC_Rule[2])(currule);
                 }
                 currule = currule->next;
             }
