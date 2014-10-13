@@ -23,7 +23,9 @@
 //     License. See LICENSE.TXT for details.
 
 #include <stdio.h>
+#include <string.h>
 #include <list>
+#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/InstIterator.h"
@@ -1053,7 +1055,15 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 bool CWriter::runOnFunction(Function &F)
 {
-    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main") {
+    int status;
+    const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
+    if (demang && strstr(demang, "::~")) {
+printf("[%s:%d] ignorename %s\n", __FUNCTION__, __LINE__, demang);
+        return false;
+    }
+printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, demang);
+    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
+     && F.getName() != "__dtor_echoTest") {
         printFunctionSignature(Out, &F, false);
         Out << " {\n";
         for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {

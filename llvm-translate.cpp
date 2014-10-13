@@ -113,7 +113,7 @@ bool RemoveAllocaPass::runOnBasicBlock(BasicBlock &BB)
               const Value *Operand = CI->getCalledValue();
                 if (Operand->hasName() && isa<Constant>(Operand)) {
                   const char *cp = Operand->getName().str().c_str();
-                  if (!strcmp(cp, "llvm.dbg.declare") /*|| !strcmp(cp, "printf")*/) {
+                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
                       I->eraseFromParent(); // delete this instruction
                       changed = true;
                   }
@@ -267,9 +267,6 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
     slotmap.clear();
     slotarray_index = 1;
     memset(slotarray, 0, sizeof(slotarray));
-    ///* Do generic optimization of instruction list (remove debug calls, remove automatic variables */
-    //for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
-        //opt_runOnBasicBlock(*I);
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
         F->dump();
