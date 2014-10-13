@@ -122,8 +122,9 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                   }
                 }
             }
-            if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && PI == E) {
-printf("[%s:%d] single!!!!\n", __FUNCTION__, __LINE__);
+            Instruction *nexti = PI;
+            if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
+printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
 I->dump();
             }
             break;
