@@ -176,11 +176,11 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     std::string GetValueName(const Value *Operand);
 };
 
-class RemoveAllocaPass : public BasicBlockPass {
+class RemoveAllocaPass : public FunctionPass {
   public:
     static char ID;
-    RemoveAllocaPass() : BasicBlockPass(ID) {}
-    bool runOnBasicBlock(BasicBlock &BB);
+    RemoveAllocaPass() : FunctionPass(ID) {}
+    bool runOnFunction(Function &F);
 };
 
 class CallProcessPass : public BasicBlockPass {

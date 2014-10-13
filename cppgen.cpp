@@ -1058,10 +1058,9 @@ bool CWriter::runOnFunction(Function &F)
     int status;
     const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
     if (demang && strstr(demang, "::~")) {
-printf("[%s:%d] ignorename %s\n", __FUNCTION__, __LINE__, demang);
+        //printf("[%s:%d] ignorename %s\n", __FUNCTION__, __LINE__, demang);
         return false;
     }
-printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, demang);
     if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
      && F.getName() != "__dtor_echoTest") {
         printFunctionSignature(Out, &F, false);

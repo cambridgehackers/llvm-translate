@@ -74,11 +74,13 @@ static bool endswith(const char *str, const char *suffix)
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
  */
-bool RemoveAllocaPass::runOnBasicBlock(BasicBlock &BB)
+bool RemoveAllocaPass::runOnFunction(Function &F)
 {
     bool changed = false;
-    BasicBlock::iterator Start = BB.getFirstInsertionPt();
-    BasicBlock::iterator E = BB.end();
+    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        Function::iterator BN = llvm::next(Function::iterator(BB));
+    BasicBlock::iterator Start = BB->getFirstInsertionPt();
+    BasicBlock::iterator E = BB->end();
     if (Start == E) return false;
     BasicBlock::iterator I = Start++;
     while(1) {
@@ -115,15 +117,21 @@ bool RemoveAllocaPass::runOnBasicBlock(BasicBlock &BB)
                   const char *cp = Operand->getName().str().c_str();
                   if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
                       I->eraseFromParent(); // delete this instruction
+                      break;
                       changed = true;
                   }
                 }
+            }
+            if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && PI == E) {
+printf("[%s:%d] single!!!!\n", __FUNCTION__, __LINE__);
+I->dump();
             }
             break;
         };
         if (PI == E)
             break;
         I = PI;
+    }
     }
     return changed;
 }
