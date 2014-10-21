@@ -1061,6 +1061,7 @@ bool CWriter::runOnFunction(Function &F)
         //printf("[%s:%d] ignorename %s\n", __FUNCTION__, __LINE__, demang);
         return false;
     }
+    NextAnonValueNumber = 0;
     if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
      && F.getName() != "__dtor_echoTest") {
         printFunctionSignature(Out, &F, false);

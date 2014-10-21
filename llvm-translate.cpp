@@ -39,6 +39,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -60,6 +61,7 @@ static std::map<const Value *, int> slotmap;
 static FILE *outputFile;
 static int already_printed_header;
 std::list<VTABLE_WORK> vtablework;
+static Function *EntryFn;
 
 char GeneratePass::ID = 0;
 char RemoveAllocaPass::ID = 0;
@@ -111,8 +113,8 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
             }
             break;
         case Instruction::Call:
-            if (const CallInst *CI = dyn_cast<CallInst>(I)) {
-              const Value *Operand = CI->getCalledValue();
+            if (CallInst *CI = dyn_cast<CallInst>(I)) {
+                Value *Operand = CI->getCalledValue();
                 if (Operand->hasName() && isa<Constant>(Operand)) {
                   const char *cp = Operand->getName().str().c_str();
                   if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
@@ -121,11 +123,12 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                       changed = true;
                   }
                 }
-            }
-            Instruction *nexti = PI;
-            if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
-printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
-I->dump();
+                Instruction *nexti = PI;
+                if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
+                    printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
+                    InlineFunctionInfo IFI;
+                    InlineFunction(CI, IFI, false);
+                }
             }
             break;
         };
@@ -490,7 +493,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
-    Function *EntryFn = Mod->getFunction("main");
+    EntryFn = Mod->getFunction("main");
     if (!EntryFn || !modfirst) {
         printf("'main' function not found in module.\n");
         exit(1);
@@ -501,18 +504,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     // Process the static constructors, generating code for all rules
     processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog);
-
-printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
-    DebugFlag = dump_interpret != 0;
-    // Run main
-    std::vector<std::string> InputArgv;
-    InputArgv.push_back("param1");
-    InputArgv.push_back("param2");
-    char *envp[] = {NULL};
-    int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
-
-    //dump_class_data();
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return false;
@@ -559,6 +550,18 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
+
+printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
+    DebugFlag = dump_interpret != 0;
+    // Run main
+    std::vector<std::string> InputArgv;
+    InputArgv.push_back("param1");
+    InputArgv.push_back("param2");
+    //char *envp[] = {NULL};
+    //int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+//printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
+
+    //dump_class_data();
 
     // write copy of optimized bitcode
     //raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
