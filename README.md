@@ -21,3 +21,6 @@
 
 4) cd llvm-translate
     ./run
+
+5) examine output in:
+    output.tmp foo.tmp.xc foo.tmp.h

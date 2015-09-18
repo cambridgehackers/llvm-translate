@@ -2,5 +2,5 @@
 set -e
 set -x
 ./run
-clang++-mp-3.3 -g test/foo.tmp.cpp 
+clang++ -g test/foo.tmp.cpp 
 ./a.out
