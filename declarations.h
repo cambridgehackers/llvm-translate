@@ -214,7 +214,7 @@ extern Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
 
-const char *intmap_lookup(INTMAP_TYPE *map, int value);
+const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
 void dumpType(DIType litem, CLASS_META *classp);
 void dumpTref(const MDNode *Node, CLASS_META *classp);

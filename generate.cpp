@@ -100,21 +100,6 @@ retlab:
     operand_list_index++;
 }
 
-const char *getParam(int arg)
-{
-   char temp[MAX_CHAR_BUFFER];
-   temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeExternalFunction)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
-   else if (operand_list[arg].type == OpTypeString)
-       return (const char *)operand_list[arg].value;
-   return strdup(temp);
-}
-
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)

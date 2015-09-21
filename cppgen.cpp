@@ -449,9 +449,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       printConstantWithCast(CE->getOperand(0), op);
       Out << " ";
       if (op == Instruction::ICmp)
-        Out << intmap_lookup(predText, CE->getPredicate());
+        Out << intmapLookup(predText, CE->getPredicate());
       else
-        Out << intmap_lookup(opcodeMap, op);
+        Out << intmapLookup(opcodeMap, op);
       Out << " ";
       printConstantWithCast(CE->getOperand(1), op);
       printConstExprCast(CE);
@@ -463,7 +463,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
         Out << "1";
       else {
-        Out << "llvm_fcmp_" << intmap_lookup(predText, CE->getPredicate()) << "(";
+        Out << "llvm_fcmp_" << intmapLookup(predText, CE->getPredicate()) << "(";
         printConstantWithCast(CE->getOperand(0), op);
         Out << ", ";
         printConstantWithCast(CE->getOperand(1), op);
@@ -831,7 +831,7 @@ void CWriter::visitBinaryOperator(Instruction &I)
   } else {
     writeOperandWithCast(I.getOperand(0), I.getOpcode());
     Out << " ";
-    Out << intmap_lookup(opcodeMap, I.getOpcode());
+    Out << intmapLookup(opcodeMap, I.getOpcode());
     Out << " ";
     writeOperandWithCast(I.getOperand(1), I.getOpcode());
     writeInstructionCast(I);
@@ -845,7 +845,7 @@ void CWriter::visitICmpInst(ICmpInst &I)
   bool needsCast = false;
   writeOperandWithCastICmp(I.getOperand(0), I);
   Out << " ";
-  Out << intmap_lookup(predText, I.getPredicate());
+  Out << intmapLookup(predText, I.getPredicate());
   Out << " ";
   writeOperandWithCastICmp(I.getOperand(1), I);
   writeInstructionCast(I);

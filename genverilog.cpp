@@ -54,7 +54,7 @@ INTMAP_TYPE opcodeMap[] = {
     {Instruction::Shl, "<<"}, {Instruction::LShr, ">>"}, {Instruction::AShr, " >> "}, {}};
 static char vout[MAX_CHAR_BUFFER];
 
-const char *intmap_lookup(INTMAP_TYPE *map, int value)
+const char *intmapLookup(INTMAP_TYPE *map, int value)
 {
     while (map->name) {
         if (map->value == value)
@@ -76,6 +76,21 @@ static void recursiveDelete(Value *V)
             recursiveDelete(OpV);
     }
     I->eraseFromParent();
+}
+
+const char *getParam(int arg)
+{
+   char temp[MAX_CHAR_BUFFER];
+   temp[0] = 0;
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeExternalFunction)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeInt)
+       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
+   else if (operand_list[arg].type == OpTypeString)
+       return (const char *)operand_list[arg].value;
+   return strdup(temp);
 }
 
 /*
@@ -145,7 +160,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         {
         const char *op1 = getParam(1), *op2 = getParam(2);
         char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(opcodeMap, opcode), op2);
+        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(opcodeMap, opcode), op2);
         if (operand_list[0].type != OpTypeLocalRef) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             exit(1);
@@ -192,7 +207,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             exit(1);
         }
         char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(predText, CI->getPredicate()), op2);
+        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(predText, CI->getPredicate()), op2);
         slotarray[operand_list[0].value].name = strdup(temp);
         }
         break;
