@@ -14,13 +14,16 @@
     make -j10
 
 2) cd llvm-translate
+    ./configure
+
+3) cd llvm-translate
     make
 
-3) cd atomicc/examples/echo
+4) cd atomicc/examples/echo
     make 
 
-4) cd llvm-translate
+5) cd llvm-translate
     ./run
 
-5) examine output in:
+6) examine output in:
     output.tmp foo.tmp.xc foo.tmp.h
