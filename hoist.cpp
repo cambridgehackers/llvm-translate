@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Quanta Research Cambridge, Inc
+/* Copyright (c) 2015 The Connectal Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -188,14 +188,14 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             Function *otherBody = Mod->getFunction(otherName);
             TerminatorInst *TI = otherBody->begin()->getTerminator();
             prepareClone(TI, &I);
-            Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
             Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+            Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
             Instruction *newIC = cloneTree(IC, TI);
             Instruction *newIT = cloneTree(IT, TI);
             printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
             IRBuilder<> builder(TI->getParent());
             builder.SetInsertPoint(TI);
-            Value *newStore = builder.CreateStore(newIC, newIT);
+            builder.CreateStore(newIC, newIT);
             IRBuilder<> oldbuilder(I.getParent());
             oldbuilder.SetInsertPoint(&I);
             Value *newLoad = oldbuilder.CreateLoad(IT);

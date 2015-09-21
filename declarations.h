@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Quanta Research Cambridge, Inc
+/* Copyright (c) 2015 The Connectal Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -232,4 +232,6 @@ int validate_address(int arg, void *p);
 const char *map_address(void *arg, std::string name);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
-void processConstructorAndRules(Module *Mod, Function ****modfirst, NamedMDNode *CU_Nodes, const char *(*proc)(Function ***thisp, Instruction &I));
+void processConstructorAndRules(Module *Mod, Function ****modfirst,
+    NamedMDNode *CU_Nodes, const char *(*proc)(Function ***thisp, Instruction &I),
+    int generate);

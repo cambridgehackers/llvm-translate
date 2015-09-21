@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Quanta Research Cambridge, Inc
+/* Copyright (c) 2015 The Connectal Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -346,6 +346,7 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
         if (gv && !gv->getInitializer()->isNullValue()) {
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                (void)CA;
                 if (val != 2) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
@@ -873,6 +874,7 @@ void CWriter::visitCallInst(CallInst &I)
 {
   if (Function *F = I.getCalledFunction())
       if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID()) {
+          (void)ID;
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }

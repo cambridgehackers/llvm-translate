@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Quanta Research Cambridge, Inc
+/* Copyright (c) 2015 The Connectal Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,13 +52,6 @@ static int output_stdout;// = 1;
 
 ExecutionEngine *EE;
 const char *globalName;
-//OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
-//int operand_list_index;
-
-//static int slotarray_index = 1;
-//static std::map<const Value *, int> slotmap;
-//static FILE *outputFile;
-//static int already_printed_header;
 static Function *EntryFn;
 
 char GeneratePass::ID = 0;
@@ -194,10 +187,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0);
 
     // Process the static constructors, generating code for all rules
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1);
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return false;
