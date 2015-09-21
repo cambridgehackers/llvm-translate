@@ -225,15 +225,15 @@ int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
 
 void prepareOperand(const Value *Operand);
-const char *getparam(int arg);
+const char *getParam(int arg);
 int getLocalSlot(const Value *V);
 
 const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 const char *generateVerilog(Function ***thisp, Instruction &I);
 bool callProcess_runOnInstruction(Module *Mod, Instruction *II);
 
-int validate_address(int arg, void *p);
-const char *map_address(void *arg, std::string name);
+int validateAddress(int arg, void *p);
+const char *mapAddress(void *arg, std::string name);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);

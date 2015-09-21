@@ -124,11 +124,11 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
     // Memory instructions...
     case Instruction::Store:
-        printf("%s: STORE %s=%s\n", __FUNCTION__, getparam(2), getparam(1));
+        printf("%s: STORE %s=%s\n", __FUNCTION__, getParam(2), getParam(1));
         if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
             operand_list[1].type = OpTypeInt;
         if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            printf("%s: STORE %s;", __FUNCTION__, getparam(2));
+            printf("%s: STORE %s;", __FUNCTION__, getParam(2));
         else
             slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
         break;

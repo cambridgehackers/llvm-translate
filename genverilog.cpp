@@ -93,8 +93,8 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         if (I.getParent()->getParent()->getReturnType()->getTypeID()
                == Type::IntegerTyID && operand_list_index > 1) {
             operand_list[0].type = OpTypeString;
-            operand_list[0].value = (uint64_t)getparam(1);
-            sprintf(vout, "%s = %s;", globalName, getparam(1));
+            operand_list[0].value = (uint64_t)getParam(1);
+            sprintf(vout, "%s = %s;", globalName, getParam(1));
         }
         break;
     case Instruction::Br:
@@ -143,7 +143,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     // Logical operators...
     case Instruction::And: case Instruction::Or: case Instruction::Xor:
         {
-        const char *op1 = getparam(1), *op2 = getparam(2);
+        const char *op1 = getParam(1), *op2 = getParam(2);
         char temp[MAX_CHAR_BUFFER];
         sprintf(temp, "((%s) %s (%s))", op1, intmap_lookup(opcodeMap, opcode), op2);
         if (operand_list[0].type != OpTypeLocalRef) {
@@ -159,7 +159,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
             operand_list[1].type = OpTypeInt;
         if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            sprintf(vout, "%s = %s;", getparam(2), getparam(1));
+            sprintf(vout, "%s = %s;", getParam(2), getParam(1));
         else
             slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
         break;
@@ -185,7 +185,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp:
         {
-        const char *op1 = getparam(1), *op2 = getparam(2);
+        const char *op1 = getParam(1), *op2 = getParam(2);
         const CmpInst *CI;
         if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -274,7 +274,7 @@ else
         if (operand_list[i].type == OpTypeLocalRef)
             printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
         else if (operand_list[i].type != OpTypeNone)
-            printf(" op[%d]=%s;", i, getparam(i));
+            printf(" op[%d]=%s;", i, getParam(i));
     }
     if (vout[0])
         return vout;

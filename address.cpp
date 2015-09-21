@@ -76,7 +76,7 @@ int i;
 /*
  * Allocated memory region management
  */
-static void additemtolist(void *p, long size)
+static void addItemToList(void *p, long size)
 {
     int i = 0;
 
@@ -91,11 +91,11 @@ extern "C" void *llvm_translate_malloc(size_t size)
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
     printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
-    additemtolist(ptr, newsize);
+    addItemToList(ptr, newsize);
     return ptr;
 }
 
-static void dump_memory_regions(int arg)
+static void dumpMemoryRegions(int arg)
 {
     int i = 0;
 
@@ -114,7 +114,7 @@ static void dump_memory_regions(int arg)
         i++;
     }
 }
-int validate_address(int arg, void *p)
+int validateAddress(int arg, void *p)
 {
     int i = 0;
 
@@ -136,7 +136,7 @@ int validate_address(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-const char *map_address(void *arg, std::string name)
+const char *mapAddress(void *arg, std::string name)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     if (g)
@@ -160,7 +160,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
     long offset = (long)CTy.getOffsetInBits()/8;
     char *addr = aaddr + offset;
     char *addr_target = *(char **)addr;
-    if (validate_address(5000, aaddr) || validate_address(5001, addr))
+    if (validateAddress(5000, aaddr) || validateAddress(5001, addr))
         exit(1);
     std::string name = CTy.getName().str();
     if (!name.length())
@@ -194,14 +194,14 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
             if (ptag == dwarf::DW_TAG_pointer_type)
                 pptag = DICompositeType(getNode(pderiv.getTypeDerivedFrom())).getTag();
             if (pptag != dwarf::DW_TAG_subroutine_type) {
-                if (validate_address(5010, addr_target))
+                if (validateAddress(5010, addr_target))
                     exit(1);
                 mapwork.push_back(MAPTYPE_WORK(0, node, addr_target, fname));
             }
         }
         return;
     }
-    map_address(addr, fname);
+    mapAddress(addr, fname);
     if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
@@ -213,7 +213,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
             return;
         }
         if (trace_map)
-            printf("addr [%s]=val %s derived %d\n", map_address(addr, fname), map_address(addr_target, ""), derived);
+            printf("addr [%s]=val %s derived %d\n", mapAddress(addr, fname), mapAddress(addr_target, ""), derived);
     }
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
         const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
@@ -247,7 +247,7 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                 if (trace_map)
                     printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
                 const MDNode *node = CTy;
-                additemtolist(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
+                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
                 if (!contextp)
                     mapwork.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
                 else
@@ -267,5 +267,5 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
         mapType(mapwork.begin()->derived, mapwork.begin()->CTy, mapwork.begin()->addr, mapwork.begin()->aname);
         mapwork.pop_front();
     }
-    //dump_memory_regions(4010);
+    //dumpMemoryRegions(4010);
 }
