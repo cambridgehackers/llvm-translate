@@ -208,7 +208,6 @@ extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 extern int operand_list_index;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
-extern FILE *outputFile;
 
 const char *intmap_lookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
@@ -234,4 +233,4 @@ void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 void processConstructorAndRules(Module *Mod, Function ****modfirst,
     NamedMDNode *CU_Nodes, const char *(*proc)(Function ***thisp, Instruction &I),
-    int generate);
+    int generate, FILE *outputFile);

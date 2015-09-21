@@ -49,11 +49,9 @@ SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 std::list<VTABLE_WORK> vtablework;
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
-FILE *outputFile;
 
 static int slotarray_index = 1;
 static std::map<const Value *, int> slotmap;
-static int already_printed_header;
 
 static bool endswith(const char *str, const char *suffix)
 {
@@ -194,7 +192,8 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK *work, const char *guardName, const char *(*proc)(Function ***thisp, Instruction &I))
+static void processFunction(VTABLE_WORK *work, const char *guardName,
+       const char *(*proc)(Function ***thisp, Instruction &I), FILE *outputFile)
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
@@ -224,7 +223,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
-    already_printed_header = 0;
+    int already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
         if (trace_translate && I->hasName())         // Print out the label if it exists...
@@ -308,6 +307,8 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
             ins = next_ins;
         }
     }
+    if (guardName && already_printed_header)
+        fprintf(outputFile, "end;\n");
 }
 
 /*
@@ -316,7 +317,8 @@ static void processFunction(VTABLE_WORK *work, const char *guardName, const char
  */
 void processConstructorAndRules(Module *Mod, Function ****modfirst,
        NamedMDNode *CU_Nodes,
-       const char *(*proc)(Function ***thisp, Instruction &I), int generate)
+       const char *(*proc)(Function ***thisp, Instruction &I), int generate,
+       FILE *outputFile)
 {
     *modfirst = NULL;       // init the Module list before calling constructors
     // run Constructors
@@ -357,9 +359,7 @@ void processConstructorAndRules(Module *Mod, Function ****modfirst,
             temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
             guardName = strdup(temp);
         }
-        processFunction(&work, guardName, proc);
-        if (guardName && already_printed_header)
-            fprintf(outputFile, "end;\n");
+        processFunction(&work, guardName, proc, outputFile);
         vtablework.pop_front();
     }
 }

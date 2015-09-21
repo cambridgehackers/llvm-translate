@@ -49,6 +49,7 @@ int trace_translate;// = 1;
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
+static FILE *outputFile;
 
 ExecutionEngine *EE;
 const char *globalName;
@@ -187,10 +188,10 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0, outputFile);
 
     // Process the static constructors, generating code for all rules
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1);
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1, outputFile);
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return false;
