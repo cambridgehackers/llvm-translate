@@ -49,15 +49,10 @@ SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 std::list<VTABLE_WORK> vtablework;
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
+Function *EntryFn;
 
 static int slotarray_index = 1;
 static std::map<const Value *, int> slotmap;
-
-static bool endswith(const char *str, const char *suffix)
-{
-    int skipl = strlen(str) - strlen(suffix);
-    return skipl >= 0 && !strcmp(str + skipl, suffix);
-}
 
 /*
  * Common utilities for processing Instruction lists
@@ -315,7 +310,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-void processConstructorAndRules(Module *Mod, Function ****modfirst,
+static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        NamedMDNode *CU_Nodes,
        const char *(*proc)(Function ***thisp, Instruction &I), int generate,
        FILE *outputFile)
@@ -362,4 +357,49 @@ void processConstructorAndRules(Module *Mod, Function ****modfirst,
         processFunction(&work, guardName, proc, outputFile);
         vtablework.pop_front();
     }
+}
+
+char GeneratePass::ID = 0;
+bool GeneratePass::runOnModule(Module &M)
+{
+    std::string ErrorMsg;
+    Module *Mod = &M;
+
+printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
+
+    // preprocessing before running anything
+    NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+    if (CU_Nodes)
+        process_metadata(CU_Nodes);
+
+    EngineBuilder builder(Mod);
+    builder.setMArch(MArch);
+    builder.setMCPU("");
+    builder.setMAttrs(MAttrs);
+    builder.setErrorStr(&ErrorMsg);
+    builder.setEngineKind(EngineKind::Interpreter);
+    builder.setOptLevel(CodeGenOpt::None);
+
+    // Create the execution environment and allocate memory for static items
+    EE = builder.create();
+    if (!EE) {
+        printf("llvm-translate: unknown error creating EE!\n");
+        exit(1);
+    }
+
+    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
+    EntryFn = Mod->getFunction("main");
+    if (!EntryFn || !modfirst) {
+        printf("'main' function not found in module.\n");
+        exit(1);
+    }
+
+    // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0, outputFile);
+
+    // Process the static constructors, generating code for all rules
+    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1, outputFile);
+
+printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
+    return false;
 }

@@ -26,6 +26,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/CommandLine.h"
 
 #define SEPARATOR ":"
 
@@ -208,6 +209,10 @@ extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 extern int operand_list_index;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
+extern FILE *outputFile;
+extern Function *EntryFn;
+extern cl::opt<std::string> MArch;
+extern cl::list<std::string> MAttrs;
 
 const char *intmap_lookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
@@ -231,6 +236,4 @@ int validate_address(int arg, void *p);
 const char *map_address(void *arg, std::string name);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
-void processConstructorAndRules(Module *Mod, Function ****modfirst,
-    NamedMDNode *CU_Nodes, const char *(*proc)(Function ***thisp, Instruction &I),
-    int generate, FILE *outputFile);
+bool endswith(const char *str, const char *suffix);

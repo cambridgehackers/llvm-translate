@@ -45,20 +45,21 @@ using namespace llvm;
 
 #include "declarations.h"
 
+cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
+cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)"));
+cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
+
 int trace_translate;// = 1;
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
-static FILE *outputFile;
-
+FILE *outputFile;
 ExecutionEngine *EE;
 const char *globalName;
-static Function *EntryFn;
 
-char GeneratePass::ID = 0;
 char RemoveAllocaPass::ID = 0;
 
-static bool endswith(const char *str, const char *suffix)
+bool endswith(const char *str, const char *suffix)
 {
     int skipl = strlen(str) - strlen(suffix);
     return skipl >= 0 && !strcmp(str + skipl, suffix);
@@ -145,56 +146,6 @@ static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Contex
      || !ParseAssembly(File.take(), M, Err, Context))
         return 0;
     return M;
-}
-
-namespace {
-    cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
-    cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)"));
-    cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
-}
-
-bool GeneratePass::runOnModule(Module &M)
-{
-    std::string ErrorMsg;
-    Module *Mod = &M;
-
-printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-
-    // preprocessing before running anything
-    NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-    if (CU_Nodes)
-        process_metadata(CU_Nodes);
-
-    EngineBuilder builder(Mod);
-    builder.setMArch(MArch);
-    builder.setMCPU("");
-    builder.setMAttrs(MAttrs);
-    builder.setErrorStr(&ErrorMsg);
-    builder.setEngineKind(EngineKind::Interpreter);
-    builder.setOptLevel(CodeGenOpt::None);
-
-    // Create the execution environment and allocate memory for static items
-    EE = builder.create();
-    if (!EE) {
-        printf("llvm-translate: unknown error creating EE!\n");
-        exit(1);
-    }
-
-    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
-    EntryFn = Mod->getFunction("main");
-    if (!EntryFn || !modfirst) {
-        printf("'main' function not found in module.\n");
-        exit(1);
-    }
-
-    // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0, outputFile);
-
-    // Process the static constructors, generating code for all rules
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1, outputFile);
-
-printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
-    return false;
 }
 
 int main(int argc, char **argv, char * const *envp)
