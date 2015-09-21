@@ -21,25 +21,10 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-
 #include <stdio.h>
 #include <list>
-#include "llvm/Linker.h"
-#include "llvm/PassManager.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Assembly/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -51,7 +36,7 @@ OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
 Function *EntryFn;
 
-static int slotarray_index = 1;
+static int slotmapIndex = 1;
 static std::map<const Value *, int> slotmap;
 
 /*
@@ -61,7 +46,7 @@ int getLocalSlot(const Value *V)
 {
     std::map<const Value *, int>::iterator FI = slotmap.find(V);
     if (FI == slotmap.end()) {
-       slotmap.insert(std::pair<const Value *, int>(V, slotarray_index++));
+       slotmap.insert(std::pair<const Value *, int>(V, slotmapIndex++));
        return getLocalSlot(V);
     }
     return (int)FI->second;
@@ -177,7 +162,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
-    slotarray_index = 1;
+    slotmapIndex = 1;
     memset(slotarray, 0, sizeof(slotarray));
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
