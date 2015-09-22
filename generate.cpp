@@ -88,16 +88,6 @@ retlab:
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
  */
-static uint64_t getOperandValue(const Value *Operand)
-{
-    const Constant *CV = dyn_cast<Constant>(Operand);
-    const ConstantInt *CI;
-
-    if (CV && !isa<GlobalValue>(CV) && (CI = dyn_cast<ConstantInt>(CV)))
-        return CI->getZExtValue();
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-}
 static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -110,19 +100,17 @@ static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
         } else {
             SequentialType *ST = cast<SequentialType>(*I);
             // Get the index number for the array... which must be long type...
-            Total += TD->getTypeAllocSize(ST->getElementType())
-                 * getOperandValue(I.getOperand());
+            const Constant *CV = dyn_cast<Constant>(I.getOperand());
+            const ConstantInt *CI;
+
+            if (!CV || isa<GlobalValue>(CV) || !(CI = dyn_cast<ConstantInt>(CV))) {
+                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                exit(1);
+            }
+            Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
         }
     }
     return Total;
-}
-static void LoadIntFromMemory(uint64_t *Dst, uint8_t *Src, unsigned LoadBytes)
-{
-    if (LoadBytes > sizeof(*Dst)) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        exit(1);
-    }
-    memcpy(Dst, Src, LoadBytes);
 }
 static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 {
@@ -134,7 +122,11 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
         printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
     switch (Ty->getTypeID()) {
     case Type::IntegerTyID:
-        LoadIntFromMemory(&rv, (uint8_t*)Ptr, LoadBytes);
+        if (LoadBytes > sizeof(rv)) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
+        memcpy(&rv, (uint8_t*)Ptr, LoadBytes);
         break;
     case Type::PointerTyID:
         if (!Ptr) {
@@ -324,7 +316,7 @@ char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
     std::string ErrorMsg;
-    // preprocessing before running anything
+    // preprocessing dwarf debuf info before running anything
     NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
         process_metadata(CU_Nodes);
