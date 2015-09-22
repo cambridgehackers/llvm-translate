@@ -158,7 +158,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static void processFunction(VTABLE_WORK *work, const char *guardName,
-       const char *(*proc)(Function ***thisp, Instruction &I), FILE *outputFile)
+       int generate, FILE *outputFile)
 {
     Function *F = work->thisp[0][work->f];
     slotmap.clear();
@@ -251,7 +251,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
                 break;
             default:
                 {
-                const char *vout = proc(work->thisp, *ins);
+                const char *vout = generate ? generateVerilog(work->thisp, *ins): calculateGuardUpdate(work->thisp, *ins);
                 if (vout) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
@@ -280,21 +280,11 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processConstructorAndRules(Module *Mod, Function ****modfirst,
-       NamedMDNode *CU_Nodes,
-       const char *(*proc)(Function ***thisp, Instruction &I), int generate,
-       FILE *outputFile)
+static void processRules(Function ***modp, int generate, FILE *outputFile)
 {
-    *modfirst = NULL;       // init the Module list before calling constructors
-printf("[%s:%d] ********************************** generate %d ***********************\n", __FUNCTION__, __LINE__, generate);
-    // run Constructors
-    EE->runStaticConstructorsDestructors(false);
-    // Construct the address -> symbolic name map using dwarf debug info
-    constructAddressMap(CU_Nodes);
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
     int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
-    Function ***modp = *modfirst;
 
     // Walk the rule lists for all modules, generating work items
     while (modp) {                   // loop through all modules
@@ -325,25 +315,23 @@ printf("[%s:%d] ********************************** generate %d *****************
             temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
             guardName = strdup(temp);
         }
-        processFunction(&work, guardName, proc, outputFile);
+        processFunction(&work, guardName, generate, outputFile);
         vtablework.pop_front();
     }
 }
 
 char GeneratePass::ID = 0;
-bool GeneratePass::runOnModule(Module &M)
+bool GeneratePass::runOnModule(Module &Mod)
 {
     std::string ErrorMsg;
-    Module *Mod = &M;
-
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     // preprocessing before running anything
-    NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+    NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
         process_metadata(CU_Nodes);
 
-    EngineBuilder builder(Mod);
+    EngineBuilder builder(&Mod);
     builder.setMArch(MArch);
     builder.setMCPU("");
     builder.setMAttrs(MAttrs);
@@ -358,18 +346,24 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         exit(1);
     }
 
-    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
-    EntryFn = Mod->getFunction("main");
+    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
+    EntryFn = Mod.getFunction("main");
     if (!EntryFn || !modfirst) {
         printf("'main' function not found in module.\n");
         exit(1);
     }
 
-    // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, calculateGuardUpdate, 0, outputFile);
+    *modfirst = NULL;       // init the Module list before calling constructors
+    // run Constructors
+    EE->runStaticConstructorsDestructors(false);
+    // Construct the address -> symbolic name map using dwarf debug info
+    constructAddressMap(CU_Nodes);
 
-    // Process the static constructors, generating code for all rules
-    processConstructorAndRules(Mod, modfirst, CU_Nodes, generateVerilog, 1, outputFile);
+    // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
+    processRules(*modfirst, 0, outputFile);
+
+    // Generating code for all rules
+    processRules(*modfirst, 1, outputFile);
 
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return false;
