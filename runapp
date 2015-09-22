@@ -4,3 +4,4 @@ set -x
 ./run
 clang++ -g test/foo.tmp.cpp 
 ./a.out
+rm -f a.out

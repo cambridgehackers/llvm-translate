@@ -18,7 +18,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
+#include <list>
 #include <set>
 #include "llvm/DebugInfo.h"
 #include "llvm/InstVisitor.h"

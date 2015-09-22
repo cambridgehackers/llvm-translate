@@ -21,9 +21,7 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-
 #include <stdio.h>
-#include <list>
 #include "llvm/DebugInfo.h"
 
 using namespace llvm;
