@@ -286,6 +286,7 @@ static void processConstructorAndRules(Module *Mod, Function ****modfirst,
        FILE *outputFile)
 {
     *modfirst = NULL;       // init the Module list before calling constructors
+printf("[%s:%d] ********************************** generate %d ***********************\n", __FUNCTION__, __LINE__, generate);
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
     // Construct the address -> symbolic name map using dwarf debug info

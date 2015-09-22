@@ -46,10 +46,12 @@
 using namespace llvm;
 
 #include "declarations.h"
+
 #define GIANT_SIZE 1024
+static int trace_map;// = 1;
+static int trace_mapa;// = 1;
 static std::map<void *, std::string> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
-static int trace_map;// = 1;
 static struct {
     void *p;
     long size;
@@ -142,14 +144,21 @@ const char *mapAddress(void *arg, std::string name)
     if (g)
         mapitem[arg] = g->getName().str();
     std::map<void *, std::string>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end())
+    if (MI != mapitem.end()) {
+        //if (trace_mapa)
+        //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second.c_str());
         return MI->second.c_str();
+    }
     if (name.length() != 0) {
         mapitem[arg] = name;
+        if (trace_mapa)
+            printf("%s: %p = %s new\n", __FUNCTION__, arg, name.c_str());
         return name.c_str();
     }
     static char temp[MAX_CHAR_BUFFER];
     sprintf(temp, "%p", arg);
+    if (trace_mapa)
+        printf("%s: %p\n", __FUNCTION__, arg);
     return temp;
 }
 
