@@ -221,7 +221,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
                     exit(1);
                 }
                 uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-                slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, ""));
+                slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
                 slotarray[operand_list[0].value].svalue = ptr;
                 slotarray[operand_list[0].value].offset = Total;
                 }
@@ -237,7 +237,7 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
                     break;
                 }
                 slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
-                slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, ""));
+                slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
                 }
                 break;
             default:

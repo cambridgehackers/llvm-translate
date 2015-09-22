@@ -61,6 +61,15 @@ public:
        aname = d;
     }
 };
+class ADDRESSMAP_TYPE {
+public:
+    const MDNode *type;
+    std::string name;
+    ADDRESSMAP_TYPE(std::string aname, const MDNode *atype) {
+       name = aname;
+       type = atype;
+    }
+};
 
 class VTABLE_WORK {
 public:
@@ -233,7 +242,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I);
 bool callProcess_runOnInstruction(Module *Mod, Instruction *II);
 
 int validateAddress(int arg, void *p);
-const char *mapAddress(void *arg, std::string name);
+const char *mapAddress(void *arg, std::string name, const MDNode *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);

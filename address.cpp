@@ -21,27 +21,11 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-
 //#define DEBUG_TYPE "llvm-translate"
-
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
-#include "llvm/Linker.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Assembly/Parser.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/MemoryBuffer.h"
 
 using namespace llvm;
 
@@ -50,7 +34,7 @@ using namespace llvm;
 #define GIANT_SIZE 1024
 static int trace_map;// = 1;
 static int trace_mapa;// = 1;
-static std::map<void *, std::string> mapitem;
+static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static struct {
     void *p;
@@ -138,19 +122,19 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-const char *mapAddress(void *arg, std::string name)
+const char *mapAddress(void *arg, std::string name, const MDNode *type)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    if (g)
-        mapitem[arg] = g->getName().str();
-    std::map<void *, std::string>::iterator MI = mapitem.find(arg);
+    std::map<void *, ADDRESSMAP_TYPE *>::iterator MI = mapitem.find(arg);
     if (MI != mapitem.end()) {
         //if (trace_mapa)
         //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second.c_str());
-        return MI->second.c_str();
+        return MI->second->name.c_str();
     }
+    if (g)
+        name = g->getName().str();
     if (name.length() != 0) {
-        mapitem[arg] = name;
+        mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
         if (trace_mapa)
             printf("%s: %p = %s new\n", __FUNCTION__, arg, name.c_str());
         return name.c_str();
@@ -210,7 +194,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
         }
         return;
     }
-    mapAddress(addr, fname);
+    mapAddress(addr, fname, aCTy);
     if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
      && tag != dwarf::DW_TAG_base_type) {
@@ -222,7 +206,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
             return;
         }
         if (trace_map)
-            printf("addr [%s]=val %s derived %d\n", mapAddress(addr, fname), mapAddress(addr_target, ""), derived);
+            printf("addr [%s]=val %s derived %d\n", mapAddress(addr, fname, aCTy), mapAddress(addr_target, "", NULL), derived);
     }
     if (CTy.isDerivedType() || CTy.isCompositeType()) {
         const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
@@ -249,7 +233,7 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                 if (!cp.length())
                     cp = DIG.getName().str();
                 void *addr = EE->getPointerToGlobal(gv);
-                mapitem[addr] = cp;
+                mapitem[addr] = new ADDRESSMAP_TYPE(cp, NULL);
                 DICompositeType CTy(DIG.getType());
                 int tag = CTy.getTag();
                 Value *contextp = DIG.getContext();
