@@ -251,7 +251,8 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
                 break;
             default:
                 {
-                const char *vout = generate ? generateVerilog(work->thisp, *ins): calculateGuardUpdate(work->thisp, *ins);
+                const char *vout = generate ? generateVerilog(work->thisp, *ins)
+                                       : calculateGuardUpdate(work->thisp, *ins);
                 if (vout) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
@@ -324,8 +325,6 @@ char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
     std::string ErrorMsg;
-printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-
     // preprocessing before running anything
     NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
     if (CU_Nodes)
@@ -356,6 +355,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     *modfirst = NULL;       // init the Module list before calling constructors
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
+
     // Construct the address -> symbolic name map using dwarf debug info
     constructAddressMap(CU_Nodes);
 
@@ -364,7 +364,5 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile);
-
-printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return false;
 }
