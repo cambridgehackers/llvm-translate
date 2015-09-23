@@ -34,6 +34,7 @@ using namespace llvm;
 #define GIANT_SIZE 1024
 static int trace_map;// = 1;
 static int trace_mapa;// = 1;
+static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static struct {
@@ -76,7 +77,8 @@ extern "C" void *llvm_translate_malloc(size_t size)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
-    printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
+    if (trace_malloc)
+        printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
     addItemToList(ptr, newsize);
     return ptr;
 }
@@ -135,8 +137,16 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
         name = g->getName().str();
     if (name.length() != 0) {
         mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
-        if (trace_mapa)
-            printf("%s: %p = %s new\n", __FUNCTION__, arg, name.c_str());
+        if (trace_mapa) {
+            const char *t = "";
+            if (type) {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//type->dump();
+               DICompositeType CTy(type);
+               t = CTy.getName().str().c_str();
+            }
+            printf("%s: %p = %s [%s] new\n", __FUNCTION__, arg, name.c_str(), t);
+        }
         return name.c_str();
     }
     static char temp[MAX_CHAR_BUFFER];
@@ -233,7 +243,7 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                 if (!cp.length())
                     cp = DIG.getName().str();
                 void *addr = EE->getPointerToGlobal(gv);
-                mapitem[addr] = new ADDRESSMAP_TYPE(cp, NULL);
+                mapitem[addr] = new ADDRESSMAP_TYPE(cp, DIG.getType());
                 DICompositeType CTy(DIG.getType());
                 int tag = CTy.getTag();
                 Value *contextp = DIG.getContext();
