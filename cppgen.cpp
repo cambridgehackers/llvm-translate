@@ -132,12 +132,11 @@ restart_label:
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
     FunctionInnards << " (" << NameSoFar << ") (";
-    bool PrintedArg = false;
+    const char *sep = "";
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-      if (PrintedArg)
-          FunctionInnards << ", ";
+      FunctionInnards << sep;
       printType(FunctionInnards, *I, /*isSigned=*/false, "", false, "", "");
-      PrintedArg = true;
+      sep = ", ";
     }
     if (FTy->isVarArg()) {
       if (!FTy->getNumParams())
