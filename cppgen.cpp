@@ -996,54 +996,47 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
-        int dumpme = 0;
         ArrayType *ATy;
+        PointerType *PTy, *PPTy;
+        const FunctionType *FT;
+        StructType *STy, *ISTy;
+        const ConstantExpr *CE;
         if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
          && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
-              if (I->hasLocalLinkage())
-                Out << "static ";
-              printType(Out, Ty, false, GetValueName(I), false, "", "");
-              if (!I->getInitializer()->isNullValue()) {
-                Out << " = " ;
-                //writeOperand(I->getInitializer(), false, true);
-#if 1
-                Constant* CPV = dyn_cast<Constant>(I->getInitializer());
-                if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                    Type *ETy = CA->getType()->getElementType();
-                    if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
-                        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                        exit(1);
-                    } else {
-                      Out << '{';
-                      const char *sep = " ";
-                      PointerType *PTy, *PPTy;
-                      const FunctionType *FT;
-                      StructType *STy, *ISTy;
-                      const ConstantExpr *CE;
-                      if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
-                       && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
-                       && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
-                       && (STy = cast<StructType>(PPTy->getElementType()))
-                       && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
-                       && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
-                          dumpme = 1;
-                      if (!dumpme)
-                          Out << 0;
-                      else
+            if (I->hasLocalLinkage())
+              Out << "static ";
+            printType(Out, Ty, false, GetValueName(I), false, "", "");
+            if (!I->getInitializer()->isNullValue()) {
+              Out << " = " ;
+              Constant* CPV = dyn_cast<Constant>(I->getInitializer());
+              if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                  Type *ETy = CA->getType()->getElementType();
+                  if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
+                      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                      exit(1);
+                  }
+                  Out << '{';
+                  const char *sep = " ";
+                  if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
+                   && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
+                   && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
+                   && (STy = cast<StructType>(PPTy->getElementType()))
+                   && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
+                   && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
                       for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                         Out << sep;
                         Constant* V = dyn_cast<Constant>(CA->getOperand(i));
                         printConstant(V, true);
                         sep = ", ";
                       }
-                      Out << " }";
-                    }
-                  }
-#endif
+                  else
+                      Out << 0;
+                  Out << " }";
               }
-              Out << ";\n";
-          }
-      }
+            }
+            Out << ";\n";
+        }
+    }
   }
   return false;
 }
