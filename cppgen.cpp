@@ -953,6 +953,8 @@ void CWriter::visitStoreInst(StoreInst &I)
  */
 static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
 {
+  //if (I->isDeclaration())
+      //return 1;
   if (GV->hasAppendingLinkage() && GV->use_empty()) {
     if (GV->getName() == "llvm.global_ctors")
       return GlobalCtors;
@@ -975,9 +977,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      if (!I->isDeclaration()) {
-        if (getGlobalVariableClass(I))
-          continue;
+      if (!I->isDeclaration() && !getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
         if (Ty->getTypeID() == Type::ArrayTyID)
             if (ArrayType *ATy = cast<ArrayType>(Ty))
@@ -997,9 +997,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     Out << "\n\n//******************** vtables for Classes *******************\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!I->isDeclaration()) {
-        if (getGlobalVariableClass(I))
-          continue;
+      if (!I->isDeclaration() && !getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
         int dumpme = 0;
         if (Ty->getTypeID() == Type::ArrayTyID)
