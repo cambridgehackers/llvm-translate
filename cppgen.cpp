@@ -99,8 +99,7 @@ void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, std::string N
 restart_label:
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:
-      Out << "void";
-      Out << " " << NameSoFar;
+      Out << "void " << NameSoFar;
       break;
   case Type::IntegerTyID: {
       unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
@@ -152,10 +151,11 @@ restart_label:
   }
   case Type::StructTyID: {
     StructType *STy = cast<StructType>(Ty);
+    std::string name = getStructName(STy);
     if (!structWork_run)
         structWork.push_back(STy);
-    Out << "struct " << getStructName(STy) << " ";
-    if (IgnoreName && (strncmp(getStructName(STy).c_str(), "l_", 2) || getStructName(STy) == NameSoFar)) {
+    Out << "struct " << name << " ";
+    if (IgnoreName && (strncmp(name.c_str(), "l_", 2) || name == NameSoFar)) {
         Out << "{\n";
         unsigned Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
@@ -1079,10 +1079,8 @@ void CWriter::printContainedStructs(Type *Ty)
     structMap[Ty] = 1;
     for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
         printContainedStructs(*I);
-    if (StructType *STy = dyn_cast<StructType>(Ty)) {
-        std::string Name = getStructName(STy);
-        printType(OutHeader, STy, false, Name, true, "typedef ", ";\n\n");
-    }
+    if (StructType *STy = dyn_cast<StructType>(Ty))
+        printType(OutHeader, STy, false, getStructName(STy), true, "typedef ", ";\n\n");
 }
 bool CWriter::doFinalization(Module &M)
 {
