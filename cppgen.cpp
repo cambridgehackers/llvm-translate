@@ -951,19 +951,16 @@ void CWriter::visitStoreInst(StoreInst &I)
 /*
  * Pass control functions
  */
-static SpecialGlobalClass getGlobalVariableClass(const GlobalVariable *GV)
+static int getGlobalVariableClass(const GlobalVariable *GV)
 {
-  //if (I->isDeclaration())
-      //return 1;
-  if (GV->hasAppendingLinkage() && GV->use_empty()) {
-    if (GV->getName() == "llvm.global_ctors")
-      return GlobalCtors;
-    else if (GV->getName() == "llvm.global_dtors")
-      return GlobalDtors;
-  }
+  if (GV->isDeclaration())
+      return 1;
+  if (GV->hasAppendingLinkage() && GV->use_empty()
+    && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors"))
+      return 1;
   if (GV->getSection() == "llvm.metadata")
-    return NotPrinted;
-  return NotSpecial;
+      return 1;
+  return 0;
 }
 bool CWriter::doInitialization(Module &M)
 {
@@ -977,7 +974,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      if (!I->isDeclaration() && !getGlobalVariableClass(I)) {
+      if (!getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
         if (Ty->getTypeID() == Type::ArrayTyID)
             if (ArrayType *ATy = cast<ArrayType>(Ty))
@@ -997,56 +994,55 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     Out << "\n\n//******************** vtables for Classes *******************\n";
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!I->isDeclaration() && !getGlobalVariableClass(I)) {
+      if (!getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
         int dumpme = 0;
-        if (Ty->getTypeID() == Type::ArrayTyID)
-            if (ArrayType *ATy = cast<ArrayType>(Ty)) {
-                if (ATy->getElementType()->getTypeID() == Type::PointerTyID) {
-                    if (I->hasLocalLinkage())
-                      Out << "static ";
-                    printType(Out, Ty, false, GetValueName(I), false, "", "");
-                    if (!I->getInitializer()->isNullValue()) {
-                      Out << " = " ;
-                      //writeOperand(I->getInitializer(), false, true);
+        ArrayType *ATy;
+        if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+         && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
+              if (I->hasLocalLinkage())
+                Out << "static ";
+              printType(Out, Ty, false, GetValueName(I), false, "", "");
+              if (!I->getInitializer()->isNullValue()) {
+                Out << " = " ;
+                //writeOperand(I->getInitializer(), false, true);
 #if 1
-                      Constant* CPV = dyn_cast<Constant>(I->getInitializer());
-                      if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                          Type *ETy = CA->getType()->getElementType();
-                          if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
-                              printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                              exit(1);
-                          } else {
-                            Out << '{';
-                            const char *sep = " ";
-                            if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CA->getOperand(3)))
-                            if (CE->getOpcode() == Instruction::BitCast)
-                            if (PointerType *PTy = cast<PointerType>(CE->getOperand(0)->getType()))
-                            if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
-                            if (FT->getNumParams() >= 1)
-                            if (PointerType *PPTy = cast<PointerType>(FT->getParamType(0)))
-                            if (StructType *STy = cast<StructType>(PPTy->getElementType()))
-                            if (STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID)
-                            if (StructType *ISTy = cast<StructType>(STy->getElementType(0)))
-                            if (!strcmp(ISTy->getName().str().c_str(), "class.Rule"))
-                                dumpme = 1;
-                            if (!dumpme)
-                                Out << 0;
-                            else
-                            for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
-                              Out << sep;
-                              Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                              printConstant(V, true);
-                              sep = ", ";
-                            }
-                            Out << " }";
-                          }
-                        }
-#endif
+                Constant* CPV = dyn_cast<Constant>(I->getInitializer());
+                if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                    Type *ETy = CA->getType()->getElementType();
+                    if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
+                        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                        exit(1);
+                    } else {
+                      Out << '{';
+                      const char *sep = " ";
+                      PointerType *PTy, *PPTy;
+                      const FunctionType *FT;
+                      StructType *STy, *ISTy;
+                      const ConstantExpr *CE;
+                      if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
+                       && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
+                       && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
+                       && (STy = cast<StructType>(PPTy->getElementType()))
+                       && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
+                       && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
+                          dumpme = 1;
+                      if (!dumpme)
+                          Out << 0;
+                      else
+                      for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
+                        Out << sep;
+                        Constant* V = dyn_cast<Constant>(CA->getOperand(i));
+                        printConstant(V, true);
+                        sep = ", ";
+                      }
+                      Out << " }";
                     }
-                    Out << ";\n";
-                }
-            }
+                  }
+#endif
+              }
+              Out << ";\n";
+          }
       }
   }
   return false;

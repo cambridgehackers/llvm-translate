@@ -103,7 +103,6 @@ typedef struct {
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
-enum SpecialGlobalClass { NotSpecial = 0, GlobalCtors, GlobalDtors, NotPrinted };
 class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
