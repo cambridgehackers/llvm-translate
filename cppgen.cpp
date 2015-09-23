@@ -302,8 +302,6 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
       return; // These don't need a source cast.
-  }
-  switch (opc) {
     case Instruction::IntToPtr: case Instruction::PtrToInt:
       Out << "(unsigned long)";
       return;
@@ -511,14 +509,12 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     } else {
       ArrayType *AT = cast<ArrayType>(CPV->getType());
       Out << '{';
-      if (AT->getNumElements()) {
-        Out << ' ';
-        Constant *CZ = Constant::getNullValue(AT->getElementType());
-        printConstant(CZ, Static);
-        for (unsigned i = 1, e = AT->getNumElements(); i != e; ++i) {
-          Out << ", ";
+      const char *sep = " ";
+      Constant *CZ = Constant::getNullValue(AT->getElementType());
+      for (unsigned i = 0, e = AT->getNumElements(); i != e; ++i) {
+          Out << sep;
           printConstant(CZ, Static);
-        }
+          sep = ", ";
       }
       Out << " }";
     }
@@ -529,12 +525,13 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     else {
       assert(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
       VectorType *VT = cast<VectorType>(CPV->getType());
-      Out << "{ ";
+      Out << "{";
+      const char *sep = " ";
       Constant *CZ = Constant::getNullValue(VT->getElementType());
-      printConstant(CZ, Static);
-      for (unsigned i = 1, e = VT->getNumElements(); i != e; ++i) {
-        Out << ", ";
+      for (unsigned i = 0, e = VT->getNumElements(); i != e; ++i) {
+        Out << sep;
         printConstant(CZ, Static);
+        sep = ", ";
       }
       Out << " }";
     }
@@ -543,20 +540,18 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     Out << '{';
     if (isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV)) {
       StructType *ST = cast<StructType>(CPV->getType());
-      if (ST->getNumElements()) {
-        Out << ' ';
-        printConstant(Constant::getNullValue(ST->getElementType(0)), Static);
-        for (unsigned i = 1, e = ST->getNumElements(); i != e; ++i) {
-          Out << ", ";
+      const char *sep = " ";
+      for (unsigned i = 0, e = ST->getNumElements(); i != e; ++i) {
+          Out << sep;
           printConstant(Constant::getNullValue(ST->getElementType(i)), Static);
-        }
+          sep = ", ";
       }
-    } else if (CPV->getNumOperands()) {
-        Out << ' ';
-        printConstant(cast<Constant>(CPV->getOperand(0)), Static);
-        for (unsigned i = 1, e = CPV->getNumOperands(); i != e; ++i) {
-          Out << ", ";
-          printConstant(cast<Constant>(CPV->getOperand(i)), Static);
+    } else {
+        const char *sep = " ";
+        for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
+            Out << sep;
+            printConstant(cast<Constant>(CPV->getOperand(i)), Static);
+            sep = ", ";
         }
     }
     Out << " }";
@@ -879,8 +874,6 @@ void CWriter::visitCallInst(CallInst &I)
       }
   writeOperand(Callee, false);
   if (NeedsCast) Out << ')';
-  Out << '(';
-  bool PrintedArg = false;
   if(FTy->isVarArg() && !FTy->getNumParams()) {
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
@@ -889,12 +882,14 @@ void CWriter::visitCallInst(CallInst &I)
   CallSite CS(&I);
   CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
   unsigned ArgNo = 0;
+  const char *sep = "";
+  Out << '(';
   for (; AI != AE; ++AI, ++ArgNo) {
-    if (PrintedArg) Out << ", ";
+    Out << sep;
     if (ArgNo < NumDeclaredParams && (*AI)->getType() != FTy->getParamType(ArgNo))
         printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false, "", false, "(", ")");
     writeOperand(*AI, false);
-    PrintedArg = true;
+    sep = ", ";
   }
   Out << ')';
 }
