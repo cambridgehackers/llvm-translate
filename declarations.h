@@ -125,7 +125,6 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, const ICmpInst &I);
     bool writeInstructionCast(const Instruction &I);
-    void writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment);
     const char *fieldName(StructType *STy, uint64_t ind);
     void printContainedStructs(Type *Ty);
     void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype);

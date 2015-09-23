@@ -349,8 +349,6 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
                 }
-                //printConstantArray(CA, Static);
-                writeOperand(Ptr, true, Static);
                 val = 0;
             } else 
             if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
@@ -359,12 +357,11 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
                     exit(1);
                 }
                 printConstantDataArray(CA, Static);
+                goto next;
             }
-            else
-                writeOperand(Ptr, true, Static);
         }
-        else
-            writeOperand(Ptr, true, Static);
+        writeOperand(Ptr, true, Static);
+next:
         if (val)
             Out << "+" << val;
         goto done;
@@ -914,22 +911,23 @@ void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
 {
   printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
 }
-void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType, bool IsVolatile, unsigned Alignment)
-{
-  if (IsVolatile) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    Operand->dump();
-    exit(1);
-  }
-  writeOperand(Operand, true);
-}
 void CWriter::visitLoadInst(LoadInst &I)
 {
-  writeMemoryAccess(I.getOperand(0), I.getType(), I.isVolatile(), I.getAlignment());
+  if (I.isVolatile()) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    I.getOperand(0)->dump();
+    exit(1);
+  }
+  writeOperand(I.getOperand(0), true);
 }
 void CWriter::visitStoreInst(StoreInst &I)
 {
-  writeMemoryAccess(I.getPointerOperand(), I.getOperand(0)->getType(), I.isVolatile(), I.getAlignment());
+  if (I.isVolatile()) {
+    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    I.getPointerOperand()->dump();
+    exit(1);
+  }
+  writeOperand(I.getPointerOperand(), true);
   Out << " = ";
   Value *Operand = I.getOperand(0);
   Constant *BitMask = 0;
