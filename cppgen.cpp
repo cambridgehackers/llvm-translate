@@ -231,10 +231,8 @@ void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
 {
   int len = CPA->getNumOperands();
   Type *ETy = CPA->getType()->getElementType();
-  bool isString = (ETy == Type::getInt8Ty(CPA->getContext()) ||
-                   ETy == Type::getInt8Ty(CPA->getContext()));
-  if (isString && (CPA->getNumOperands() == 0 ||
-                   !cast<Constant>(*(CPA->op_end()-1))->isNullValue()))
+  bool isString = (ETy == Type::getInt8Ty(CPA->getContext()) || ETy == Type::getInt8Ty(CPA->getContext()));
+  if (isString && (CPA->getNumOperands() == 0 || !cast<Constant>(*(CPA->op_end()-1))->isNullValue()))
     isString = false;
   if (isString) {
     char *cp = (char *)malloc(len);
@@ -243,14 +241,12 @@ void CWriter::printConstantArray(ConstantArray *CPA, bool Static)
     printString(cp, len);
     free(cp);
   } else {
+    const char *sep = " ";
     Out << '{';
-    if (CPA->getNumOperands()) {
-      Out << ' ';
-      printConstant(cast<Constant>(CPA->getOperand(0)), Static);
-      for (unsigned i = 1, e = CPA->getNumOperands(); i != e; ++i) {
-        Out << ", ";
+    for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
+        Out << sep;
         printConstant(cast<Constant>(CPA->getOperand(i)), Static);
-      }
+        sep = ", ";
     }
     Out << " }";
   }
@@ -263,13 +259,11 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
     printString(cp, value.str().length());
   } else {
     Out << '{';
-    if (CPA->getNumOperands()) {
-      Out << ' ';
-      printConstant(cast<Constant>(CPA->getOperand(0)), Static);
-      for (unsigned i = 1, e = CPA->getNumOperands(); i != e; ++i) {
-        Out << ", ";
+    const char *sep = " ";
+    for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
+        Out << sep;
         printConstant(cast<Constant>(CPA->getOperand(i)), Static);
-      }
+        sep = ", ";
     }
     Out << " }";
   }
@@ -277,13 +271,11 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
 void CWriter::printConstantVector(ConstantVector *CP, bool Static)
 {
   Out << '{';
-  if (CP->getNumOperands()) {
-    Out << ' ';
-    printConstant(cast<Constant>(CP->getOperand(0)), Static);
-    for (unsigned i = 1, e = CP->getNumOperands(); i != e; ++i) {
-      Out << ", ";
+  const char *sep = " ";
+  for (unsigned i = 0, e = CP->getNumOperands(); i != e; ++i) {
+      Out << sep;
       printConstant(cast<Constant>(CP->getOperand(i)), Static);
-    }
+      sep = ", ";
   }
   Out << " }";
 }
@@ -372,8 +364,7 @@ next:
       writeOperand(Ptr, true, Static);
     } else if (I != E && (*I)->isStructTy()) {
       writeOperand(Ptr, false);
-      StructType *STy = dyn_cast<StructType>(*I);
-      Out << "->" << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+      Out << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
       ++I;  // eat the struct index as well.
     } else {
       Out << "(";
