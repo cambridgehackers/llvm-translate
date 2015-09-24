@@ -506,11 +506,9 @@ void CWriter::printConstant(Constant *CPV, bool Static)
   }
   int tid = CPV->getType()->getTypeID();
   if (tid != Type::PointerTyID && !Static) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(1);
-}
-  if (tid != Type::PointerTyID && !Static)
-      printType(Out, CPV->getType(), false, "", false, "(", ")");
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
+  }
   /* handle structured types */
   switch (tid) {
   case Type::ArrayTyID:
