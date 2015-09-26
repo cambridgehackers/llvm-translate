@@ -32,6 +32,12 @@ using namespace llvm;
 
 #include "declarations.h"
 
+#define ERRORIF(A) { \
+      if(A) { \
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__); \
+          exit(1); \
+      }}
+
 static std::list<StructType *> structWork;
 static std::map<Type *, int> structMap;
 static int structWork_run;
@@ -67,10 +73,7 @@ const char *CWriter::fieldName(StructType *STy, uint64_t ind)
     static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
     CLASS_META *classp = lookup_class(STy->getName().str().c_str());
-    if (!classp) {
-        printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
-        exit(1);
-    }
+    ERRORIF (!classp);
     if (classp->inherit) {
         DIType Ty(classp->inherit);
         if (!ind--)
@@ -332,17 +335,11 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
             Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
             if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
                 (void)CA;
-                if (val != 2) {
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
+                ERRORIF (val != 2);
                 val = 0;
             }
             else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
-                if (val) {
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
+                ERRORIF (val);
                 printConstantDataArray(CA, Static);
                 goto next;
             }
@@ -488,10 +485,7 @@ void CWriter::printConstant(Constant *CPV, bool Static)
     return;
   }
   int tid = CPV->getType()->getTypeID();
-  if (tid != Type::PointerTyID && !Static) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
+  ERRORIF (tid != Type::PointerTyID && !Static);
   /* handle structured types */
   switch (tid) {
   case Type::ArrayTyID:
@@ -697,11 +691,7 @@ void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
   bool shouldCast = Cmp.isRelational();
   if (shouldCast) {
       Type* OpTy = Operand->getType();
-      if (OpTy->isPointerTy()) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        exit(1);
-        //OpTy = TD->getIntPtrType(Operand->getContext());
-      }
+      ERRORIF (OpTy->isPointerTy());
       printType(Out, OpTy, Cmp.isSigned(), "", false, "((", ")");
   }
   writeOperand(Operand, false);
@@ -712,11 +702,8 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
 {
   if (F->hasLocalLinkage()) Out << "static ";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-  if (F->hasDLLImportLinkage() || F->hasDLLExportLinkage()
-   || F->hasStructRetAttr() || FT->isVarArg()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-  }
+  ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage()
+   || F->hasStructRetAttr() || FT->isVarArg());
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
@@ -847,7 +834,8 @@ void CWriter::visitCastInst(CastInst &I)
 }
 void CWriter::visitCallInst(CallInst &I)
 {
-  if (Function *F = I.getCalledFunction())
+  Function *F = I.getCalledFunction();
+  if (F)
       if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID()) {
           (void)ID;
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -856,10 +844,7 @@ void CWriter::visitCallInst(CallInst &I)
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
-  if (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall()) {
-      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-      exit(1);
-  }
+  ERRORIF (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall());
   ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
   Function *RF = NULL;
   if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
@@ -868,10 +853,7 @@ void CWriter::visitCallInst(CallInst &I)
   }
   writeOperand(Callee, false);
   if (RF) Out << ')';
-  if(FTy->isVarArg() && !FTy->getNumParams()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    exit(1);
-  }
+  ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
   unsigned NumDeclaredParams = FTy->getNumParams();
   CallSite CS(&I);
   CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
@@ -893,20 +875,12 @@ void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
 }
 void CWriter::visitLoadInst(LoadInst &I)
 {
-  if (I.isVolatile()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    I.getOperand(0)->dump();
-    exit(1);
-  }
+  ERRORIF (I.isVolatile());
   writeOperand(I.getOperand(0), true);
 }
 void CWriter::visitStoreInst(StoreInst &I)
 {
-  if (I.isVolatile()) {
-    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    I.getPointerOperand()->dump();
-    exit(1);
-  }
+  ERRORIF (I.isVolatile());
   writeOperand(I.getPointerOperand(), true);
   Out << " = ";
   Value *Operand = I.getOperand(0);
@@ -945,11 +919,8 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   Out << "\n\n/* Global Variable Definitions and Initialization */\n";
   for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
-      if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
-      || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage()) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
+      ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
+      || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
       if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
         if ((Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
@@ -984,10 +955,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               Constant* CPV = dyn_cast<Constant>(I->getInitializer());
               if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
                   Type *ETy = CA->getType()->getElementType();
-                  if (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext())) {
-                      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                      exit(1);
-                  }
+                  ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
                   Out << '{';
                   const char *sep = " ";
                   if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
@@ -1033,10 +1001,7 @@ bool CWriter::runOnFunction(Function &F)
                 Out << "    ";
                 if (II->getType() != Type::getVoidTy(BB->getContext()))
                     printType(Out, II->getType(), false, GetValueName(&*II), false, "", " = ");
-                if (isa<PHINode>(*II)) {    // Print out PHI node temporaries as well...
-                    printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                    exit(1);
-                }
+                ERRORIF(isa<PHINode>(*II));    // Print out PHI node temporaries as well...
                 visit(*II);
                 Out << ";\n";
               }
@@ -1072,10 +1037,7 @@ bool CWriter::doFinalization(Module &M)
     }
     OutHeader << "\n/* Function Declarations */\n";
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-      if (I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1)) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
+      ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
       if (I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
        || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
        || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
