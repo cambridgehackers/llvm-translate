@@ -65,10 +65,7 @@ std::string CWriter::getStructName(StructType *ST)
 const char *CWriter::fieldName(StructType *STy, uint64_t ind)
 {
     static char temp[MAX_CHAR_BUFFER];
-    if (STy->isLiteral()) { // unnamed items
-        sprintf(temp, "field%d", (int)ind);
-        return temp;
-    }
+    if (!STy->isLiteral()) { // unnamed items
     CLASS_META *classp = lookup_class(STy->getName().str().c_str());
     if (!classp) {
         printf("[%s:%d] class not found!!!\n", __FUNCTION__, __LINE__);
@@ -85,6 +82,7 @@ const char *CWriter::fieldName(StructType *STy, uint64_t ind)
             if (!ind--)
                 return CBEMangle(Ty.getName().str()).c_str();
         }
+    }
     }
     sprintf(temp, "field%d", (int)ind);
     return temp;
@@ -339,8 +337,8 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
                     exit(1);
                 }
                 val = 0;
-            } else 
-            if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+            }
+            else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
                 if (val) {
                     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     exit(1);
@@ -722,26 +720,25 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   FunctionInnards << GetValueName(F) << '(';
-  bool PrintedArg = false;
+  const char *sep = "";
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-      if (PrintedArg)
-          FunctionInnards << ", ";
+      FunctionInnards << sep;
       printType(FunctionInnards, *I, /*isSigned=*/false, "", false, "", "");
-      PrintedArg = true;
+      sep = ", ";
     }
   } else if (!F->arg_empty()) {
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
       std::string ArgName = "";
-      if (PrintedArg) FunctionInnards << ", ";
+      FunctionInnards << sep;
       if (I->hasName() || !Prototype)
         ArgName = GetValueName(I);
       Type *ArgTy = I->getType();
       printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, "", "");
-      PrintedArg = true;
+      sep = ", ";
     }
   }
-  if (!PrintedArg)
+  if (!strcmp(sep, ""))
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
   printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
@@ -863,16 +860,14 @@ void CWriter::visitCallInst(CallInst &I)
       printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       exit(1);
   }
-  bool NeedsCast = false;
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee))
-    if (CE->isCast())
-      if (Function *RF = dyn_cast<Function>(CE->getOperand(0))) {
-        NeedsCast = true;
-        Callee = RF;
-        printType(Out, I.getCalledValue()->getType(), false, "", false, "((", ")(void*)");
-      }
+  ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+  Function *RF = NULL;
+  if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+      Callee = RF;
+      printType(Out, I.getCalledValue()->getType(), false, "", false, "((", ")(void*)");
+  }
   writeOperand(Callee, false);
-  if (NeedsCast) Out << ')';
+  if (RF) Out << ')';
   if(FTy->isVarArg() && !FTy->getNumParams()) {
     printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     exit(1);
@@ -916,8 +911,8 @@ void CWriter::visitStoreInst(StoreInst &I)
   Out << " = ";
   Value *Operand = I.getOperand(0);
   Constant *BitMask = 0;
-  if (IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType()))
-    if (!ITy->isPowerOf2ByteWidth())
+  IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+  if (ITy && !ITy->isPowerOf2ByteWidth())
       BitMask = ConstantInt::get(ITy, ITy->getBitMask());
   if (BitMask)
     Out << "((";
@@ -932,31 +927,30 @@ void CWriter::visitStoreInst(StoreInst &I)
 /*
  * Pass control functions
  */
-static int getGlobalVariableClass(const GlobalVariable *GV)
+static int processVar(const GlobalVariable *GV)
 {
   if (GV->isDeclaration())
-      return 1;
+      return 0;
   if (GV->hasAppendingLinkage() && GV->use_empty()
     && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors"))
-      return 1;
+      return 0;
   if (GV->getSection() == "llvm.metadata")
-      return 1;
-  return 0;
+      return 0;
+  return 1;
 }
 bool CWriter::doInitialization(Module &M)
 {
   ArrayType *ATy;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
-  if (!M.global_empty()) {
-    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+  Out << "\n\n/* Global Variable Definitions and Initialization */\n";
+  for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
       if (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
       || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage()) {
           printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           exit(1);
       }
-      if (!getGlobalVariableClass(I)) {
+      if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
         if ((Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
             && ATy->getElementType()->getTypeID() == Type::PointerTyID)
@@ -971,10 +965,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         }
         Out << ";\n";
       }
-    }
-    Out << "\n\n//******************** vtables for Classes *******************\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
-      if (!getGlobalVariableClass(I)) {
+  }
+  Out << "\n\n//******************** vtables for Classes *******************\n";
+  for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
+      if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
         PointerType *PTy, *PPTy;
         const FunctionType *FT;
@@ -1015,7 +1009,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             }
             Out << ";\n";
         }
-    }
   }
   return false;
 }
@@ -1072,12 +1065,10 @@ bool CWriter::doFinalization(Module &M)
         printContainedStructs(*structWork.begin());
         structWork.pop_front();
     }
-    if (!M.global_empty()) {
-      OutHeader << "\n/* External Global Variable Declarations */\n";
-      for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+    OutHeader << "\n/* External Global Variable Declarations */\n";
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, "extern ", ";\n");
-      }
     }
     OutHeader << "\n/* Function Declarations */\n";
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
