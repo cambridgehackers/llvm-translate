@@ -945,6 +945,7 @@ static int getGlobalVariableClass(const GlobalVariable *GV)
 }
 bool CWriter::doInitialization(Module &M)
 {
+  ArrayType *ATy;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   if (!M.global_empty()) {
@@ -957,12 +958,10 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       }
       if (!getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
-        if (Ty->getTypeID() == Type::ArrayTyID)
-            if (ArrayType *ATy = cast<ArrayType>(Ty))
-                if (ATy->getElementType()->getTypeID() == Type::PointerTyID)
-                    continue;
-        if (!I->getInitializer()->isNullValue())
-                continue;
+        if ((Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+            && ATy->getElementType()->getTypeID() == Type::PointerTyID)
+         || !I->getInitializer()->isNullValue())
+            continue;
         if (I->hasLocalLinkage())
           Out << "static ";
         printType(Out, Ty, false, GetValueName(I), false, "", "");
@@ -977,7 +976,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (!getGlobalVariableClass(I)) {
         Type *Ty = I->getType()->getElementType();
-        ArrayType *ATy;
         PointerType *PTy, *PPTy;
         const FunctionType *FT;
         StructType *STy, *ISTy;
