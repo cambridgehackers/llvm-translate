@@ -984,12 +984,9 @@ bool CWriter::runOnFunction(Function &F)
 {
     int status;
     const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
-    if (demang && strstr(demang, "::~")) {
-        //printf("[%s:%d] ignorename %s\n", __FUNCTION__, __LINE__, demang);
-        return false;
-    }
     NextAnonValueNumber = 0;
-    if (!F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
+    if (!(demang && strstr(demang, "::~"))
+     && !F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
      && F.getName() != "__dtor_echoTest") {
         printFunctionSignature(Out, &F, false);
         Out << " {\n";
@@ -1015,13 +1012,13 @@ bool CWriter::runOnFunction(Function &F)
 void CWriter::printContainedStructs(Type *Ty)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    if (FI != structMap.end() || Ty->isPointerTy() || Ty->isPrimitiveType() || Ty->isIntegerTy())
-        return;
-    structMap[Ty] = 1;
-    for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-        printContainedStructs(*I);
-    if (StructType *STy = dyn_cast<StructType>(Ty))
-        printType(OutHeader, STy, false, getStructName(STy), true, "typedef ", ";\n\n");
+    if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        structMap[Ty] = 1;
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+            printContainedStructs(*I);
+        if (StructType *STy = dyn_cast<StructType>(Ty))
+            printType(OutHeader, STy, false, getStructName(STy), true, "typedef ", ";\n\n");
+    }
 }
 bool CWriter::doFinalization(Module &M)
 {
@@ -1037,13 +1034,13 @@ bool CWriter::doFinalization(Module &M)
     }
     OutHeader << "\n/* Function Declarations */\n";
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-      ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
-      if (I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
-       || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
-       || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")
-        continue;
-      printFunctionSignature(OutHeader, I, true);
-      OutHeader << ";\n";
+        ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
+        if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
+         || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
+         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")) {
+            printFunctionSignature(OutHeader, I, true);
+            OutHeader << ";\n";
+        }
     }
     UnnamedStructIDs.clear();
     return false;
