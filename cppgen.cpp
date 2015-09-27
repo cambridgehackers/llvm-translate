@@ -90,49 +90,48 @@ std::string CWriter::getStructName(StructType *ST)
         UnnamedStructIDs[ST] = NextTypeID++;
     return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
 }
-void CWriter::printStruct(StructType *STy, const std::string NameSoFar, bool IgnoreName)
+void CWriter::printStruct(raw_ostream &OStr, StructType *STy, const std::string NameSoFar, bool IgnoreName)
 {
-return;
     std::string name = getStructName(STy);
     if (!structWork_run)
         structWork.push_back(STy);
-    Out << "struct " << name << " ";
+    OStr << "struct " << name << " ";
     if (IgnoreName && (strncmp(name.c_str(), "l_", 2) || name == NameSoFar)) {
-        Out << "{\n";
+        OStr << "{\n";
         unsigned Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-          printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
-        Out << "} ";
+          printType(OStr, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
+        OStr << "} ";
     }
 }
 /*
  * Output types
  */
-void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned,
+void CWriter::printType(raw_ostream &OStr, Type *Ty, bool isSigned,
     std::string NameSoFar, bool IgnoreName, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
-  Out << prefix;
+  OStr << prefix;
 restart_label:
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:
-      Out << "void " << NameSoFar;
+      OStr << "void " << NameSoFar;
       break;
   case Type::IntegerTyID: {
       unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
       assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
       if (NumBits == 1)
-        Out << "bool";
+        OStr << "bool";
       else if (NumBits <= 8)
-        Out << sp << " char";
+        OStr << sp << " char";
       else if (NumBits <= 16)
-        Out << sp << " short";
+        OStr << sp << " short";
       else if (NumBits <= 32)
-        Out << sp << " int";
+        OStr << sp << " int";
       else if (NumBits <= 64)
-        Out << sp << " long long";
+        OStr << sp << " long long";
       }
-      Out << " " << NameSoFar;
+      OStr << " " << NameSoFar;
       break;
   case Type::VectorTyID: {
       VectorType *VTy = cast<VectorType>(Ty);
@@ -141,8 +140,8 @@ restart_label:
       goto restart_label;
       }
   case Type::MetadataTyID:
-      Out << "MetadataTyIDSTUB\n";
-      Out << " " << NameSoFar;
+      OStr << "MetadataTyIDSTUB\n";
+      OStr << " " << NameSoFar;
       break;
   case Type::FunctionTyID: {
     FunctionType *FTy = cast<FunctionType>(Ty);
@@ -161,32 +160,20 @@ restart_label:
     } else if (!FTy->getNumParams())
       FunctionInnards << "void";
     FunctionInnards << ')';
-    printType(Out, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
+    printType(OStr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), false, "", "");
     break;
   }
   case Type::StructTyID: {
-    printStruct(cast<StructType>(Ty), NameSoFar, IgnoreName);
-    StructType *STy = cast<StructType>(Ty);
-    std::string name = getStructName(STy);
-    if (!structWork_run)
-        structWork.push_back(STy);
-    Out << "struct " << name << " ";
-    if (IgnoreName && (strncmp(name.c_str(), "l_", 2) || name == NameSoFar)) {
-        Out << "{\n";
-        unsigned Idx = 0;
-        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) 
-          printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
-        Out << "} ";
-    }
-    Out << NameSoFar;
+    printStruct(OStr, cast<StructType>(Ty), NameSoFar, IgnoreName);
+    OStr << NameSoFar;
     break;
   }
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
-    printType(Out, ATy->getElementType(), false, "", false, "", "");
+    printType(OStr, ATy->getElementType(), false, "", false, "", "");
     unsigned NumElements = ATy->getNumElements();
     if (NumElements == 0) NumElements = 1;
-    Out << NameSoFar << "[" + utostr(NumElements) + "]";
+    OStr << NameSoFar << "[" + utostr(NumElements) + "]";
     break;
   }
   case Type::PointerTyID: {
@@ -194,13 +181,13 @@ restart_label:
     std::string ptrName = "*" + NameSoFar;
     if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
       ptrName = "(" + ptrName + ")";
-    printType(Out, PTy->getElementType(), false, ptrName, false, "", "");
+    printType(OStr, PTy->getElementType(), false, ptrName, false, "", "");
     break;
   }
   default:
     llvm_unreachable("Unhandled case in getTypeProps!");
   }
-  Out << postfix;
+  OStr << postfix;
 }
 
 /*
