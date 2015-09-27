@@ -60,14 +60,6 @@ static std::string CBEMangle(const std::string &S)
     }
   return Result;
 }
-std::string CWriter::getStructName(StructType *ST)
-{
-    if (!ST->isLiteral() && !ST->getName().empty())
-        return CBEMangle("l_"+ST->getName().str());
-    if (!UnnamedStructIDs[ST])
-        UnnamedStructIDs[ST] = NextTypeID++;
-    return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
-}
 const char *CWriter::fieldName(StructType *STy, uint64_t ind)
 {
     static char temp[MAX_CHAR_BUFFER];
@@ -90,10 +82,19 @@ const char *CWriter::fieldName(StructType *STy, uint64_t ind)
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
+std::string CWriter::getStructName(StructType *ST)
+{
+    if (!ST->isLiteral() && !ST->getName().empty())
+        return CBEMangle("l_"+ST->getName().str());
+    if (!UnnamedStructIDs[ST])
+        UnnamedStructIDs[ST] = NextTypeID++;
+    return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
+}
 /*
  * Output types
  */
-void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned, std::string NameSoFar, bool IgnoreName, std::string prefix, std::string postfix)
+void CWriter::printType(raw_ostream &Out, Type *Ty, bool isSigned,
+    std::string NameSoFar, bool IgnoreName, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
   Out << prefix;
@@ -135,8 +136,7 @@ restart_label:
     FunctionInnards << " (" << NameSoFar << ") (";
     const char *sep = "";
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-      FunctionInnards << sep;
-      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, "", "");
+      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, sep, "");
       sep = ", ";
     }
     if (FTy->isVarArg()) {
@@ -570,8 +570,7 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE)
   }
   if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
       TypeIsSigned = false; // not integer, sign doesn't matter
-  printType(Out, Ty, TypeIsSigned, "", false, "((", ")(");
-  Out << "))";
+  printType(Out, Ty, TypeIsSigned, "", false, "((", ")())");
   return true;
 }
 void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
@@ -695,18 +694,16 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   const char *sep = "";
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-      FunctionInnards << sep;
-      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, "", "");
+      printType(FunctionInnards, *I, /*isSigned=*/false, "", false, sep, "");
       sep = ", ";
     }
   } else if (!F->arg_empty()) {
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
       std::string ArgName = "";
-      FunctionInnards << sep;
       if (I->hasName() || !Prototype)
         ArgName = GetValueName(I);
       Type *ArgTy = I->getType();
-      printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, "", "");
+      printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, false, sep, "");
       sep = ", ";
     }
   }
