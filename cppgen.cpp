@@ -90,6 +90,21 @@ std::string CWriter::getStructName(StructType *ST)
         UnnamedStructIDs[ST] = NextTypeID++;
     return "l_unnamed_" + utostr(UnnamedStructIDs[ST]);
 }
+void CWriter::printStruct(StructType *STy, const std::string NameSoFar, bool IgnoreName)
+{
+return;
+    std::string name = getStructName(STy);
+    if (!structWork_run)
+        structWork.push_back(STy);
+    Out << "struct " << name << " ";
+    if (IgnoreName && (strncmp(name.c_str(), "l_", 2) || name == NameSoFar)) {
+        Out << "{\n";
+        unsigned Idx = 0;
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+          printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
+        Out << "} ";
+    }
+}
 /*
  * Output types
  */
@@ -150,6 +165,7 @@ restart_label:
     break;
   }
   case Type::StructTyID: {
+    printStruct(cast<StructType>(Ty), NameSoFar, IgnoreName);
     StructType *STy = cast<StructType>(Ty);
     std::string name = getStructName(STy);
     if (!structWork_run)
@@ -158,9 +174,8 @@ restart_label:
     if (IgnoreName && (strncmp(name.c_str(), "l_", 2) || name == NameSoFar)) {
         Out << "{\n";
         unsigned Idx = 0;
-        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) 
           printType(Out, *I, false, fieldName(STy, Idx++), false, "  ", ";\n");
-        }
         Out << "} ";
     }
     Out << NameSoFar;
@@ -988,7 +1003,8 @@ void CWriter::printContainedStructs(Type *Ty)
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I);
         if (StructType *STy = dyn_cast<StructType>(Ty))
-            printType(OutHeader, STy, false, getStructName(STy), true, "typedef ", ";\n\n");
+            printType(OutHeader, STy, false, getStructName(STy),
+               true, "typedef ", ";\n\n");
     }
 }
 bool CWriter::doFinalization(Module &M)
@@ -999,10 +1015,9 @@ bool CWriter::doFinalization(Module &M)
         structWork.pop_front();
     }
     OutHeader << "\n/* External Global Variable Declarations */\n";
-    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
+    for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), false, "extern ", ";\n");
-    }
     OutHeader << "\n/* Function Declarations */\n";
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
