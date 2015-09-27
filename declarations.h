@@ -120,8 +120,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     virtual bool doFinalization(Module &M);
   private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
-    void printStruct(raw_ostream &Out, StructType *STy);
-    std::string getStructName(StructType *ST);
+    std::string printStruct(raw_ostream &Out, StructType *STy);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, const ICmpInst &I);
