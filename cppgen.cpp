@@ -586,13 +586,12 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
 }
 std::string CWriter::GetValueName(const Value *Operand)
 {
-  if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand)) {
-    if (const Value *V = GA->resolveAliasedGlobal(false))
+  const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
+  const Value *V;
+  if (GA && (V = GA->resolveAliasedGlobal(false)))
       Operand = V;
-  }
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
     return CBEMangle(GV->getName().str());
-  }
   std::string Name = Operand->getName();
   if (Name.empty()) { // Assign unique names to local temporaries.
     unsigned &No = AnonValueNumbers[Operand];
@@ -602,15 +601,15 @@ std::string CWriter::GetValueName(const Value *Operand)
   }
   std::string VarName;
   VarName.reserve(Name.capacity());
-  for (std::string::iterator I = Name.begin(), E = Name.end(); I != E; ++I) {
-    char ch = *I;
-    if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-          (ch >= '0' && ch <= '9') || ch == '_')) {
+  for (std::string::iterator charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
+    char ch = *charp;
+    if (isalnum(ch) || ch == '_')
+      VarName += ch;
+    else {
       char buffer[5];
       sprintf(buffer, "_%x_", ch);
       VarName += buffer;
-    } else
-      VarName += ch;
+    }
   }
   return "V" + VarName;
 }
@@ -641,6 +640,36 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     Out << ')';
 }
+bool CWriter::writeInstructionCast(const Instruction &I)
+{
+  Type *Ty = I.getOperand(0)->getType();
+  bool typeIsSigned = false;
+  switch (I.getOpcode()) {
+  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
+  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
+    break;
+  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
+    typeIsSigned = true;
+    break;
+  default:
+    return false;
+  }
+  printType(Out, Ty, typeIsSigned, "", false, "((", ")(");
+  Out << "))";
+  return true;
+}
+void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
+{
+  bool shouldCast = Cmp.isRelational();
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      ERRORIF (OpTy->isPointerTy());
+      printType(Out, OpTy, Cmp.isSigned(), "", false, "((", ")");
+  }
+  writeOperand(Operand, false);
+  if (shouldCast)
+      Out << ")";
+}
 void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 {
   Type* OpTy = Operand->getType();
@@ -661,18 +690,6 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
   printType(Out, OpTy, castIsSigned, "", false, "((", ")");
   writeOperand(Operand, false);
   Out << ")";
-}
-void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
-{
-  bool shouldCast = Cmp.isRelational();
-  if (shouldCast) {
-      Type* OpTy = Operand->getType();
-      ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, Cmp.isSigned(), "", false, "((", ")");
-  }
-  writeOperand(Operand, false);
-  if (shouldCast)
-      Out << ")";
 }
 void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype)
 {
@@ -716,24 +733,6 @@ void CWriter::visitReturnInst(ReturnInst &I)
       writeOperand(I.getOperand(0), false);
     Out << ";\n";
   }
-}
-bool CWriter::writeInstructionCast(const Instruction &I)
-{
-  Type *Ty = I.getOperand(0)->getType();
-  bool typeIsSigned = false;
-  switch (I.getOpcode()) {
-  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
-    break;
-  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
-    typeIsSigned = true;
-    break;
-  default:
-    return false;
-  }
-  printType(Out, Ty, typeIsSigned, "", false, "((", ")(");
-  Out << "))";
-  return true;
 }
 void CWriter::visitBinaryOperator(Instruction &I)
 {
@@ -896,18 +895,18 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
       || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
       if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
-        if ((Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+        if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
             && ATy->getElementType()->getTypeID() == Type::PointerTyID)
-         || !I->getInitializer()->isNullValue())
-            continue;
-        if (I->hasLocalLinkage())
-          Out << "static ";
-        printType(Out, Ty, false, GetValueName(I), false, "", "");
-        if (!I->getInitializer()->isNullValue()) {
-          Out << " = " ;
-          writeOperand(I->getInitializer(), false, true);
+         && I->getInitializer()->isNullValue()) {
+            if (I->hasLocalLinkage())
+              Out << "static ";
+            printType(Out, Ty, false, GetValueName(I), false, "", "");
+            if (!I->getInitializer()->isNullValue()) {
+              Out << " = " ;
+              writeOperand(I->getInitializer(), false, true);
+            }
+            Out << ";\n";
         }
-        Out << ";\n";
       }
   }
   Out << "\n\n//******************** vtables for Classes *******************\n";
