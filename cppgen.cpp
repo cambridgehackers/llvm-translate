@@ -237,15 +237,38 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
     Out << " }";
   }
 }
+enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt};
+static int getCastGroup(int op)
+{
+  switch (op) {
+  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
+  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
+    return CastUnsigned;
+    break;
+  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
+    return CastSigned;
+    break;
+  case Instruction::GetElementPtr:
+    return CastGEP;
+  case Instruction::SExt:
+    return CastSExt;
+  case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
+  case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
+  case Instruction::FPToUI: case Instruction::FPToSI: case Instruction::PtrToInt:
+  case Instruction::IntToPtr: case Instruction::BitCast:
+    return CastZExt;
+  default:
+    return CastOther;
+  }
+}
 bool CWriter::writeInstructionCast(const Instruction &I)
 {
   Type *Ty = I.getOperand(0)->getType();
   bool typeIsSigned = false;
-  switch (I.getOpcode()) {
-  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
+  switch (getCastGroup(I.getOpcode())) {
+  case CastUnsigned:
     break;
-  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
+  case CastSigned:
     typeIsSigned = true;
     break;
   default:
@@ -255,32 +278,17 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   Out << "))";
   return true;
 }
-void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
-{
-  bool shouldCast = Cmp.isRelational();
-  if (shouldCast) {
-      Type* OpTy = Operand->getType();
-      ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, Cmp.isSigned(), "", "((", ")");
-  }
-  writeOperand(Operand, false);
-  if (shouldCast)
-      Out << ")";
-}
 void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 {
   Type* OpTy = Operand->getType();
   bool castIsSigned = false;
-  switch (Opcode) {
+  switch (getCastGroup(Opcode)) {
     default:
       writeOperand(Operand, false);
       return;
-    case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-    case Instruction::LShr: case Instruction::UDiv:
-    case Instruction::URem: // Cast to unsigned first
+    case CastUnsigned:
       break;
-    case Instruction::GetElementPtr: case Instruction::AShr: case Instruction::SDiv:
-    case Instruction::SRem: // Cast to signed first
+    case CastSigned: case CastGEP:
       castIsSigned = true;
       break;
   }
@@ -321,23 +329,17 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE)
 {
   Type *Ty = CE->getOperand(0)->getType();
   bool TypeIsSigned = false;
-  switch (CE->getOpcode()) {
-  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-  case Instruction::LShr: case Instruction::URem:
-  case Instruction::UDiv:
+  switch (getCastGroup(CE->getOpcode())) {
+  case CastUnsigned:
     break;
-  case Instruction::AShr: case Instruction::SRem:
-  case Instruction::SDiv:
+  case CastSigned:
     TypeIsSigned = true;
     break;
-  case Instruction::SExt:
+  case CastSExt:
     Ty = CE->getType();
     TypeIsSigned = true;
     break;
-  case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
-  case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
-  case Instruction::FPToUI: case Instruction::FPToSI: case Instruction::PtrToInt:
-  case Instruction::IntToPtr: case Instruction::BitCast:
+  case CastZExt:
     Ty = CE->getType();
     break;
   default: return false;
@@ -351,20 +353,31 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
 {
   Type* OpTy = CPV->getType();
   bool typeIsSigned = false;
-  switch (Opcode) {
+  switch (getCastGroup(Opcode)) {
     default:
       printConstant("", CPV, false);
       return;
-    case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-    case Instruction::LShr: case Instruction::UDiv: case Instruction::URem:
+    case CastUnsigned:
       break;
-    case Instruction::AShr: case Instruction::SDiv: case Instruction::SRem:
+    case CastSigned:
       typeIsSigned = true;
       break;
   }
   printType(Out, OpTy, typeIsSigned, "", "((", ")");
   printConstant("", CPV, false);
   Out << ")";
+}
+void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
+{
+  bool shouldCast = Cmp.isRelational();
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      ERRORIF (OpTy->isPointerTy());
+      printType(Out, OpTy, Cmp.isSigned(), "", "((", ")");
+  }
+  writeOperand(Operand, false);
+  if (shouldCast)
+      Out << ")";
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
