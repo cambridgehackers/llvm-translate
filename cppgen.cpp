@@ -333,13 +333,12 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
   printConstant("", CPV, false);
   Out << ")";
 }
-void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
+void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
 {
-  bool shouldCast = Cmp.isRelational();
   if (shouldCast) {
       Type* OpTy = Operand->getType();
       ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, Cmp.isSigned(), "", "((", ")");
+      printType(Out, OpTy, typeIsSigned, "", "((", ")");
   }
   writeOperand(Operand, false);
   if (shouldCast)
@@ -780,11 +779,13 @@ void CWriter::visitBinaryOperator(Instruction &I)
 void CWriter::visitICmpInst(ICmpInst &I)
 {
   bool needsCast = false;
-  writeOperandWithCastICmp(I.getOperand(0), I);
+  bool shouldCast = I.isRelational();
+  bool typeIsSigned = I.isSigned();
+  writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned);
   Out << " ";
   Out << intmapLookup(predText, I.getPredicate());
   Out << " ";
-  writeOperandWithCastICmp(I.getOperand(1), I);
+  writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
   writeInstructionCast(I);
   if (needsCast) {
     Out << "))";

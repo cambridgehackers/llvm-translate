@@ -123,7 +123,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     std::string printStruct(raw_ostream &Out, StructType *STy);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
-    void writeOperandWithCastICmp(Value* Operand, const ICmpInst &I);
+    void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
     bool writeInstructionCast(const Instruction &I);
     const char *fieldName(StructType *STy, uint64_t ind);
     void printContainedStructs(Type *Ty);
