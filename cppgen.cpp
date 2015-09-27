@@ -263,7 +263,6 @@ static int getCastGroup(int op)
 }
 bool CWriter::writeInstructionCast(const Instruction &I)
 {
-  Type *Ty = I.getOperand(0)->getType();
   bool typeIsSigned = false;
   switch (getCastGroup(I.getOpcode())) {
   case CastUnsigned:
@@ -274,27 +273,77 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   default:
     return false;
   }
-  printType(Out, Ty, typeIsSigned, "", "((", ")(");
-  Out << "))";
+  printType(Out, I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
   return true;
 }
 void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
 {
-  Type* OpTy = Operand->getType();
   bool castIsSigned = false;
   switch (getCastGroup(Opcode)) {
-    default:
-      writeOperand(Operand, false);
-      return;
     case CastUnsigned:
       break;
     case CastSigned: case CastGEP:
       castIsSigned = true;
       break;
+    default:
+      writeOperand(Operand, false);
+      return;
   }
-  printType(Out, OpTy, castIsSigned, "", "((", ")");
+  printType(Out, Operand->getType(), castIsSigned, "", "((", ")");
   writeOperand(Operand, false);
   Out << ")";
+}
+bool CWriter::printConstExprCast(const ConstantExpr* CE)
+{
+  Type *Ty = CE->getOperand(0)->getType();
+  bool TypeIsSigned = false;
+  switch (getCastGroup(CE->getOpcode())) {
+  case CastUnsigned:
+    break;
+  case CastSExt:
+    Ty = CE->getType();
+    /* fall through */
+  case CastSigned:
+    TypeIsSigned = true;
+    break;
+  case CastZExt:
+    Ty = CE->getType();
+    break;
+  default: return false;
+  }
+  if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
+      TypeIsSigned = false; // not integer, sign doesn't matter
+  printType(Out, Ty, TypeIsSigned, "", "((", ")())");
+  return true;
+}
+void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
+{
+  bool typeIsSigned = false;
+  switch (getCastGroup(Opcode)) {
+    case CastUnsigned:
+      break;
+    case CastSigned:
+      typeIsSigned = true;
+      break;
+    default:
+      printConstant("", CPV, false);
+      return;
+  }
+  printType(Out, CPV->getType(), typeIsSigned, "", "((", ")");
+  printConstant("", CPV, false);
+  Out << ")";
+}
+void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
+{
+  bool shouldCast = Cmp.isRelational();
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      ERRORIF (OpTy->isPointerTy());
+      printType(Out, OpTy, Cmp.isSigned(), "", "((", ")");
+  }
+  writeOperand(Operand, false);
+  if (shouldCast)
+      Out << ")";
 }
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
@@ -303,7 +352,6 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
     case Instruction::UIToFP: case Instruction::SIToFP: case Instruction::IntToPtr:
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: // For these the DstTy sign doesn't matter
-      break;
     case Instruction::ZExt: case Instruction::PtrToInt:
     case Instruction::FPToUI: // For these, make sure we get an unsigned dest
       break;
@@ -324,60 +372,6 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
       return;
   }
   printType(Out, SrcTy, TypeIsSigned, "", "(", ")");
-}
-bool CWriter::printConstExprCast(const ConstantExpr* CE)
-{
-  Type *Ty = CE->getOperand(0)->getType();
-  bool TypeIsSigned = false;
-  switch (getCastGroup(CE->getOpcode())) {
-  case CastUnsigned:
-    break;
-  case CastSigned:
-    TypeIsSigned = true;
-    break;
-  case CastSExt:
-    Ty = CE->getType();
-    TypeIsSigned = true;
-    break;
-  case CastZExt:
-    Ty = CE->getType();
-    break;
-  default: return false;
-  }
-  if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
-      TypeIsSigned = false; // not integer, sign doesn't matter
-  printType(Out, Ty, TypeIsSigned, "", "((", ")())");
-  return true;
-}
-void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
-{
-  Type* OpTy = CPV->getType();
-  bool typeIsSigned = false;
-  switch (getCastGroup(Opcode)) {
-    default:
-      printConstant("", CPV, false);
-      return;
-    case CastUnsigned:
-      break;
-    case CastSigned:
-      typeIsSigned = true;
-      break;
-  }
-  printType(Out, OpTy, typeIsSigned, "", "((", ")");
-  printConstant("", CPV, false);
-  Out << ")";
-}
-void CWriter::writeOperandWithCastICmp(Value* Operand, const ICmpInst &Cmp)
-{
-  bool shouldCast = Cmp.isRelational();
-  if (shouldCast) {
-      Type* OpTy = Operand->getType();
-      ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, Cmp.isSigned(), "", "((", ")");
-  }
-  writeOperand(Operand, false);
-  if (shouldCast)
-      Out << ")";
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
