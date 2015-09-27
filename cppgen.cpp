@@ -289,9 +289,18 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
       writeOperand(Operand, false);
       return;
   }
-  printType(Out, Operand->getType(), castIsSigned, "", "((", ")");
+  writeOperandWithCastICmp(Operand, true, castIsSigned);
+}
+void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
+{
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      ERRORIF (OpTy->isPointerTy());
+      printType(Out, OpTy, typeIsSigned, "", "((", ")");
+  }
   writeOperand(Operand, false);
-  Out << ")";
+  if (shouldCast)
+      Out << ")";
 }
 bool CWriter::printConstExprCast(const ConstantExpr* CE)
 {
@@ -332,17 +341,6 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
   printType(Out, CPV->getType(), typeIsSigned, "", "((", ")");
   printConstant("", CPV, false);
   Out << ")";
-}
-void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
-{
-  if (shouldCast) {
-      Type* OpTy = Operand->getType();
-      ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, typeIsSigned, "", "((", ")");
-  }
-  writeOperand(Operand, false);
-  if (shouldCast)
-      Out << ")";
 }
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
