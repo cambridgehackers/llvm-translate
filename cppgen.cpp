@@ -82,7 +82,7 @@ const char *CWriter::fieldName(StructType *STy, uint64_t ind)
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
-std::string CWriter::printStruct(raw_ostream &OStr, StructType *STy)
+std::string CWriter::getStructName(StructType *STy)
 {
     std::string name;
     if (!STy->isLiteral() && !STy->getName().empty())
@@ -92,7 +92,6 @@ std::string CWriter::printStruct(raw_ostream &OStr, StructType *STy)
             UnnamedStructIDs[STy] = NextTypeID++;
         name = "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
     }
-    OStr << "struct " << name << " ";
     if (!structWork_run)
         structWork.push_back(STy);
     return name;
@@ -157,8 +156,7 @@ restart_label:
     break;
   }
   case Type::StructTyID: {
-    printStruct(OStr, cast<StructType>(Ty));
-    OStr << NameSoFar;
+    OStr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
     break;
   }
   case Type::ArrayTyID: {
@@ -977,9 +975,8 @@ void CWriter::printContainedStructs(Type *Ty)
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I);
         if (StructType *STy = dyn_cast<StructType>(Ty)) {
-            OutHeader << "typedef ";
-            std::string name = printStruct(OutHeader, STy);
-            OutHeader << "{\n";
+            std::string name = getStructName(STy);
+            OutHeader << "typedef struct " << name << " {\n";
             unsigned Idx = 0;
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
               printType(OutHeader, *I, false, fieldName(STy, Idx++), "  ", ";\n");
