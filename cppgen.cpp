@@ -397,6 +397,7 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
+  ConstantInt *CI;
   if (I == E) {
     writeOperand(Ptr, false);
     return;
@@ -412,9 +413,10 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
     Out << "&";
     writeOperand(Ptr, false);
   } else {
+    bool expose = isAddressExposed(Ptr);
     ++I;  // Skip the zero index.
-    if (isAddressExposed(Ptr) && I != E && (*I)->isArrayTy()) {
-      if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
+    if (expose && I != E && (*I)->isArrayTy()
+      && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
         uint64_t val = CI->getZExtValue();
         ++I;     // we processed this index
         GlobalVariable *gv = dyn_cast<GlobalVariable>(Ptr);
@@ -435,23 +437,22 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
 next:
         if (val)
             Out << "+" << val;
-        goto done;
-      }
     }
-    Out << "&";
-    if (isAddressExposed(Ptr)) {
-      writeOperand(Ptr, true, Static);
-    } else if (I != E && (*I)->isStructTy()) {
-      writeOperand(Ptr, false);
-      Out << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
-      ++I;  // eat the struct index as well.
-    } else {
-      Out << "(";
-      writeOperand(Ptr, true);
-      Out << ")";
+    else {
+        Out << "&";
+        if (expose) {
+          writeOperand(Ptr, true, Static);
+        } else if (I != E && (*I)->isStructTy()) {
+          writeOperand(Ptr, false);
+          Out << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
+          ++I;  // eat the struct index as well.
+        } else {
+          Out << "(";
+          writeOperand(Ptr, true);
+          Out << ")";
+        }
     }
   }
-done:
   for (; I != E; ++I) {
     if ((*I)->isStructTy()) {
       StructType *STy = dyn_cast<StructType>(*I);
