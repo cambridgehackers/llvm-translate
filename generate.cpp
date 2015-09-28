@@ -355,6 +355,8 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile);
+
+    // Generate cpp code
     cWriter.runOnModule(Mod);
     return false;
 }

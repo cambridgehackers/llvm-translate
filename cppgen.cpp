@@ -826,34 +826,6 @@ static int processVar(const GlobalVariable *GV)
       return 0;
   return 1;
 }
-bool CWriter::runOnFunction(Function &F)
-{
-    int status;
-    const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
-    NextAnonValueNumber = 0;
-    if (!(demang && strstr(demang, "::~"))
-     && !F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
-     && F.getName() != "__dtor_echoTest") {
-        printFunctionSignature(Out, &F, false, " {\n");
-        for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
-            for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-              if (const AllocaInst *AI = isDirectAlloca(&*II))
-                printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-              else if (!isInlinableInst(*II)) {
-                Out << "    ";
-                if (II->getType() != Type::getVoidTy(BB->getContext()))
-                    printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-                ERRORIF(isa<PHINode>(*II));    // Print out PHI node temporaries as well...
-                visit(*II);
-                Out << ";\n";
-              }
-            }
-            visit(*BB->getTerminator());
-        }
-        Out << "}\n\n";
-    }
-    return false;
-}
 void CWriter::printContainedStructs(Type *Ty)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
@@ -871,6 +843,7 @@ void CWriter::printContainedStructs(Type *Ty)
         }
     }
 }
+
 bool CWriter::runOnModule(Module &M)
 {
     bool Changed = false;
@@ -936,8 +909,33 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
               Out << ";\n";
           }
     }
-    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-        Changed |= runOnFunction(*I);
+    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+        Function &F = *I;
+        int status;
+        const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
+        NextAnonValueNumber = 0;
+        if (!(demang && strstr(demang, "::~"))
+         && !F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
+         && F.getName() != "__dtor_echoTest") {
+            printFunctionSignature(Out, &F, false, " {\n");
+            for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+                for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+                  if (const AllocaInst *AI = isDirectAlloca(&*II))
+                    printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                  else if (!isInlinableInst(*II)) {
+                    Out << "    ";
+                    if (II->getType() != Type::getVoidTy(BB->getContext()))
+                        printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
+                    ERRORIF(isa<PHINode>(*II));    // Print out PHI node temporaries as well...
+                    visit(*II);
+                    Out << ";\n";
+                  }
+                }
+                visit(*BB->getTerminator());
+            }
+            Out << "}\n\n";
+        }
+    }
 
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
@@ -959,4 +957,3 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     UnnamedStructIDs.clear();
     return Changed;
 }
-

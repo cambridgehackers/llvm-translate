@@ -111,11 +111,8 @@ class CWriter : public InstVisitor<CWriter> {
     DenseMap<StructType*, unsigned> UnnamedStructIDs;
     unsigned NextTypeID;
   public:
-    //static char ID;
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
       : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
-    //virtual const char *getPassName() const { return "C backend"; }
-    bool runOnFunction(Function &F);
     bool runOnModule(Module &M);
   private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
