@@ -234,7 +234,7 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
     Out << " }";
   }
 }
-enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt};
+enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
 static int getCastGroup(int op)
 {
   switch (op) {
@@ -251,9 +251,11 @@ static int getCastGroup(int op)
     return CastSExt;
   case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
   case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
-  case Instruction::FPToUI: case Instruction::FPToSI: case Instruction::PtrToInt:
+  case Instruction::FPToUI: case Instruction::PtrToInt:
   case Instruction::IntToPtr: case Instruction::BitCast:
     return CastZExt;
+  case Instruction::FPToSI:
+    return CastFPToSI;
   default:
     return CastOther;
   }
@@ -312,7 +314,7 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE)
   case CastSigned:
     TypeIsSigned = true;
     break;
-  case CastZExt:
+  case CastZExt: case CastFPToSI:
     Ty = CE->getType();
     break;
   default: return false;
@@ -342,18 +344,13 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
   bool TypeIsSigned = false;
-  switch (opc) {
-    case Instruction::UIToFP: case Instruction::SIToFP: case Instruction::IntToPtr:
-    case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
-    case Instruction::FPTrunc: // For these the DstTy sign doesn't matter
-    case Instruction::ZExt: case Instruction::PtrToInt:
-    case Instruction::FPToUI: // For these, make sure we get an unsigned dest
+  switch (getCastGroup(opc)) {
+  case CastZExt:
       break;
-    case Instruction::SExt:
-    case Instruction::FPToSI: // For these, make sure we get a signed dest
+  case CastSExt: case CastFPToSI:
       TypeIsSigned = true;
       break;
-    default:
+  default:
       llvm_unreachable("Invalid cast opcode");
   }
   printType(Out, DstTy, TypeIsSigned, "", "(", ")");
