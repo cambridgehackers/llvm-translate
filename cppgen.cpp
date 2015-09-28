@@ -260,6 +260,33 @@ static int getCastGroup(int op)
     return CastOther;
   }
 }
+void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
+{
+  if (shouldCast) {
+      Type* OpTy = Operand->getType();
+      ERRORIF (OpTy->isPointerTy());
+      printType(Out, OpTy, typeIsSigned, "", "((", ")");
+  }
+  writeOperand(Operand, false);
+  if (shouldCast)
+      Out << ")";
+}
+void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
+{
+  bool castIsSigned = false;
+  bool shouldCast = true;
+  switch (getCastGroup(Opcode)) {
+    case CastUnsigned:
+      break;
+    case CastSigned: case CastGEP:
+      castIsSigned = true;
+      break;
+    default:
+      shouldCast = false;
+      break;
+  }
+  writeOperandWithCastICmp(Operand, shouldCast, castIsSigned);
+}
 bool CWriter::writeInstructionCast(const Instruction &I)
 {
   bool typeIsSigned = false;
@@ -274,32 +301,6 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   }
   printType(Out, I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
   return true;
-}
-void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
-{
-  bool castIsSigned = false;
-  switch (getCastGroup(Opcode)) {
-    case CastUnsigned:
-      break;
-    case CastSigned: case CastGEP:
-      castIsSigned = true;
-      break;
-    default:
-      writeOperand(Operand, false);
-      return;
-  }
-  writeOperandWithCastICmp(Operand, true, castIsSigned);
-}
-void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
-{
-  if (shouldCast) {
-      Type* OpTy = Operand->getType();
-      ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, typeIsSigned, "", "((", ")");
-  }
-  writeOperand(Operand, false);
-  if (shouldCast)
-      Out << ")";
 }
 bool CWriter::printConstExprCast(const ConstantExpr* CE)
 {
@@ -850,18 +851,19 @@ void CWriter::visitStoreInst(StoreInst &I)
  */
 static int processVar(const GlobalVariable *GV)
 {
-  if (GV->isDeclaration())
-      return 0;
-  if (GV->hasAppendingLinkage() && GV->use_empty()
-    && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors"))
-      return 0;
-  if (GV->getSection() == "llvm.metadata")
+  if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
+   || (GV->hasAppendingLinkage() && GV->use_empty()
+    && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
       return 0;
   return 1;
 }
 bool CWriter::doInitialization(Module &M)
 {
   ArrayType *ATy;
+  PointerType *PTy, *PPTy;
+  const FunctionType *FT;
+  StructType *STy, *ISTy;
+  const ConstantExpr *CE;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   FunctionPass::doInitialization(M);
   Out << "\n\n/* Global Variable Definitions and Initialization */\n";
@@ -888,10 +890,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I)
       if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
-        PointerType *PTy, *PPTy;
-        const FunctionType *FT;
-        StructType *STy, *ISTy;
-        const ConstantExpr *CE;
         if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
          && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
             if (I->hasLocalLinkage())
