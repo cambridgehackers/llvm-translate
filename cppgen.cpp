@@ -835,7 +835,7 @@ bool CWriter::doInitialization(Module &M)
   StructType *STy, *ISTy;
   const ConstantExpr *CE;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-  FunctionPass::doInitialization(M);
+  ModulePass::doInitialization(M);
   Out << "\n\n/* Global Variable Definitions and Initialization */\n";
   for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
       ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
@@ -961,3 +961,12 @@ bool CWriter::doFinalization(Module &M)
     UnnamedStructIDs.clear();
     return false;
 }
+bool CWriter::runOnModule(Module &M) {
+  bool Changed = false;
+
+  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
+    Changed |= runOnFunction(*I);
+
+  return Changed;
+}
+
