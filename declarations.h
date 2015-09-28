@@ -103,7 +103,7 @@ typedef struct {
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
-class CWriter : public ModulePass, public InstVisitor<CWriter> {
+class CWriter : public InstVisitor<CWriter> {
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
     DenseMap<const Value*, unsigned> AnonValueNumbers;
@@ -113,7 +113,7 @@ class CWriter : public ModulePass, public InstVisitor<CWriter> {
   public:
     static char ID;
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
-      : ModulePass(ID), Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
+      : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
     virtual const char *getPassName() const { return "C backend"; }
     virtual bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
@@ -200,9 +200,10 @@ class CallProcessPass : public BasicBlockPass {
 };
 
 class GeneratePass : public ModulePass {
+    CWriter cWriter;
   public:
     static char ID;
-    GeneratePass() : ModulePass(ID) {}
+    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), cWriter(CWriter(o,oh)) { }
     bool runOnModule(Module &M);
 };
 
