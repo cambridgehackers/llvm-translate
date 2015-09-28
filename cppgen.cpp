@@ -910,15 +910,16 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
           }
     }
     for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-        Function &F = *I;
+        Function &func = *I;
         int status;
-        const char *demang = abi::__cxa_demangle(F.getName().str().c_str(), 0, 0, &status);
+        std::string fname = func.getName().str();
+        const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
         NextAnonValueNumber = 0;
         if (!(demang && strstr(demang, "::~"))
-         && !F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
-         && F.getName() != "__dtor_echoTest") {
-            printFunctionSignature(Out, &F, false, " {\n");
-            for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+         && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
+         && fname != "__dtor_echoTest") {
+            printFunctionSignature(Out, &func, false, " {\n");
+            for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
                 for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
                   if (const AllocaInst *AI = isDirectAlloca(&*II))
                     printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
@@ -926,7 +927,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
                     Out << "    ";
                     if (II->getType() != Type::getVoidTy(BB->getContext()))
                         printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-                    ERRORIF(isa<PHINode>(*II));    // Print out PHI node temporaries as well...
                     visit(*II);
                     Out << ";\n";
                   }
