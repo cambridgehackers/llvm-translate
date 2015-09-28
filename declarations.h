@@ -127,7 +127,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     bool writeInstructionCast(const Instruction &I);
     const char *fieldName(StructType *STy, uint64_t ind);
     void printContainedStructs(Type *Ty);
-    void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype);
+    void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(const char *prefix, Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode);

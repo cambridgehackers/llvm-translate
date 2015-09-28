@@ -690,16 +690,15 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     Out << ')';
 }
-void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype)
+void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix)
 {
-  if (F->hasLocalLinkage()) Out << "static ";
-  FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-  ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage()
-   || F->hasStructRetAttr() || FT->isVarArg());
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
-  FunctionInnards << GetValueName(F) << '(';
   const char *sep = "";
+  if (F->hasLocalLinkage()) Out << "static ";
+  FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+  ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
+  FunctionInnards << GetValueName(F) << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
       printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
@@ -707,18 +706,15 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
     }
   } else if (!F->arg_empty()) {
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-      std::string ArgName = "";
-      if (I->hasName() || !Prototype)
-        ArgName = GetValueName(I);
-      Type *ArgTy = I->getType();
-      printType(FunctionInnards, ArgTy, /*isSigned=*/false, ArgName, sep, "");
+      std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
+      printType(FunctionInnards, I->getType(), /*isSigned=*/false, ArgName, sep, "");
       sep = ", ";
     }
   }
   if (!strcmp(sep, ""))
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
-  printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+  printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", postfix);
 }
 
 /*
@@ -776,7 +772,6 @@ void CWriter::visitBinaryOperator(Instruction &I)
 }
 void CWriter::visitICmpInst(ICmpInst &I)
 {
-  bool needsCast = false;
   bool shouldCast = I.isRelational();
   bool typeIsSigned = I.isSigned();
   writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned);
@@ -785,36 +780,32 @@ void CWriter::visitICmpInst(ICmpInst &I)
   Out << " ";
   writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
   writeInstructionCast(I);
-  if (needsCast) {
+  if (shouldCast)
     Out << "))";
-  }
 }
 void CWriter::visitCastInst(CastInst &I)
 {
+  int op = I.getOpcode();
   Type *DstTy = I.getType();
   Type *SrcTy = I.getOperand(0)->getType();
   Out << '(';
-  printCast(I.getOpcode(), SrcTy, DstTy);
-  if (SrcTy == Type::getInt1Ty(I.getContext()) &&
-      I.getOpcode() == Instruction::SExt)
+  printCast(op, SrcTy, DstTy);
+  if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
     Out << "0-";
   writeOperand(I.getOperand(0), false);
   if (DstTy == Type::getInt1Ty(I.getContext()) &&
-      (I.getOpcode() == Instruction::Trunc || I.getOpcode() == Instruction::FPToUI ||
-       I.getOpcode() == Instruction::FPToSI || I.getOpcode() == Instruction::PtrToInt)) {
+      (op == Instruction::Trunc || op == Instruction::FPToUI ||
+       op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
     Out << "&1u";
   }
   Out << ')';
 }
 void CWriter::visitCallInst(CallInst &I)
 {
+  unsigned ArgNo = 0;
+  const char *sep = "";
   Function *F = I.getCalledFunction();
-  if (F)
-      if (Intrinsic::ID ID = (Intrinsic::ID)F->getIntrinsicID()) {
-          (void)ID;
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
+  ERRORIF(F && (Intrinsic::ID)F->getIntrinsicID());
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
@@ -831,8 +822,6 @@ void CWriter::visitCallInst(CallInst &I)
   unsigned NumDeclaredParams = FTy->getNumParams();
   CallSite CS(&I);
   CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-  unsigned ArgNo = 0;
-  const char *sep = "";
   Out << '(';
   for (; AI != AE; ++AI, ++ArgNo) {
     Out << sep;
@@ -893,7 +882,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
   Out << "\n\n/* Global Variable Definitions and Initialization */\n";
   for (Module::global_iterator I = M.global_begin(), E = M.global_end(); I != E; ++I) {
       ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
-      || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
+        || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
       if (processVar(I)) {
         Type *Ty = I->getType()->getElementType();
         if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
@@ -960,8 +949,7 @@ bool CWriter::runOnFunction(Function &F)
     if (!(demang && strstr(demang, "::~"))
      && !F.isDeclaration() && F.getName() != "_Z16run_main_programv" && F.getName() != "main"
      && F.getName() != "__dtor_echoTest") {
-        printFunctionSignature(Out, &F, false);
-        Out << " {\n";
+        printFunctionSignature(Out, &F, false, " {\n");
         for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
             for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
               if (const AllocaInst *AI = isDirectAlloca(&*II))
@@ -1015,10 +1003,8 @@ bool CWriter::doFinalization(Module &M)
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
          || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
-         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp")) {
-            printFunctionSignature(OutHeader, I, true);
-            OutHeader << ";\n";
-        }
+         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
+            printFunctionSignature(OutHeader, I, true, ";\n");
     }
     UnnamedStructIDs.clear();
     return false;
