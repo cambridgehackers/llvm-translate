@@ -252,8 +252,8 @@ restart_label:
   }
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
-    printType(OStr, ATy->getElementType(), false, "", "", "");
     unsigned len = ATy->getNumElements();
+    printType(OStr, ATy->getElementType(), false, "", "", "");
     if (len == 0) len = 1;
     OStr << NameSoFar << "[" + utostr(len) + "]";
     break;
@@ -277,13 +277,12 @@ restart_label:
  */
 void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
 {
+  const char *sep = " ";
   if (CPA->isString()) {
     StringRef value = CPA->getAsString();
-    const char *cp = value.str().c_str();
-    printString(cp, value.str().length());
+    printString(value.str().c_str(), value.str().length());
   } else {
     Out << '{';
-    const char *sep = " ";
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
         printConstant(sep, cast<Constant>(CPA->getOperand(i)), Static);
         sep = ", ";
@@ -540,12 +539,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     Out << ')';
     return;
   }
-  /* handle 'undefined' */
-  if (isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()) {
-    printType(Out, CPV->getType(), false, "", "((", ")/*UNDEF*/"); // sign doesn't matter
-    Out << ((!CPV->getType()->isVectorTy()) ?  "0)" : "{})");
-    return;
-  }
+  ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
   /* handle int */
   if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
     Type* Ty = CI->getType();
@@ -589,20 +583,8 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     }
     else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
       printConstantDataArray(CA, Static);
-    else if(!isa<ConstantAggregateZero>(CPV) && !isa<UndefValue>(CPV)) {
-      printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, CPV->getValueID());
-      CPV->dump();
-      exit(1);
-    } else {
-      ArrayType *AT = cast<ArrayType>(CPV->getType());
-      Constant *CZ = Constant::getNullValue(AT->getElementType());
-      Out << '{';
-      for (unsigned i = 0, e = AT->getNumElements(); i != e; ++i) {
-          printConstant(sep, CZ, Static);
-          sep = ", ";
-      }
-      Out << " }";
-    }
+    else
+      ERRORIF(1);
     break;
   case Type::VectorTyID:
     Out << '{';
@@ -612,30 +594,17 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
             sep = ", ";
         }
     }
-    else {
-      assert(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
-      VectorType *VT = cast<VectorType>(CPV->getType());
-      Constant *CZ = Constant::getNullValue(VT->getElementType());
-      for (unsigned i = 0, e = VT->getNumElements(); i != e; ++i) {
-        printConstant(sep, CZ, Static);
-        sep = ", ";
-      }
-    }
+    else
+      ERRORIF(1);
     Out << " }";
     break;
   case Type::StructTyID:
     Out << '{';
-    if (isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV)) {
-      StructType *ST = cast<StructType>(CPV->getType());
-      for (unsigned i = 0, e = ST->getNumElements(); i != e; ++i) {
-          printConstant(sep, Constant::getNullValue(ST->getElementType(i)), Static);
-          sep = ", ";
-      }
-    } else
-        for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
-            printConstant(sep, cast<Constant>(CPV->getOperand(i)), Static);
-            sep = ", ";
-        }
+    ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
+    for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
+        printConstant(sep, cast<Constant>(CPV->getOperand(i)), Static);
+        sep = ", ";
+    }
     Out << " }";
     break;
   case Type::PointerTyID:
