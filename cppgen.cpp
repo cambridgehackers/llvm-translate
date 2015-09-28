@@ -540,18 +540,16 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     if (ConstantArray *CPA = dyn_cast<ConstantArray>(CPV)) {
       int len = CPA->getNumOperands();
       Type *ETy = CPA->getType()->getElementType();
-      bool isString = (ETy == Type::getInt8Ty(CPA->getContext()) || ETy == Type::getInt8Ty(CPA->getContext()));
-      if (isString && (CPA->getNumOperands() == 0 || !cast<Constant>(*(CPA->op_end()-1))->isNullValue()))
-        isString = false;
-      if (isString) {
+      if (ETy == Type::getInt8Ty(CPA->getContext()) && len
+       && cast<Constant>(*(CPA->op_end()-1))->isNullValue()) {
         char *cp = (char *)malloc(len);
-        for (unsigned i = 0, e = CPA->getNumOperands()-1; i != e; ++i)
+        for (unsigned i = 0, e = len-1; i != e; ++i)
             cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
         printString(cp, len);
         free(cp);
       } else {
         Out << '{';
-        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
+        for (unsigned i = 0, e = len; i != e; ++i) {
             printConstant(sep, cast<Constant>(CPA->getOperand(i)), Static);
             sep = ", ";
         }
