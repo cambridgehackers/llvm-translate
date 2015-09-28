@@ -38,11 +38,73 @@ using namespace llvm;
           exit(1); \
       }}
 
+enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
 static std::list<StructType *> structWork;
 static std::map<Type *, int> structMap;
 static int structWork_run;
 char CWriter::ID = 0;
 
+/******* Util functions ******/
+void CWriter::printString(const char *cp, int len)
+{
+    if (!cp[len-1])
+        len--;
+    Out << '\"';
+    bool LastWasHex = false;
+    for (unsigned i = 0, e = len; i != e; ++i) {
+      unsigned char C = cp[i];
+      if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
+        LastWasHex = false;
+        if (C == '"' || C == '\\')
+          Out << "\\" << (char)C;
+        else
+          Out << (char)C;
+      } else {
+        LastWasHex = false;
+        switch (C) {
+        case '\n': Out << "\\n"; break;
+        case '\t': Out << "\\t"; break;
+        case '\r': Out << "\\r"; break;
+        case '\v': Out << "\\v"; break;
+        case '\a': Out << "\\a"; break;
+        case '\"': Out << "\\\""; break;
+        case '\'': Out << "\\\'"; break;
+        default:
+          Out << "\\x";
+          Out << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
+          Out << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
+          LastWasHex = true;
+          break;
+        }
+      }
+    }
+    Out << '\"';
+}
+static int getCastGroup(int op)
+{
+  switch (op) {
+  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
+  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
+    return CastUnsigned;
+    break;
+  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
+    return CastSigned;
+    break;
+  case Instruction::GetElementPtr:
+    return CastGEP;
+  case Instruction::SExt:
+    return CastSExt;
+  case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
+  case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
+  case Instruction::FPToUI: case Instruction::PtrToInt:
+  case Instruction::IntToPtr: case Instruction::BitCast:
+    return CastZExt;
+  case Instruction::FPToSI:
+    return CastFPToSI;
+  default:
+    return CastOther;
+  }
+}
 /*
  * Name functions
  */
@@ -96,6 +158,35 @@ std::string CWriter::getStructName(StructType *STy)
         structWork.push_back(STy);
     return name;
 }
+std::string CWriter::GetValueName(const Value *Operand)
+{
+  const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
+  const Value *V;
+  if (GA && (V = GA->resolveAliasedGlobal(false)))
+      Operand = V;
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
+    return CBEMangle(GV->getName().str());
+  std::string Name = Operand->getName();
+  if (Name.empty()) { // Assign unique names to local temporaries.
+    unsigned &No = AnonValueNumbers[Operand];
+    if (No == 0)
+      No = ++NextAnonValueNumber;
+    Name = "tmp__" + utostr(No);
+  }
+  std::string VarName;
+  VarName.reserve(Name.capacity());
+  for (std::string::iterator charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
+    char ch = *charp;
+    if (isalnum(ch) || ch == '_')
+      VarName += ch;
+    else {
+      char buffer[5];
+      sprintf(buffer, "_%x_", ch);
+      VarName += buffer;
+    }
+  }
+  return "V" + VarName;
+}
 /*
  * Output types
  */
@@ -103,6 +194,10 @@ void CWriter::printType(raw_ostream &OStr, Type *Ty, bool isSigned,
     std::string NameSoFar, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
+  std::string tstr;
+  raw_string_ostream FunctionInnards(tstr);
+  const char *sep = "";
+
   OStr << prefix;
 restart_label:
   switch (Ty->getTypeID()) {
@@ -136,10 +231,7 @@ restart_label:
       break;
   case Type::FunctionTyID: {
     FunctionType *FTy = cast<FunctionType>(Ty);
-    std::string tstr;
-    raw_string_ostream FunctionInnards(tstr);
     FunctionInnards << " (" << NameSoFar << ") (";
-    const char *sep = "";
     for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
       printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
       sep = ", ";
@@ -161,9 +253,9 @@ restart_label:
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
     printType(OStr, ATy->getElementType(), false, "", "", "");
-    unsigned NumElements = ATy->getNumElements();
-    if (NumElements == 0) NumElements = 1;
-    OStr << NameSoFar << "[" + utostr(NumElements) + "]";
+    unsigned len = ATy->getNumElements();
+    if (len == 0) len = 1;
+    OStr << NameSoFar << "[" + utostr(len) + "]";
     break;
   }
   case Type::PointerTyID: {
@@ -183,41 +275,6 @@ restart_label:
 /*
  * Output expressions
  */
-void CWriter::printString(const char *cp, int len)
-{
-    if (!cp[len-1])
-        len--;
-    Out << '\"';
-    bool LastWasHex = false;
-    for (unsigned i = 0, e = len; i != e; ++i) {
-      unsigned char C = cp[i];
-      if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
-        LastWasHex = false;
-        if (C == '"' || C == '\\')
-          Out << "\\" << (char)C;
-        else
-          Out << (char)C;
-      } else {
-        LastWasHex = false;
-        switch (C) {
-        case '\n': Out << "\\n"; break;
-        case '\t': Out << "\\t"; break;
-        case '\r': Out << "\\r"; break;
-        case '\v': Out << "\\v"; break;
-        case '\a': Out << "\\a"; break;
-        case '\"': Out << "\\\""; break;
-        case '\'': Out << "\\\'"; break;
-        default:
-          Out << "\\x";
-          Out << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
-          Out << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
-          LastWasHex = true;
-          break;
-        }
-      }
-    }
-    Out << '\"';
-}
 void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
 {
   if (CPA->isString()) {
@@ -232,32 +289,6 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
         sep = ", ";
     }
     Out << " }";
-  }
-}
-enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
-static int getCastGroup(int op)
-{
-  switch (op) {
-  case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-  case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
-    return CastUnsigned;
-    break;
-  case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
-    return CastSigned;
-    break;
-  case Instruction::GetElementPtr:
-    return CastGEP;
-  case Instruction::SExt:
-    return CastSExt;
-  case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
-  case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
-  case Instruction::FPToUI: case Instruction::PtrToInt:
-  case Instruction::IntToPtr: case Instruction::BitCast:
-    return CastZExt;
-  case Instruction::FPToSI:
-    return CastFPToSI;
-  default:
-    return CastOther;
   }
 }
 void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
@@ -543,7 +574,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
       if (ETy == Type::getInt8Ty(CPA->getContext()) && len
        && cast<Constant>(*(CPA->op_end()-1))->isNullValue()) {
         char *cp = (char *)malloc(len);
-        for (unsigned i = 0, e = len-1; i != e; ++i)
+        for (int i = 0; i != len-1; ++i)
             cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
         printString(cp, len);
         free(cp);
@@ -617,35 +648,6 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     errs() << "Unknown constant type: " << *CPV << "\n";
     llvm_unreachable(0);
   }
-}
-std::string CWriter::GetValueName(const Value *Operand)
-{
-  const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
-  const Value *V;
-  if (GA && (V = GA->resolveAliasedGlobal(false)))
-      Operand = V;
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
-    return CBEMangle(GV->getName().str());
-  std::string Name = Operand->getName();
-  if (Name.empty()) { // Assign unique names to local temporaries.
-    unsigned &No = AnonValueNumbers[Operand];
-    if (No == 0)
-      No = ++NextAnonValueNumber;
-    Name = "tmp__" + utostr(No);
-  }
-  std::string VarName;
-  VarName.reserve(Name.capacity());
-  for (std::string::iterator charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
-    char ch = *charp;
-    if (isalnum(ch) || ch == '_')
-      VarName += ch;
-    else {
-      char buffer[5];
-      sprintf(buffer, "_%x_", ch);
-      VarName += buffer;
-    }
-  }
-  return "V" + VarName;
 }
 void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
 {
@@ -790,10 +792,10 @@ void CWriter::visitCallInst(CallInst &I)
   const char *sep = "";
   Function *F = I.getCalledFunction();
   ERRORIF(F && (Intrinsic::ID)F->getIntrinsicID());
+  ERRORIF (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall());
   Value *Callee = I.getCalledValue();
   PointerType  *PTy   = cast<PointerType>(Callee->getType());
   FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
-  ERRORIF (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall());
   ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
   Function *RF = NULL;
   if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
@@ -803,13 +805,13 @@ void CWriter::visitCallInst(CallInst &I)
   writeOperand(Callee, false);
   if (RF) Out << ')';
   ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-  unsigned NumDeclaredParams = FTy->getNumParams();
+  unsigned len = FTy->getNumParams();
   CallSite CS(&I);
   CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
   Out << '(';
   for (; AI != AE; ++AI, ++ArgNo) {
     Out << sep;
-    if (ArgNo < NumDeclaredParams && (*AI)->getType() != FTy->getParamType(ArgNo))
+    if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
         printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
     writeOperand(*AI, false);
     sep = ", ";
