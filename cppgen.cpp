@@ -132,8 +132,7 @@ restart_label:
       goto restart_label;
       }
   case Type::MetadataTyID:
-      OStr << "MetadataTyIDSTUB\n";
-      OStr << " " << NameSoFar;
+      OStr << "MetadataTyIDSTUB\n " << NameSoFar;
       break;
   case Type::FunctionTyID: {
     FunctionType *FTy = cast<FunctionType>(Ty);
