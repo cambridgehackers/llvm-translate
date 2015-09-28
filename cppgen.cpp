@@ -323,7 +323,7 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE)
   printType(Out, Ty, TypeIsSigned, "", "((", ")())");
   return true;
 }
-void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
+void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *postfix)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(Opcode)) {
@@ -338,7 +338,7 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode)
   }
   printType(Out, CPV->getType(), typeIsSigned, "", "((", ")");
   printConstant("", CPV, false);
-  Out << ")";
+  Out << ")" << postfix;
 }
 void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 {
@@ -458,15 +458,13 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
       printCast(op, CE->getOperand(0)->getType(), CE->getType());
       if (op == Instruction::SExt &&
-          CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext())) {
+          CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
         Out << "0-";
-      }
       printConstant("", CE->getOperand(0), Static);
       if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
           (op == Instruction::Trunc || op == Instruction::FPToUI ||
-           op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
+           op == Instruction::FPToSI || op == Instruction::PtrToInt))
         Out << "&1u";
-      }
       break;
     case Instruction::GetElementPtr:
       printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
@@ -484,14 +482,13 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
     case Instruction::AShr:
     {
-      printConstantWithCast(CE->getOperand(0), op);
-      Out << " ";
+      printConstantWithCast(CE->getOperand(0), op, " ");
       if (op == Instruction::ICmp)
         Out << intmapLookup(predText, CE->getPredicate());
       else
         Out << intmapLookup(opcodeMap, op);
       Out << " ";
-      printConstantWithCast(CE->getOperand(1), op);
+      printConstantWithCast(CE->getOperand(1), op, "");
       printConstExprCast(CE);
       break;
     }
@@ -502,10 +499,8 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
         Out << "1";
       else {
         Out << "llvm_fcmp_" << intmapLookup(predText, CE->getPredicate()) << "(";
-        printConstantWithCast(CE->getOperand(0), op);
-        Out << ", ";
-        printConstantWithCast(CE->getOperand(1), op);
-        Out << ")";
+        printConstantWithCast(CE->getOperand(0), op, ", ");
+        printConstantWithCast(CE->getOperand(1), op, ")");
       }
       printConstExprCast(CE);
       break;
@@ -520,11 +515,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
   /* handle 'undefined' */
   if (isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()) {
     printType(Out, CPV->getType(), false, "", "((", ")/*UNDEF*/"); // sign doesn't matter
-    if (!CPV->getType()->isVectorTy()) {
-      Out << "0)";
-    } else {
-      Out << "{})";
-    }
+    Out << ((!CPV->getType()->isVectorTy()) ?  "0)" : "{})");
     return;
   }
   /* handle int */

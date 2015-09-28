@@ -130,7 +130,7 @@ class CWriter : public FunctionPass, public InstVisitor<CWriter> {
     void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(const char *prefix, Constant *CPV, bool Static);
-    void printConstantWithCast(Constant *CPV, unsigned Opcode);
+    void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
     bool printConstExprCast(const ConstantExpr *CE);
     void printString(const char *cp, int len);
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
