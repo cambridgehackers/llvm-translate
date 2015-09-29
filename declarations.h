@@ -127,7 +127,6 @@ class CWriter : public InstVisitor<CWriter> {
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
     bool writeInstructionCast(const Instruction &I);
-    const char *fieldName(StructType *STy, uint64_t ind);
     void printContainedStructs(Type *Ty);
     void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
@@ -249,3 +248,4 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);
+const char *fieldName(StructType *STy, uint64_t ind);

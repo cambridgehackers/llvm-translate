@@ -115,7 +115,7 @@ static std::string CBEMangle(const std::string &S)
     }
   return Result;
 }
-const char *CWriter::fieldName(StructType *STy, uint64_t ind)
+const char *fieldName(StructType *STy, uint64_t ind)
 {
     static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
