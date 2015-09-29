@@ -35,6 +35,7 @@ std::list<VTABLE_WORK> vtablework;
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
 Function *EntryFn;
+const char *globalName;
 
 static int slotmapIndex = 1;
 static std::map<const Value *, int> slotmap;
@@ -150,10 +151,17 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK &work, const char *guardName,
-       int generate, FILE *outputFile)
+static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
     Function *F = work.thisp[0][work.f];
+    const char *guardName = NULL;
+    globalName = strdup(F->getName().str().c_str());
+    if (generate && endswith(globalName, "updateEv")) {
+        char temp[MAX_CHAR_BUFFER];
+        strcpy(temp, globalName);
+        temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
+        guardName = strdup(temp);
+    }
     slotmap.clear();
     slotmapIndex = 1;
     memset(slotarray, 0, sizeof(slotarray));
@@ -299,16 +307,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        Function *f = vtablework.begin()->thisp[0][vtablework.begin()->f];
-        globalName = strdup(f->getName().str().c_str());
-        const char *guardName = NULL;
-        if (generate && endswith(globalName, "updateEv")) {
-            char temp[MAX_CHAR_BUFFER];
-            strcpy(temp, globalName);
-            temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
-            guardName = strdup(temp);
-        }
-        processFunction(*vtablework.begin(), guardName, generate, outputFile);
+        processFunction(*vtablework.begin(), generate, outputFile);
         vtablework.pop_front();
     }
 }
@@ -388,6 +387,6 @@ bool GeneratePass::runOnModule(Module &Mod)
          && fname != "__dtor_echoTest")
             processCFunction(func);
     }
-    generateCppFinal(Mod);
+    generateCppHeader(Mod, OutHeader);
     return false;
 }

@@ -128,7 +128,7 @@ class CWriter : public InstVisitor<CWriter> {
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
     bool writeInstructionCast(const Instruction &I);
     void printContainedStructs(Type *Ty);
-    void printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix);
+    void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix);
     void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(const char *prefix, Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
@@ -137,37 +137,6 @@ class CWriter : public InstVisitor<CWriter> {
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
-    bool isAddressExposed(const Value *V) const {
-      return isa<GlobalVariable>(V) || isDirectAlloca(V);
-    }
-    static bool isInlinableInst(const Instruction &I) {
-      if (isa<CmpInst>(I))
-        return true;
-      if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
-          isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I) ||
-          isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I) ||
-          isa<InsertValueInst>(I))
-        return false;
-      if (I.hasOneUse()) {
-        const Instruction &User = cast<Instruction>(*I.use_back());
-        if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
-          return false;
-      }
-      if ( I.getParent() != cast<Instruction>(I.use_back())->getParent()) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          exit(1);
-      }
-      return true;
-    }
-    static const AllocaInst *isDirectAlloca(const Value *V) {
-      const AllocaInst *AI = dyn_cast<AllocaInst>(V);
-      if (!AI) return 0;
-      if (AI->isArrayAllocation())
-        return 0;   // FIXME: we can also inline fixed size array allocas!
-      if (AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
-        return 0;
-      return AI;
-    }
     friend class InstVisitor<CWriter>;
     void visitReturnInst(ReturnInst &I);
     void visitBinaryOperator(Instruction &I);
@@ -185,7 +154,7 @@ class CWriter : public InstVisitor<CWriter> {
     std::string GetValueName(const Value *Operand);
     void processCFunction(Function &func);
     void generateCppData(Module &Mod);
-    void generateCppFinal(Module &Mod);
+    void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);
 };
 
 class RemoveAllocaPass : public FunctionPass {

@@ -53,7 +53,6 @@ static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
 FILE *outputFile;
 ExecutionEngine *EE;
-const char *globalName;
 
 bool endswith(const char *str, const char *suffix)
 {

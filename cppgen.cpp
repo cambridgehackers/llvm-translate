@@ -37,6 +37,35 @@ std::list<StructType *> structWork;
 int structWork_run;
 
 /******* Util functions ******/
+static bool isInlinableInst(const Instruction &I) {
+  if (isa<CmpInst>(I))
+    return true;
+  if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
+      isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I) ||
+      isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I) ||
+      isa<InsertValueInst>(I))
+    return false;
+  if (I.hasOneUse()) {
+    const Instruction &User = cast<Instruction>(*I.use_back());
+    if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
+      return false;
+  }
+  if ( I.getParent() != cast<Instruction>(I.use_back())->getParent()) {
+      printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+      exit(1);
+  }
+  return true;
+}
+static const AllocaInst *isDirectAlloca(const Value *V) {
+  const AllocaInst *AI = dyn_cast<AllocaInst>(V);
+  if (!AI || AI->isArrayAllocation()
+   || AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
+    return 0;
+  return AI;
+}
+static bool isAddressExposed(const Value *V) {
+  return isa<GlobalVariable>(V) || isDirectAlloca(V);
+}
 void CWriter::printString(const char *cp, int len)
 {
     if (!cp[len-1])
@@ -901,24 +930,24 @@ void CWriter::generateCppData(Module &Mod)
           }
     }
 }
-void CWriter::generateCppFinal(Module &Mod)
+void CWriter::generateCppHeader(Module &Mod, raw_fd_ostream &OStr)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
         printContainedStructs(*structWork.begin());
         structWork.pop_front();
     }
-    OutHeader << "\n/* External Global Variable Declarations */\n";
+    OStr << "\n/* External Global Variable Declarations */\n";
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
-          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n");
-    OutHeader << "\n/* Function Declarations */\n";
+          printType(OStr, I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n");
+    OStr << "\n/* Function Declarations */\n";
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
          || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
          || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
-            printFunctionSignature(OutHeader, I, true, ";\n");
+            printFunctionSignature(OStr, I, true, ";\n");
     }
     UnnamedStructIDs.clear();
 }
