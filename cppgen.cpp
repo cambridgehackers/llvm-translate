@@ -67,40 +67,40 @@ static const AllocaInst *isDirectAlloca(const Value *V) {
 static bool isAddressExposed(const Value *V) {
   return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
-void CWriter::printString(const char *cp, int len)
+static void printString(raw_ostream &OStr, const char *cp, int len)
 {
     if (!cp[len-1])
         len--;
-    Out << '\"';
+    OStr << '\"';
     bool LastWasHex = false;
     for (unsigned i = 0, e = len; i != e; ++i) {
       unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
         LastWasHex = false;
         if (C == '"' || C == '\\')
-          Out << "\\" << (char)C;
+          OStr << "\\" << (char)C;
         else
-          Out << (char)C;
+          OStr << (char)C;
       } else {
         LastWasHex = false;
         switch (C) {
-        case '\n': Out << "\\n"; break;
-        case '\t': Out << "\\t"; break;
-        case '\r': Out << "\\r"; break;
-        case '\v': Out << "\\v"; break;
-        case '\a': Out << "\\a"; break;
-        case '\"': Out << "\\\""; break;
-        case '\'': Out << "\\\'"; break;
+        case '\n': OStr << "\\n"; break;
+        case '\t': OStr << "\\t"; break;
+        case '\r': OStr << "\\r"; break;
+        case '\v': OStr << "\\v"; break;
+        case '\a': OStr << "\\a"; break;
+        case '\"': OStr << "\\\""; break;
+        case '\'': OStr << "\\\'"; break;
         default:
-          Out << "\\x";
-          Out << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
-          Out << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
+          OStr << "\\x";
+          OStr << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
+          OStr << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
           LastWasHex = true;
           break;
         }
       }
     }
-    Out << '\"';
+    OStr << '\"';
 }
 static int getCastGroup(int op)
 {
@@ -302,7 +302,7 @@ void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
   const char *sep = " ";
   if (CPA->isString()) {
     StringRef value = CPA->getAsString();
-    printString(value.str().c_str(), value.str().length());
+    printString(Out, value.str().c_str(), value.str().length());
   } else {
     Out << '{';
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
@@ -593,7 +593,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
         char *cp = (char *)malloc(len);
         for (int i = 0; i != len-1; ++i)
             cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
-        printString(cp, len);
+        printString(Out, cp, len);
         free(cp);
       } else {
         Out << '{';
@@ -668,12 +668,12 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     Out << ')';
 }
-void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool Prototype, const char *postfix)
+void CWriter::printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   const char *sep = "";
-  if (F->hasLocalLinkage()) Out << "static ";
+  if (F->hasLocalLinkage()) OStr << "static ";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   FunctionInnards << GetValueName(F) << '(';
@@ -692,7 +692,7 @@ void CWriter::printFunctionSignature(raw_ostream &Out, const Function *F, bool P
   if (!strcmp(sep, ""))
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
-  printType(Out, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", postfix);
+  printType(OStr, F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", postfix);
 }
 
 /*

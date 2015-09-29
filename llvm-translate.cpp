@@ -129,8 +129,8 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     //dump_class_data();
 
     // write copy of optimized bitcode
-    //raw_fd_ostream Out("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
-    //WriteBitcodeToFile(Mod, Out);
+    //raw_fd_ostream OutBit("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
+    //WriteBitcodeToFile(Mod, OutBit);
 printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
     return 0;
 }

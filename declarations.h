@@ -133,7 +133,6 @@ class CWriter : public InstVisitor<CWriter> {
     void printConstant(const char *prefix, Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
     bool printConstExprCast(const ConstantExpr *CE);
-    void printString(const char *cp, int len);
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
