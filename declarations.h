@@ -113,7 +113,7 @@ class CWriter : public InstVisitor<CWriter> {
   public:
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
       : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
-    bool runOnModule(Module &M);
+    bool cwriterModule(Module &M);
   private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
     std::string getStructName(StructType *STy);

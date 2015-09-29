@@ -844,7 +844,7 @@ void CWriter::printContainedStructs(Type *Ty)
     }
 }
 
-bool CWriter::runOnModule(Module &M)
+bool CWriter::cwriterModule(Module &M)
 {
     bool Changed = false;
     ArrayType *ATy;
