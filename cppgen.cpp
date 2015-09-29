@@ -37,15 +37,14 @@ std::list<StructType *> structWork;
 int structWork_run;
 static std::map<Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
-static unsigned NextAnonValueNumber;
+unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
 static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
 static void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static = false);
-static void processInstruction(raw_ostream &OStr, Instruction &I);
 
 /******* Util functions ******/
-static bool isInlinableInst(const Instruction &I)
+bool isInlinableInst(const Instruction &I)
 {
   if (isa<CmpInst>(I))
     return true;
@@ -65,7 +64,7 @@ static bool isInlinableInst(const Instruction &I)
   }
   return true;
 }
-static const AllocaInst *isDirectAlloca(const Value *V)
+const AllocaInst *isDirectAlloca(const Value *V)
 {
   const AllocaInst *AI = dyn_cast<AllocaInst>(V);
   if (!AI || AI->isArrayAllocation()
@@ -190,7 +189,7 @@ static std::string getStructName(StructType *STy)
         structWork.push_back(STy);
     return name;
 }
-static std::string GetValueName(const Value *Operand)
+std::string GetValueName(const Value *Operand)
 {
   const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
   const Value *V;
@@ -222,8 +221,7 @@ static std::string GetValueName(const Value *Operand)
 /*
  * Output types
  */
-static void printType(raw_ostream &OStr, Type *Ty, bool isSigned,
-    std::string NameSoFar, std::string prefix, std::string postfix)
+void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
   std::string tstr;
@@ -678,7 +676,7 @@ void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     OStr << ')';
 }
-static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
+void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
@@ -708,7 +706,7 @@ static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Pr
 /*
  * Output instructions
  */
-static void processInstruction(raw_ostream &OStr, Instruction &I)
+void processInstruction(raw_ostream &OStr, Instruction &I)
 {
     int op = I.getOpcode();
     switch(I.getOpcode()) {
@@ -879,26 +877,6 @@ static int processVar(const GlobalVariable *GV)
     && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
       return 0;
   return 1;
-}
-void processCFunction(raw_ostream &OStr, Function &func)
-{
-    NextAnonValueNumber = 0;
-    printFunctionSignature(OStr, &func, false, " {\n");
-    for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-          if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*II)) {
-            OStr << "    ";
-            if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(OStr, *II);
-            OStr << ";\n";
-          }
-        }
-        processInstruction(OStr, *BB->getTerminator());
-    }
-    OStr << "}\n\n";
 }
 void generateCppData(raw_ostream &OStr, Module &Mod)
 {

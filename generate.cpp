@@ -310,6 +310,26 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
         vtablework.pop_front();
     }
 }
+static void processCFunction(raw_ostream &OStr, Function &func)
+{
+    NextAnonValueNumber = 0;
+    printFunctionSignature(OStr, &func, false, " {\n");
+    for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+          if (const AllocaInst *AI = isDirectAlloca(&*II))
+            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+          else if (!isInlinableInst(*II)) {
+            OStr << "    ";
+            if (II->getType() != Type::getVoidTy(BB->getContext()))
+                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
+            processInstruction(OStr, *II);
+            OStr << ";\n";
+          }
+        }
+        processInstruction(OStr, *BB->getTerminator());
+    }
+    OStr << "}\n\n";
+}
 
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
