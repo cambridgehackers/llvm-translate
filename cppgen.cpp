@@ -655,7 +655,7 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
     Out << "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I) && !isDirectAlloca(I)) {
       Out << '(';
-      visit(*I);
+      processInstruction(I);
       Out << ')';
   }
   else {
@@ -837,6 +837,10 @@ void CWriter::visitStoreInst(StoreInst &I)
     Out << ")";
   }
 }
+void CWriter::processInstruction(Instruction *I)
+{
+    visit(*I);
+}
 /*
  * Pass control functions
  */
@@ -859,11 +863,11 @@ void CWriter::processCFunction(Function &func)
             Out << "    ";
             if (II->getType() != Type::getVoidTy(BB->getContext()))
                 printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-            visit(*II);
+            processInstruction(II);
             Out << ";\n";
           }
         }
-        visit(*BB->getTerminator());
+        processInstruction(BB->getTerminator());
     }
     Out << "}\n\n";
 }

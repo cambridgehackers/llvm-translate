@@ -154,6 +154,7 @@ class CWriter : public InstVisitor<CWriter> {
     void processCFunction(Function &func);
     void generateCppData(Module &Mod);
     void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);
+    void processInstruction(Instruction *I);
 };
 
 class RemoveAllocaPass : public FunctionPass {
