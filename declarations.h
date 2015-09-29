@@ -194,11 +194,10 @@ class CallProcessPass : public BasicBlockPass {
     bool runOnBasicBlock(BasicBlock &BB);
 };
 
-class GeneratePass : public ModulePass {
-    CWriter cWriter;
+class GeneratePass : public ModulePass, public CWriter {
   public:
     static char ID;
-    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), cWriter(CWriter(o,oh)) { }
+    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), CWriter(o,oh) { }
     bool runOnModule(Module &M);
 };
 
