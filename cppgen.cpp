@@ -839,7 +839,68 @@ void CWriter::visitStoreInst(StoreInst &I)
 }
 void CWriter::processInstruction(Instruction *I)
 {
-    visit(*I);
+    //visit(*I);
+    switch(I->getOpcode()) {
+    case Instruction::Ret:
+        visitReturnInst(static_cast<ReturnInst&>(*I));
+        break;
+    case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
+    case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
+    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
+    case Instruction::And: case Instruction::Or: case Instruction::Xor:
+        visitBinaryOperator(*I);
+        break;
+    //case Instruction::Alloca:         // AllocaInst)
+        //break;
+    case Instruction::Load:
+        visitLoadInst(static_cast<LoadInst&>(*I));
+        break;
+    case Instruction::Store:
+        visitStoreInst(static_cast<StoreInst&>(*I));
+        break;
+    case Instruction::GetElementPtr:
+        visitGetElementPtrInst(static_cast<GetElementPtrInst&>(*I));
+        break;
+    case Instruction::Trunc:
+    case Instruction::ZExt: case Instruction::SExt: case Instruction::FPToUI:
+    case Instruction::FPToSI: case Instruction::UIToFP: case Instruction::SIToFP:
+    case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::PtrToInt:
+    case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast:
+        visitCastInst(static_cast<CastInst&>(*I));
+        break;
+    case Instruction::ICmp:
+        visitICmpInst(static_cast<ICmpInst&>(*I));
+        break;
+    case Instruction::Call:
+        visitCallInst(static_cast<CallInst&>(*I));
+        break;
+    case Instruction::Br:             // BranchInst)
+    case Instruction::Switch:         // SwitchInst)
+    case Instruction::IndirectBr:     // IndirectBrInst)
+    case Instruction::Invoke:         // InvokeInst)
+    case Instruction::Resume:         // ResumeInst)
+    case Instruction::Unreachable:    // UnreachableInst)
+    case Instruction::Fence:          // FenceInst )
+    case Instruction::AtomicCmpXchg:  // AtomicCmpXchgInst )
+    case Instruction::AtomicRMW:      // AtomicRMWInst )
+    case Instruction::FCmp:           // FCmpInst   )
+    case Instruction::PHI:            // PHINode    )
+    case Instruction::Select:         // SelectInst )
+    case Instruction::UserOp1:        // Instruction)
+    case Instruction::UserOp2:        // Instruction)
+    case Instruction::VAArg:          // VAArgInst  )
+    case Instruction::ExtractElement: // ExtractElementInst)
+    case Instruction::InsertElement:  // InsertElementInst)
+    case Instruction::ShuffleVector:  // ShuffleVectorInst)
+    case Instruction::ExtractValue:   // ExtractValueInst)
+    case Instruction::InsertValue:    // InsertValueInst)
+    case Instruction::LandingPad:     // LandingPadInst)
+    default:
+      errs() << "C Writer does not know about " << *I;
+      llvm_unreachable(0);
+    }
 }
 /*
  * Pass control functions

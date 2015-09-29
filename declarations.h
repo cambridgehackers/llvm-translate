@@ -109,7 +109,7 @@ typedef struct {
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
-class CWriter : public InstVisitor<CWriter> {
+class CWriter {
   public:
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
