@@ -965,7 +965,7 @@ void CWriter::generateCppData(Module &Mod)
     }
 }
 
-void CWriter::printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
+static void printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
     if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {

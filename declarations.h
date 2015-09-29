@@ -117,7 +117,6 @@ class CWriter {
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
-    void printContainedStructs(Type *Ty, raw_fd_ostream &OStr);
     void printConstant(const char *prefix, Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
