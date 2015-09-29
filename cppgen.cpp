@@ -187,7 +187,7 @@ static std::string getStructName(StructType *STy)
         structWork.push_back(STy);
     return name;
 }
-std::string CWriter::GetValueName(const Value *Operand)
+static std::string GetValueName(const Value *Operand)
 {
   const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
   const Value *V;
@@ -219,7 +219,7 @@ std::string CWriter::GetValueName(const Value *Operand)
 /*
  * Output types
  */
-void CWriter::printType(raw_ostream &OStr, Type *Ty, bool isSigned,
+static void printType(raw_ostream &OStr, Type *Ty, bool isSigned,
     std::string NameSoFar, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
@@ -346,7 +346,7 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
   }
   writeOperandWithCastICmp(Operand, shouldCast, castIsSigned);
 }
-bool CWriter::writeInstructionCast(const Instruction &I)
+static bool writeInstructionCast(raw_ostream &OStr, const Instruction &I)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(I.getOpcode())) {
@@ -358,10 +358,10 @@ bool CWriter::writeInstructionCast(const Instruction &I)
   default:
     return false;
   }
-  printType(Out, I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
+  printType(OStr, I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
   return true;
 }
-bool CWriter::printConstExprCast(const ConstantExpr* CE)
+static bool printConstExprCast(raw_ostream &OStr, const ConstantExpr* CE)
 {
   Type *Ty = CE->getOperand(0)->getType();
   bool TypeIsSigned = false;
@@ -381,7 +381,7 @@ bool CWriter::printConstExprCast(const ConstantExpr* CE)
   }
   if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
       TypeIsSigned = false; // not integer, sign doesn't matter
-  printType(Out, Ty, TypeIsSigned, "", "((", ")())");
+  printType(OStr, Ty, TypeIsSigned, "", "((", ")())");
   return true;
 }
 void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *postfix)
@@ -401,7 +401,7 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *
   printConstant("", CPV, false);
   Out << ")" << postfix;
 }
-void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
+static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
 {
   bool TypeIsSigned = false;
   switch (getCastGroup(opc)) {
@@ -413,16 +413,16 @@ void CWriter::printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   default:
       llvm_unreachable("Invalid cast opcode");
   }
-  printType(Out, DstTy, TypeIsSigned, "", "(", ")");
+  printType(OStr, DstTy, TypeIsSigned, "", "(", ")");
   switch (opc) {
     case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
     case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
       return; // These don't need a source cast.
     case Instruction::IntToPtr: case Instruction::PtrToInt:
-      Out << "(unsigned long)";
+      OStr << "(unsigned long)";
       return;
   }
-  printType(Out, SrcTy, TypeIsSigned, "", "(", ")");
+  printType(OStr, SrcTy, TypeIsSigned, "", "(", ")");
 }
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
@@ -513,7 +513,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
     case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
     case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-      printCast(op, CE->getOperand(0)->getType(), CE->getType());
+      printCast(Out, op, CE->getOperand(0)->getType(), CE->getType());
       if (op == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
         Out << "0-";
@@ -546,7 +546,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
         Out << intmapLookup(opcodeMap, op);
       Out << " ";
       printConstantWithCast(CE->getOperand(1), op, "");
-      printConstExprCast(CE);
+      printConstExprCast(Out, CE);
       break;
     }
     case Instruction::FCmp: {
@@ -559,7 +559,7 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
         printConstantWithCast(CE->getOperand(0), op, ", ");
         printConstantWithCast(CE->getOperand(1), op, ")");
       }
-      printConstExprCast(CE);
+      printConstExprCast(Out, CE);
       break;
     }
     default:
@@ -675,7 +675,7 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   if (isAddressImplicit)
     Out << ')';
 }
-void CWriter::printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
+static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
@@ -759,7 +759,7 @@ void CWriter::processInstruction(Instruction *aI)
           Out << intmapLookup(opcodeMap, I.getOpcode());
           Out << " ";
           writeOperandWithCast(I.getOperand(1), I.getOpcode());
-          writeInstructionCast(I);
+          writeInstructionCast(Out, I);
         }
         if (needsCast) {
           Out << "))";
@@ -804,7 +804,7 @@ void CWriter::processInstruction(Instruction *aI)
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
         Out << '(';
-        printCast(op, SrcTy, DstTy);
+        printCast(Out, op, SrcTy, DstTy);
         if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
           Out << "0-";
         writeOperand(I.getOperand(0), false);
@@ -825,7 +825,7 @@ void CWriter::processInstruction(Instruction *aI)
         Out << intmapLookup(predText, ICM.getPredicate());
         Out << " ";
         writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
-        writeInstructionCast(I);
+        writeInstructionCast(Out, I);
         if (shouldCast)
           Out << "))";
         }

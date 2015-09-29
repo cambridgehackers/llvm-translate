@@ -114,23 +114,16 @@ class CWriter {
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh) : Out(o), OutHeader(oh) { }
-    //bool cwriterModule(Module &M);
-    void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
-    bool writeInstructionCast(const Instruction &I);
     void printContainedStructs(Type *Ty, raw_fd_ostream &OStr);
-    void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix);
-    void printCast(unsigned opcode, Type *SrcTy, Type *DstTy);
     void printConstant(const char *prefix, Constant *CPV, bool Static);
     void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
-    bool printConstExprCast(const ConstantExpr *CE);
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
-    std::string GetValueName(const Value *Operand);
     void processCFunction(Function &func);
     void generateCppData(Module &Mod);
     void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);
