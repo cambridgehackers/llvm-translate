@@ -37,6 +37,12 @@
 #define MAX_CLASS_DEFS  200
 #define MAX_VTAB_EXTRA 100
 
+#define ERRORIF(A) { \
+      if(A) { \
+          printf("[%s:%d]\n", __FUNCTION__, __LINE__); \
+          exit(1); \
+      }}
+
 class SLOTARRAY_TYPE {
 public:
     const char *name;
@@ -104,17 +110,17 @@ typedef struct {
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
 class CWriter : public InstVisitor<CWriter> {
+  public:
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
     DenseMap<const Value*, unsigned> AnonValueNumbers;
     unsigned NextAnonValueNumber;
     DenseMap<StructType*, unsigned> UnnamedStructIDs;
     unsigned NextTypeID;
-  public:
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
       : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
     bool cwriterModule(Module &M);
-  private :
+  //private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
     std::string getStructName(StructType *STy);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
@@ -216,6 +222,9 @@ extern FILE *outputFile;
 extern Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
+extern std::list<StructType *> structWork;
+extern std::map<Type *, int> structMap;
+extern int structWork_run;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);

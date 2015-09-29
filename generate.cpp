@@ -22,6 +22,7 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
+#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 
@@ -312,9 +313,43 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
     }
 }
 
+/*
+ * Pass control functions
+ */
+static int processVar(const GlobalVariable *GV)
+{
+  if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
+   || (GV->hasAppendingLinkage() && GV->use_empty()
+    && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
+      return 0;
+  return 1;
+}
+void CWriter::printContainedStructs(Type *Ty)
+{
+    std::map<Type *, int>::iterator FI = structMap.find(Ty);
+    if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        structMap[Ty] = 1;
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+            printContainedStructs(*I);
+        if (StructType *STy = dyn_cast<StructType>(Ty)) {
+            std::string name = getStructName(STy);
+            OutHeader << "typedef struct " << name << " {\n";
+            unsigned Idx = 0;
+            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+              printType(OutHeader, *I, false, fieldName(STy, Idx++), "  ", ";\n");
+            OutHeader << "} " << name << ";\n\n";
+        }
+    }
+}
+
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
+    ArrayType *ATy;
+    PointerType *PTy, *PPTy;
+    const FunctionType *FT;
+    StructType *STy, *ISTy;
+    const ConstantExpr *CE;
     std::string ErrorMsg;
     // preprocessing dwarf debuf info before running anything
     NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
@@ -357,6 +392,107 @@ bool GeneratePass::runOnModule(Module &Mod)
     processRules(*modfirst, 1, outputFile);
 
     // Generate cpp code
-    cwriterModule(Mod);
+    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
+    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
+        ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
+          || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
+        if (processVar(I)) {
+          Type *Ty = I->getType()->getElementType();
+          if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+              && ATy->getElementType()->getTypeID() == Type::PointerTyID)
+           && I->getInitializer()->isNullValue()) {
+              if (I->hasLocalLinkage())
+                Out << "static ";
+              printType(Out, Ty, false, GetValueName(I), "", "");
+              if (!I->getInitializer()->isNullValue()) {
+                Out << " = " ;
+                writeOperand(I->getInitializer(), false, true);
+              }
+              Out << ";\n";
+          }
+        }
+    }
+    Out << "\n\n//******************** vtables for Classes *******************\n";
+    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
+        if (processVar(I)) {
+          Type *Ty = I->getType()->getElementType();
+          if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+           && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
+              if (I->hasLocalLinkage())
+                Out << "static ";
+              printType(Out, Ty, false, GetValueName(I), "", "");
+              if (!I->getInitializer()->isNullValue()) {
+                Out << " = " ;
+                Constant* CPV = dyn_cast<Constant>(I->getInitializer());
+                if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
+                    Type *ETy = CA->getType()->getElementType();
+                    ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
+                    Out << '{';
+                    const char *sep = " ";
+                    if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
+                     && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
+                     && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
+                     && (STy = cast<StructType>(PPTy->getElementType()))
+                     && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
+                     && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
+                        for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
+                          Constant* V = dyn_cast<Constant>(CA->getOperand(i));
+                          printConstant(sep, V, true);
+                          sep = ", ";
+                        }
+                    else
+                        Out << 0;
+                    Out << " }";
+                }
+              }
+              Out << ";\n";
+          }
+    }
+    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
+        Function &func = *I;
+        int status;
+        std::string fname = func.getName().str();
+        const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+        NextAnonValueNumber = 0;
+        if (!(demang && strstr(demang, "::~"))
+         && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
+         && fname != "__dtor_echoTest") {
+            printFunctionSignature(Out, &func, false, " {\n");
+            for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
+                for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+                  if (const AllocaInst *AI = isDirectAlloca(&*II))
+                    printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                  else if (!isInlinableInst(*II)) {
+                    Out << "    ";
+                    if (II->getType() != Type::getVoidTy(BB->getContext()))
+                        printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
+                    visit(*II);
+                    Out << ";\n";
+                  }
+                }
+                visit(*BB->getTerminator());
+            }
+            Out << "}\n\n";
+        }
+    }
+
+    structWork_run = 1;
+    while (structWork.begin() != structWork.end()) {
+        printContainedStructs(*structWork.begin());
+        structWork.pop_front();
+    }
+    OutHeader << "\n/* External Global Variable Declarations */\n";
+    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
+        if (I->hasExternalLinkage() || I->hasCommonLinkage())
+          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n");
+    OutHeader << "\n/* Function Declarations */\n";
+    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
+        ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
+        if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
+         || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
+         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
+            printFunctionSignature(OutHeader, I, true, ";\n");
+    }
+    UnnamedStructIDs.clear();
     return false;
 }
