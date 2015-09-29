@@ -142,9 +142,9 @@ class CWriter {
     void visitICmpInst(ICmpInst &I);
     void visitCastInst (CastInst &I);
     void visitCallInst (CallInst &I);
-    void visitLoadInst  (LoadInst   &I);
-    void visitStoreInst (StoreInst  &I);
-    void visitGetElementPtrInst(GetElementPtrInst &I);
+    //void visitLoadInst  (LoadInst   &I);
+    //void visitStoreInst (StoreInst  &I);
+    //void visitGetElementPtrInst(GetElementPtrInst &I);
     void visitInstruction(Instruction &I) {
       errs() << "C Writer does not know about " << I;
       llvm_unreachable(0);

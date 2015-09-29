@@ -810,39 +810,13 @@ void CWriter::visitCallInst(CallInst &I)
   }
   Out << ')';
 }
-void CWriter::visitGetElementPtrInst(GetElementPtrInst &I)
+void CWriter::processInstruction(Instruction *aI)
 {
-  printGEPExpression(I.getPointerOperand(), gep_type_begin(I), gep_type_end(I), false);
-}
-void CWriter::visitLoadInst(LoadInst &I)
-{
-  ERRORIF (I.isVolatile());
-  writeOperand(I.getOperand(0), true);
-}
-void CWriter::visitStoreInst(StoreInst &I)
-{
-  ERRORIF (I.isVolatile());
-  writeOperand(I.getPointerOperand(), true);
-  Out << " = ";
-  Value *Operand = I.getOperand(0);
-  Constant *BitMask = 0;
-  IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
-  if (ITy && !ITy->isPowerOf2ByteWidth())
-      BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-  if (BitMask)
-    Out << "((";
-  writeOperand(Operand, false);
-  if (BitMask) {
-    printConstant(") & ", BitMask, false);
-    Out << ")";
-  }
-}
-void CWriter::processInstruction(Instruction *I)
-{
+Instruction &I = *aI;
     //visit(*I);
-    switch(I->getOpcode()) {
+    switch(I.getOpcode()) {
     case Instruction::Ret:
-        visitReturnInst(static_cast<ReturnInst&>(*I));
+        visitReturnInst(static_cast<ReturnInst&>(I));
         break;
     case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
     case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
@@ -850,55 +824,53 @@ void CWriter::processInstruction(Instruction *I)
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
     case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
     case Instruction::And: case Instruction::Or: case Instruction::Xor:
-        visitBinaryOperator(*I);
+        visitBinaryOperator(I);
         break;
-    //case Instruction::Alloca:         // AllocaInst)
-        //break;
-    case Instruction::Load:
-        visitLoadInst(static_cast<LoadInst&>(*I));
+    case Instruction::Load: {
+        LoadInst &IL = static_cast<LoadInst&>(I);
+        ERRORIF (IL.isVolatile());
+        writeOperand(I.getOperand(0), true);
+        }
         break;
-    case Instruction::Store:
-        visitStoreInst(static_cast<StoreInst&>(*I));
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        writeOperand(IS.getPointerOperand(), true);
+        Out << " = ";
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        if (BitMask)
+          Out << "((";
+        writeOperand(Operand, false);
+        if (BitMask) {
+          printConstant(") & ", BitMask, false);
+          Out << ")";
+        }
+        }
         break;
-    case Instruction::GetElementPtr:
-        visitGetElementPtrInst(static_cast<GetElementPtrInst&>(*I));
+    case Instruction::GetElementPtr: {
+        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
+        printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
+        }
         break;
     case Instruction::Trunc:
     case Instruction::ZExt: case Instruction::SExt: case Instruction::FPToUI:
     case Instruction::FPToSI: case Instruction::UIToFP: case Instruction::SIToFP:
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::PtrToInt:
     case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast:
-        visitCastInst(static_cast<CastInst&>(*I));
+        visitCastInst(static_cast<CastInst&>(I));
         break;
     case Instruction::ICmp:
-        visitICmpInst(static_cast<ICmpInst&>(*I));
+        visitICmpInst(static_cast<ICmpInst&>(I));
         break;
     case Instruction::Call:
-        visitCallInst(static_cast<CallInst&>(*I));
+        visitCallInst(static_cast<CallInst&>(I));
         break;
-    case Instruction::Br:             // BranchInst)
-    case Instruction::Switch:         // SwitchInst)
-    case Instruction::IndirectBr:     // IndirectBrInst)
-    case Instruction::Invoke:         // InvokeInst)
-    case Instruction::Resume:         // ResumeInst)
-    case Instruction::Unreachable:    // UnreachableInst)
-    case Instruction::Fence:          // FenceInst )
-    case Instruction::AtomicCmpXchg:  // AtomicCmpXchgInst )
-    case Instruction::AtomicRMW:      // AtomicRMWInst )
-    case Instruction::FCmp:           // FCmpInst   )
-    case Instruction::PHI:            // PHINode    )
-    case Instruction::Select:         // SelectInst )
-    case Instruction::UserOp1:        // Instruction)
-    case Instruction::UserOp2:        // Instruction)
-    case Instruction::VAArg:          // VAArgInst  )
-    case Instruction::ExtractElement: // ExtractElementInst)
-    case Instruction::InsertElement:  // InsertElementInst)
-    case Instruction::ShuffleVector:  // ShuffleVectorInst)
-    case Instruction::ExtractValue:   // ExtractValueInst)
-    case Instruction::InsertValue:    // InsertValueInst)
-    case Instruction::LandingPad:     // LandingPadInst)
     default:
-      errs() << "C Writer does not know about " << *I;
+      errs() << "C Writer does not know about " << I;
       llvm_unreachable(0);
     }
 }
