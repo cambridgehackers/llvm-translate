@@ -389,24 +389,6 @@ bool GeneratePass::runOnModule(Module &Mod)
          && fname != "__dtor_echoTest")
             processCFunction(func);
     }
-
-    structWork_run = 1;
-    while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin());
-        structWork.pop_front();
-    }
-    OutHeader << "\n/* External Global Variable Declarations */\n";
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
-        if (I->hasExternalLinkage() || I->hasCommonLinkage())
-          printType(OutHeader, I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n");
-    OutHeader << "\n/* Function Declarations */\n";
-    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
-        ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
-        if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
-         || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
-         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
-            printFunctionSignature(OutHeader, I, true, ";\n");
-    }
-    UnnamedStructIDs.clear();
+    generateCppFinal(Mod);
     return false;
 }

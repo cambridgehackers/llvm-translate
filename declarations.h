@@ -185,6 +185,7 @@ class CWriter : public InstVisitor<CWriter> {
     std::string GetValueName(const Value *Operand);
     void processCFunction(Function &func);
     void generateCppData(Module &Mod);
+    void generateCppFinal(Module &Mod);
 };
 
 class RemoveAllocaPass : public FunctionPass {
