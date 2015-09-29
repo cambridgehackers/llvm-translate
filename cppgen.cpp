@@ -40,6 +40,9 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
+static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
+static void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static = false);
+static void processInstruction(raw_ostream &OStr, Instruction *aI);
 
 /******* Util functions ******/
 static bool isInlinableInst(const Instruction &I)
@@ -304,33 +307,33 @@ restart_label:
 /*
  * Output expressions
  */
-void CWriter::printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static)
+static void printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static)
 {
   const char *sep = " ";
   if (CPA->isString()) {
     StringRef value = CPA->getAsString();
     printString(OStr, value.str().c_str(), value.str().length());
   } else {
-    Out << '{';
+    OStr << '{';
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
         printConstant(OStr, sep, cast<Constant>(CPA->getOperand(i)), Static);
         sep = ", ";
     }
-    Out << " }";
+    OStr << " }";
   }
 }
-void CWriter::writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
+static void writeOperandWithCastICmp(raw_ostream &OStr, Value* Operand, bool shouldCast, bool typeIsSigned)
 {
   if (shouldCast) {
       Type* OpTy = Operand->getType();
       ERRORIF (OpTy->isPointerTy());
-      printType(Out, OpTy, typeIsSigned, "", "((", ")");
+      printType(OStr, OpTy, typeIsSigned, "", "((", ")");
   }
-  writeOperand(Operand, false);
+  writeOperand(OStr, Operand, false);
   if (shouldCast)
-      Out << ")";
+      OStr << ")";
 }
-void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
+static void writeOperandWithCast(raw_ostream &OStr, Value* Operand, unsigned Opcode)
 {
   bool castIsSigned = false;
   bool shouldCast = true;
@@ -344,7 +347,7 @@ void CWriter::writeOperandWithCast(Value* Operand, unsigned Opcode)
       shouldCast = false;
       break;
   }
-  writeOperandWithCastICmp(Operand, shouldCast, castIsSigned);
+  writeOperandWithCastICmp(OStr, Operand, shouldCast, castIsSigned);
 }
 static bool writeInstructionCast(raw_ostream &OStr, const Instruction &I)
 {
@@ -384,7 +387,7 @@ static bool printConstExprCast(raw_ostream &OStr, const ConstantExpr* CE)
   printType(OStr, Ty, TypeIsSigned, "", "((", ")())");
   return true;
 }
-void CWriter::printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned Opcode, const char *postfix)
+static void printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned Opcode, const char *postfix)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(Opcode)) {
@@ -399,7 +402,7 @@ void CWriter::printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned O
   }
   printType(OStr, CPV->getType(), typeIsSigned, "", "((", ")");
   printConstant(OStr, "", CPV, false);
-  Out << ")" << postfix;
+  OStr << ")" << postfix;
 }
 static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
 {
@@ -424,23 +427,23 @@ static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
   }
   printType(OStr, SrcTy, TypeIsSigned, "", "(", ")");
 }
-void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
+static void printGEPExpression(raw_ostream &OStr, Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
   ConstantInt *CI;
   if (I == E) {
-    writeOperand(Ptr, false);
+    writeOperand(OStr, Ptr, false);
     return;
   }
   VectorType *LastIndexIsVector = 0;
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-  Out << "(";
+  OStr << "(";
   if (LastIndexIsVector)
-    printType(Out, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
+    printType(OStr, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-    Out << "&";
-    writeOperand(Ptr, false);
+    OStr << "&";
+    writeOperand(OStr, Ptr, false);
   } else {
     bool expose = isAddressExposed(Ptr);
     ++I;  // Skip the zero index.
@@ -458,49 +461,49 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
             }
             else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
                 ERRORIF (val);
-                printConstantDataArray(Out, CA, Static);
+                printConstantDataArray(OStr, CA, Static);
                 goto next;
             }
         }
-        writeOperand(Ptr, true, Static);
+        writeOperand(OStr, Ptr, true, Static);
 next:
         if (val)
-            Out << "+" << val;
+            OStr << "+" << val;
     }
     else {
-        Out << "&";
+        OStr << "&";
         if (expose) {
-          writeOperand(Ptr, true, Static);
+          writeOperand(OStr, Ptr, true, Static);
         } else if (I != E && (*I)->isStructTy()) {
-          writeOperand(Ptr, false);
-          Out << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
+          writeOperand(OStr, Ptr, false);
+          OStr << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
           ++I;  // eat the struct index as well.
         } else {
-          Out << "(";
-          writeOperand(Ptr, true);
-          Out << ")";
+          OStr << "(";
+          writeOperand(OStr, Ptr, true);
+          OStr << ")";
         }
     }
   }
   for (; I != E; ++I) {
     if ((*I)->isStructTy()) {
       StructType *STy = dyn_cast<StructType>(*I);
-      Out << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+      OStr << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
     } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
-      Out << '[';
-      writeOperand(I.getOperand(), false);
-      Out << ']';
+      OStr << '[';
+      writeOperand(OStr, I.getOperand(), false);
+      OStr << ']';
     } else {
       if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
-        Out << ")+(";
-        writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr);
+        OStr << ")+(";
+        writeOperandWithCast(OStr, I.getOperand(), Instruction::GetElementPtr);
       }
-      Out << "))";
+      OStr << "))";
     }
   }
-  Out << ")";
+  OStr << ")";
 }
-void CWriter::printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static)
+static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static)
 {
   const char *sep = " ";
   /* handle expressions */
@@ -524,7 +527,7 @@ void CWriter::printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV
         OStr << "&1u";
       break;
     case Instruction::GetElementPtr:
-      printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
+      printGEPExpression(OStr, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
       break;
     case Instruction::Select:
       printConstant(OStr, "", CE->getOperand(0), Static);
@@ -641,14 +644,14 @@ void CWriter::printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV
     if (isa<ConstantPointerNull>(CPV))
       printType(OStr, CPV->getType(), false, "", "((", ")/*NULL*/0)"); // sign doesn't matter
     else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
-      writeOperand(GV, false, Static);
+      writeOperand(OStr, GV, false, Static);
     break;
   default:
     errs() << "Unknown constant type: " << *CPV << "\n";
     llvm_unreachable(0);
   }
 }
-void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
+void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static)
 {
   Instruction *I = dyn_cast<Instruction>(Operand);
   bool isAddressImplicit = isAddressExposed(Operand);
@@ -656,24 +659,24 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
     if (isAddressImplicit)
       isAddressImplicit = false;
     else
-      Out << '*';
+      OStr << '*';
   }
   if (isAddressImplicit)
-    Out << "(&";  // Global variables are referenced as their addresses by llvm
+    OStr << "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I) && !isDirectAlloca(I)) {
-      Out << '(';
-      processInstruction(I);
-      Out << ')';
+      OStr << '(';
+      processInstruction(OStr, I);
+      OStr << ')';
   }
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
-        printConstant(Out, "", CPV, Static);
+        printConstant(OStr, "", CPV, Static);
       else
-        Out << GetValueName(Operand);
+        OStr << GetValueName(Operand);
   }
   if (isAddressImplicit)
-    Out << ')';
+    OStr << ')';
 }
 static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
 {
@@ -705,7 +708,7 @@ static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Pr
 /*
  * Output instructions
  */
-void CWriter::processInstruction(Instruction *aI)
+static void processInstruction(raw_ostream &OStr, Instruction *aI)
 {
     Instruction &I = *aI;
     int op = I.getOpcode();
@@ -713,10 +716,10 @@ void CWriter::processInstruction(Instruction *aI)
     switch(I.getOpcode()) {
     case Instruction::Ret: {
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          Out << "  return ";
+          OStr << "  return ";
           if (I.getNumOperands())
-            writeOperand(I.getOperand(0), false);
-          Out << ";\n";
+            writeOperand(OStr, I.getOperand(0), false);
+          OStr << ";\n";
         }
         }
         break;
@@ -732,68 +735,68 @@ void CWriter::processInstruction(Instruction *aI)
          || I.getType() == Type::getInt16Ty(I.getContext())
          || I.getType() == Type::getFloatTy(I.getContext())) {
           needsCast = true;
-          printType(Out, I.getType(), false, "", "((", ")(");
+          printType(OStr, I.getType(), false, "", "((", ")(");
         }
         if (BinaryOperator::isNeg(&I)) {
-          Out << "-(";
-          writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
-          Out << ")";
+          OStr << "-(";
+          writeOperand(OStr, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
+          OStr << ")";
         } else if (BinaryOperator::isFNeg(&I)) {
-          Out << "-(";
-          writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
-          Out << ")";
+          OStr << "-(";
+          writeOperand(OStr, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
+          OStr << ")";
         } else if (I.getOpcode() == Instruction::FRem) {
           if (I.getType() == Type::getFloatTy(I.getContext()))
-            Out << "fmodf(";
+            OStr << "fmodf(";
           else if (I.getType() == Type::getDoubleTy(I.getContext()))
-            Out << "fmod(";
+            OStr << "fmod(";
           else  // all 3 flavors of long double
-            Out << "fmodl(";
-          writeOperand(I.getOperand(0), false);
-          Out << ", ";
-          writeOperand(I.getOperand(1), false);
-          Out << ")";
+            OStr << "fmodl(";
+          writeOperand(OStr, I.getOperand(0), false);
+          OStr << ", ";
+          writeOperand(OStr, I.getOperand(1), false);
+          OStr << ")";
         } else {
-          writeOperandWithCast(I.getOperand(0), I.getOpcode());
-          Out << " ";
-          Out << intmapLookup(opcodeMap, I.getOpcode());
-          Out << " ";
-          writeOperandWithCast(I.getOperand(1), I.getOpcode());
-          writeInstructionCast(Out, I);
+          writeOperandWithCast(OStr, I.getOperand(0), I.getOpcode());
+          OStr << " ";
+          OStr << intmapLookup(opcodeMap, I.getOpcode());
+          OStr << " ";
+          writeOperandWithCast(OStr, I.getOperand(1), I.getOpcode());
+          writeInstructionCast(OStr, I);
         }
         if (needsCast) {
-          Out << "))";
+          OStr << "))";
         }
         }
         break;
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
-        writeOperand(I.getOperand(0), true);
+        writeOperand(OStr, I.getOperand(0), true);
         }
         break;
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        writeOperand(IS.getPointerOperand(), true);
-        Out << " = ";
+        writeOperand(OStr, IS.getPointerOperand(), true);
+        OStr << " = ";
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         if (BitMask)
-          Out << "((";
-        writeOperand(Operand, false);
+          OStr << "((";
+        writeOperand(OStr, Operand, false);
         if (BitMask) {
-          printConstant(Out, ") & ", BitMask, false);
-          Out << ")";
+          printConstant(OStr, ") & ", BitMask, false);
+          OStr << ")";
         }
         }
         break;
     case Instruction::GetElementPtr: {
         GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
+        printGEPExpression(OStr, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
         }
         break;
     case Instruction::Trunc:
@@ -803,31 +806,31 @@ void CWriter::processInstruction(Instruction *aI)
     case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
-        Out << '(';
-        printCast(Out, op, SrcTy, DstTy);
+        OStr << '(';
+        printCast(OStr, op, SrcTy, DstTy);
         if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
-          Out << "0-";
-        writeOperand(I.getOperand(0), false);
+          OStr << "0-";
+        writeOperand(OStr, I.getOperand(0), false);
         if (DstTy == Type::getInt1Ty(I.getContext()) &&
             (op == Instruction::Trunc || op == Instruction::FPToUI ||
              op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
-          Out << "&1u";
+          OStr << "&1u";
         }
-        Out << ')';
+        OStr << ')';
         }
         break;
     case Instruction::ICmp: {
         ICmpInst &ICM = static_cast<ICmpInst&>(I);
         bool shouldCast = ICM.isRelational();
         bool typeIsSigned = ICM.isSigned();
-        writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned);
-        Out << " ";
-        Out << intmapLookup(predText, ICM.getPredicate());
-        Out << " ";
-        writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
-        writeInstructionCast(Out, I);
+        writeOperandWithCastICmp(OStr, I.getOperand(0), shouldCast, typeIsSigned);
+        OStr << " ";
+        OStr << intmapLookup(predText, ICM.getPredicate());
+        OStr << " ";
+        writeOperandWithCastICmp(OStr, I.getOperand(1), shouldCast, typeIsSigned);
+        writeInstructionCast(OStr, I);
         if (shouldCast)
-          Out << "))";
+          OStr << "))";
         }
         break;
     case Instruction::Call: {
@@ -844,23 +847,23 @@ void CWriter::processInstruction(Instruction *aI)
         Function *RF = NULL;
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
             Callee = RF;
-            printType(Out, ICL.getCalledValue()->getType(), false, "", "((", ")(void*)");
+            printType(OStr, ICL.getCalledValue()->getType(), false, "", "((", ")(void*)");
         }
-        writeOperand(Callee, false);
-        if (RF) Out << ')';
+        writeOperand(OStr, Callee, false);
+        if (RF) OStr << ')';
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        Out << '(';
+        OStr << '(';
         for (; AI != AE; ++AI, ++ArgNo) {
-          Out << sep;
+          OStr << sep;
           if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-              printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
-          writeOperand(*AI, false);
+              printType(OStr, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
+          writeOperand(OStr, *AI, false);
           sep = ", ";
         }
-        Out << ')';
+        OStr << ')';
         }
         break;
     default:
@@ -891,11 +894,11 @@ void CWriter::processCFunction(Function &func)
             Out << "    ";
             if (II->getType() != Type::getVoidTy(BB->getContext()))
                 printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(II);
+            processInstruction(Out, II);
             Out << ";\n";
           }
         }
-        processInstruction(BB->getTerminator());
+        processInstruction(Out, BB->getTerminator());
     }
     Out << "}\n\n";
 }
@@ -921,7 +924,7 @@ void CWriter::generateCppData(Module &Mod)
               printType(Out, Ty, false, GetValueName(I), "", "");
               if (!I->getInitializer()->isNullValue()) {
                 Out << " = " ;
-                writeOperand(I->getInitializer(), false, true);
+                writeOperand(Out, I->getInitializer(), false, true);
               }
               Out << ";\n";
           }
