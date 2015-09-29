@@ -566,7 +566,7 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
       break;
     }
     default:
-      errs() << "CWriter Error: Unhandled constant expression: " << *CE << "\n";
+      errs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
       llvm_unreachable(0);
     }
     OStr << ')';
@@ -882,27 +882,27 @@ static int processVar(const GlobalVariable *GV)
       return 0;
   return 1;
 }
-void CWriter::processCFunction(Function &func)
+void processCFunction(raw_ostream &OStr, Function &func)
 {
     NextAnonValueNumber = 0;
-    printFunctionSignature(Out, &func, false, " {\n");
+    printFunctionSignature(OStr, &func, false, " {\n");
     for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
           if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
           else if (!isInlinableInst(*II)) {
-            Out << "    ";
+            OStr << "    ";
             if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(Out, II);
-            Out << ";\n";
+                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
+            processInstruction(OStr, II);
+            OStr << ";\n";
           }
         }
-        processInstruction(Out, BB->getTerminator());
+        processInstruction(OStr, BB->getTerminator());
     }
-    Out << "}\n\n";
+    OStr << "}\n\n";
 }
-void CWriter::generateCppData(Module &Mod)
+void generateCppData(raw_ostream &OStr, Module &Mod)
 {
     ArrayType *ATy;
     PointerType *PTy, *PPTy;
@@ -910,7 +910,7 @@ void CWriter::generateCppData(Module &Mod)
     StructType *STy, *ISTy;
     const ConstantExpr *CE;
     NextTypeID = 1;
-    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
+    OStr << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
@@ -920,32 +920,32 @@ void CWriter::generateCppData(Module &Mod)
               && ATy->getElementType()->getTypeID() == Type::PointerTyID)
            && I->getInitializer()->isNullValue()) {
               if (I->hasLocalLinkage())
-                Out << "static ";
-              printType(Out, Ty, false, GetValueName(I), "", "");
+                OStr << "static ";
+              printType(OStr, Ty, false, GetValueName(I), "", "");
               if (!I->getInitializer()->isNullValue()) {
-                Out << " = " ;
-                writeOperand(Out, I->getInitializer(), false, true);
+                OStr << " = " ;
+                writeOperand(OStr, I->getInitializer(), false, true);
               }
-              Out << ";\n";
+              OStr << ";\n";
           }
         }
     }
-    Out << "\n\n//******************** vtables for Classes *******************\n";
+    OStr << "\n\n//******************** vtables for Classes *******************\n";
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (processVar(I)) {
           Type *Ty = I->getType()->getElementType();
           if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
            && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
               if (I->hasLocalLinkage())
-                Out << "static ";
-              printType(Out, Ty, false, GetValueName(I), "", "");
+                OStr << "static ";
+              printType(OStr, Ty, false, GetValueName(I), "", "");
               if (!I->getInitializer()->isNullValue()) {
-                Out << " = " ;
+                OStr << " = " ;
                 Constant* CPV = dyn_cast<Constant>(I->getInitializer());
                 if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
                     Type *ETy = CA->getType()->getElementType();
                     ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
-                    Out << '{';
+                    OStr << '{';
                     const char *sep = " ";
                     if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
                      && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
@@ -955,15 +955,15 @@ void CWriter::generateCppData(Module &Mod)
                      && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          printConstant(Out, sep, V, true);
+                          printConstant(OStr, sep, V, true);
                           sep = ", ";
                         }
                     else
-                        Out << 0;
-                    Out << " }";
+                        OStr << 0;
+                    OStr << " }";
                 }
               }
-              Out << ";\n";
+              OStr << ";\n";
           }
     }
 }
@@ -985,7 +985,7 @@ static void printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
         }
     }
 }
-void CWriter::generateCppHeader(Module &Mod, raw_fd_ostream &OStr)
+void generateCppHeader(Module &Mod, raw_fd_ostream &OStr)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {

@@ -114,19 +114,6 @@ class CWriter {
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh) : Out(o), OutHeader(oh) { }
-    //void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static = false);
-    //void writeOperandWithCast(raw_ostream &OStr, Value* Operand, unsigned Opcode);
-    //void writeOperandWithCastICmp(raw_ostream &OStr, Value* Operand, bool shouldCast, bool typeIsSigned);
-    //void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
-    //void printConstantWithCast(raw_ostream &OStr, Constant *CPV, unsigned Opcode, const char *postfix);
-    //void printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static);
-    //void printConstantArray(raw_ostream &OStr, ConstantArray *CPA, bool Static);
-    //void printConstantVector(raw_ostream &OStr, ConstantVector *CV, bool Static);
-    //void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
-    void processCFunction(Function &func);
-    void generateCppData(Module &Mod);
-    void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);
-    //void processInstruction(Instruction *I);
 };
 
 class RemoveAllocaPass : public FunctionPass {
@@ -191,3 +178,6 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);
+void processCFunction(raw_ostream &OStr, Function &func);
+void generateCppData(raw_ostream &OStr, Module &Mod);
+void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);

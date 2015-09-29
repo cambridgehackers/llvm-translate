@@ -356,7 +356,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     processRules(*modfirst, 1, outputFile);
 
     // Generate cpp code
-    generateCppData(Mod);
+    generateCppData(Out, Mod);
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         Function &func = *I;
         std::string fname = func.getName().str();
@@ -365,7 +365,7 @@ bool GeneratePass::runOnModule(Module &Mod)
         if ((!demang || !strstr(demang, "::~"))
          && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
          && fname != "__dtor_echoTest")
-            processCFunction(func);
+            processCFunction(Out, func);
     }
     generateCppHeader(Mod, OutHeader);
     return false;
