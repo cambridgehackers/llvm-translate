@@ -117,11 +117,11 @@ class CWriter {
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
-    void printConstant(const char *prefix, Constant *CPV, bool Static);
-    void printConstantWithCast(Constant *CPV, unsigned Opcode, const char *postfix);
-    void printConstantDataArray(ConstantDataArray *CPA, bool Static);
-    void printConstantArray(ConstantArray *CPA, bool Static);
-    void printConstantVector(ConstantVector *CV, bool Static);
+    void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
+    void printConstantWithCast(raw_ostream &OStr, Constant *CPV, unsigned Opcode, const char *postfix);
+    void printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static);
+    void printConstantArray(raw_ostream &OStr, ConstantArray *CPA, bool Static);
+    void printConstantVector(raw_ostream &OStr, ConstantVector *CV, bool Static);
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
     void processCFunction(Function &func);
     void generateCppData(Module &Mod);

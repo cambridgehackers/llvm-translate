@@ -304,16 +304,16 @@ restart_label:
 /*
  * Output expressions
  */
-void CWriter::printConstantDataArray(ConstantDataArray *CPA, bool Static)
+void CWriter::printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static)
 {
   const char *sep = " ";
   if (CPA->isString()) {
     StringRef value = CPA->getAsString();
-    printString(Out, value.str().c_str(), value.str().length());
+    printString(OStr, value.str().c_str(), value.str().length());
   } else {
     Out << '{';
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-        printConstant(sep, cast<Constant>(CPA->getOperand(i)), Static);
+        printConstant(OStr, sep, cast<Constant>(CPA->getOperand(i)), Static);
         sep = ", ";
     }
     Out << " }";
@@ -384,7 +384,7 @@ static bool printConstExprCast(raw_ostream &OStr, const ConstantExpr* CE)
   printType(OStr, Ty, TypeIsSigned, "", "((", ")())");
   return true;
 }
-void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *postfix)
+void CWriter::printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned Opcode, const char *postfix)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(Opcode)) {
@@ -394,11 +394,11 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode, const char *
       typeIsSigned = true;
       break;
     default:
-      printConstant("", CPV, false);
+      printConstant(OStr, "", CPV, false);
       return;
   }
-  printType(Out, CPV->getType(), typeIsSigned, "", "((", ")");
-  printConstant("", CPV, false);
+  printType(OStr, CPV->getType(), typeIsSigned, "", "((", ")");
+  printConstant(OStr, "", CPV, false);
   Out << ")" << postfix;
 }
 static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
@@ -458,7 +458,7 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_itera
             }
             else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
                 ERRORIF (val);
-                printConstantDataArray(CA, Static);
+                printConstantDataArray(Out, CA, Static);
                 goto next;
             }
         }
@@ -500,36 +500,36 @@ next:
   }
   Out << ")";
 }
-void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
+void CWriter::printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static)
 {
   const char *sep = " ";
   /* handle expressions */
-  Out << prefix;
+  OStr << prefix;
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
-    Out << "(";
+    OStr << "(";
     int op = CE->getOpcode();
     switch (op) {
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
     case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
     case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-      printCast(Out, op, CE->getOperand(0)->getType(), CE->getType());
+      printCast(OStr, op, CE->getOperand(0)->getType(), CE->getType());
       if (op == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
-        Out << "0-";
-      printConstant("", CE->getOperand(0), Static);
+        OStr << "0-";
+      printConstant(OStr, "", CE->getOperand(0), Static);
       if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
           (op == Instruction::Trunc || op == Instruction::FPToUI ||
            op == Instruction::FPToSI || op == Instruction::PtrToInt))
-        Out << "&1u";
+        OStr << "&1u";
       break;
     case Instruction::GetElementPtr:
       printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
       break;
     case Instruction::Select:
-      printConstant("", CE->getOperand(0), Static);
-      printConstant("?", CE->getOperand(1), Static);
-      printConstant(":", CE->getOperand(2), Static);
+      printConstant(OStr, "", CE->getOperand(0), Static);
+      printConstant(OStr, "?", CE->getOperand(1), Static);
+      printConstant(OStr, ":", CE->getOperand(2), Static);
       break;
     case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
     case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
@@ -539,34 +539,34 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
     case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
     case Instruction::AShr:
     {
-      printConstantWithCast(CE->getOperand(0), op, " ");
+      printConstantWithCast(OStr, CE->getOperand(0), op, " ");
       if (op == Instruction::ICmp)
-        Out << intmapLookup(predText, CE->getPredicate());
+        OStr << intmapLookup(predText, CE->getPredicate());
       else
-        Out << intmapLookup(opcodeMap, op);
-      Out << " ";
-      printConstantWithCast(CE->getOperand(1), op, "");
-      printConstExprCast(Out, CE);
+        OStr << intmapLookup(opcodeMap, op);
+      OStr << " ";
+      printConstantWithCast(OStr, CE->getOperand(1), op, "");
+      printConstExprCast(OStr, CE);
       break;
     }
     case Instruction::FCmp: {
       if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
-        Out << "0";
+        OStr << "0";
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
-        Out << "1";
+        OStr << "1";
       else {
-        Out << "llvm_fcmp_" << intmapLookup(predText, CE->getPredicate()) << "(";
-        printConstantWithCast(CE->getOperand(0), op, ", ");
-        printConstantWithCast(CE->getOperand(1), op, ")");
+        OStr << "llvm_fcmp_" << intmapLookup(predText, CE->getPredicate()) << "(";
+        printConstantWithCast(OStr, CE->getOperand(0), op, ", ");
+        printConstantWithCast(OStr, CE->getOperand(1), op, ")");
       }
-      printConstExprCast(Out, CE);
+      printConstExprCast(OStr, CE);
       break;
     }
     default:
       errs() << "CWriter Error: Unhandled constant expression: " << *CE << "\n";
       llvm_unreachable(0);
     }
-    Out << ')';
+    OStr << ')';
     return;
   }
   ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
@@ -574,16 +574,16 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
   if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
     Type* Ty = CI->getType();
     if (Ty == Type::getInt1Ty(CPV->getContext()))
-      Out << (CI->getZExtValue() ? '1' : '0');
+      OStr << (CI->getZExtValue() ? '1' : '0');
     else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32)
-      Out << CI->getZExtValue();
+      OStr << CI->getZExtValue();
     else {
-      printType(Out, Ty, false, "", "((", ")");
+      printType(OStr, Ty, false, "", "((", ")");
       if (CI->isMinValue(true))
-        Out << CI->getZExtValue();// << 'u';
+        OStr << CI->getZExtValue();// << 'u';
       else
-        Out << CI->getSExtValue();
-      Out << ')';
+        OStr << CI->getSExtValue();
+      OStr << ')';
     }
     return;
   }
@@ -600,46 +600,46 @@ void CWriter::printConstant(const char *prefix, Constant *CPV, bool Static)
         char *cp = (char *)malloc(len);
         for (int i = 0; i != len-1; ++i)
             cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
-        printString(Out, cp, len);
+        printString(OStr, cp, len);
         free(cp);
       } else {
-        Out << '{';
+        OStr << '{';
         for (unsigned i = 0, e = len; i != e; ++i) {
-            printConstant(sep, cast<Constant>(CPA->getOperand(i)), Static);
+            printConstant(OStr, sep, cast<Constant>(CPA->getOperand(i)), Static);
             sep = ", ";
         }
-        Out << " }";
+        OStr << " }";
       }
     }
     else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
-      printConstantDataArray(CA, Static);
+      printConstantDataArray(OStr, CA, Static);
     else
       ERRORIF(1);
     break;
   case Type::VectorTyID:
-    Out << '{';
+    OStr << '{';
     if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
         for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
-            printConstant(sep, cast<Constant>(CV->getOperand(i)), Static);
+            printConstant(OStr, sep, cast<Constant>(CV->getOperand(i)), Static);
             sep = ", ";
         }
     }
     else
       ERRORIF(1);
-    Out << " }";
+    OStr << " }";
     break;
   case Type::StructTyID:
-    Out << '{';
+    OStr << '{';
     ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
     for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
-        printConstant(sep, cast<Constant>(CPV->getOperand(i)), Static);
+        printConstant(OStr, sep, cast<Constant>(CPV->getOperand(i)), Static);
         sep = ", ";
     }
-    Out << " }";
+    OStr << " }";
     break;
   case Type::PointerTyID:
     if (isa<ConstantPointerNull>(CPV))
-      printType(Out, CPV->getType(), false, "", "((", ")/*NULL*/0)"); // sign doesn't matter
+      printType(OStr, CPV->getType(), false, "", "((", ")/*NULL*/0)"); // sign doesn't matter
     else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
       writeOperand(GV, false, Static);
     break;
@@ -668,7 +668,7 @@ void CWriter::writeOperand(Value *Operand, bool Indirect, bool Static)
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
-        printConstant("", CPV, Static);
+        printConstant(Out, "", CPV, Static);
       else
         Out << GetValueName(Operand);
   }
@@ -786,7 +786,7 @@ void CWriter::processInstruction(Instruction *aI)
           Out << "((";
         writeOperand(Operand, false);
         if (BitMask) {
-          printConstant(") & ", BitMask, false);
+          printConstant(Out, ") & ", BitMask, false);
           Out << ")";
         }
         }
@@ -952,7 +952,7 @@ void CWriter::generateCppData(Module &Mod)
                      && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          printConstant(sep, V, true);
+                          printConstant(Out, sep, V, true);
                           sep = ", ";
                         }
                     else
