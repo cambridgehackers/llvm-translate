@@ -34,7 +34,6 @@ using namespace llvm;
 
 enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
 std::list<StructType *> structWork;
-std::map<Type *, int> structMap;
 int structWork_run;
 
 /******* Util functions ******/

@@ -223,7 +223,6 @@ extern Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
 extern std::list<StructType *> structWork;
-extern std::map<Type *, int> structMap;
 extern int structWork_run;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);

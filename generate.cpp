@@ -38,6 +38,7 @@ Function *EntryFn;
 
 static int slotmapIndex = 1;
 static std::map<const Value *, int> slotmap;
+static std::map<Type *, int> structMap;
 
 /*
  * Common utilities for processing Instruction lists
