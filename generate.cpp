@@ -314,17 +314,6 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
     }
 }
 
-/*
- * Pass control functions
- */
-static int processVar(const GlobalVariable *GV)
-{
-  if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
-   || (GV->hasAppendingLinkage() && GV->use_empty()
-    && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
-      return 0;
-  return 1;
-}
 void CWriter::printContainedStructs(Type *Ty)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
@@ -342,34 +331,10 @@ void CWriter::printContainedStructs(Type *Ty)
         }
     }
 }
-void CWriter::processCFunction(Function &func)
-{
-    printFunctionSignature(Out, &func, false, " {\n");
-    for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-          if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*II)) {
-            Out << "    ";
-            if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-            visit(*II);
-            Out << ";\n";
-          }
-        }
-        visit(*BB->getTerminator());
-    }
-    Out << "}\n\n";
-}
 
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
-    ArrayType *ATy;
-    PointerType *PTy, *PPTy;
-    const FunctionType *FT;
-    StructType *STy, *ISTy;
-    const ConstantExpr *CE;
     std::string ErrorMsg;
     // preprocessing dwarf debuf info before running anything
     NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
@@ -412,62 +377,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     processRules(*modfirst, 1, outputFile);
 
     // Generate cpp code
-    Out << "\n\n/* Global Variable Definitions and Initialization */\n";
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
-        ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
-          || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
-        if (processVar(I)) {
-          Type *Ty = I->getType()->getElementType();
-          if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
-              && ATy->getElementType()->getTypeID() == Type::PointerTyID)
-           && I->getInitializer()->isNullValue()) {
-              if (I->hasLocalLinkage())
-                Out << "static ";
-              printType(Out, Ty, false, GetValueName(I), "", "");
-              if (!I->getInitializer()->isNullValue()) {
-                Out << " = " ;
-                writeOperand(I->getInitializer(), false, true);
-              }
-              Out << ";\n";
-          }
-        }
-    }
-    Out << "\n\n//******************** vtables for Classes *******************\n";
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
-        if (processVar(I)) {
-          Type *Ty = I->getType()->getElementType();
-          if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
-           && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
-              if (I->hasLocalLinkage())
-                Out << "static ";
-              printType(Out, Ty, false, GetValueName(I), "", "");
-              if (!I->getInitializer()->isNullValue()) {
-                Out << " = " ;
-                Constant* CPV = dyn_cast<Constant>(I->getInitializer());
-                if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                    Type *ETy = CA->getType()->getElementType();
-                    ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
-                    Out << '{';
-                    const char *sep = " ";
-                    if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
-                     && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
-                     && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
-                     && (STy = cast<StructType>(PPTy->getElementType()))
-                     && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
-                     && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
-                        for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
-                          Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          printConstant(sep, V, true);
-                          sep = ", ";
-                        }
-                    else
-                        Out << 0;
-                    Out << " }";
-                }
-              }
-              Out << ";\n";
-          }
-    }
+    generateCppData(Mod);
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         Function &func = *I;
         std::string fname = func.getName().str();
