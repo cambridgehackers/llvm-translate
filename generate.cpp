@@ -183,10 +183,10 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
-        if (trace_translate && I->hasName())         // Print out the label if it exists...
-            printf("LLLLL: %s\n", I->getName().str().c_str());
-        for (BasicBlock::iterator ins = I->begin(), ins_end = I->end(); ins != ins_end;) {
+    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
+        if (trace_translate && BB->hasName())         // Print out the label if it exists...
+            printf("LLLLL: %s\n", BB->getName().str().c_str());
+        for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
             char instruction_label[MAX_CHAR_BUFFER];
 
             BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
