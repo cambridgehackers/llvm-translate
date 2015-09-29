@@ -341,6 +341,25 @@ void CWriter::printContainedStructs(Type *Ty)
         }
     }
 }
+void CWriter::processCFunction(Function &func)
+{
+    printFunctionSignature(Out, &func, false, " {\n");
+    for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+          if (const AllocaInst *AI = isDirectAlloca(&*II))
+            printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+          else if (!isInlinableInst(*II)) {
+            Out << "    ";
+            if (II->getType() != Type::getVoidTy(BB->getContext()))
+                printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
+            visit(*II);
+            Out << ";\n";
+          }
+        }
+        visit(*BB->getTerminator());
+    }
+    Out << "}\n\n";
+}
 
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
@@ -456,24 +475,8 @@ bool GeneratePass::runOnModule(Module &Mod)
         NextAnonValueNumber = 0;
         if (!(demang && strstr(demang, "::~"))
          && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
-         && fname != "__dtor_echoTest") {
-            printFunctionSignature(Out, &func, false, " {\n");
-            for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
-                for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-                  if (const AllocaInst *AI = isDirectAlloca(&*II))
-                    printType(Out, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-                  else if (!isInlinableInst(*II)) {
-                    Out << "    ";
-                    if (II->getType() != Type::getVoidTy(BB->getContext()))
-                        printType(Out, II->getType(), false, GetValueName(&*II), "", " = ");
-                    visit(*II);
-                    Out << ";\n";
-                  }
-                }
-                visit(*BB->getTerminator());
-            }
-            Out << "}\n\n";
-        }
+         && fname != "__dtor_echoTest")
+            processCFunction(func);
     }
 
     structWork_run = 1;

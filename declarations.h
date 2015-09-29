@@ -183,6 +183,7 @@ class CWriter : public InstVisitor<CWriter> {
     }
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
     std::string GetValueName(const Value *Operand);
+    void processCFunction(Function &func);
 };
 
 class RemoveAllocaPass : public FunctionPass {
