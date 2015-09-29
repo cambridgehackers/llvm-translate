@@ -698,133 +698,66 @@ void CWriter::printFunctionSignature(raw_ostream &OStr, const Function *F, bool 
 /*
  * Output instructions
  */
-void CWriter::visitReturnInst(ReturnInst &I)
-{
-  if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-    Out << "  return ";
-    if (I.getNumOperands())
-      writeOperand(I.getOperand(0), false);
-    Out << ";\n";
-  }
-}
-void CWriter::visitBinaryOperator(Instruction &I)
-{
-  assert(!I.getType()->isPointerTy());
-  bool needsCast = false;
-  if (I.getType() ==  Type::getInt8Ty(I.getContext())
-   || I.getType() == Type::getInt16Ty(I.getContext())
-   || I.getType() == Type::getFloatTy(I.getContext())) {
-    needsCast = true;
-    printType(Out, I.getType(), false, "", "((", ")(");
-  }
-  if (BinaryOperator::isNeg(&I)) {
-    Out << "-(";
-    writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
-    Out << ")";
-  } else if (BinaryOperator::isFNeg(&I)) {
-    Out << "-(";
-    writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
-    Out << ")";
-  } else if (I.getOpcode() == Instruction::FRem) {
-    if (I.getType() == Type::getFloatTy(I.getContext()))
-      Out << "fmodf(";
-    else if (I.getType() == Type::getDoubleTy(I.getContext()))
-      Out << "fmod(";
-    else  // all 3 flavors of long double
-      Out << "fmodl(";
-    writeOperand(I.getOperand(0), false);
-    Out << ", ";
-    writeOperand(I.getOperand(1), false);
-    Out << ")";
-  } else {
-    writeOperandWithCast(I.getOperand(0), I.getOpcode());
-    Out << " ";
-    Out << intmapLookup(opcodeMap, I.getOpcode());
-    Out << " ";
-    writeOperandWithCast(I.getOperand(1), I.getOpcode());
-    writeInstructionCast(I);
-  }
-  if (needsCast) {
-    Out << "))";
-  }
-}
-void CWriter::visitICmpInst(ICmpInst &I)
-{
-  bool shouldCast = I.isRelational();
-  bool typeIsSigned = I.isSigned();
-  writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned);
-  Out << " ";
-  Out << intmapLookup(predText, I.getPredicate());
-  Out << " ";
-  writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
-  writeInstructionCast(I);
-  if (shouldCast)
-    Out << "))";
-}
-void CWriter::visitCastInst(CastInst &I)
-{
-  int op = I.getOpcode();
-  Type *DstTy = I.getType();
-  Type *SrcTy = I.getOperand(0)->getType();
-  Out << '(';
-  printCast(op, SrcTy, DstTy);
-  if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
-    Out << "0-";
-  writeOperand(I.getOperand(0), false);
-  if (DstTy == Type::getInt1Ty(I.getContext()) &&
-      (op == Instruction::Trunc || op == Instruction::FPToUI ||
-       op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
-    Out << "&1u";
-  }
-  Out << ')';
-}
-void CWriter::visitCallInst(CallInst &I)
-{
-  unsigned ArgNo = 0;
-  const char *sep = "";
-  Function *F = I.getCalledFunction();
-  ERRORIF(F && (Intrinsic::ID)F->getIntrinsicID());
-  ERRORIF (I.hasStructRetAttr() || I.hasByValArgument() || I.isTailCall());
-  Value *Callee = I.getCalledValue();
-  PointerType  *PTy   = cast<PointerType>(Callee->getType());
-  FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
-  ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-  Function *RF = NULL;
-  if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
-      Callee = RF;
-      printType(Out, I.getCalledValue()->getType(), false, "", "((", ")(void*)");
-  }
-  writeOperand(Callee, false);
-  if (RF) Out << ')';
-  ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-  unsigned len = FTy->getNumParams();
-  CallSite CS(&I);
-  CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-  Out << '(';
-  for (; AI != AE; ++AI, ++ArgNo) {
-    Out << sep;
-    if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-        printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
-    writeOperand(*AI, false);
-    sep = ", ";
-  }
-  Out << ')';
-}
 void CWriter::processInstruction(Instruction *aI)
 {
-Instruction &I = *aI;
+    Instruction &I = *aI;
+    int op = I.getOpcode();
     //visit(*I);
     switch(I.getOpcode()) {
-    case Instruction::Ret:
-        visitReturnInst(static_cast<ReturnInst&>(I));
+    case Instruction::Ret: {
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+          Out << "  return ";
+          if (I.getNumOperands())
+            writeOperand(I.getOperand(0), false);
+          Out << ";\n";
+        }
+        }
         break;
     case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
     case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
     case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
     case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
-    case Instruction::And: case Instruction::Or: case Instruction::Xor:
-        visitBinaryOperator(I);
+    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
+        assert(!I.getType()->isPointerTy());
+        bool needsCast = false;
+        if (I.getType() ==  Type::getInt8Ty(I.getContext())
+         || I.getType() == Type::getInt16Ty(I.getContext())
+         || I.getType() == Type::getFloatTy(I.getContext())) {
+          needsCast = true;
+          printType(Out, I.getType(), false, "", "((", ")(");
+        }
+        if (BinaryOperator::isNeg(&I)) {
+          Out << "-(";
+          writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
+          Out << ")";
+        } else if (BinaryOperator::isFNeg(&I)) {
+          Out << "-(";
+          writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
+          Out << ")";
+        } else if (I.getOpcode() == Instruction::FRem) {
+          if (I.getType() == Type::getFloatTy(I.getContext()))
+            Out << "fmodf(";
+          else if (I.getType() == Type::getDoubleTy(I.getContext()))
+            Out << "fmod(";
+          else  // all 3 flavors of long double
+            Out << "fmodl(";
+          writeOperand(I.getOperand(0), false);
+          Out << ", ";
+          writeOperand(I.getOperand(1), false);
+          Out << ")";
+        } else {
+          writeOperandWithCast(I.getOperand(0), I.getOpcode());
+          Out << " ";
+          Out << intmapLookup(opcodeMap, I.getOpcode());
+          Out << " ";
+          writeOperandWithCast(I.getOperand(1), I.getOpcode());
+          writeInstructionCast(I);
+        }
+        if (needsCast) {
+          Out << "))";
+        }
+        }
         break;
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
@@ -860,18 +793,72 @@ Instruction &I = *aI;
     case Instruction::ZExt: case Instruction::SExt: case Instruction::FPToUI:
     case Instruction::FPToSI: case Instruction::UIToFP: case Instruction::SIToFP:
     case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::PtrToInt:
-    case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast:
-        visitCastInst(static_cast<CastInst&>(I));
+    case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast: {
+        Type *DstTy = I.getType();
+        Type *SrcTy = I.getOperand(0)->getType();
+        Out << '(';
+        printCast(op, SrcTy, DstTy);
+        if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
+          Out << "0-";
+        writeOperand(I.getOperand(0), false);
+        if (DstTy == Type::getInt1Ty(I.getContext()) &&
+            (op == Instruction::Trunc || op == Instruction::FPToUI ||
+             op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
+          Out << "&1u";
+        }
+        Out << ')';
+        }
         break;
-    case Instruction::ICmp:
-        visitICmpInst(static_cast<ICmpInst&>(I));
+    case Instruction::ICmp: {
+        ICmpInst &ICM = static_cast<ICmpInst&>(I);
+        bool shouldCast = ICM.isRelational();
+        bool typeIsSigned = ICM.isSigned();
+        writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned);
+        Out << " ";
+        Out << intmapLookup(predText, ICM.getPredicate());
+        Out << " ";
+        writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned);
+        writeInstructionCast(I);
+        if (shouldCast)
+          Out << "))";
+        }
         break;
-    case Instruction::Call:
-        visitCallInst(static_cast<CallInst&>(I));
+    case Instruction::Call: {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        const char *sep = "";
+        Function *F = ICL.getCalledFunction();
+        ERRORIF(F && (Intrinsic::ID)F->getIntrinsicID());
+        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+        Value *Callee = ICL.getCalledValue();
+        PointerType  *PTy   = cast<PointerType>(Callee->getType());
+        FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
+        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        Function *RF = NULL;
+        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+            Callee = RF;
+            printType(Out, ICL.getCalledValue()->getType(), false, "", "((", ")(void*)");
+        }
+        writeOperand(Callee, false);
+        if (RF) Out << ')';
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        Out << '(';
+        for (; AI != AE; ++AI, ++ArgNo) {
+          Out << sep;
+          if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
+              printType(Out, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
+          writeOperand(*AI, false);
+          sep = ", ";
+        }
+        Out << ')';
+        }
         break;
     default:
-      errs() << "C Writer does not know about " << I;
-      llvm_unreachable(0);
+        errs() << "C Writer does not know about " << I;
+        llvm_unreachable(0);
     }
 }
 /*

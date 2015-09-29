@@ -120,7 +120,6 @@ class CWriter {
     explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
       : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
     bool cwriterModule(Module &M);
-  //private :
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
     std::string getStructName(StructType *STy);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
@@ -136,19 +135,6 @@ class CWriter {
     void printConstantDataArray(ConstantDataArray *CPA, bool Static);
     void printConstantArray(ConstantArray *CPA, bool Static);
     void printConstantVector(ConstantVector *CV, bool Static);
-    friend class InstVisitor<CWriter>;
-    void visitReturnInst(ReturnInst &I);
-    void visitBinaryOperator(Instruction &I);
-    void visitICmpInst(ICmpInst &I);
-    void visitCastInst (CastInst &I);
-    void visitCallInst (CallInst &I);
-    //void visitLoadInst  (LoadInst   &I);
-    //void visitStoreInst (StoreInst  &I);
-    //void visitGetElementPtrInst(GetElementPtrInst &I);
-    void visitInstruction(Instruction &I) {
-      errs() << "C Writer does not know about " << I;
-      llvm_unreachable(0);
-    }
     void printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
     std::string GetValueName(const Value *Operand);
     void processCFunction(Function &func);
