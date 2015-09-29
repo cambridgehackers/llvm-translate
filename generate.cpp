@@ -150,10 +150,10 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK *work, const char *guardName,
+static void processFunction(VTABLE_WORK &work, const char *guardName,
        int generate, FILE *outputFile)
 {
-    Function *F = work->thisp[0][work->f];
+    Function *F = work.thisp[0][work.f];
     slotmap.clear();
     slotmapIndex = 1;
     memset(slotarray, 0, sizeof(slotarray));
@@ -173,9 +173,9 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
         if (trace_full)
             printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
         if (!strcmp(slotarray[slotindex].name, "this"))
-            slotarray[slotindex].svalue = (uint8_t *)work->thisp;
+            slotarray[slotindex].svalue = (uint8_t *)work.thisp;
         else if (!strcmp(slotarray[slotindex].name, "v")) {
-            slotarray[slotindex] = work->arg;
+            slotarray[slotindex] = work.arg;
         }
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
@@ -244,8 +244,8 @@ static void processFunction(VTABLE_WORK *work, const char *guardName,
                 break;
             default:
                 {
-                const char *vout = generate ? generateVerilog(work->thisp, *ins)
-                                       : calculateGuardUpdate(work->thisp, *ins);
+                const char *vout = generate ? generateVerilog(work.thisp, *ins)
+                                       : calculateGuardUpdate(work.thisp, *ins);
                 if (vout) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
@@ -301,7 +301,6 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
     while (vtablework.begin() != vtablework.end()) {
         Function *f = vtablework.begin()->thisp[0][vtablework.begin()->f];
         globalName = strdup(f->getName().str().c_str());
-        VTABLE_WORK work = *vtablework.begin();
         const char *guardName = NULL;
         if (generate && endswith(globalName, "updateEv")) {
             char temp[MAX_CHAR_BUFFER];
@@ -309,7 +308,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
             guardName = strdup(temp);
         }
-        processFunction(&work, guardName, generate, outputFile);
+        processFunction(*vtablework.begin(), guardName, generate, outputFile);
         vtablework.pop_front();
     }
 }
