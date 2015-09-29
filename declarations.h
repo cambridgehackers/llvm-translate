@@ -113,15 +113,9 @@ class CWriter {
   public:
     raw_fd_ostream &Out;
     raw_fd_ostream &OutHeader;
-    DenseMap<const Value*, unsigned> AnonValueNumbers;
-    unsigned NextAnonValueNumber;
-    DenseMap<StructType*, unsigned> UnnamedStructIDs;
-    unsigned NextTypeID;
-    explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh)
-      : Out(o), OutHeader(oh), NextAnonValueNumber(0), NextTypeID(1) { }
-    bool cwriterModule(Module &M);
+    explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh) : Out(o), OutHeader(oh) { }
+    //bool cwriterModule(Module &M);
     void printType(raw_ostream &Out, Type *Ty, bool isSigned, const std::string NameSoFar, const std::string prefix, const std::string postfix);
-    std::string getStructName(StructType *STy);
     void writeOperand(Value *Operand, bool Indirect, bool Static = false);
     void writeOperandWithCast(Value* Operand, unsigned Opcode);
     void writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
@@ -205,4 +199,3 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);
-const char *fieldName(StructType *STy, uint64_t ind);

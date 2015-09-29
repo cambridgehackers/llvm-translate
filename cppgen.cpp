@@ -36,9 +36,14 @@ enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPTo
 std::list<StructType *> structWork;
 int structWork_run;
 static std::map<Type *, int> structMap;
+static DenseMap<const Value*, unsigned> AnonValueNumbers;
+static unsigned NextAnonValueNumber;
+static DenseMap<StructType*, unsigned> UnnamedStructIDs;
+static unsigned NextTypeID;
 
 /******* Util functions ******/
-static bool isInlinableInst(const Instruction &I) {
+static bool isInlinableInst(const Instruction &I)
+{
   if (isa<CmpInst>(I))
     return true;
   if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
@@ -57,14 +62,16 @@ static bool isInlinableInst(const Instruction &I) {
   }
   return true;
 }
-static const AllocaInst *isDirectAlloca(const Value *V) {
+static const AllocaInst *isDirectAlloca(const Value *V)
+{
   const AllocaInst *AI = dyn_cast<AllocaInst>(V);
   if (!AI || AI->isArrayAllocation()
    || AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
     return 0;
   return AI;
 }
-static bool isAddressExposed(const Value *V) {
+static bool isAddressExposed(const Value *V)
+{
   return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 static void printString(raw_ostream &OStr, const char *cp, int len)
@@ -144,7 +151,7 @@ static std::string CBEMangle(const std::string &S)
     }
   return Result;
 }
-const char *fieldName(StructType *STy, uint64_t ind)
+static const char *fieldName(StructType *STy, uint64_t ind)
 {
     static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
@@ -166,7 +173,7 @@ const char *fieldName(StructType *STy, uint64_t ind)
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
-std::string CWriter::getStructName(StructType *STy)
+static std::string getStructName(StructType *STy)
 {
     std::string name;
     if (!STy->isLiteral() && !STy->getName().empty())
@@ -874,6 +881,7 @@ static int processVar(const GlobalVariable *GV)
 }
 void CWriter::processCFunction(Function &func)
 {
+    NextAnonValueNumber = 0;
     printFunctionSignature(Out, &func, false, " {\n");
     for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
@@ -898,6 +906,7 @@ void CWriter::generateCppData(Module &Mod)
     const FunctionType *FT;
     StructType *STy, *ISTy;
     const ConstantExpr *CE;
+    NextTypeID = 1;
     Out << "\n\n/* Global Variable Definitions and Initialization */\n";
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()

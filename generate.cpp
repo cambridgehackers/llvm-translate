@@ -362,7 +362,6 @@ bool GeneratePass::runOnModule(Module &Mod)
         std::string fname = func.getName().str();
         int status;
         const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-        NextAnonValueNumber = 0;
         if ((!demang || !strstr(demang, "::~"))
          && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
          && fname != "__dtor_echoTest")
