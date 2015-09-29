@@ -39,7 +39,6 @@ const char *globalName;
 
 static int slotmapIndex = 1;
 static std::map<const Value *, int> slotmap;
-static std::map<Type *, int> structMap;
 
 /*
  * Common utilities for processing Instruction lists
@@ -309,24 +308,6 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
     while (vtablework.begin() != vtablework.end()) {
         processFunction(*vtablework.begin(), generate, outputFile);
         vtablework.pop_front();
-    }
-}
-
-void CWriter::printContainedStructs(Type *Ty)
-{
-    std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
-        structMap[Ty] = 1;
-        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I);
-        if (StructType *STy = dyn_cast<StructType>(Ty)) {
-            std::string name = getStructName(STy);
-            OutHeader << "typedef struct " << name << " {\n";
-            unsigned Idx = 0;
-            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-              printType(OutHeader, *I, false, fieldName(STy, Idx++), "  ", ";\n");
-            OutHeader << "} " << name << ";\n\n";
-        }
     }
 }
 

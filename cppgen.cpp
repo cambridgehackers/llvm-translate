@@ -35,6 +35,7 @@ using namespace llvm;
 enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
 std::list<StructType *> structWork;
 int structWork_run;
+static std::map<Type *, int> structMap;
 
 /******* Util functions ******/
 static bool isInlinableInst(const Instruction &I) {
@@ -930,11 +931,29 @@ void CWriter::generateCppData(Module &Mod)
           }
     }
 }
+
+void CWriter::printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
+{
+    std::map<Type *, int>::iterator FI = structMap.find(Ty);
+    if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        structMap[Ty] = 1;
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+            printContainedStructs(*I, OStr);
+        if (StructType *STy = dyn_cast<StructType>(Ty)) {
+            std::string name = getStructName(STy);
+            OStr << "typedef struct " << name << " {\n";
+            unsigned Idx = 0;
+            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+              printType(OStr, *I, false, fieldName(STy, Idx++), "  ", ";\n");
+            OStr << "} " << name << ";\n\n";
+        }
+    }
+}
 void CWriter::generateCppHeader(Module &Mod, raw_fd_ostream &OStr)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin());
+        printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
     OStr << "\n/* External Global Variable Declarations */\n";
