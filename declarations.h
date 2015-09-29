@@ -109,13 +109,6 @@ typedef struct {
 
 enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
 
-class CWriter {
-  public:
-    raw_fd_ostream &Out;
-    raw_fd_ostream &OutHeader;
-    explicit CWriter(raw_fd_ostream &o, raw_fd_ostream &oh) : Out(o), OutHeader(oh) { }
-};
-
 class RemoveAllocaPass : public FunctionPass {
   public:
     static char ID;
@@ -130,10 +123,12 @@ class CallProcessPass : public BasicBlockPass {
     bool runOnBasicBlock(BasicBlock &BB);
 };
 
-class GeneratePass : public ModulePass, public CWriter {
+class GeneratePass : public ModulePass {
+    raw_fd_ostream &Out;
+    raw_fd_ostream &OutHeader;
   public:
     static char ID;
-    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), CWriter(o,oh) { }
+    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), Out(o), OutHeader(oh) { }
     bool runOnModule(Module &M);
 };
 
