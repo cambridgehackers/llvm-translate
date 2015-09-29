@@ -42,17 +42,17 @@ static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
 static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
 static void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static = false);
-static void processInstruction(raw_ostream &OStr, Instruction *aI);
+static void processInstruction(raw_ostream &OStr, Instruction &I);
 
 /******* Util functions ******/
 static bool isInlinableInst(const Instruction &I)
 {
   if (isa<CmpInst>(I))
     return true;
-  if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse() ||
-      isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I) ||
-      isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I) ||
-      isa<InsertValueInst>(I))
+  if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
+      || isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I)
+      || isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
+      || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
     return false;
   if (I.hasOneUse()) {
     const Instruction &User = cast<Instruction>(*I.use_back());
@@ -663,9 +663,9 @@ void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static)
   }
   if (isAddressImplicit)
     OStr << "(&";  // Global variables are referenced as their addresses by llvm
-  if (I && isInlinableInst(*I) && !isDirectAlloca(I)) {
+  if (I && isInlinableInst(*I)) {
       OStr << '(';
-      processInstruction(OStr, I);
+      processInstruction(OStr, *I);
       OStr << ')';
   }
   else {
@@ -708,11 +708,9 @@ static void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Pr
 /*
  * Output instructions
  */
-static void processInstruction(raw_ostream &OStr, Instruction *aI)
+static void processInstruction(raw_ostream &OStr, Instruction &I)
 {
-    Instruction &I = *aI;
     int op = I.getOpcode();
-    //visit(*I);
     switch(I.getOpcode()) {
     case Instruction::Ret: {
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
@@ -894,11 +892,11 @@ void processCFunction(raw_ostream &OStr, Function &func)
             OStr << "    ";
             if (II->getType() != Type::getVoidTy(BB->getContext()))
                 printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(OStr, II);
+            processInstruction(OStr, *II);
             OStr << ";\n";
           }
         }
-        processInstruction(OStr, BB->getTerminator());
+        processInstruction(OStr, *BB->getTerminator());
     }
     OStr << "}\n\n";
 }
