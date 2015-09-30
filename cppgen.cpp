@@ -686,30 +686,28 @@ char *writeOperand(Value *Operand, bool Indirect, bool Static)
   Instruction *I = dyn_cast<Instruction>(Operand);
   bool isAddressImplicit = isAddressExposed(Operand);
   if (Indirect) {
-    if (isAddressImplicit)
-      isAddressImplicit = false;
-    else
-      strcat(cbuffer, "*");
+      if (isAddressImplicit)
+          isAddressImplicit = false;
+      else
+          strcat(cbuffer, "*");
   }
   if (isAddressImplicit)
-    strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
+      strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       strcat(cbuffer, "(");
-      char *p = processInstruction(NULL, *I);
-      if (p)
-          strcat(cbuffer, p);
+      strcat(cbuffer, processInstruction(NULL, *I));
       strcat(cbuffer, ")");
   }
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
-        strcat(cbuffer, printConstant("", CPV, Static));
+          strcat(cbuffer, printConstant("", CPV, Static));
       else
-        strcat(cbuffer, GetValueName(Operand).c_str());
+          strcat(cbuffer, GetValueName(Operand).c_str());
   }
   if (isAddressImplicit)
-    strcat(cbuffer, ")");
-    return strdup(cbuffer);
+      strcat(cbuffer, ")");
+  return strdup(cbuffer);
 }
 char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix)
 {

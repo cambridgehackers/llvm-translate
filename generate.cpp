@@ -310,23 +310,28 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             default:
                 {
                 const char *vout = NULL;
-#if 0
+                static char cbuffer[10000];
+                cbuffer[0] = 0;
                 if (generate == 2) {
+#if 0
                     if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                      printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                      strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
                     else if (!isInlinableInst(*ins)) {
                       if (next_ins != ins_end) {
-                          fprintf(outputFile, "    ");
+                          strcat(cbuffer, "    ");
                           if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                              printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                              strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                       }
-                      processInstruction(outputFile, *ins);
+                      char *p = processInstruction(work.thisp, *ins);
+                      if (p)
+                          strcat(cbuffer, p);
                       if (next_ins != ins_end)
-                          fprintf(outputFile, ";\n");
+                          strcat(cbuffer, ";\n");
                     }
+                    vout = cbuffer;
+#endif
                 }
                 else
-#endif
                     vout = generate ? generateVerilog(work.thisp, *ins)
                                     : calculateGuardUpdate(work.thisp, *ins);
                 if (vout) {
