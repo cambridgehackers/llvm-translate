@@ -153,20 +153,23 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 static std::map<Function *, int> funcSeen;
 static void processCFunction(VTABLE_WORK &work, FILE *outputFile)
 {
+int generate = 2;
     Function *func = work.f;
     std::string fname = func->getName().str();
-    int status;
-    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-    if ((demang && strstr(demang, "::~"))
-     || func->isDeclaration() || fname == "_Z16run_main_programv" || fname == "main"
-     || fname == "__dtor_echoTest")
-        return;
-    std::map<Function *, int>::iterator MI = funcSeen.find(func);
-    if (MI != funcSeen.end())
-        return; // MI->second->name;
-    funcSeen[func] = 1;
+    const char *globalName = strdup(func->getName().str().c_str());
     NextAnonValueNumber = 0;
-    printFunctionSignature(outputFile, func, false, " {\n");
+    if (generate == 2) {
+        int status;
+        const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
+        std::map<Function *, int>::iterator MI = funcSeen.find(func);
+        if ((demang && strstr(demang, "::~"))
+         || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
+         || !strcmp(globalName, "__dtor_echoTest")
+         || MI != funcSeen.end())
+            return; // MI->second->name;
+        funcSeen[func] = 1;
+        printFunctionSignature(outputFile, func, false, " {\n");
+    }
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         for (BasicBlock::iterator ins = BB->begin(), E = --BB->end(); ins != E; ++ins) {
           if (const AllocaInst *AI = isDirectAlloca(&*ins))
@@ -181,7 +184,8 @@ static void processCFunction(VTABLE_WORK &work, FILE *outputFile)
         }
         processInstruction(outputFile, *BB->getTerminator());
     }
-    fprintf(outputFile, "}\n\n");
+    if (generate == 2)
+        fprintf(outputFile, "}\n\n");
 }
 static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
