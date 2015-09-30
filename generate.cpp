@@ -151,7 +151,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<Function *, int> funcSeen;
-static void processCFunction(FILE *OStr, VTABLE_WORK &work)
+static void processCFunction(VTABLE_WORK &work, FILE *outputFile)
 {
     Function *func = work.f;
     std::string fname = func->getName().str();
@@ -166,29 +166,29 @@ static void processCFunction(FILE *OStr, VTABLE_WORK &work)
         return; // MI->second->name;
     funcSeen[func] = 1;
     NextAnonValueNumber = 0;
-    printFunctionSignature(OStr, func, false, " {\n");
+    printFunctionSignature(outputFile, func, false, " {\n");
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-          if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*II)) {
-            fprintf(OStr, "    ");
-            if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(OStr, *II);
-            fprintf(OStr, ";\n");
+        for (BasicBlock::iterator ins = BB->begin(), E = --BB->end(); ins != E; ++ins) {
+          if (const AllocaInst *AI = isDirectAlloca(&*ins))
+            printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+          else if (!isInlinableInst(*ins)) {
+            fprintf(outputFile, "    ");
+            if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+            processInstruction(outputFile, *ins);
+            fprintf(outputFile, ";\n");
           }
         }
-        processInstruction(OStr, *BB->getTerminator());
+        processInstruction(outputFile, *BB->getTerminator());
     }
-    fprintf(OStr, "}\n\n");
+    fprintf(outputFile, "}\n\n");
 }
 static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
-    Function *F = work.f;
+    Function *func = work.f;
     const char *guardName = NULL;
-    globalName = strdup(F->getName().str().c_str());
-    if (generate && endswith(globalName, "updateEv")) {
+    globalName = strdup(func->getName().str().c_str());
+    if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
         strcpy(temp, globalName);
         temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
@@ -198,12 +198,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     slotmapIndex = 1;
     memset(slotarray, 0, sizeof(slotarray));
     if (trace_translate) {
-        printf("FULL_AFTER_OPT: %s\n", F->getName().str().c_str());
-        F->dump();
+        printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
+        func->dump();
         printf("TRANSLATE:\n");
     }
     /* connect up argument formal param names with actual values */
-    for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end(); AI != AE; ++AI) {
+    for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
         if (AI->hasByValAttr()) {
             printf("[%s] hasByVal param not supported\n", __FUNCTION__);
@@ -223,11 +223,11 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
     if (generate == 2) {
-        processCFunction(outputFile, *vtablework.begin());
+        processCFunction(*vtablework.begin(), outputFile);
         return;
     }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
+    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
         for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
@@ -401,7 +401,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I)
         vtablework.push_back(VTABLE_WORK(&*I, NULL, SLOTARRAY_TYPE()));
     while (vtablework.begin() != vtablework.end()) {
-        processCFunction(Out, *vtablework.begin());
+        processCFunction(*vtablework.begin(), Out);
         vtablework.pop_front();
     }
 #endif
