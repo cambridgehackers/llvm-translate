@@ -268,7 +268,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                       if (ins->getType() != Type::getVoidTy(BB->getContext()))
                           strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                   }
-                  char *p = processInstruction(*ins);
+                  char *p = processInstruction(work.thisp, *ins);
                   if (p)
                       strcat(cbuffer, p);
                   if (next_ins != ins_end)

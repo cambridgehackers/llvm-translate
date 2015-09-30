@@ -695,7 +695,7 @@ char *writeOperand(Value *Operand, bool Indirect, bool Static)
     strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       strcat(cbuffer, "(");
-      char *p = processInstruction(*I);
+      char *p = processInstruction(NULL, *I);
       if (p)
           strcat(cbuffer, p);
       strcat(cbuffer, ")");
@@ -742,7 +742,7 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
 /*
  * Output instructions
  */
-char *processInstruction(Instruction &I)
+char *processInstruction(Function ***thisp, Instruction &I)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
