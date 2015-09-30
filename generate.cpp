@@ -276,12 +276,24 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     if (guardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
+static std::map<Function *, int> funcSeen;
 static void processCFunction(FILE *OStr, VTABLE_WORK &work)
 {
-    Function *F = work.f;
+    Function *func = work.f;
+    std::string fname = func->getName().str();
+    int status;
+    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+    if ((demang && strstr(demang, "::~"))
+     || func->isDeclaration() || fname == "_Z16run_main_programv" || fname == "main"
+     || fname == "__dtor_echoTest")
+        return;
+    std::map<Function *, int>::iterator MI = funcSeen.find(func);
+    if (MI != funcSeen.end())
+        return; // MI->second->name;
+    funcSeen[func] = 1;
     NextAnonValueNumber = 0;
-    printFunctionSignature(OStr, F, false, " {\n");
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
+    printFunctionSignature(OStr, func, false, " {\n");
+    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
           if (const AllocaInst *AI = isDirectAlloca(&*II))
             printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
@@ -386,14 +398,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     processRules(*modfirst, 2, Out);
 #else
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
-        Function *func = &*I;
-        std::string fname = func->getName().str();
-        int status;
-        const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-        if ((!demang || !strstr(demang, "::~"))
-         && !func->isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
-         && fname != "__dtor_echoTest")
-            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+        vtablework.push_back(VTABLE_WORK(&*I, NULL, SLOTARRAY_TYPE()));
     }
     while (vtablework.begin() != vtablework.end()) {
         processCFunction(Out, *vtablework.begin());

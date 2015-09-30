@@ -829,12 +829,12 @@ void processInstruction(FILE *OStr, Instruction &I)
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
         const char *sep = "";
-        Function *F = ICL.getCalledFunction();
-        ERRORIF(F && (Intrinsic::ID)F->getIntrinsicID());
+        Function *func = ICL.getCalledFunction();
+        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        PointerType  *PTy   = cast<PointerType>(Callee->getType());
-        FunctionType *FTy   = cast<FunctionType>(PTy->getElementType());
+        PointerType  *PTy = cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         Function *RF = NULL;
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
@@ -842,20 +842,22 @@ void processInstruction(FILE *OStr, Instruction &I)
             printType(OStr, ICL.getCalledValue()->getType(), false, "", "((", ")(void*)");
         }
         writeOperand(OStr, Callee, false);
-        if (RF) fprintf(OStr, ")");
+        if (RF)
+            fprintf(OStr, ")");
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         fprintf(OStr, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
-          fprintf(OStr, "%s", sep);
-          if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-              printType(OStr, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
-          writeOperand(OStr, *AI, false);
-          sep = ", ";
+            fprintf(OStr, "%s", sep);
+            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
+                printType(OStr, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
+            writeOperand(OStr, *AI, false);
+            sep = ", ";
         }
         fprintf(OStr, ")");
+        vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
         }
         break;
     default:
