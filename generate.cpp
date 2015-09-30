@@ -150,6 +150,39 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
+static std::map<Function *, int> funcSeen;
+static void processCFunction(FILE *OStr, VTABLE_WORK &work)
+{
+    Function *func = work.f;
+    std::string fname = func->getName().str();
+    int status;
+    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+    if ((demang && strstr(demang, "::~"))
+     || func->isDeclaration() || fname == "_Z16run_main_programv" || fname == "main"
+     || fname == "__dtor_echoTest")
+        return;
+    std::map<Function *, int>::iterator MI = funcSeen.find(func);
+    if (MI != funcSeen.end())
+        return; // MI->second->name;
+    funcSeen[func] = 1;
+    NextAnonValueNumber = 0;
+    printFunctionSignature(OStr, func, false, " {\n");
+    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+          if (const AllocaInst *AI = isDirectAlloca(&*II))
+            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+          else if (!isInlinableInst(*II)) {
+            fprintf(OStr, "    ");
+            if (II->getType() != Type::getVoidTy(BB->getContext()))
+                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
+            processInstruction(OStr, *II);
+            fprintf(OStr, ";\n");
+          }
+        }
+        processInstruction(OStr, *BB->getTerminator());
+    }
+    fprintf(OStr, "}\n\n");
+}
 static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
     Function *F = work.f;
@@ -189,6 +222,10 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     }
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
+    if (generate == 2) {
+        processCFunction(outputFile, *vtablework.begin());
+        return;
+    }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
@@ -276,39 +313,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     if (guardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
-static std::map<Function *, int> funcSeen;
-static void processCFunction(FILE *OStr, VTABLE_WORK &work)
-{
-    Function *func = work.f;
-    std::string fname = func->getName().str();
-    int status;
-    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-    if ((demang && strstr(demang, "::~"))
-     || func->isDeclaration() || fname == "_Z16run_main_programv" || fname == "main"
-     || fname == "__dtor_echoTest")
-        return;
-    std::map<Function *, int>::iterator MI = funcSeen.find(func);
-    if (MI != funcSeen.end())
-        return; // MI->second->name;
-    funcSeen[func] = 1;
-    NextAnonValueNumber = 0;
-    printFunctionSignature(OStr, func, false, " {\n");
-    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-          if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*II)) {
-            fprintf(OStr, "    ");
-            if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(OStr, *II);
-            fprintf(OStr, ";\n");
-          }
-        }
-        processInstruction(OStr, *BB->getTerminator());
-    }
-    fprintf(OStr, "}\n\n");
-}
 
 /*
  * Symbolically run through all rules, running either preprocessing or
@@ -339,10 +343,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        if (generate == 2)
-            processCFunction(outputFile, *vtablework.begin());
-        else
-            processFunction(*vtablework.begin(), generate, outputFile);
+        processFunction(*vtablework.begin(), generate, outputFile);
         vtablework.pop_front();
     }
 }
@@ -397,9 +398,8 @@ bool GeneratePass::runOnModule(Module &Mod)
     // Generating code for all rules
     processRules(*modfirst, 2, Out);
 #else
-    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
+    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I)
         vtablework.push_back(VTABLE_WORK(&*I, NULL, SLOTARRAY_TYPE()));
-    }
     while (vtablework.begin() != vtablework.end()) {
         processCFunction(Out, *vtablework.begin());
         vtablework.pop_front();
