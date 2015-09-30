@@ -39,6 +39,28 @@ const char *globalName;
 
 static int slotmapIndex = 1;
 static std::map<const Value *, int> slotmap;
+INTMAP_TYPE predText[] = {
+    {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
+    {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
+    {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
+    {FCmpInst::FCMP_ONE, "one"}, {FCmpInst::FCMP_ORD, "ord"},
+    {FCmpInst::FCMP_UNO, "uno"}, {FCmpInst::FCMP_UEQ, "ueq"},
+    {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
+    {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
+    {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
+    {ICmpInst::ICMP_EQ, "=="}, {ICmpInst::ICMP_NE, "!="},
+    {ICmpInst::ICMP_SGT, ">"}, {ICmpInst::ICMP_SGE, ">="},
+    {ICmpInst::ICMP_SLT, "<"}, {ICmpInst::ICMP_SLE, "<="},
+    {ICmpInst::ICMP_UGT, ">"}, {ICmpInst::ICMP_UGE, ">="},
+    {ICmpInst::ICMP_ULT, "<"}, {ICmpInst::ICMP_ULE, "<="}, {}};
+INTMAP_TYPE opcodeMap[] = {
+    {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
+    {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
+    {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
+    {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
+    {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
+    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"},
+    {Instruction::Shl, "<<"}, {Instruction::LShr, ">>"}, {Instruction::AShr, " >> "}, {}};
 
 /*
  * Common utilities for processing Instruction lists
@@ -234,6 +256,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
+#if 1
             if (generate == 2) {
                 if (const AllocaInst *AI = isDirectAlloca(&*ins))
                   printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
@@ -249,6 +272,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 }
             }
             else
+#endif
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
@@ -280,8 +304,26 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 break;
             default:
                 {
-                const char *vout = generate ? generateVerilog(work.thisp, *ins)
-                                       : calculateGuardUpdate(work.thisp, *ins);
+                const char *vout = NULL;
+#if 0
+                if (generate == 2) {
+                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
+                      printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                    else if (!isInlinableInst(*ins)) {
+                      if (next_ins != ins_end) {
+                          fprintf(outputFile, "    ");
+                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                              printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                      }
+                      processInstruction(outputFile, *ins);
+                      if (next_ins != ins_end)
+                          fprintf(outputFile, ";\n");
+                    }
+                }
+                else
+#endif
+                    vout = generate ? generateVerilog(work.thisp, *ins)
+                                    : calculateGuardUpdate(work.thisp, *ins);
                 if (vout) {
                     if (!already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);

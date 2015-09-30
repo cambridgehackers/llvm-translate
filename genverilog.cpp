@@ -28,28 +28,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-INTMAP_TYPE predText[] = {
-    {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
-    {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
-    {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
-    {FCmpInst::FCMP_ONE, "one"}, {FCmpInst::FCMP_ORD, "ord"},
-    {FCmpInst::FCMP_UNO, "uno"}, {FCmpInst::FCMP_UEQ, "ueq"},
-    {FCmpInst::FCMP_UGT, "ugt"}, {FCmpInst::FCMP_UGE, "uge"},
-    {FCmpInst::FCMP_ULT, "ult"}, {FCmpInst::FCMP_ULE, "ule"},
-    {FCmpInst::FCMP_UNE, "une"}, {FCmpInst::FCMP_TRUE, "true"},
-    {ICmpInst::ICMP_EQ, "=="}, {ICmpInst::ICMP_NE, "!="},
-    {ICmpInst::ICMP_SGT, ">"}, {ICmpInst::ICMP_SGE, ">="},
-    {ICmpInst::ICMP_SLT, "<"}, {ICmpInst::ICMP_SLE, "<="},
-    {ICmpInst::ICMP_UGT, ">"}, {ICmpInst::ICMP_UGE, ">="},
-    {ICmpInst::ICMP_ULT, "<"}, {ICmpInst::ICMP_ULE, "<="}, {}};
-INTMAP_TYPE opcodeMap[] = {
-    {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
-    {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
-    {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
-    {Instruction::UDiv, "/"}, {Instruction::SDiv, "/"}, {Instruction::FDiv, "/"},
-    {Instruction::URem, "%"}, {Instruction::SRem, "%"}, {Instruction::FRem, "%"},
-    {Instruction::And, "&"}, {Instruction::Or, "|"}, {Instruction::Xor, "^"},
-    {Instruction::Shl, "<<"}, {Instruction::LShr, ">>"}, {Instruction::AShr, " >> "}, {}};
 static char vout[MAX_CHAR_BUFFER];
 
 const char *intmapLookup(INTMAP_TYPE *map, int value)
