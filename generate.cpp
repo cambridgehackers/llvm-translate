@@ -151,12 +151,11 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<Function *, int> funcSeen;
-static void processCFunction(VTABLE_WORK &work, FILE *outputFile)
+static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
-int generate = 2;
     Function *func = work.f;
-    std::string fname = func->getName().str();
-    const char *globalName = strdup(func->getName().str().c_str());
+    const char *guardName = NULL;
+    globalName = strdup(func->getName().str().c_str());
     NextAnonValueNumber = 0;
     if (generate == 2) {
         int status;
@@ -170,28 +169,6 @@ int generate = 2;
         funcSeen[func] = 1;
         printFunctionSignature(outputFile, func, false, " {\n");
     }
-    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
-        for (BasicBlock::iterator ins = BB->begin(), E = --BB->end(); ins != E; ++ins) {
-          if (const AllocaInst *AI = isDirectAlloca(&*ins))
-            printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*ins)) {
-            fprintf(outputFile, "    ");
-            if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
-            processInstruction(outputFile, *ins);
-            fprintf(outputFile, ";\n");
-          }
-        }
-        processInstruction(outputFile, *BB->getTerminator());
-    }
-    if (generate == 2)
-        fprintf(outputFile, "}\n\n");
-}
-static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
-{
-    Function *func = work.f;
-    const char *guardName = NULL;
-    globalName = strdup(func->getName().str().c_str());
     if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
         strcpy(temp, globalName);
@@ -226,14 +203,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     }
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
-    if (generate == 2) {
-        processCFunction(*vtablework.begin(), outputFile);
-        return;
-    }
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
+        BasicBlock::iterator inslast = BB->end();
+        inslast--;
         for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
             char instruction_label[MAX_CHAR_BUFFER];
 
@@ -261,6 +236,20 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
+            if (generate == 2) {
+                if (ins == inslast)
+                    processInstruction(outputFile, *BB->getTerminator());
+                else if (const AllocaInst *AI = isDirectAlloca(&*ins))
+                  printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                else if (!isInlinableInst(*ins)) {
+                  fprintf(outputFile, "    ");
+                  if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                      printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                  processInstruction(outputFile, *ins);
+                  fprintf(outputFile, ";\n");
+                }
+                goto nextinst;
+            }
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
@@ -309,11 +298,14 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
             }
+nextinst:
             if (trace_translate)
                 printf("\n");
             ins = next_ins;
         }
     }
+    if (generate == 2)
+        fprintf(outputFile, "}\n\n");
     if (guardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
@@ -405,7 +397,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I)
         vtablework.push_back(VTABLE_WORK(&*I, NULL, SLOTARRAY_TYPE()));
     while (vtablework.begin() != vtablework.end()) {
-        processCFunction(*vtablework.begin(), Out);
+        processFunction(*vtablework.begin(), 2, Out);
         vtablework.pop_front();
     }
 #endif
