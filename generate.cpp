@@ -150,7 +150,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile, FILE *OStr)
+static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
     Function *F = work.thisp[0][work.f];
     const char *guardName = NULL;
@@ -307,7 +307,7 @@ static void processCFunction(FILE *OStr, Function *F)
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, int generate, FILE *outputFile, FILE *OStr)
+static void processRules(Function ***modp, int generate, FILE *outputFile)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
@@ -334,10 +334,10 @@ static void processRules(Function ***modp, int generate, FILE *outputFile, FILE 
     while (vtablework.begin() != vtablework.end()) {
 #if 0
         if (generate == 2)
-            processCFunction(OStr, *vtablework.begin());
+            processCFunction(outputFile, *vtablework.begin());
         else
 #endif
-            processFunction(*vtablework.begin(), generate, outputFile, OStr);
+            processFunction(*vtablework.begin(), generate, outputFile);
         vtablework.pop_front();
     }
 }
@@ -381,16 +381,16 @@ bool GeneratePass::runOnModule(Module &Mod)
     constructAddressMap(CU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processRules(*modfirst, 0, outputFile, Out);
+    processRules(*modfirst, 0, outputFile);
 
     // Generating code for all rules
-    processRules(*modfirst, 1, outputFile, Out);
+    processRules(*modfirst, 1, outputFile);
 
     // Generate cpp code
     generateCppData(Out, Mod);
 #if 0
     // Generating code for all rules
-    processRules(*modfirst, 2, outputFile, Out);
+    processRules(*modfirst, 2, Out);
 #else
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         Function *func = &*I;
