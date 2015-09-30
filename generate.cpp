@@ -157,18 +157,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     const char *guardName = NULL;
     globalName = strdup(func->getName().str().c_str());
     NextAnonValueNumber = 0;
-    if (generate == 2) {
-        int status;
-        const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
-        std::map<Function *, int>::iterator MI = funcSeen.find(func);
-        if ((demang && strstr(demang, "::~"))
-         || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
-         || !strcmp(globalName, "__dtor_echoTest")
-         || MI != funcSeen.end())
-            return; // MI->second->name;
-        funcSeen[func] = 1;
-        printFunctionSignature(outputFile, func, false, " {\n");
-    }
     if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
         strcpy(temp, globalName);
@@ -204,6 +192,18 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
+    if (generate == 2) {
+        int status;
+        const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
+        std::map<Function *, int>::iterator MI = funcSeen.find(func);
+        if ((demang && strstr(demang, "::~"))
+         || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
+         || !strcmp(globalName, "__dtor_echoTest")
+         || MI != funcSeen.end())
+            return; // MI->second->name;
+        funcSeen[func] = 1;
+        printFunctionSignature(outputFile, func, false, " {\n");
+    }
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
@@ -237,16 +237,17 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
             if (generate == 2) {
-                if (ins == inslast)
-                    processInstruction(outputFile, *BB->getTerminator());
-                else if (const AllocaInst *AI = isDirectAlloca(&*ins))
+                if (const AllocaInst *AI = isDirectAlloca(&*ins))
                   printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
                 else if (!isInlinableInst(*ins)) {
-                  fprintf(outputFile, "    ");
-                  if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                      printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                  if (ins != inslast) {
+                      fprintf(outputFile, "    ");
+                      if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                          printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                  }
                   processInstruction(outputFile, *ins);
-                  fprintf(outputFile, ";\n");
+                  if (ins != inslast)
+                      fprintf(outputFile, ";\n");
                 }
                 goto nextinst;
             }
