@@ -224,8 +224,6 @@ std::string GetValueName(const Value *Operand)
 void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
-  std::string tstr;
-  raw_string_ostream FunctionInnards(tstr);
   const char *sep = "";
 
   OStr << prefix;
@@ -251,6 +249,8 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       break;
   case Type::FunctionTyID: {
       FunctionType *FTy = cast<FunctionType>(Ty);
+      std::string tstr;
+      raw_string_ostream FunctionInnards(tstr);
       FunctionInnards << " (" << NameSoFar << ") (";
       for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
           printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
@@ -272,8 +272,8 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
   case Type::ArrayTyID: {
       ArrayType *ATy = cast<ArrayType>(Ty);
       unsigned len = ATy->getNumElements();
-      printType(OStr, ATy->getElementType(), false, "", "", "");
       if (len == 0) len = 1;
+      printType(OStr, ATy->getElementType(), false, "", "", "");
       OStr << NameSoFar << "[" + utostr(len) + "]";
       break;
       }
