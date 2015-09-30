@@ -718,14 +718,13 @@ char *writeOperand(Value *Operand, bool Indirect, bool Static)
 }
 char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix)
 {
-    char cbuffer[10000];
-    cbuffer[0] = 0;
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   const char *sep = "";
-  if (F->hasLocalLinkage()) strcat(cbuffer, "static ");
+  const char *statstr = "";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
+  if (F->hasLocalLinkage()) statstr = "static ";
   FunctionInnards << GetValueName(F) << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
@@ -742,8 +741,7 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
   if (!strcmp(sep, ""))
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
-  strcat(cbuffer, printType(F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", postfix));
-    return strdup(cbuffer);
+  return printType(F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), statstr, postfix);
 }
 
 /*
