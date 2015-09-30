@@ -207,8 +207,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
-        BasicBlock::iterator inslast = BB->end();
-        inslast--;
         for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
             char instruction_label[MAX_CHAR_BUFFER];
 
@@ -240,17 +238,17 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 if (const AllocaInst *AI = isDirectAlloca(&*ins))
                   printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
                 else if (!isInlinableInst(*ins)) {
-                  if (ins != inslast) {
+                  if (next_ins != ins_end) {
                       fprintf(outputFile, "    ");
                       if (ins->getType() != Type::getVoidTy(BB->getContext()))
                           printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
                   }
                   processInstruction(outputFile, *ins);
-                  if (ins != inslast)
+                  if (next_ins != ins_end)
                       fprintf(outputFile, ";\n");
                 }
-                goto nextinst;
             }
+            else
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
@@ -299,7 +297,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
             }
-nextinst:
             if (trace_translate)
                 printf("\n");
             ins = next_ins;
