@@ -225,27 +225,29 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
 {
   const char *sp = (isSigned?"signed":"unsigned");
   const char *sep = "";
+  std::string ostr;
+  raw_string_ostream typeOutstr(ostr);
 
-  OStr << prefix;
+  typeOutstr << prefix;
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:
-      OStr << "void " << NameSoFar;
+      typeOutstr << "void " << NameSoFar;
       break;
   case Type::IntegerTyID: {
       unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
       assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
       if (NumBits == 1)
-          OStr << "bool";
+          typeOutstr << "bool";
       else if (NumBits <= 8)
-          OStr << sp << " char";
+          typeOutstr << sp << " char";
       else if (NumBits <= 16)
-          OStr << sp << " short";
+          typeOutstr << sp << " short";
       else if (NumBits <= 32)
-          OStr << sp << " int";
+          typeOutstr << sp << " int";
       else if (NumBits <= 64)
-          OStr << sp << " long long";
+          typeOutstr << sp << " long long";
       }
-      OStr << " " << NameSoFar;
+      typeOutstr << " " << NameSoFar;
       break;
   case Type::FunctionTyID: {
       FunctionType *FTy = cast<FunctionType>(Ty);
@@ -263,18 +265,18 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       } else if (!FTy->getNumParams())
           FunctionInnards << "void";
       FunctionInnards << ')';
-      printType(OStr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+      printType(typeOutstr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
       break;
       }
   case Type::StructTyID:
-      OStr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
+      typeOutstr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
       break;
   case Type::ArrayTyID: {
       ArrayType *ATy = cast<ArrayType>(Ty);
       unsigned len = ATy->getNumElements();
       if (len == 0) len = 1;
-      printType(OStr, ATy->getElementType(), false, "", "", "");
-      OStr << NameSoFar << "[" + utostr(len) + "]";
+      printType(typeOutstr, ATy->getElementType(), false, "", "", "");
+      typeOutstr << NameSoFar << "[" + utostr(len) + "]";
       break;
       }
   case Type::PointerTyID: {
@@ -282,13 +284,13 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       std::string ptrName = "*" + NameSoFar;
       if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
           ptrName = "(" + ptrName + ")";
-      printType(OStr, PTy->getElementType(), false, ptrName, "", "");
+      printType(typeOutstr, PTy->getElementType(), false, ptrName, "", "");
       break;
       }
   default:
       llvm_unreachable("Unhandled case in getTypeProps!");
   }
-  OStr << postfix;
+  OStr << typeOutstr.str() << postfix;
 }
 
 /*

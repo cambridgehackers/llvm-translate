@@ -150,7 +150,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
+static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile, raw_ostream &OStr)
 {
     Function *F = work.thisp[0][work.f];
     const char *guardName = NULL;
@@ -276,12 +276,38 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     if (guardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
+#if 0
+static void processCFunction(raw_ostream &OStr, VTABLE_WORK &work)
+{
+    Function *F = work.thisp[0][work.f];
+#else
+static void processCFunction(raw_ostream &OStr, Function *F)
+{
+#endif
+    NextAnonValueNumber = 0;
+    printFunctionSignature(OStr, F, false, " {\n");
+    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
+          if (const AllocaInst *AI = isDirectAlloca(&*II))
+            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+          else if (!isInlinableInst(*II)) {
+            OStr << "    ";
+            if (II->getType() != Type::getVoidTy(BB->getContext()))
+                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
+            processInstruction(OStr, *II);
+            OStr << ";\n";
+          }
+        }
+        processInstruction(OStr, *BB->getTerminator());
+    }
+    OStr << "}\n\n";
+}
 
 /*
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, int generate, FILE *outputFile)
+static void processRules(Function ***modp, int generate, FILE *outputFile, raw_ostream &OStr)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
@@ -306,29 +332,14 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        processFunction(*vtablework.begin(), generate, outputFile);
+#if 0
+        if (generate == 2)
+            processCFunction(OStr, *vtablework.begin());
+        else
+#endif
+            processFunction(*vtablework.begin(), generate, outputFile, OStr);
         vtablework.pop_front();
     }
-}
-static void processCFunction(raw_ostream &OStr, Function &func)
-{
-    NextAnonValueNumber = 0;
-    printFunctionSignature(OStr, &func, false, " {\n");
-    for (Function::iterator BB = func.begin(), E = func.end(); BB != E; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), E = --BB->end(); II != E; ++II) {
-          if (const AllocaInst *AI = isDirectAlloca(&*II))
-            printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-          else if (!isInlinableInst(*II)) {
-            OStr << "    ";
-            if (II->getType() != Type::getVoidTy(BB->getContext()))
-                printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
-            processInstruction(OStr, *II);
-            OStr << ";\n";
-          }
-        }
-        processInstruction(OStr, *BB->getTerminator());
-    }
-    OStr << "}\n\n";
 }
 
 char GeneratePass::ID = 0;
@@ -370,23 +381,28 @@ bool GeneratePass::runOnModule(Module &Mod)
     constructAddressMap(CU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processRules(*modfirst, 0, outputFile);
+    processRules(*modfirst, 0, outputFile, Out);
 
     // Generating code for all rules
-    processRules(*modfirst, 1, outputFile);
+    processRules(*modfirst, 1, outputFile, Out);
 
     // Generate cpp code
     generateCppData(Out, Mod);
+#if 0
+    // Generating code for all rules
+    processRules(*modfirst, 2, outputFile, Out);
+#else
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
-        Function &func = *I;
-        std::string fname = func.getName().str();
+        Function *func = &*I;
+        std::string fname = func->getName().str();
         int status;
         const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
         if ((!demang || !strstr(demang, "::~"))
-         && !func.isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
+         && !func->isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
          && fname != "__dtor_echoTest")
             processCFunction(Out, func);
     }
+#endif
     generateCppHeader(Mod, OutHeader);
     return false;
 }
