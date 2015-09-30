@@ -264,7 +264,8 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         if (operand_list_index > 3)
             arg = slotarray[operand_list[2].value];
 else
-        vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
+        vtablework.push_back(VTABLE_WORK(
+            ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
             (Function ***)slotarray[operand_list[1].value].svalue, arg));
         slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
         }

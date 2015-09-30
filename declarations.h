@@ -79,10 +79,10 @@ public:
 
 class VTABLE_WORK {
 public:
-    int f;
+    Function *f;
     Function ***thisp;
     SLOTARRAY_TYPE arg;
-    VTABLE_WORK(int a, Function ***b, SLOTARRAY_TYPE c) {
+    VTABLE_WORK(Function *a, Function ***b, SLOTARRAY_TYPE c) {
        f = a;
        thisp = b;
        arg = c;

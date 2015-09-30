@@ -259,7 +259,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         }
 //if (operand_list_index <= 3)
         if (f && thisp) {
-            vtablework.push_back(VTABLE_WORK(slotarray[tcall].offset/sizeof(uint64_t),
+            vtablework.push_back(VTABLE_WORK(thisp[0][slotarray[tcall].offset/sizeof(uint64_t)],
                 thisp,
                 (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
             slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());

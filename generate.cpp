@@ -152,7 +152,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
  */
 static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
-    Function *F = work.thisp[0][work.f];
+    Function *F = work.f;
     const char *guardName = NULL;
     globalName = strdup(F->getName().str().c_str());
     if (generate && endswith(globalName, "updateEv")) {
@@ -276,14 +276,9 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     if (guardName && already_printed_header)
         fprintf(outputFile, "end;\n");
 }
-#if 0
 static void processCFunction(FILE *OStr, VTABLE_WORK &work)
 {
-    Function *F = work.thisp[0][work.f];
-#else
-static void processCFunction(FILE *OStr, Function *F)
-{
-#endif
+    Function *F = work.f;
     NextAnonValueNumber = 0;
     printFunctionSignature(OStr, F, false, " {\n");
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
@@ -322,7 +317,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             static std::string method[] = { "body", "guard", "update", ""};
             std::string *p = method;
             do {
-                vtablework.push_back(VTABLE_WORK(lookup_method("class.Rule", *p),
+                vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
                     rulep, SLOTARRAY_TYPE()));
             } while (*++p != "" && generate); // only preprocess 'body'
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
@@ -332,11 +327,9 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-#if 0
         if (generate == 2)
             processCFunction(outputFile, *vtablework.begin());
         else
-#endif
             processFunction(*vtablework.begin(), generate, outputFile);
         vtablework.pop_front();
     }
@@ -400,7 +393,11 @@ bool GeneratePass::runOnModule(Module &Mod)
         if ((!demang || !strstr(demang, "::~"))
          && !func->isDeclaration() && fname != "_Z16run_main_programv" && fname != "main"
          && fname != "__dtor_echoTest")
-            processCFunction(Out, func);
+            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+    }
+    while (vtablework.begin() != vtablework.end()) {
+        processCFunction(Out, *vtablework.begin());
+        vtablework.pop_front();
     }
 #endif
     generateCppHeader(Mod, OutHeader);
