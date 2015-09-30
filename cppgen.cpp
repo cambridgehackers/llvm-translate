@@ -229,7 +229,6 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
   const char *sep = "";
 
   OStr << prefix;
-restart_label:
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:
       OStr << "void " << NameSoFar;
@@ -238,66 +237,56 @@ restart_label:
       unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
       assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
       if (NumBits == 1)
-        OStr << "bool";
+          OStr << "bool";
       else if (NumBits <= 8)
-        OStr << sp << " char";
+          OStr << sp << " char";
       else if (NumBits <= 16)
-        OStr << sp << " short";
+          OStr << sp << " short";
       else if (NumBits <= 32)
-        OStr << sp << " int";
+          OStr << sp << " int";
       else if (NumBits <= 64)
-        OStr << sp << " long long";
+          OStr << sp << " long long";
       }
       OStr << " " << NameSoFar;
       break;
-  case Type::VectorTyID: {
-      VectorType *VTy = cast<VectorType>(Ty);
-      Ty = VTy->getElementType();
-      NameSoFar = " __attribute__((vector_size(""utostr(TD->getTypeAllocSize(VTy))"" ))) " + NameSoFar;
-      goto restart_label;
-      }
-  case Type::MetadataTyID:
-      OStr << "MetadataTyIDSTUB\n " << NameSoFar;
-      break;
   case Type::FunctionTyID: {
-    FunctionType *FTy = cast<FunctionType>(Ty);
-    FunctionInnards << " (" << NameSoFar << ") (";
-    for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-      printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
-      sep = ", ";
-    }
-    if (FTy->isVarArg()) {
-      if (!FTy->getNumParams())
-        FunctionInnards << " int"; //dummy argument for empty vaarg functs
-      FunctionInnards << ", ...";
-    } else if (!FTy->getNumParams())
-      FunctionInnards << "void";
-    FunctionInnards << ')';
-    printType(OStr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
-    break;
-  }
-  case Type::StructTyID: {
-    OStr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
-    break;
-  }
+      FunctionType *FTy = cast<FunctionType>(Ty);
+      FunctionInnards << " (" << NameSoFar << ") (";
+      for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
+          printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
+          sep = ", ";
+      }
+      if (FTy->isVarArg()) {
+          if (!FTy->getNumParams())
+              FunctionInnards << " int"; //dummy argument for empty vaarg functs
+          FunctionInnards << ", ...";
+      } else if (!FTy->getNumParams())
+          FunctionInnards << "void";
+      FunctionInnards << ')';
+      printType(OStr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+      break;
+      }
+  case Type::StructTyID:
+      OStr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
+      break;
   case Type::ArrayTyID: {
-    ArrayType *ATy = cast<ArrayType>(Ty);
-    unsigned len = ATy->getNumElements();
-    printType(OStr, ATy->getElementType(), false, "", "", "");
-    if (len == 0) len = 1;
-    OStr << NameSoFar << "[" + utostr(len) + "]";
-    break;
-  }
+      ArrayType *ATy = cast<ArrayType>(Ty);
+      unsigned len = ATy->getNumElements();
+      printType(OStr, ATy->getElementType(), false, "", "", "");
+      if (len == 0) len = 1;
+      OStr << NameSoFar << "[" + utostr(len) + "]";
+      break;
+      }
   case Type::PointerTyID: {
-    PointerType *PTy = cast<PointerType>(Ty);
-    std::string ptrName = "*" + NameSoFar;
-    if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
-      ptrName = "(" + ptrName + ")";
-    printType(OStr, PTy->getElementType(), false, ptrName, "", "");
-    break;
-  }
+      PointerType *PTy = cast<PointerType>(Ty);
+      std::string ptrName = "*" + NameSoFar;
+      if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
+          ptrName = "(" + ptrName + ")";
+      printType(OStr, PTy->getElementType(), false, ptrName, "", "");
+      break;
+      }
   default:
-    llvm_unreachable("Unhandled case in getTypeProps!");
+      llvm_unreachable("Unhandled case in getTypeProps!");
   }
   OStr << postfix;
 }
