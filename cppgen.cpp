@@ -40,8 +40,8 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
-static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static);
-static void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static = false);
+static void printConstant(FILE *OStr, const char *prefix, Constant *CPV, bool Static);
+static void writeOperand(FILE *OStr, Value *Operand, bool Indirect, bool Static = false);
 
 /******* Util functions ******/
 bool isInlinableInst(const Instruction &I)
@@ -76,40 +76,40 @@ static bool isAddressExposed(const Value *V)
 {
   return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
-static void printString(raw_ostream &OStr, const char *cp, int len)
+static void printString(FILE *OStr, const char *cp, int len)
 {
     if (!cp[len-1])
         len--;
-    OStr << '\"';
+    fprintf(OStr, "\"");
     bool LastWasHex = false;
     for (unsigned i = 0, e = len; i != e; ++i) {
       unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
         LastWasHex = false;
         if (C == '"' || C == '\\')
-          OStr << "\\" << (char)C;
+          fprintf(OStr, "\\%c", (char)C);
         else
-          OStr << (char)C;
+          fprintf(OStr, "%c", (char)C);
       } else {
         LastWasHex = false;
         switch (C) {
-        case '\n': OStr << "\\n"; break;
-        case '\t': OStr << "\\t"; break;
-        case '\r': OStr << "\\r"; break;
-        case '\v': OStr << "\\v"; break;
-        case '\a': OStr << "\\a"; break;
-        case '\"': OStr << "\\\""; break;
-        case '\'': OStr << "\\\'"; break;
+        case '\n': fprintf(OStr, "\\n"); break;
+        case '\t': fprintf(OStr, "\\t"); break;
+        case '\r': fprintf(OStr, "\\r"); break;
+        case '\v': fprintf(OStr, "\\v"); break;
+        case '\a': fprintf(OStr, "\\a"); break;
+        case '\"': fprintf(OStr, "\\\""); break;
+        case '\'': fprintf(OStr, "\\\'"); break;
         default:
-          OStr << "\\x";
-          OStr << (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A'));
-          OStr << (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A'));
+          fprintf(OStr, "\\x");
+          fprintf(OStr, "%c", (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A')));
+          fprintf(OStr, "%c", (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A')));
           LastWasHex = true;
           break;
         }
       }
     }
-    OStr << '\"';
+    fprintf(OStr, "\"");
 }
 static int getCastGroup(int op)
 {
@@ -221,7 +221,8 @@ std::string GetValueName(const Value *Operand)
 /*
  * Output types
  */
-void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
+static std::string printTypeReturn;
+void printType(FILE *OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
   const char *sp = (isSigned?"signed":"unsigned");
   const char *sep = "";
@@ -255,7 +256,8 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       raw_string_ostream FunctionInnards(tstr);
       FunctionInnards << " (" << NameSoFar << ") (";
       for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-          printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
+          printType(NULL, *I, /*isSigned=*/false, "", sep, "");
+          FunctionInnards << printTypeReturn;
           sep = ", ";
       }
       if (FTy->isVarArg()) {
@@ -265,7 +267,8 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       } else if (!FTy->getNumParams())
           FunctionInnards << "void";
       FunctionInnards << ')';
-      printType(typeOutstr, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+      printType(NULL, FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+      typeOutstr << printTypeReturn;
       break;
       }
   case Type::StructTyID:
@@ -275,8 +278,8 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       ArrayType *ATy = cast<ArrayType>(Ty);
       unsigned len = ATy->getNumElements();
       if (len == 0) len = 1;
-      printType(typeOutstr, ATy->getElementType(), false, "", "", "");
-      typeOutstr << NameSoFar << "[" + utostr(len) + "]";
+      printType(NULL, ATy->getElementType(), false, "", "", "");
+      typeOutstr << printTypeReturn << NameSoFar << "[" + utostr(len) + "]";
       break;
       }
   case Type::PointerTyID: {
@@ -284,34 +287,39 @@ void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar
       std::string ptrName = "*" + NameSoFar;
       if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
           ptrName = "(" + ptrName + ")";
-      printType(typeOutstr, PTy->getElementType(), false, ptrName, "", "");
+      printType(NULL, PTy->getElementType(), false, ptrName, "", "");
+      typeOutstr << printTypeReturn;
       break;
       }
   default:
       llvm_unreachable("Unhandled case in getTypeProps!");
   }
-  OStr << typeOutstr.str() << postfix;
+  typeOutstr << postfix;
+  if (OStr)
+      fprintf(OStr, "%s", typeOutstr.str().c_str());
+  else
+      printTypeReturn = typeOutstr.str();
 }
 
 /*
  * Output expressions
  */
-static void printConstantDataArray(raw_ostream &OStr, ConstantDataArray *CPA, bool Static)
+static void printConstantDataArray(FILE *OStr, ConstantDataArray *CPA, bool Static)
 {
   const char *sep = " ";
   if (CPA->isString()) {
     StringRef value = CPA->getAsString();
     printString(OStr, value.str().c_str(), value.str().length());
   } else {
-    OStr << '{';
+    fprintf(OStr, "{");
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
         printConstant(OStr, sep, cast<Constant>(CPA->getOperand(i)), Static);
         sep = ", ";
     }
-    OStr << " }";
+    fprintf(OStr, " }");
   }
 }
-static void writeOperandWithCastICmp(raw_ostream &OStr, Value* Operand, bool shouldCast, bool typeIsSigned)
+static void writeOperandWithCastICmp(FILE *OStr, Value* Operand, bool shouldCast, bool typeIsSigned)
 {
   if (shouldCast) {
       Type* OpTy = Operand->getType();
@@ -320,9 +328,9 @@ static void writeOperandWithCastICmp(raw_ostream &OStr, Value* Operand, bool sho
   }
   writeOperand(OStr, Operand, false);
   if (shouldCast)
-      OStr << ")";
+      fprintf(OStr, ")");
 }
-static void writeOperandWithCast(raw_ostream &OStr, Value* Operand, unsigned Opcode)
+static void writeOperandWithCast(FILE *OStr, Value* Operand, unsigned Opcode)
 {
   bool castIsSigned = false;
   bool shouldCast = true;
@@ -338,7 +346,7 @@ static void writeOperandWithCast(raw_ostream &OStr, Value* Operand, unsigned Opc
   }
   writeOperandWithCastICmp(OStr, Operand, shouldCast, castIsSigned);
 }
-static bool writeInstructionCast(raw_ostream &OStr, const Instruction &I)
+static bool writeInstructionCast(FILE *OStr, const Instruction &I)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(I.getOpcode())) {
@@ -353,7 +361,7 @@ static bool writeInstructionCast(raw_ostream &OStr, const Instruction &I)
   printType(OStr, I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
   return true;
 }
-static bool printConstExprCast(raw_ostream &OStr, const ConstantExpr* CE)
+static bool printConstExprCast(FILE *OStr, const ConstantExpr* CE)
 {
   Type *Ty = CE->getOperand(0)->getType();
   bool TypeIsSigned = false;
@@ -376,7 +384,7 @@ static bool printConstExprCast(raw_ostream &OStr, const ConstantExpr* CE)
   printType(OStr, Ty, TypeIsSigned, "", "((", ")())");
   return true;
 }
-static void printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned Opcode, const char *postfix)
+static void printConstantWithCast(FILE *OStr, Constant* CPV, unsigned Opcode, const char *postfix)
 {
   bool typeIsSigned = false;
   switch (getCastGroup(Opcode)) {
@@ -391,9 +399,9 @@ static void printConstantWithCast(raw_ostream &OStr, Constant* CPV, unsigned Opc
   }
   printType(OStr, CPV->getType(), typeIsSigned, "", "((", ")");
   printConstant(OStr, "", CPV, false);
-  OStr << ")" << postfix;
+  fprintf(OStr, ")%s", postfix);
 }
-static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
+static void printCast(FILE *OStr, unsigned opc, Type *SrcTy, Type *DstTy)
 {
   bool TypeIsSigned = false;
   switch (getCastGroup(opc)) {
@@ -411,12 +419,12 @@ static void printCast(raw_ostream &OStr, unsigned opc, Type *SrcTy, Type *DstTy)
     case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
       return; // These don't need a source cast.
     case Instruction::IntToPtr: case Instruction::PtrToInt:
-      OStr << "(unsigned long)";
+      fprintf(OStr, "(unsigned long)");
       return;
   }
   printType(OStr, SrcTy, TypeIsSigned, "", "(", ")");
 }
-static void printGEPExpression(raw_ostream &OStr, Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
+static void printGEPExpression(FILE *OStr, Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
   ConstantInt *CI;
   if (I == E) {
@@ -426,12 +434,12 @@ static void printGEPExpression(raw_ostream &OStr, Value *Ptr, gep_type_iterator 
   VectorType *LastIndexIsVector = 0;
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-  OStr << "(";
+  fprintf(OStr, "(");
   if (LastIndexIsVector)
     printType(OStr, PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-    OStr << "&";
+    fprintf(OStr, "&");
     writeOperand(OStr, Ptr, false);
   } else {
     bool expose = isAddressExposed(Ptr);
@@ -457,48 +465,48 @@ static void printGEPExpression(raw_ostream &OStr, Value *Ptr, gep_type_iterator 
         writeOperand(OStr, Ptr, true, Static);
 next:
         if (val)
-            OStr << "+" << val;
+            fprintf(OStr, "+%ld", val);
     }
     else {
-        OStr << "&";
+        fprintf(OStr, "&");
         if (expose) {
           writeOperand(OStr, Ptr, true, Static);
         } else if (I != E && (*I)->isStructTy()) {
           writeOperand(OStr, Ptr, false);
-          OStr << "->" << fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
+          fprintf(OStr, "->%s", fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
           ++I;  // eat the struct index as well.
         } else {
-          OStr << "(";
+          fprintf(OStr, "(");
           writeOperand(OStr, Ptr, true);
-          OStr << ")";
+          fprintf(OStr, ")");
         }
     }
   }
   for (; I != E; ++I) {
     if ((*I)->isStructTy()) {
       StructType *STy = dyn_cast<StructType>(*I);
-      OStr << "." << fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+      fprintf(OStr, ".%s", fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue()));
     } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
-      OStr << '[';
+      fprintf(OStr, "[");
       writeOperand(OStr, I.getOperand(), false);
-      OStr << ']';
+      fprintf(OStr, "]");
     } else {
       if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
-        OStr << ")+(";
+        fprintf(OStr, ")+(");
         writeOperandWithCast(OStr, I.getOperand(), Instruction::GetElementPtr);
       }
-      OStr << "))";
+      fprintf(OStr, "))");
     }
   }
-  OStr << ")";
+  fprintf(OStr, ")");
 }
-static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, bool Static)
+static void printConstant(FILE *OStr, const char *prefix, Constant *CPV, bool Static)
 {
   const char *sep = " ";
   /* handle expressions */
-  OStr << prefix;
+  fprintf(OStr, "%s", prefix);
   if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
-    OStr << "(";
+    fprintf(OStr, "(");
     int op = CE->getOpcode();
     switch (op) {
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
@@ -508,12 +516,12 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
       printCast(OStr, op, CE->getOperand(0)->getType(), CE->getType());
       if (op == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
-        OStr << "0-";
+        fprintf(OStr, "0-");
       printConstant(OStr, "", CE->getOperand(0), Static);
       if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
           (op == Instruction::Trunc || op == Instruction::FPToUI ||
            op == Instruction::FPToSI || op == Instruction::PtrToInt))
-        OStr << "&1u";
+        fprintf(OStr, "&1u");
       break;
     case Instruction::GetElementPtr:
       printGEPExpression(OStr, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV), Static);
@@ -533,21 +541,20 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
     {
       printConstantWithCast(OStr, CE->getOperand(0), op, " ");
       if (op == Instruction::ICmp)
-        OStr << intmapLookup(predText, CE->getPredicate());
+        fprintf(OStr, "%s ", intmapLookup(predText, CE->getPredicate()));
       else
-        OStr << intmapLookup(opcodeMap, op);
-      OStr << " ";
+        fprintf(OStr, "%s ", intmapLookup(opcodeMap, op));
       printConstantWithCast(OStr, CE->getOperand(1), op, "");
       printConstExprCast(OStr, CE);
       break;
     }
     case Instruction::FCmp: {
       if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
-        OStr << "0";
+        fprintf(OStr, "0");
       else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
-        OStr << "1";
+        fprintf(OStr, "1");
       else {
-        OStr << "llvm_fcmp_" << intmapLookup(predText, CE->getPredicate()) << "(";
+        fprintf(OStr, "llvm_fcmp_%s(", intmapLookup(predText, CE->getPredicate()));
         printConstantWithCast(OStr, CE->getOperand(0), op, ", ");
         printConstantWithCast(OStr, CE->getOperand(1), op, ")");
       }
@@ -558,7 +565,7 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
       errs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
       llvm_unreachable(0);
     }
-    OStr << ')';
+    fprintf(OStr, ")");
     return;
   }
   ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
@@ -566,16 +573,16 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
   if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
     Type* Ty = CI->getType();
     if (Ty == Type::getInt1Ty(CPV->getContext()))
-      OStr << (CI->getZExtValue() ? '1' : '0');
+      fprintf(OStr, "%c", (CI->getZExtValue() ? '1' : '0'));
     else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32)
-      OStr << CI->getZExtValue();
+      fprintf(OStr, "%ld", CI->getZExtValue());
     else {
       printType(OStr, Ty, false, "", "((", ")");
       if (CI->isMinValue(true))
-        OStr << CI->getZExtValue();// << 'u';
+        fprintf(OStr, "%ld", CI->getZExtValue());// << 'u';
       else
-        OStr << CI->getSExtValue();
-      OStr << ')';
+        fprintf(OStr, "%ld", CI->getSExtValue());
+      fprintf(OStr, ")");
     }
     return;
   }
@@ -595,12 +602,12 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
         printString(OStr, cp, len);
         free(cp);
       } else {
-        OStr << '{';
+        fprintf(OStr, "{");
         for (unsigned i = 0, e = len; i != e; ++i) {
             printConstant(OStr, sep, cast<Constant>(CPA->getOperand(i)), Static);
             sep = ", ";
         }
-        OStr << " }";
+        fprintf(OStr, " }");
       }
     }
     else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
@@ -609,7 +616,7 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
       ERRORIF(1);
     break;
   case Type::VectorTyID:
-    OStr << '{';
+    fprintf(OStr, "{");
     if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
         for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
             printConstant(OStr, sep, cast<Constant>(CV->getOperand(i)), Static);
@@ -618,16 +625,16 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
     }
     else
       ERRORIF(1);
-    OStr << " }";
+    fprintf(OStr, " }");
     break;
   case Type::StructTyID:
-    OStr << '{';
+    fprintf(OStr, "{");
     ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
     for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
         printConstant(OStr, sep, cast<Constant>(CPV->getOperand(i)), Static);
         sep = ", ";
     }
-    OStr << " }";
+    fprintf(OStr, " }");
     break;
   case Type::PointerTyID:
     if (isa<ConstantPointerNull>(CPV))
@@ -640,7 +647,7 @@ static void printConstant(raw_ostream &OStr, const char *prefix, Constant *CPV, 
     llvm_unreachable(0);
   }
 }
-void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static)
+void writeOperand(FILE *OStr, Value *Operand, bool Indirect, bool Static)
 {
   Instruction *I = dyn_cast<Instruction>(Operand);
   bool isAddressImplicit = isAddressExposed(Operand);
@@ -648,43 +655,45 @@ void writeOperand(raw_ostream &OStr, Value *Operand, bool Indirect, bool Static)
     if (isAddressImplicit)
       isAddressImplicit = false;
     else
-      OStr << '*';
+      fprintf(OStr, "*");
   }
   if (isAddressImplicit)
-    OStr << "(&";  // Global variables are referenced as their addresses by llvm
+    fprintf(OStr, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
-      OStr << '(';
+      fprintf(OStr, "(");
       processInstruction(OStr, *I);
-      OStr << ')';
+      fprintf(OStr, ")");
   }
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
         printConstant(OStr, "", CPV, Static);
       else
-        OStr << GetValueName(Operand);
+        fprintf(OStr, "%s", GetValueName(Operand).c_str());
   }
   if (isAddressImplicit)
-    OStr << ')';
+    fprintf(OStr, ")");
 }
-void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix)
+void printFunctionSignature(FILE *OStr, const Function *F, bool Prototype, const char *postfix)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
   const char *sep = "";
-  if (F->hasLocalLinkage()) OStr << "static ";
+  if (F->hasLocalLinkage()) fprintf(OStr, "static ");
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   FunctionInnards << GetValueName(F) << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-      printType(FunctionInnards, *I, /*isSigned=*/false, "", sep, "");
+      printType(NULL, *I, /*isSigned=*/false, "", sep, "");
+      FunctionInnards << printTypeReturn;
       sep = ", ";
     }
   } else if (!F->arg_empty()) {
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
       std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-      printType(FunctionInnards, I->getType(), /*isSigned=*/false, ArgName, sep, "");
+      printType(NULL, I->getType(), /*isSigned=*/false, ArgName, sep, "");
+      FunctionInnards << printTypeReturn;
       sep = ", ";
     }
   }
@@ -697,16 +706,16 @@ void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype
 /*
  * Output instructions
  */
-void processInstruction(raw_ostream &OStr, Instruction &I)
+void processInstruction(FILE *OStr, Instruction &I)
 {
     int op = I.getOpcode();
     switch(I.getOpcode()) {
     case Instruction::Ret: {
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          OStr << "  return ";
+          fprintf(OStr, "  return ");
           if (I.getNumOperands())
             writeOperand(OStr, I.getOperand(0), false);
-          OStr << ";\n";
+          fprintf(OStr, ";\n");
         }
         }
         break;
@@ -725,34 +734,32 @@ void processInstruction(raw_ostream &OStr, Instruction &I)
           printType(OStr, I.getType(), false, "", "((", ")(");
         }
         if (BinaryOperator::isNeg(&I)) {
-          OStr << "-(";
+          fprintf(OStr, "-(");
           writeOperand(OStr, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false);
-          OStr << ")";
+          fprintf(OStr, ")");
         } else if (BinaryOperator::isFNeg(&I)) {
-          OStr << "-(";
+          fprintf(OStr, "-(");
           writeOperand(OStr, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false);
-          OStr << ")";
+          fprintf(OStr, ")");
         } else if (I.getOpcode() == Instruction::FRem) {
           if (I.getType() == Type::getFloatTy(I.getContext()))
-            OStr << "fmodf(";
+            fprintf(OStr, "fmodf(");
           else if (I.getType() == Type::getDoubleTy(I.getContext()))
-            OStr << "fmod(";
+            fprintf(OStr, "fmod(");
           else  // all 3 flavors of long double
-            OStr << "fmodl(";
+            fprintf(OStr, "fmodl(");
           writeOperand(OStr, I.getOperand(0), false);
-          OStr << ", ";
+          fprintf(OStr, ", ");
           writeOperand(OStr, I.getOperand(1), false);
-          OStr << ")";
+          fprintf(OStr, ")");
         } else {
           writeOperandWithCast(OStr, I.getOperand(0), I.getOpcode());
-          OStr << " ";
-          OStr << intmapLookup(opcodeMap, I.getOpcode());
-          OStr << " ";
+          fprintf(OStr, " %s ", intmapLookup(opcodeMap, I.getOpcode()));
           writeOperandWithCast(OStr, I.getOperand(1), I.getOpcode());
           writeInstructionCast(OStr, I);
         }
         if (needsCast) {
-          OStr << "))";
+          fprintf(OStr, "))");
         }
         }
         break;
@@ -766,18 +773,18 @@ void processInstruction(raw_ostream &OStr, Instruction &I)
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
         writeOperand(OStr, IS.getPointerOperand(), true);
-        OStr << " = ";
+        fprintf(OStr, " = ");
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         if (BitMask)
-          OStr << "((";
+          fprintf(OStr, "((");
         writeOperand(OStr, Operand, false);
         if (BitMask) {
           printConstant(OStr, ") & ", BitMask, false);
-          OStr << ")";
+          fprintf(OStr, ")");
         }
         }
         break;
@@ -793,17 +800,17 @@ void processInstruction(raw_ostream &OStr, Instruction &I)
     case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
-        OStr << '(';
+        fprintf(OStr, "(");
         printCast(OStr, op, SrcTy, DstTy);
         if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
-          OStr << "0-";
+          fprintf(OStr, "0-");
         writeOperand(OStr, I.getOperand(0), false);
         if (DstTy == Type::getInt1Ty(I.getContext()) &&
             (op == Instruction::Trunc || op == Instruction::FPToUI ||
              op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
-          OStr << "&1u";
+          fprintf(OStr, "&1u");
         }
-        OStr << ')';
+        fprintf(OStr, ")");
         }
         break;
     case Instruction::ICmp: {
@@ -811,13 +818,11 @@ void processInstruction(raw_ostream &OStr, Instruction &I)
         bool shouldCast = ICM.isRelational();
         bool typeIsSigned = ICM.isSigned();
         writeOperandWithCastICmp(OStr, I.getOperand(0), shouldCast, typeIsSigned);
-        OStr << " ";
-        OStr << intmapLookup(predText, ICM.getPredicate());
-        OStr << " ";
+        fprintf(OStr, " %s ", intmapLookup(predText, ICM.getPredicate()));
         writeOperandWithCastICmp(OStr, I.getOperand(1), shouldCast, typeIsSigned);
         writeInstructionCast(OStr, I);
         if (shouldCast)
-          OStr << "))";
+          fprintf(OStr, "))");
         }
         break;
     case Instruction::Call: {
@@ -837,20 +842,20 @@ void processInstruction(raw_ostream &OStr, Instruction &I)
             printType(OStr, ICL.getCalledValue()->getType(), false, "", "((", ")(void*)");
         }
         writeOperand(OStr, Callee, false);
-        if (RF) OStr << ')';
+        if (RF) fprintf(OStr, ")");
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        OStr << '(';
+        fprintf(OStr, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
-          OStr << sep;
+          fprintf(OStr, "%s", sep);
           if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
               printType(OStr, FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")");
           writeOperand(OStr, *AI, false);
           sep = ", ";
         }
-        OStr << ')';
+        fprintf(OStr, ")");
         }
         break;
     default:
@@ -869,7 +874,7 @@ static int processVar(const GlobalVariable *GV)
       return 0;
   return 1;
 }
-void generateCppData(raw_ostream &OStr, Module &Mod)
+void generateCppData(FILE *OStr, Module &Mod)
 {
     ArrayType *ATy;
     PointerType *PTy, *PPTy;
@@ -877,7 +882,7 @@ void generateCppData(raw_ostream &OStr, Module &Mod)
     StructType *STy, *ISTy;
     const ConstantExpr *CE;
     NextTypeID = 1;
-    OStr << "\n\n/* Global Variable Definitions and Initialization */\n";
+    fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
@@ -887,32 +892,32 @@ void generateCppData(raw_ostream &OStr, Module &Mod)
               && ATy->getElementType()->getTypeID() == Type::PointerTyID)
            && I->getInitializer()->isNullValue()) {
               if (I->hasLocalLinkage())
-                OStr << "static ";
+                fprintf(OStr, "static ");
               printType(OStr, Ty, false, GetValueName(I), "", "");
               if (!I->getInitializer()->isNullValue()) {
-                OStr << " = " ;
+                fprintf(OStr, " = " );
                 writeOperand(OStr, I->getInitializer(), false, true);
               }
-              OStr << ";\n";
+              fprintf(OStr, ";\n");
           }
         }
     }
-    OStr << "\n\n//******************** vtables for Classes *******************\n";
+    fprintf(OStr, "\n\n//******************** vtables for Classes *******************\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (processVar(I)) {
           Type *Ty = I->getType()->getElementType();
           if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
            && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
               if (I->hasLocalLinkage())
-                OStr << "static ";
+                fprintf(OStr, "static ");
               printType(OStr, Ty, false, GetValueName(I), "", "");
               if (!I->getInitializer()->isNullValue()) {
-                OStr << " = " ;
+                fprintf(OStr, " = " );
                 Constant* CPV = dyn_cast<Constant>(I->getInitializer());
                 if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
                     Type *ETy = CA->getType()->getElementType();
                     ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
-                    OStr << '{';
+                    fprintf(OStr, "{");
                     const char *sep = " ";
                     if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
                      && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
@@ -926,16 +931,16 @@ void generateCppData(raw_ostream &OStr, Module &Mod)
                           sep = ", ";
                         }
                     else
-                        OStr << 0;
-                    OStr << " }";
+                        fprintf(OStr, "0");
+                    fprintf(OStr, " }");
                 }
               }
-              OStr << ";\n";
+              fprintf(OStr, ";\n");
           }
     }
 }
 
-static void printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
+static void printContainedStructs(Type *Ty, FILE *OStr)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
     if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
@@ -944,26 +949,26 @@ static void printContainedStructs(Type *Ty, raw_fd_ostream &OStr)
             printContainedStructs(*I, OStr);
         if (StructType *STy = dyn_cast<StructType>(Ty)) {
             std::string name = getStructName(STy);
-            OStr << "typedef struct " << name << " {\n";
+            fprintf(OStr, "typedef struct %s {\n", name.c_str());
             unsigned Idx = 0;
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
               printType(OStr, *I, false, fieldName(STy, Idx++), "  ", ";\n");
-            OStr << "} " << name << ";\n\n";
+            fprintf(OStr, "} %s;\n\n", name.c_str());
         }
     }
 }
-void generateCppHeader(Module &Mod, raw_fd_ostream &OStr)
+void generateCppHeader(Module &Mod, FILE *OStr)
 {
     structWork_run = 1;
     while (structWork.begin() != structWork.end()) {
         printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
-    OStr << "\n/* External Global Variable Declarations */\n";
+    fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
           printType(OStr, I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n");
-    OStr << "\n/* Function Declarations */\n";
+    fprintf(OStr, "\n/* Function Declarations */\n");
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"

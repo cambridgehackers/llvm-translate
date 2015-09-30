@@ -124,11 +124,11 @@ class CallProcessPass : public BasicBlockPass {
 };
 
 class GeneratePass : public ModulePass {
-    raw_fd_ostream &Out;
-    raw_fd_ostream &OutHeader;
+    FILE *Out;
+    FILE *OutHeader;
   public:
     static char ID;
-    GeneratePass(raw_fd_ostream &o, raw_fd_ostream &oh) : ModulePass(ID), Out(o), OutHeader(oh) { }
+    GeneratePass(FILE *o, FILE *oh) : ModulePass(ID), Out(o), OutHeader(oh) { }
     bool runOnModule(Module &M);
 };
 
@@ -174,11 +174,11 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);
-void generateCppData(raw_ostream &OStr, Module &Mod);
-void generateCppHeader(Module &Mod, raw_fd_ostream &OStr);
-void processInstruction(raw_ostream &OStr, Instruction &I);
-void printFunctionSignature(raw_ostream &OStr, const Function *F, bool Prototype, const char *postfix);
+void generateCppData(FILE *OStr, Module &Mod);
+void generateCppHeader(Module &Mod, FILE *OStr);
+void processInstruction(FILE *OStr, Instruction &I);
+void printFunctionSignature(FILE *OStr, const Function *F, bool Prototype, const char *postfix);
 std::string GetValueName(const Value *Operand);
-void printType(raw_ostream &OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
+void printType(FILE *OStr, Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 bool isInlinableInst(const Instruction &I);
 const AllocaInst *isDirectAlloca(const Value *V);

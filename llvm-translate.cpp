@@ -105,8 +105,8 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         }
     }
 
-    raw_fd_ostream Outc_fd("foo.tmp.xc", ErrorMsg);
-    raw_fd_ostream Outch_fd("foo.tmp.h", ErrorMsg);
+    FILE *Outc_fd = fopen("foo.tmp.xc", "w");
+    FILE *Outch_fd = fopen("foo.tmp.h", "w");
 
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());

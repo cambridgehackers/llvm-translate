@@ -150,7 +150,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile, raw_ostream &OStr)
+static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile, FILE *OStr)
 {
     Function *F = work.thisp[0][work.f];
     const char *guardName = NULL;
@@ -277,11 +277,11 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile, r
         fprintf(outputFile, "end;\n");
 }
 #if 0
-static void processCFunction(raw_ostream &OStr, VTABLE_WORK &work)
+static void processCFunction(FILE *OStr, VTABLE_WORK &work)
 {
     Function *F = work.thisp[0][work.f];
 #else
-static void processCFunction(raw_ostream &OStr, Function *F)
+static void processCFunction(FILE *OStr, Function *F)
 {
 #endif
     NextAnonValueNumber = 0;
@@ -291,23 +291,23 @@ static void processCFunction(raw_ostream &OStr, Function *F)
           if (const AllocaInst *AI = isDirectAlloca(&*II))
             printType(OStr, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
           else if (!isInlinableInst(*II)) {
-            OStr << "    ";
+            fprintf(OStr, "    ");
             if (II->getType() != Type::getVoidTy(BB->getContext()))
                 printType(OStr, II->getType(), false, GetValueName(&*II), "", " = ");
             processInstruction(OStr, *II);
-            OStr << ";\n";
+            fprintf(OStr, ";\n");
           }
         }
         processInstruction(OStr, *BB->getTerminator());
     }
-    OStr << "}\n\n";
+    fprintf(OStr, "}\n\n");
 }
 
 /*
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, int generate, FILE *outputFile, raw_ostream &OStr)
+static void processRules(Function ***modp, int generate, FILE *outputFile, FILE *OStr)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
