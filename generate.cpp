@@ -224,7 +224,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
          || MI != funcSeen.end())
             return; // MI->second->name;
         funcSeen[func] = 1;
-        printFunctionSignature(outputFile, func, false, " {\n");
+        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n"));
     }
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
@@ -258,18 +258,23 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 prepareOperand(ins->getOperand(i));
 #if 1
             if (generate == 2) {
+                static char cbuffer[10000];
+                cbuffer[0] = 0;
                 if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                  printType(outputFile, AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                  strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
                 else if (!isInlinableInst(*ins)) {
                   if (next_ins != ins_end) {
-                      fprintf(outputFile, "    ");
+                      strcat(cbuffer, "    ");
                       if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                          printType(outputFile, ins->getType(), false, GetValueName(&*ins), "", " = ");
+                          strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                   }
-                  processInstruction(outputFile, *ins);
+                  char *p = processInstruction(*ins);
+                  if (p)
+                      strcat(cbuffer, p);
                   if (next_ins != ins_end)
-                      fprintf(outputFile, ";\n");
+                      strcat(cbuffer, ";\n");
                 }
+                fprintf(outputFile, "%s", cbuffer);
             }
             else
 #endif
