@@ -442,11 +442,8 @@ static char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterat
     char cbuffer[10000];
     cbuffer[0] = 0;
   ConstantInt *CI;
-  if (I == E) {
-    strcat(cbuffer, writeOperand(Ptr, false));
-    goto exitlab;
-  }
-  {
+  if (I == E)
+    return writeOperand(Ptr, false);
   VectorType *LastIndexIsVector = 0;
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
@@ -520,8 +517,6 @@ next:
     }
   }
   strcat(cbuffer, ")");
-  }
-exitlab:
     return strdup(cbuffer);
 }
 static char *printConstant(const char *prefix, Constant *CPV, bool Static)
