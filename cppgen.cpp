@@ -1027,7 +1027,7 @@ char *writeOperand(Value *Operand, bool Indirect, bool Static)
       strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       strcat(cbuffer, "(");
-      strcat(cbuffer, processCInstruction(NULL, *I));
+      strcat(cbuffer, processInstruction(NULL, I, 2));
       strcat(cbuffer, ")");
   }
   else {
