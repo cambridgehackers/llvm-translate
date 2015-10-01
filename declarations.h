@@ -176,7 +176,7 @@ void adjustModuleSizes(Module *Mod);
 bool endswith(const char *str, const char *suffix);
 void generateCppData(FILE *OStr, Module &Mod);
 void generateCppHeader(Module &Mod, FILE *OStr);
-const char *processInstruction(Function ***thisp, Instruction &I);
+const char *processCInstruction(Function ***thisp, Instruction &I);
 char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix);
 std::string GetValueName(const Value *Operand);
 char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);

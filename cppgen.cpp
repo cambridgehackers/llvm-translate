@@ -49,7 +49,7 @@ static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 /*
  * Output instructions
  */
-const char *processInstruction(Function ***thisp, Instruction &I)
+const char *processCInstruction(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
     int dump_operands = trace_full;
@@ -1027,7 +1027,7 @@ char *writeOperand(Value *Operand, bool Indirect, bool Static)
       strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       strcat(cbuffer, "(");
-      strcat(cbuffer, processInstruction(NULL, *I));
+      strcat(cbuffer, processCInstruction(NULL, *I));
       strcat(cbuffer, ")");
   }
   else {

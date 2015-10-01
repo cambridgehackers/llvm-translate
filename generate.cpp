@@ -350,7 +350,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 cbuffer[0] = 0;
                 if (generate == 2) {
                     if (!isInlinableInst(*ins)) {
-                        strcat(cbuffer, processInstruction(work.thisp, *ins));
+                        strcat(cbuffer, processCInstruction(work.thisp, *ins));
                         if (cbuffer[0]) {
                             strcat(cbuffer, ";\n");
                             vout = cbuffer;
