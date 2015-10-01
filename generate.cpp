@@ -296,33 +296,14 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
-#if 0
-            if (generate == 2) {
-                static char cbuffer[10000];
-                cbuffer[0] = 0;
-                if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                  strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
-                else if (!isInlinableInst(*ins)) {
-                  if (next_ins != ins_end) {
-                      strcat(cbuffer, "    ");
-                      if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                          strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
-                  }
-                  strcat(cbuffer, processInstruction(work.thisp, *ins));
-                  if (next_ins != ins_end)
-                      strcat(cbuffer, ";\n");
-                }
-                fprintf(outputFile, "%s", cbuffer);
-            }
-            else
-#endif
+            if (generate == 2 && !isInlinableInst(*ins) && !isDirectAlloca(&*ins)
+             && ins->getType() != Type::getVoidTy(BB->getContext()))
+                fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
                 if (generate == 2) {
                     if (!isInlinableInst(*ins)) {
-                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                              fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                     GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
                     fprintf(outputFile, "        %s;\n", printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
                     }
@@ -344,8 +325,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 {
                 if (generate == 2) {
                     if (!isInlinableInst(*ins)) {
-                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                              fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                     LoadInst &IL = static_cast<LoadInst&>(*ins);
                     ERRORIF (IL.isVolatile());
                     fprintf(outputFile, "        %s;\n", writeOperand(ins->getOperand(0), true));
@@ -373,14 +352,9 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                     if (const AllocaInst *AI = isDirectAlloca(&*ins))
                       strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
                     else if (!isInlinableInst(*ins)) {
-                      if (next_ins != ins_end) {
-                          strcat(cbuffer, "    ");
-                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
-                              strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
-                      }
+                      strcat(cbuffer, "    ");
                       strcat(cbuffer, processInstruction(work.thisp, *ins));
-                      if (next_ins != ins_end)
-                          strcat(cbuffer, ";\n");
+                      strcat(cbuffer, ";\n");
                     }
                     //vout = cbuffer;
                     fprintf(outputFile, "%s", cbuffer);
