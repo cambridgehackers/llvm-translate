@@ -296,7 +296,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
-#if 1
+#if 0
             if (generate == 2) {
                 static char cbuffer[10000];
                 cbuffer[0] = 0;
@@ -320,8 +320,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             case Instruction::GetElementPtr:
                 {
                 if (generate == 2) {
+                    if (!isInlinableInst(*ins)) {
+                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                              fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                     GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-                    fprintf(outputFile, "        %s\n", printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+                    fprintf(outputFile, "        %s;\n", printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+                    }
                     break;
                 }
                 uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
@@ -339,9 +343,13 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             case Instruction::Load:
                 {
                 if (generate == 2) {
+                    if (!isInlinableInst(*ins)) {
+                          if (ins->getType() != Type::getVoidTy(BB->getContext()))
+                              fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                     LoadInst &IL = static_cast<LoadInst&>(*ins);
                     ERRORIF (IL.isVolatile());
-                    fprintf(outputFile, "        %s\n", writeOperand(ins->getOperand(0), true));
+                    fprintf(outputFile, "        %s;\n", writeOperand(ins->getOperand(0), true));
+                    }
                     break;
                 }
                 slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
@@ -374,7 +382,8 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                       if (next_ins != ins_end)
                           strcat(cbuffer, ";\n");
                     }
-                    vout = cbuffer;
+                    //vout = cbuffer;
+                    fprintf(outputFile, "%s", cbuffer);
                 }
                 else
                     vout = generate ? generateVerilog(work.thisp, *ins)
@@ -391,6 +400,11 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 }
                 break;
             case Instruction::Alloca: // ignore
+                if (generate == 2) {
+                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
+                      fprintf(outputFile, "%s", printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
+                }
+                else
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
             }
