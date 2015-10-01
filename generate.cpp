@@ -209,6 +209,88 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
     return rv;
 }
 
+const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
+{
+    char cbuffer[10000];
+    const char *vout = NULL;
+            switch (ins->getOpcode()) {
+            case Instruction::GetElementPtr:
+                {
+                if (generate == 2) {
+                    if (!isInlinableInst(*ins)) {
+                    GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
+                    vout = printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
+                    }
+                    break;
+                }
+                uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
+                if (!slotarray[operand_list[1].value].svalue) {
+                    printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
+                    break;
+                    exit(1);
+                }
+                uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+                slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
+                slotarray[operand_list[0].value].svalue = ptr;
+                slotarray[operand_list[0].value].offset = Total;
+                }
+                break;
+            case Instruction::Load:
+                {
+                if (generate == 2) {
+                    if (!isInlinableInst(*ins)) {
+                    LoadInst &IL = static_cast<LoadInst&>(*ins);
+                    ERRORIF (IL.isVolatile());
+                    vout = writeOperand(ins->getOperand(0), true);
+                    }
+                    break;
+                }
+                slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+                PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
+                if(!Ptr) {
+                    printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+                    if (!slotarray[operand_list[0].value].svalue)
+                        operand_list[0].type = OpTypeInt;
+                    break;
+                }
+                slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
+                slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
+                }
+                break;
+            default:
+                {
+                static char cbuffer[10000];
+                cbuffer[0] = 0;
+                if (generate == 2) {
+                    if (!isInlinableInst(*ins)) {
+                        strcat(cbuffer, processCInstruction(thisp, *ins));
+                        if (cbuffer[0]) {
+                            strcat(cbuffer, ";\n");
+                            return cbuffer;
+                        }
+                    }
+                }
+                else
+                    return generate ? generateVerilog(thisp, *ins)
+                                    : calculateGuardUpdate(thisp, *ins);
+                }
+                break;
+            case Instruction::Alloca: // ignore
+                if (generate == 2) {
+                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
+                      vout = printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                }
+                else
+                memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
+                break;
+            }
+    if (vout) {
+        sprintf(cbuffer, "        %s;\n", vout);
+        return strdup(cbuffer);
+    }
+    return "";
+}
+
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
@@ -299,86 +381,15 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             if (generate == 2 && !isInlinableInst(*ins) && !isDirectAlloca(&*ins)
              && ins->getType() != Type::getVoidTy(BB->getContext()))
                 fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
-            switch (ins->getOpcode()) {
-            case Instruction::GetElementPtr:
-                {
-                if (generate == 2) {
-                    if (!isInlinableInst(*ins)) {
-                    GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-                    fprintf(outputFile, "        %s;\n", printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
-                    }
-                    break;
+            const char *vout = processInstruction(work.thisp, ins, generate);
+            if (vout) {
+                if (generate != 2 && !already_printed_header) {
+                    fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
+                    if (guardName)
+                        fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
                 }
-                uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
-                if (!slotarray[operand_list[1].value].svalue) {
-                    printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
-                    break;
-                    exit(1);
-                }
-                uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-                slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
-                slotarray[operand_list[0].value].svalue = ptr;
-                slotarray[operand_list[0].value].offset = Total;
-                }
-                break;
-            case Instruction::Load:
-                {
-                if (generate == 2) {
-                    if (!isInlinableInst(*ins)) {
-                    LoadInst &IL = static_cast<LoadInst&>(*ins);
-                    ERRORIF (IL.isVolatile());
-                    fprintf(outputFile, "        %s;\n", writeOperand(ins->getOperand(0), true));
-                    }
-                    break;
-                }
-                slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-                PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-                if(!Ptr) {
-                    printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-                    if (!slotarray[operand_list[0].value].svalue)
-                        operand_list[0].type = OpTypeInt;
-                    break;
-                }
-                slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
-                slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
-                }
-                break;
-            default:
-                {
-                const char *vout = NULL;
-                static char cbuffer[10000];
-                cbuffer[0] = 0;
-                if (generate == 2) {
-                    if (!isInlinableInst(*ins)) {
-                        strcat(cbuffer, processCInstruction(work.thisp, *ins));
-                        if (cbuffer[0]) {
-                            strcat(cbuffer, ";\n");
-                            vout = cbuffer;
-                        }
-                    }
-                }
-                else
-                    vout = generate ? generateVerilog(work.thisp, *ins)
-                                    : calculateGuardUpdate(work.thisp, *ins);
-                if (vout) {
-                    if (generate != 2 && !already_printed_header) {
-                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
-                        if (guardName)
-                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
-                    }
-                    already_printed_header = 1;
-                    fprintf(outputFile, "        %s\n", vout);
-                }
-                }
-                break;
-            case Instruction::Alloca: // ignore
-                if (generate == 2) {
-                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                      fprintf(outputFile, "%s", printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
-                }
-                else
-                memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
-                break;
+                already_printed_header = 1;
+                fprintf(outputFile, "        %s\n", vout);
             }
             if (trace_translate)
                 printf("\n");

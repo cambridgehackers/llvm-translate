@@ -185,3 +185,4 @@ const AllocaInst *isDirectAlloca(const Value *V);
 void recursiveDelete(Value *V);
 char *writeOperand(Value *Operand, bool Indirect, bool Static = false);
 char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
+const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
