@@ -349,15 +349,13 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 static char cbuffer[10000];
                 cbuffer[0] = 0;
                 if (generate == 2) {
-                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                      strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
-                    else if (!isInlinableInst(*ins)) {
-                      strcat(cbuffer, "    ");
-                      strcat(cbuffer, processInstruction(work.thisp, *ins));
-                      strcat(cbuffer, ";\n");
+                    if (!isInlinableInst(*ins)) {
+                        strcat(cbuffer, processInstruction(work.thisp, *ins));
+                        if (cbuffer[0]) {
+                            strcat(cbuffer, ";\n");
+                            vout = cbuffer;
+                        }
                     }
-                    //vout = cbuffer;
-                    fprintf(outputFile, "%s", cbuffer);
                 }
                 else
                     vout = generate ? generateVerilog(work.thisp, *ins)
