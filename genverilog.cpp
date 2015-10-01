@@ -36,9 +36,8 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     static char vout[MAX_CHAR_BUFFER];
     int dump_operands = trace_full;
     int opcode = I.getOpcode();
-
     vout[0] = 0;
-    switch (opcode) {
+    switch(opcode) {
     // Terminators
     case Instruction::Ret:
         if (I.getParent()->getParent()->getReturnType()->getTypeID()
@@ -92,8 +91,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
     case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
     // Logical operators...
-    case Instruction::And: case Instruction::Or: case Instruction::Xor:
-        {
+    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
         const char *op1 = getParam(1), *op2 = getParam(2);
         char temp[MAX_CHAR_BUFFER];
         sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(opcodeMap, opcode), op2);
@@ -106,13 +104,14 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         break;
 
     // Memory instructions...
-    case Instruction::Store:
+    case Instruction::Store: {
         if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
             operand_list[1].type = OpTypeInt;
         if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
             sprintf(vout, "%s = %s;", getParam(2), getParam(1));
         else
             slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
+        }
         break;
     //case Instruction::AtomicCmpXchg:
     //case Instruction::AtomicRMW:
@@ -120,17 +119,18 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
 
     // Convert instructions...
     //case Instruction::SExt:
-    //case Instruction::FPTrunc: //case Instruction::FPExt:
-    //case Instruction::FPToUI: //case Instruction::FPToSI:
-    //case Instruction::UIToFP: //case Instruction::SIToFP:
-    //case Instruction::IntToPtr: //case Instruction::PtrToInt:
+    //case Instruction::FPTrunc: case Instruction::FPExt:
+    //case Instruction::FPToUI: case Instruction::FPToSI:
+    //case Instruction::UIToFP: case Instruction::SIToFP:
+    //case Instruction::IntToPtr: case Instruction::PtrToInt:
     //case Instruction::AddrSpaceCast:
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
+    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
             exit(1);
         }
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+        }
         break;
 
     // Other instructions...

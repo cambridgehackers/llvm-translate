@@ -117,9 +117,9 @@ const char *processInstruction(Function ***thisp, Instruction &I)
     //case Instruction::IndirectBr:
     //case Instruction::Invoke:
     //case Instruction::Resume:
-//    case Instruction::Unreachable:
-//        break;
-//
+    case Instruction::Unreachable:
+        break;
+
     // Standard binary operators...
     case Instruction::Add: case Instruction::FAdd:
     case Instruction::Sub: case Instruction::FSub:
@@ -177,6 +177,7 @@ const char *processInstruction(Function ***thisp, Instruction &I)
 //        slotarray[operand_list[0].value].name = strdup(temp);
         }
         break;
+
     // Memory instructions...
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
@@ -209,10 +210,10 @@ const char *processInstruction(Function ***thisp, Instruction &I)
 
     // Convert instructions...
     case Instruction::SExt:
-    case Instruction::FPTrunc: //case Instruction::FPExt:
-    case Instruction::FPToUI: //case Instruction::FPToSI:
-    case Instruction::UIToFP: //case Instruction::SIToFP:
-    case Instruction::IntToPtr: //case Instruction::PtrToInt:
+    case Instruction::FPTrunc: case Instruction::FPExt:
+    case Instruction::FPToUI: case Instruction::FPToSI:
+    case Instruction::UIToFP: case Instruction::SIToFP:
+    case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         Type *DstTy = I.getType();
@@ -235,6 +236,7 @@ const char *processInstruction(Function ***thisp, Instruction &I)
 //        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
         }
         break;
+
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
