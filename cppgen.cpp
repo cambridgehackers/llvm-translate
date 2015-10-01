@@ -742,16 +742,18 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
  */
 const char *processInstruction(Function ***thisp, Instruction &I)
 {
-    char cbuffer[10000];
-    cbuffer[0] = 0;
-    int op = I.getOpcode();
-    switch(I.getOpcode()) {
+    char vout[MAX_CHAR_BUFFER];
+    int dump_operands = trace_full;
+    int opcode = I.getOpcode();
+    vout[0] = 0;
+    switch(opcode) {
+#if 1
     case Instruction::Ret: {
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          strcat(cbuffer, "  return ");
+          strcat(vout, "  return ");
           if (I.getNumOperands())
-            strcat(cbuffer, writeOperand(I.getOperand(0), false));
-          strcat(cbuffer, ";\n");
+            strcat(vout, writeOperand(I.getOperand(0), false));
+          strcat(vout, ";\n");
         }
         }
         break;
@@ -767,68 +769,68 @@ const char *processInstruction(Function ***thisp, Instruction &I)
          || I.getType() == Type::getInt16Ty(I.getContext())
          || I.getType() == Type::getFloatTy(I.getContext())) {
           needsCast = true;
-          strcat(cbuffer, printType(I.getType(), false, "", "((", ")("));
+          strcat(vout, printType(I.getType(), false, "", "((", ")("));
         }
         if (BinaryOperator::isNeg(&I)) {
-          strcat(cbuffer, "-(");
-          strcat(cbuffer, writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(cbuffer, ")");
+          strcat(vout, "-(");
+          strcat(vout, writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, ")");
         } else if (BinaryOperator::isFNeg(&I)) {
-          strcat(cbuffer, "-(");
-          strcat(cbuffer, writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(cbuffer, ")");
+          strcat(vout, "-(");
+          strcat(vout, writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, ")");
         } else if (I.getOpcode() == Instruction::FRem) {
           if (I.getType() == Type::getFloatTy(I.getContext()))
-            strcat(cbuffer, "fmodf(");
+            strcat(vout, "fmodf(");
           else if (I.getType() == Type::getDoubleTy(I.getContext()))
-            strcat(cbuffer, "fmod(");
+            strcat(vout, "fmod(");
           else  // all 3 flavors of long double
-            strcat(cbuffer, "fmodl(");
-          strcat(cbuffer, writeOperand(I.getOperand(0), false));
-          strcat(cbuffer, ", ");
-          strcat(cbuffer, writeOperand(I.getOperand(1), false));
-          strcat(cbuffer, ")");
+            strcat(vout, "fmodl(");
+          strcat(vout, writeOperand(I.getOperand(0), false));
+          strcat(vout, ", ");
+          strcat(vout, writeOperand(I.getOperand(1), false));
+          strcat(vout, ")");
         } else {
-          strcat(cbuffer, writeOperandWithCast(I.getOperand(0), I.getOpcode()));
-          strcat(cbuffer, " ");
-          strcat(cbuffer, intmapLookup(opcodeMap, I.getOpcode()));
-          strcat(cbuffer, " ");
-          strcat(cbuffer, writeOperandWithCast(I.getOperand(1), I.getOpcode()));
-          strcat(cbuffer, writeInstructionCast(I));
+          strcat(vout, writeOperandWithCast(I.getOperand(0), I.getOpcode()));
+          strcat(vout, " ");
+          strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
+          strcat(vout, " ");
+          strcat(vout, writeOperandWithCast(I.getOperand(1), I.getOpcode()));
+          strcat(vout, writeInstructionCast(I));
         }
         if (needsCast) {
-          strcat(cbuffer, "))");
+          strcat(vout, "))");
         }
         }
         break;
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
-        strcat(cbuffer, writeOperand(I.getOperand(0), true));
+        strcat(vout, writeOperand(I.getOperand(0), true));
         }
         break;
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        strcat(cbuffer, writeOperand(IS.getPointerOperand(), true));
-        strcat(cbuffer, " = ");
+        strcat(vout, writeOperand(IS.getPointerOperand(), true));
+        strcat(vout, " = ");
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         if (BitMask)
-          strcat(cbuffer, "((");
-        strcat(cbuffer, writeOperand(Operand, false));
+          strcat(vout, "((");
+        strcat(vout, writeOperand(Operand, false));
         if (BitMask) {
-          strcat(cbuffer, printConstant(") & ", BitMask, false));
-          strcat(cbuffer, ")");
+          strcat(vout, printConstant(") & ", BitMask, false));
+          strcat(vout, ")");
         }
         }
         break;
     case Instruction::GetElementPtr: {
         GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        strcat(cbuffer, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
         }
         break;
     case Instruction::Trunc:
@@ -838,31 +840,31 @@ const char *processInstruction(Function ***thisp, Instruction &I)
     case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
-        strcat(cbuffer, "(");
-        strcat(cbuffer, printCast(op, SrcTy, DstTy));
-        if (SrcTy == Type::getInt1Ty(I.getContext()) && op == Instruction::SExt)
-          strcat(cbuffer, "0-");
-        strcat(cbuffer, writeOperand(I.getOperand(0), false));
+        strcat(vout, "(");
+        strcat(vout, printCast(opcode, SrcTy, DstTy));
+        if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
+          strcat(vout, "0-");
+        strcat(vout, writeOperand(I.getOperand(0), false));
         if (DstTy == Type::getInt1Ty(I.getContext()) &&
-            (op == Instruction::Trunc || op == Instruction::FPToUI ||
-             op == Instruction::FPToSI || op == Instruction::PtrToInt)) {
-          strcat(cbuffer, "&1u");
+            (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
+             opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
+          strcat(vout, "&1u");
         }
-        strcat(cbuffer, ")");
+        strcat(vout, ")");
         }
         break;
     case Instruction::ICmp: {
         ICmpInst &ICM = static_cast<ICmpInst&>(I);
         bool shouldCast = ICM.isRelational();
         bool typeIsSigned = ICM.isSigned();
-        strcat(cbuffer, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
-        strcat(cbuffer, " ");
-        strcat(cbuffer, intmapLookup(predText, ICM.getPredicate()));
-        strcat(cbuffer, " ");
-        strcat(cbuffer, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
-        strcat(cbuffer, writeInstructionCast(I));
+        strcat(vout, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
+        strcat(vout, " ");
+        strcat(vout, intmapLookup(predText, ICM.getPredicate()));
+        strcat(vout, " ");
+        strcat(vout, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
+        strcat(vout, writeInstructionCast(I));
         if (shouldCast)
-          strcat(cbuffer, "))");
+          strcat(vout, "))");
         }
         break;
     case Instruction::Call: {
@@ -879,32 +881,34 @@ const char *processInstruction(Function ***thisp, Instruction &I)
         Function *RF = NULL;
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
             Callee = RF;
-            strcat(cbuffer, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
+            strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
         }
-        strcat(cbuffer, writeOperand(Callee, false));
+        strcat(vout, writeOperand(Callee, false));
         if (RF)
-            strcat(cbuffer, ")");
+            strcat(vout, ")");
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        strcat(cbuffer, "(");
+        strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
-            strcat(cbuffer, sep);
+            strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-                strcat(cbuffer, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            strcat(cbuffer, writeOperand(*AI, false));
+                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
+            strcat(vout, writeOperand(*AI, false));
             sep = ", ";
         }
-        strcat(cbuffer, ")");
+        strcat(vout, ")");
         vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
         }
         break;
     default:
         errs() << "C Writer does not know about " << I;
         llvm_unreachable(0);
+#else
+#endif
     }
-    return strdup(cbuffer);
+    return strdup(vout);
 }
 /*
  * Pass control functions
