@@ -211,15 +211,13 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
 {
-    char cbuffer[10000];
-    const char *vout = NULL;
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
                 if (generate == 2) {
                     if (!isInlinableInst(*ins)) {
                     GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-                    vout = printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
+                    return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
                     }
                     break;
                 }
@@ -241,7 +239,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
                     if (!isInlinableInst(*ins)) {
                     LoadInst &IL = static_cast<LoadInst&>(*ins);
                     ERRORIF (IL.isVolatile());
-                    vout = writeOperand(ins->getOperand(0), true);
+                    return writeOperand(ins->getOperand(0), true);
                     }
                     break;
                 }
@@ -259,17 +257,8 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
                 break;
             default:
                 {
-                static char cbuffer[10000];
-                cbuffer[0] = 0;
-                if (generate == 2) {
-                    if (!isInlinableInst(*ins)) {
-                        strcat(cbuffer, processCInstruction(thisp, *ins));
-                        if (cbuffer[0]) {
-                            strcat(cbuffer, ";\n");
-                            return cbuffer;
-                        }
-                    }
-                }
+                if (generate == 2)
+                    return processCInstruction(thisp, *ins);
                 else
                     return generate ? generateVerilog(thisp, *ins)
                                     : calculateGuardUpdate(thisp, *ins);
@@ -278,16 +267,12 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
             case Instruction::Alloca: // ignore
                 if (generate == 2) {
                     if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                      vout = printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+                      return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
                 }
                 else
                 memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
                 break;
             }
-    if (vout) {
-        sprintf(cbuffer, "        %s;\n", vout);
-        return strdup(cbuffer);
-    }
     return "";
 }
 
@@ -381,15 +366,23 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             if (generate == 2 && !isInlinableInst(*ins) && !isDirectAlloca(&*ins)
              && ins->getType() != Type::getVoidTy(BB->getContext()))
                 fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
+            if (generate != 2 || !isInlinableInst(*ins)) {
             const char *vout = processInstruction(work.thisp, ins, generate);
             if (vout) {
-                if (generate != 2 && !already_printed_header) {
-                    fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
-                    if (guardName)
-                        fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
+                if (generate == 2) {
+                    if (strcmp(vout, ""))
+                        fprintf(outputFile, "        %s;\n", vout);
                 }
-                already_printed_header = 1;
-                fprintf(outputFile, "        %s\n", vout);
+                else {
+                    if (!already_printed_header) {
+                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
+                        if (guardName)
+                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
+                    }
+                    already_printed_header = 1;
+                    fprintf(outputFile, "        %s\n", vout);
+                }
+            }
             }
             if (trace_translate)
                 printf("\n");
