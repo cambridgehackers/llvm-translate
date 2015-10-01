@@ -319,6 +319,11 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             switch (ins->getOpcode()) {
             case Instruction::GetElementPtr:
                 {
+                if (generate == 2) {
+                    GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
+                    fprintf(outputFile, "        %s\n", printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+                    break;
+                }
                 uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
                 if (!slotarray[operand_list[1].value].svalue) {
                     printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
@@ -333,6 +338,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 break;
             case Instruction::Load:
                 {
+                if (generate == 2) {
+                    LoadInst &IL = static_cast<LoadInst&>(*ins);
+                    ERRORIF (IL.isVolatile());
+                    fprintf(outputFile, "        %s\n", writeOperand(ins->getOperand(0), true));
+                    break;
+                }
                 slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
                 PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
                 if(!Ptr) {
@@ -351,7 +362,6 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                 static char cbuffer[10000];
                 cbuffer[0] = 0;
                 if (generate == 2) {
-#if 0
                     if (const AllocaInst *AI = isDirectAlloca(&*ins))
                       strcat(cbuffer, printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n"));
                     else if (!isInlinableInst(*ins)) {
@@ -365,13 +375,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                           strcat(cbuffer, ";\n");
                     }
                     vout = cbuffer;
-#endif
                 }
                 else
                     vout = generate ? generateVerilog(work.thisp, *ins)
                                     : calculateGuardUpdate(work.thisp, *ins);
                 if (vout) {
-                    if (!already_printed_header) {
+                    if (generate != 2 && !already_printed_header) {
                         fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
                         if (guardName)
                             fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);

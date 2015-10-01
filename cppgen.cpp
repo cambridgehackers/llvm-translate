@@ -41,8 +41,6 @@ unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
 static char *printConstant(const char *prefix, Constant *CPV, bool Static);
-static char *writeOperand(Value *Operand, bool Indirect, bool Static = false);
-static char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
 static char *writeOperandWithCast(Value* Operand, unsigned Opcode);
 static char *writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
 static const char *writeInstructionCast(const Instruction &I);
@@ -58,15 +56,16 @@ const char *processInstruction(Function ***thisp, Instruction &I)
     int opcode = I.getOpcode();
     vout[0] = 0;
     switch(opcode) {
+    /* used in recursive calls!!*/
+    case Instruction::GetElementPtr: {
+        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
+        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+        }
+        break;
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
         strcat(vout, writeOperand(I.getOperand(0), true));
-        }
-        break;
-    case Instruction::GetElementPtr: {
-        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
         }
         break;
     // Terminators
@@ -770,7 +769,7 @@ static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 exitlab:
     return strdup(cbuffer);
 }
-static char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
+char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
