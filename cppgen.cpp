@@ -810,8 +810,9 @@ const char *processInstruction(Function ***thisp, Instruction &I)
 //        break;
 //
     // Standard binary operators...
-    case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
-    case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
+    case Instruction::Add: case Instruction::FAdd:
+    case Instruction::Sub: case Instruction::FSub:
+    case Instruction::Mul: case Instruction::FMul:
     case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
     case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
@@ -896,11 +897,13 @@ const char *processInstruction(Function ***thisp, Instruction &I)
     //case Instruction::Fence:
 
     // Convert instructions...
-    case Instruction::Trunc:
-    case Instruction::ZExt: case Instruction::SExt: case Instruction::FPToUI:
-    case Instruction::FPToSI: case Instruction::UIToFP: case Instruction::SIToFP:
-    case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::PtrToInt:
-    case Instruction::IntToPtr: case Instruction::BitCast: case Instruction::AddrSpaceCast: {
+    case Instruction::SExt:
+    case Instruction::FPTrunc: //case Instruction::FPExt:
+    case Instruction::FPToUI: //case Instruction::FPToSI:
+    case Instruction::UIToFP: //case Instruction::SIToFP:
+    case Instruction::IntToPtr: //case Instruction::PtrToInt:
+    case Instruction::AddrSpaceCast:
+    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
         strcat(vout, "(");
@@ -914,22 +917,21 @@ const char *processInstruction(Function ***thisp, Instruction &I)
           strcat(vout, "&1u");
         }
         strcat(vout, ")");
-        }
 //        if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
 //            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 //            exit(1);
 //        }
 //        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+        }
         break;
     // Other instructions...
-    case Instruction::ICmp: {
-//    case Instruction::ICmp: case Instruction::FCmp:
-        ICmpInst &ICM = static_cast<ICmpInst&>(I);
-        bool shouldCast = ICM.isRelational();
-        bool typeIsSigned = ICM.isSigned();
+    case Instruction::ICmp: case Instruction::FCmp: {
+        ICmpInst &CI = static_cast<ICmpInst&>(I);
+        bool shouldCast = CI.isRelational();
+        bool typeIsSigned = CI.isSigned();
         strcat(vout, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
         strcat(vout, " ");
-        strcat(vout, intmapLookup(predText, ICM.getPredicate()));
+        strcat(vout, intmapLookup(predText, CI.getPredicate()));
         strcat(vout, " ");
         strcat(vout, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
         strcat(vout, writeInstructionCast(I));

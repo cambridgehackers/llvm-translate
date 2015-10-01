@@ -124,6 +124,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     //case Instruction::FPToUI: //case Instruction::FPToSI:
     //case Instruction::UIToFP: //case Instruction::SIToFP:
     //case Instruction::IntToPtr: //case Instruction::PtrToInt:
+    //case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
         if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -131,11 +132,9 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         }
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
         break;
-    //case Instruction::AddrSpaceCast:
 
     // Other instructions...
-    case Instruction::ICmp: case Instruction::FCmp:
-        {
+    case Instruction::ICmp: case Instruction::FCmp: {
         const char *op1 = getParam(1), *op2 = getParam(2);
         const CmpInst *CI;
         if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
@@ -187,16 +186,15 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         }
         break;
     //case Instruction::Select:
-    case Instruction::Call:
-        {
+    case Instruction::Call: {
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *f = (Function *)slotarray[tcall].svalue;
-        if (!f) {
+        Function *func = (Function *)slotarray[tcall].svalue;
+        if (!func) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
             break;
         }
         Value *oldcall = I.getOperand(I.getNumOperands()-1);
-        I.setOperand(I.getNumOperands()-1, f);
+        I.setOperand(I.getNumOperands()-1, func);
         recursiveDelete(oldcall);
         SLOTARRAY_TYPE arg;
         if (operand_list_index > 3)
@@ -205,7 +203,7 @@ else
         vtablework.push_back(VTABLE_WORK(
             ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
             (Function ***)slotarray[operand_list[1].value].svalue, arg));
-        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+        slotarray[operand_list[0].value].name = strdup(func->getName().str().c_str());
         }
         break;
     //case Instruction::VAArg:
