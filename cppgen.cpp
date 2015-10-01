@@ -42,6 +42,337 @@ static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
 static char *printConstant(const char *prefix, Constant *CPV, bool Static);
 static char *writeOperand(Value *Operand, bool Indirect, bool Static = false);
+static char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
+static char *writeOperandWithCast(Value* Operand, unsigned Opcode);
+static char *writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
+static const char *writeInstructionCast(const Instruction &I);
+static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
+
+/*
+ * Output instructions
+ */
+const char *processInstruction(Function ***thisp, Instruction &I)
+{
+    char vout[MAX_CHAR_BUFFER];
+    int dump_operands = trace_full;
+    int opcode = I.getOpcode();
+    vout[0] = 0;
+    switch(opcode) {
+    case Instruction::Load: {
+        LoadInst &IL = static_cast<LoadInst&>(I);
+        ERRORIF (IL.isVolatile());
+        strcat(vout, writeOperand(I.getOperand(0), true));
+        }
+        break;
+    case Instruction::GetElementPtr: {
+        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
+        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
+        }
+        break;
+    // Terminators
+    case Instruction::Ret:
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+          strcat(vout, "  return ");
+          if (I.getNumOperands())
+            strcat(vout, writeOperand(I.getOperand(0), false));
+          strcat(vout, ";\n");
+        }
+//        if (I.getParent()->getParent()->getReturnType()->getTypeID()
+//               == Type::IntegerTyID && operand_list_index > 1) {
+//            operand_list[0].type = OpTypeString;
+//            operand_list[0].value = (uint64_t)getParam(1);
+//            sprintf(vout, "%s = %s;", globalName, getParam(1));
+//        }
+        break;
+//    case Instruction::Br:
+//        {
+//        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+//          char temp[MAX_CHAR_BUFFER];
+//          const BranchInst &BI(cast<BranchInst>(I));
+//          prepareOperand(BI.getCondition());
+//          int cond_item = getLocalSlot(BI.getCondition());
+//          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
+//          if (slotarray[cond_item].name) {
+//              sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
+//              slotarray[cond_item].name = strdup(temp);
+//          }
+//          prepareOperand(BI.getSuccessor(0));
+//          prepareOperand(BI.getSuccessor(1));
+//        } else if (isa<IndirectBrInst>(I)) {
+//          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+//            prepareOperand(I.getOperand(i));
+//          }
+//        }
+//        dump_operands = 1;
+//        }
+//        break;
+    //case Instruction::Switch:
+        //const SwitchInst& SI(cast<SwitchInst>(I));
+        //prepareOperand(SI.getCondition());
+        //prepareOperand(SI.getDefaultDest());
+        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
+          //prepareOperand(i.getCaseValue());
+          //prepareOperand(i.getCaseSuccessor());
+        //}
+    //case Instruction::IndirectBr:
+    //case Instruction::Invoke:
+    //case Instruction::Resume:
+//    case Instruction::Unreachable:
+//        break;
+//
+    // Standard binary operators...
+    case Instruction::Add: case Instruction::FAdd:
+    case Instruction::Sub: case Instruction::FSub:
+    case Instruction::Mul: case Instruction::FMul:
+    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
+    // Logical operators...
+    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
+        assert(!I.getType()->isPointerTy());
+        bool needsCast = false;
+        if (I.getType() ==  Type::getInt8Ty(I.getContext())
+         || I.getType() == Type::getInt16Ty(I.getContext())
+         || I.getType() == Type::getFloatTy(I.getContext())) {
+          needsCast = true;
+          strcat(vout, printType(I.getType(), false, "", "((", ")("));
+        }
+        if (BinaryOperator::isNeg(&I)) {
+          strcat(vout, "-(");
+          strcat(vout, writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, ")");
+        } else if (BinaryOperator::isFNeg(&I)) {
+          strcat(vout, "-(");
+          strcat(vout, writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, ")");
+        } else if (I.getOpcode() == Instruction::FRem) {
+          if (I.getType() == Type::getFloatTy(I.getContext()))
+            strcat(vout, "fmodf(");
+          else if (I.getType() == Type::getDoubleTy(I.getContext()))
+            strcat(vout, "fmod(");
+          else  // all 3 flavors of long double
+            strcat(vout, "fmodl(");
+          strcat(vout, writeOperand(I.getOperand(0), false));
+          strcat(vout, ", ");
+          strcat(vout, writeOperand(I.getOperand(1), false));
+          strcat(vout, ")");
+        } else {
+          strcat(vout, writeOperandWithCast(I.getOperand(0), I.getOpcode()));
+          strcat(vout, " ");
+          strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
+          strcat(vout, " ");
+          strcat(vout, writeOperandWithCast(I.getOperand(1), I.getOpcode()));
+          strcat(vout, writeInstructionCast(I));
+        }
+        if (needsCast) {
+          strcat(vout, "))");
+        }
+//        const char *op1 = getParam(1), *op2 = getParam(2);
+//        char temp[MAX_CHAR_BUFFER];
+//        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(opcodeMap, opcode), op2);
+//        if (operand_list[0].type != OpTypeLocalRef) {
+//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//            exit(1);
+//        }
+//        slotarray[operand_list[0].value].name = strdup(temp);
+        }
+        break;
+    // Memory instructions...
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        strcat(vout, writeOperand(IS.getPointerOperand(), true));
+        strcat(vout, " = ");
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        if (BitMask)
+          strcat(vout, "((");
+        strcat(vout, writeOperand(Operand, false));
+        if (BitMask) {
+          strcat(vout, printConstant(") & ", BitMask, false));
+          strcat(vout, ")");
+        }
+//        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
+//            operand_list[1].type = OpTypeInt;
+//        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
+//            sprintf(vout, "%s = %s;", getParam(2), getParam(1));
+//        else
+//            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
+        }
+        break;
+    //case Instruction::AtomicCmpXchg:
+    //case Instruction::AtomicRMW:
+    //case Instruction::Fence:
+
+    // Convert instructions...
+    case Instruction::SExt:
+    case Instruction::FPTrunc: //case Instruction::FPExt:
+    case Instruction::FPToUI: //case Instruction::FPToSI:
+    case Instruction::UIToFP: //case Instruction::SIToFP:
+    case Instruction::IntToPtr: //case Instruction::PtrToInt:
+    case Instruction::AddrSpaceCast:
+    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
+        Type *DstTy = I.getType();
+        Type *SrcTy = I.getOperand(0)->getType();
+        strcat(vout, "(");
+        strcat(vout, printCast(opcode, SrcTy, DstTy));
+        if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
+          strcat(vout, "0-");
+        strcat(vout, writeOperand(I.getOperand(0), false));
+        if (DstTy == Type::getInt1Ty(I.getContext()) &&
+            (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
+             opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
+          strcat(vout, "&1u");
+        }
+        strcat(vout, ")");
+//        if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
+//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//            exit(1);
+//        }
+//        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+        }
+        break;
+    // Other instructions...
+    case Instruction::ICmp: case Instruction::FCmp: {
+        ICmpInst &CI = static_cast<ICmpInst&>(I);
+        bool shouldCast = CI.isRelational();
+        bool typeIsSigned = CI.isSigned();
+        strcat(vout, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
+        strcat(vout, " ");
+        strcat(vout, intmapLookup(predText, CI.getPredicate()));
+        strcat(vout, " ");
+        strcat(vout, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
+        strcat(vout, writeInstructionCast(I));
+        if (shouldCast)
+          strcat(vout, "))");
+//        const char *op1 = getParam(1), *op2 = getParam(2);
+//        const CmpInst *CI;
+//        if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
+//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//            exit(1);
+//        }
+//        char temp[MAX_CHAR_BUFFER];
+//        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(predText, CI->getPredicate()), op2);
+//        slotarray[operand_list[0].value].name = strdup(temp);
+        }
+        break;
+//    case Instruction::PHI:
+//        {
+//        char temp[MAX_CHAR_BUFFER];
+//        const PHINode *PN = dyn_cast<PHINode>(&I);
+//        if (!PN) {
+//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//            exit(1);
+//        }
+//        I.getType()->dump();
+//        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
+//        sprintf(vout, "%s = ", temp);
+//        slotarray[operand_list[0].value].name = strdup(temp);
+//        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
+//            int valuein = getLocalSlot(PN->getIncomingValue(op));
+//            prepareOperand(PN->getIncomingValue(op));
+//            prepareOperand(PN->getIncomingBlock(op));
+//            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
+            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+            //TI->dump();
+//            const BranchInst *BI = dyn_cast<BranchInst>(TI);
+//            const char *trailch = "";
+//            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
+//              prepareOperand(BI->getCondition());
+//              int cond_item = getLocalSlot(BI->getCondition());
+//              sprintf(temp, "%s ?", slotarray[cond_item].name);
+//              trailch = ":";
+              //prepareOperand(BI->getSuccessor(0));
+              //prepareOperand(BI->getSuccessor(1));
+//              strcat(vout, temp);
+//            }
+//            if (slotarray[valuein].name)
+//                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
+//            else
+//                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
+//            strcat(vout, temp);
+//        }
+//        dump_operands = 1;
+//        }
+//        break;
+    //case Instruction::Select:
+    case Instruction::Call: {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        const char *sep = "";
+        Function *func = ICL.getCalledFunction();
+        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+        Value *Callee = ICL.getCalledValue();
+        PointerType  *PTy = cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        Function *RF = NULL;
+        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+            Callee = RF;
+            strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
+        }
+        strcat(vout, writeOperand(Callee, false));
+        if (RF)
+            strcat(vout, ")");
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        strcat(vout, "(");
+        for (; AI != AE; ++AI, ++ArgNo) {
+            strcat(vout, sep);
+            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
+                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
+            strcat(vout, writeOperand(*AI, false));
+            sep = ", ";
+        }
+        strcat(vout, ")");
+        vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+//        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
+//        Function *f = (Function *)slotarray[tcall].svalue;
+//        if (!f) {
+//            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
+//            break;
+//        }
+//        Value *oldcall = I.getOperand(I.getNumOperands()-1);
+//        I.setOperand(I.getNumOperands()-1, f);
+//        recursiveDelete(oldcall);
+//        SLOTARRAY_TYPE arg;
+//        if (operand_list_index > 3)
+//            arg = slotarray[operand_list[2].value];
+//else
+//        vtablework.push_back(VTABLE_WORK(
+//            ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
+//            (Function ***)slotarray[operand_list[1].value].svalue, arg));
+//        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+        }
+        break;
+    //case Instruction::VAArg:
+    //case Instruction::ExtractElement:
+    //case Instruction::InsertElement:
+    //case Instruction::ShuffleVector:
+    //case Instruction::ExtractValue:
+    //case Instruction::InsertValue:
+    //case Instruction::LandingPad:
+    default:
+        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        exit(1);
+        break;
+    }
+    if (dump_operands && trace_translate)
+    for (int i = 0; i < operand_list_index; i++) {
+        int t = operand_list[i].value;
+        if (operand_list[i].type == OpTypeLocalRef)
+            printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
+        else if (operand_list[i].type != OpTypeNone)
+            printf(" op[%d]=%s;", i, getParam(i));
+    }
+    return strdup(vout);
+}
 
 /******* Util functions ******/
 bool isInlinableInst(const Instruction &I)
@@ -735,332 +1066,6 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
     FunctionInnards << "void"; // ret() -> ret(void) in C.
   FunctionInnards << ')';
   return printType(F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), statstr, postfix);
-}
-
-/*
- * Output instructions
- */
-const char *processInstruction(Function ***thisp, Instruction &I)
-{
-    char vout[MAX_CHAR_BUFFER];
-    int dump_operands = trace_full;
-    int opcode = I.getOpcode();
-    vout[0] = 0;
-    switch(opcode) {
-    case Instruction::Load: {
-        LoadInst &IL = static_cast<LoadInst&>(I);
-        ERRORIF (IL.isVolatile());
-        strcat(vout, writeOperand(I.getOperand(0), true));
-        }
-        break;
-    case Instruction::GetElementPtr: {
-        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
-        }
-        break;
-    // Terminators
-    case Instruction::Ret:
-        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          strcat(vout, "  return ");
-          if (I.getNumOperands())
-            strcat(vout, writeOperand(I.getOperand(0), false));
-          strcat(vout, ";\n");
-        }
-//        if (I.getParent()->getParent()->getReturnType()->getTypeID()
-//               == Type::IntegerTyID && operand_list_index > 1) {
-//            operand_list[0].type = OpTypeString;
-//            operand_list[0].value = (uint64_t)getParam(1);
-//            sprintf(vout, "%s = %s;", globalName, getParam(1));
-//        }
-        break;
-//    case Instruction::Br:
-//        {
-//        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-//          char temp[MAX_CHAR_BUFFER];
-//          const BranchInst &BI(cast<BranchInst>(I));
-//          prepareOperand(BI.getCondition());
-//          int cond_item = getLocalSlot(BI.getCondition());
-//          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-//          if (slotarray[cond_item].name) {
-//              sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
-//              slotarray[cond_item].name = strdup(temp);
-//          }
-//          prepareOperand(BI.getSuccessor(0));
-//          prepareOperand(BI.getSuccessor(1));
-//        } else if (isa<IndirectBrInst>(I)) {
-//          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-//            prepareOperand(I.getOperand(i));
-//          }
-//        }
-//        dump_operands = 1;
-//        }
-//        break;
-    //case Instruction::Switch:
-        //const SwitchInst& SI(cast<SwitchInst>(I));
-        //prepareOperand(SI.getCondition());
-        //prepareOperand(SI.getDefaultDest());
-        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-          //prepareOperand(i.getCaseValue());
-          //prepareOperand(i.getCaseSuccessor());
-        //}
-    //case Instruction::IndirectBr:
-    //case Instruction::Invoke:
-    //case Instruction::Resume:
-//    case Instruction::Unreachable:
-//        break;
-//
-    // Standard binary operators...
-    case Instruction::Add: case Instruction::FAdd:
-    case Instruction::Sub: case Instruction::FSub:
-    case Instruction::Mul: case Instruction::FMul:
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
-    // Logical operators...
-    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
-        assert(!I.getType()->isPointerTy());
-        bool needsCast = false;
-        if (I.getType() ==  Type::getInt8Ty(I.getContext())
-         || I.getType() == Type::getInt16Ty(I.getContext())
-         || I.getType() == Type::getFloatTy(I.getContext())) {
-          needsCast = true;
-          strcat(vout, printType(I.getType(), false, "", "((", ")("));
-        }
-        if (BinaryOperator::isNeg(&I)) {
-          strcat(vout, "-(");
-          strcat(vout, writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(vout, ")");
-        } else if (BinaryOperator::isFNeg(&I)) {
-          strcat(vout, "-(");
-          strcat(vout, writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(vout, ")");
-        } else if (I.getOpcode() == Instruction::FRem) {
-          if (I.getType() == Type::getFloatTy(I.getContext()))
-            strcat(vout, "fmodf(");
-          else if (I.getType() == Type::getDoubleTy(I.getContext()))
-            strcat(vout, "fmod(");
-          else  // all 3 flavors of long double
-            strcat(vout, "fmodl(");
-          strcat(vout, writeOperand(I.getOperand(0), false));
-          strcat(vout, ", ");
-          strcat(vout, writeOperand(I.getOperand(1), false));
-          strcat(vout, ")");
-        } else {
-          strcat(vout, writeOperandWithCast(I.getOperand(0), I.getOpcode()));
-          strcat(vout, " ");
-          strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
-          strcat(vout, " ");
-          strcat(vout, writeOperandWithCast(I.getOperand(1), I.getOpcode()));
-          strcat(vout, writeInstructionCast(I));
-        }
-        if (needsCast) {
-          strcat(vout, "))");
-        }
-//        const char *op1 = getParam(1), *op2 = getParam(2);
-//        char temp[MAX_CHAR_BUFFER];
-//        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(opcodeMap, opcode), op2);
-//        if (operand_list[0].type != OpTypeLocalRef) {
-//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//            exit(1);
-//        }
-//        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
-    // Memory instructions...
-    case Instruction::Store: {
-        StoreInst &IS = static_cast<StoreInst&>(I);
-        ERRORIF (IS.isVolatile());
-        strcat(vout, writeOperand(IS.getPointerOperand(), true));
-        strcat(vout, " = ");
-        Value *Operand = I.getOperand(0);
-        Constant *BitMask = 0;
-        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
-        if (ITy && !ITy->isPowerOf2ByteWidth())
-            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        if (BitMask)
-          strcat(vout, "((");
-        strcat(vout, writeOperand(Operand, false));
-        if (BitMask) {
-          strcat(vout, printConstant(") & ", BitMask, false));
-          strcat(vout, ")");
-        }
-//        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
-//            operand_list[1].type = OpTypeInt;
-//        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-//            sprintf(vout, "%s = %s;", getParam(2), getParam(1));
-//        else
-//            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-        }
-        break;
-    //case Instruction::AtomicCmpXchg:
-    //case Instruction::AtomicRMW:
-    //case Instruction::Fence:
-
-    // Convert instructions...
-    case Instruction::SExt:
-    case Instruction::FPTrunc: //case Instruction::FPExt:
-    case Instruction::FPToUI: //case Instruction::FPToSI:
-    case Instruction::UIToFP: //case Instruction::SIToFP:
-    case Instruction::IntToPtr: //case Instruction::PtrToInt:
-    case Instruction::AddrSpaceCast:
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        Type *DstTy = I.getType();
-        Type *SrcTy = I.getOperand(0)->getType();
-        strcat(vout, "(");
-        strcat(vout, printCast(opcode, SrcTy, DstTy));
-        if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
-          strcat(vout, "0-");
-        strcat(vout, writeOperand(I.getOperand(0), false));
-        if (DstTy == Type::getInt1Ty(I.getContext()) &&
-            (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
-             opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
-          strcat(vout, "&1u");
-        }
-        strcat(vout, ")");
-//        if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//            exit(1);
-//        }
-//        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        }
-        break;
-    // Other instructions...
-    case Instruction::ICmp: case Instruction::FCmp: {
-        ICmpInst &CI = static_cast<ICmpInst&>(I);
-        bool shouldCast = CI.isRelational();
-        bool typeIsSigned = CI.isSigned();
-        strcat(vout, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
-        strcat(vout, " ");
-        strcat(vout, intmapLookup(predText, CI.getPredicate()));
-        strcat(vout, " ");
-        strcat(vout, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
-        strcat(vout, writeInstructionCast(I));
-        if (shouldCast)
-          strcat(vout, "))");
-//        const char *op1 = getParam(1), *op2 = getParam(2);
-//        const CmpInst *CI;
-//        if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
-//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//            exit(1);
-//        }
-//        char temp[MAX_CHAR_BUFFER];
-//        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(predText, CI->getPredicate()), op2);
-//        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
-//    case Instruction::PHI:
-//        {
-//        char temp[MAX_CHAR_BUFFER];
-//        const PHINode *PN = dyn_cast<PHINode>(&I);
-//        if (!PN) {
-//            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//            exit(1);
-//        }
-//        I.getType()->dump();
-//        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
-//        sprintf(vout, "%s = ", temp);
-//        slotarray[operand_list[0].value].name = strdup(temp);
-//        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-//            int valuein = getLocalSlot(PN->getIncomingValue(op));
-//            prepareOperand(PN->getIncomingValue(op));
-//            prepareOperand(PN->getIncomingBlock(op));
-//            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-            //TI->dump();
-//            const BranchInst *BI = dyn_cast<BranchInst>(TI);
-//            const char *trailch = "";
-//            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-//              prepareOperand(BI->getCondition());
-//              int cond_item = getLocalSlot(BI->getCondition());
-//              sprintf(temp, "%s ?", slotarray[cond_item].name);
-//              trailch = ":";
-              //prepareOperand(BI->getSuccessor(0));
-              //prepareOperand(BI->getSuccessor(1));
-//              strcat(vout, temp);
-//            }
-//            if (slotarray[valuein].name)
-//                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
-//            else
-//                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
-//            strcat(vout, temp);
-//        }
-//        dump_operands = 1;
-//        }
-//        break;
-    //case Instruction::Select:
-    case Instruction::Call: {
-        CallInst &ICL = static_cast<CallInst&>(I);
-        unsigned ArgNo = 0;
-        const char *sep = "";
-        Function *func = ICL.getCalledFunction();
-        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
-        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
-        Value *Callee = ICL.getCalledValue();
-        PointerType  *PTy = cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        Function *RF = NULL;
-        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
-            Callee = RF;
-            strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
-        }
-        strcat(vout, writeOperand(Callee, false));
-        if (RF)
-            strcat(vout, ")");
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-        unsigned len = FTy->getNumParams();
-        CallSite CS(&I);
-        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        strcat(vout, "(");
-        for (; AI != AE; ++AI, ++ArgNo) {
-            strcat(vout, sep);
-            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            strcat(vout, writeOperand(*AI, false));
-            sep = ", ";
-        }
-        strcat(vout, ")");
-        vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
-//        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-//        Function *f = (Function *)slotarray[tcall].svalue;
-//        if (!f) {
-//            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-//            break;
-//        }
-//        Value *oldcall = I.getOperand(I.getNumOperands()-1);
-//        I.setOperand(I.getNumOperands()-1, f);
-//        recursiveDelete(oldcall);
-//        SLOTARRAY_TYPE arg;
-//        if (operand_list_index > 3)
-//            arg = slotarray[operand_list[2].value];
-//else
-//        vtablework.push_back(VTABLE_WORK(
-//            ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
-//            (Function ***)slotarray[operand_list[1].value].svalue, arg));
-//        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
-        }
-        break;
-    //case Instruction::VAArg:
-    //case Instruction::ExtractElement:
-    //case Instruction::InsertElement:
-    //case Instruction::ShuffleVector:
-    //case Instruction::ExtractValue:
-    //case Instruction::InsertValue:
-    //case Instruction::LandingPad:
-    default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
-        exit(1);
-        break;
-    }
-    if (dump_operands && trace_translate)
-    for (int i = 0; i < operand_list_index; i++) {
-        int t = operand_list[i].value;
-        if (operand_list[i].type == OpTypeLocalRef)
-            printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
-        else if (operand_list[i].type != OpTypeNone)
-            printf(" op[%d]=%s;", i, getParam(i));
-    }
-    return strdup(vout);
 }
 /*
  * Pass control functions
