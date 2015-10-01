@@ -183,6 +183,6 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
 bool isInlinableInst(const Instruction &I);
 const AllocaInst *isDirectAlloca(const Value *V);
 void recursiveDelete(Value *V);
-char *writeOperand(Value *Operand, bool Indirect, bool Static = false);
-char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E, bool Static);
+char *writeOperand(Value *Operand, bool Indirect);
+char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E);
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
