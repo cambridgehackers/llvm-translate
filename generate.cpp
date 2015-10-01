@@ -211,10 +211,17 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
 {
+    //errs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr:
         {
         uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
+        if (generate == 2) {
+            GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
+            const char *p = printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
+//printf("[%s:%d] new '%s' \n", __FUNCTION__, __LINE__, p);
+            return p;
+        }
         if (thisp && !slotarray[operand_list[1].value].svalue) {
             printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
             break;
@@ -224,15 +231,18 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
         slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
         slotarray[operand_list[0].value].svalue = ptr;
         slotarray[operand_list[0].value].offset = Total;
-        if (generate == 2) {
-            GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-            return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
-        }
         }
         break;
     case Instruction::Load:
         {
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+        if (generate == 2) {
+            LoadInst &IL = static_cast<LoadInst&>(*ins);
+            ERRORIF (IL.isVolatile());
+            const char *p = writeOperand(thisp, ins->getOperand(0), true);
+printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
+            return p;
+        }
         PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
         if(thisp) {
             if (!Ptr) {
@@ -243,11 +253,6 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
             }
             slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
             slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
-        }
-        if (generate == 2) {
-            LoadInst &IL = static_cast<LoadInst&>(*ins);
-            ERRORIF (IL.isVolatile());
-            return writeOperand(thisp, ins->getOperand(0), true);
         }
         }
         break;

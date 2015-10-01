@@ -1004,25 +1004,37 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
     cbuffer[0] = 0;
   Instruction *I = dyn_cast<Instruction>(Operand);
   bool isAddressImplicit = isAddressExposed(Operand);
-  if (Indirect) {
-      if (isAddressImplicit)
-          isAddressImplicit = false;
-      else
-          strcat(cbuffer, "*");
+  const char *prefix = "";
+  if (Indirect && isAddressImplicit) {
+      isAddressImplicit = false;
+      Indirect = false;
   }
+  if (Indirect)
+      prefix = "*";
   if (isAddressImplicit)
-      strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
+      prefix = "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
-      strcat(cbuffer, "(");
-      strcat(cbuffer, processInstruction(thisp, I, 2));
-      strcat(cbuffer, ")");
+      const char *p = processInstruction(thisp, I, 2);
+      if (!strcmp(prefix, "*") && !strncmp(p, "(&", 2)) {
+//printf("[%s:%d] starpref %s\n", __FUNCTION__, __LINE__, p);
+          strcat(cbuffer, p+2);
+          cbuffer[strlen(cbuffer)-1] = 0;
+      }
+      else {
+          strcat(cbuffer, prefix);
+          strcat(cbuffer, "(");
+          strcat(cbuffer, p);
+          strcat(cbuffer, ")");
+      }
   }
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
-          strcat(cbuffer, printConstant(thisp, "", CPV));
-      else
+          strcat(cbuffer, printConstant(thisp, prefix, CPV));
+      else {
+          strcat(cbuffer, prefix);
           strcat(cbuffer, GetValueName(Operand).c_str());
+      }
   }
   if (isAddressImplicit)
       strcat(cbuffer, ")");

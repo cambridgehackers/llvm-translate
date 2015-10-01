@@ -10,11 +10,6 @@
         _ZN4Echo7respond8respond25guardEv = 1;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN4Echo7respond8respond14bodyEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        echoTest:EchoTest:echo::Echo:response = 72;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN4Echo7respond8respond15guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         _ZN4Echo7respond8respond15guardEv = ((_ZN5Fifo1IiE10FirstValue5guardEv) & (_ZN5Fifo1IiE9DeqAction5guardEv));
