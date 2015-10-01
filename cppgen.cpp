@@ -40,9 +40,9 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
-static char *printConstant(const char *prefix, Constant *CPV);
-static char *writeOperandWithCast(Value* Operand, unsigned Opcode);
-static char *writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned);
+static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
+static char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode);
+static char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned);
 static const char *writeInstructionCast(const Instruction &I);
 static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 
@@ -61,7 +61,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
           strcat(vout, "  return ");
           if (I.getNumOperands())
-            strcat(vout, writeOperand(I.getOperand(0), false));
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
           strcat(vout, ";\n");
         }
 //        if (I.getParent()->getParent()->getReturnType()->getTypeID()
@@ -126,11 +126,11 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         }
         if (BinaryOperator::isNeg(&I)) {
           strcat(vout, "-(");
-          strcat(vout, writeOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
           strcat(vout, ")");
         } else if (BinaryOperator::isFNeg(&I)) {
           strcat(vout, "-(");
-          strcat(vout, writeOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
+          strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
           strcat(vout, ")");
         } else if (I.getOpcode() == Instruction::FRem) {
           if (I.getType() == Type::getFloatTy(I.getContext()))
@@ -139,16 +139,16 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             strcat(vout, "fmod(");
           else  // all 3 flavors of long double
             strcat(vout, "fmodl(");
-          strcat(vout, writeOperand(I.getOperand(0), false));
+          strcat(vout, writeOperand(thisp, I.getOperand(0), false));
           strcat(vout, ", ");
-          strcat(vout, writeOperand(I.getOperand(1), false));
+          strcat(vout, writeOperand(thisp, I.getOperand(1), false));
           strcat(vout, ")");
         } else {
-          strcat(vout, writeOperandWithCast(I.getOperand(0), I.getOpcode()));
+          strcat(vout, writeOperandWithCast(thisp, I.getOperand(0), I.getOpcode()));
           strcat(vout, " ");
           strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
           strcat(vout, " ");
-          strcat(vout, writeOperandWithCast(I.getOperand(1), I.getOpcode()));
+          strcat(vout, writeOperandWithCast(thisp, I.getOperand(1), I.getOpcode()));
           strcat(vout, writeInstructionCast(I));
         }
         if (needsCast) {
@@ -169,7 +169,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        strcat(vout, writeOperand(IS.getPointerOperand(), true));
+        strcat(vout, writeOperand(thisp, IS.getPointerOperand(), true));
         strcat(vout, " = ");
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
@@ -178,9 +178,9 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         if (BitMask)
           strcat(vout, "((");
-        strcat(vout, writeOperand(Operand, false));
+        strcat(vout, writeOperand(thisp, Operand, false));
         if (BitMask) {
-          strcat(vout, printConstant(") & ", BitMask));
+          strcat(vout, printConstant(thisp, ") & ", BitMask));
           strcat(vout, ")");
         }
 //        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
@@ -209,7 +209,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         strcat(vout, printCast(opcode, SrcTy, DstTy));
         if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
           strcat(vout, "0-");
-        strcat(vout, writeOperand(I.getOperand(0), false));
+        strcat(vout, writeOperand(thisp, I.getOperand(0), false));
         if (DstTy == Type::getInt1Ty(I.getContext()) &&
             (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
              opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
@@ -229,11 +229,11 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         ICmpInst &CI = static_cast<ICmpInst&>(I);
         bool shouldCast = CI.isRelational();
         bool typeIsSigned = CI.isSigned();
-        strcat(vout, writeOperandWithCastICmp(I.getOperand(0), shouldCast, typeIsSigned));
+        strcat(vout, writeOperandWithCastICmp(thisp, I.getOperand(0), shouldCast, typeIsSigned));
         strcat(vout, " ");
         strcat(vout, intmapLookup(predText, CI.getPredicate()));
         strcat(vout, " ");
-        strcat(vout, writeOperandWithCastICmp(I.getOperand(1), shouldCast, typeIsSigned));
+        strcat(vout, writeOperandWithCastICmp(thisp, I.getOperand(1), shouldCast, typeIsSigned));
         strcat(vout, writeInstructionCast(I));
         if (shouldCast)
           strcat(vout, "))");
@@ -304,7 +304,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             Callee = RF;
             strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
         }
-        strcat(vout, writeOperand(Callee, false));
+        strcat(vout, writeOperand(thisp, Callee, false));
         if (RF)
             strcat(vout, ")");
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
@@ -316,7 +316,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            strcat(vout, writeOperand(*AI, false));
+            strcat(vout, writeOperand(thisp, *AI, false));
             sep = ", ";
         }
         strcat(vout, ")");
@@ -624,7 +624,7 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
 /*
  * Output expressions
  */
-static char *printConstantDataArray(ConstantDataArray *CPA)
+static char *printConstantDataArray(Function ***thisp, ConstantDataArray *CPA)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -635,14 +635,14 @@ static char *printConstantDataArray(ConstantDataArray *CPA)
   } else {
     strcat(cbuffer, "{");
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-        strcat(cbuffer, printConstant(sep, cast<Constant>(CPA->getOperand(i))));
+        strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPA->getOperand(i))));
         sep = ", ";
     }
     strcat(cbuffer, " }");
   }
     return strdup(cbuffer);
 }
-static char *writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool typeIsSigned)
+static char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -651,12 +651,12 @@ static char *writeOperandWithCastICmp(Value* Operand, bool shouldCast, bool type
       ERRORIF (OpTy->isPointerTy());
       strcat(cbuffer, printType(OpTy, typeIsSigned, "", "((", ")"));
   }
-  strcat(cbuffer, writeOperand(Operand, false));
+  strcat(cbuffer, writeOperand(thisp, Operand, false));
   if (shouldCast)
       strcat(cbuffer, ")");
     return strdup(cbuffer);
 }
-static char *writeOperandWithCast(Value* Operand, unsigned Opcode)
+static char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode)
 {
   bool castIsSigned = false;
   bool shouldCast = true;
@@ -670,7 +670,7 @@ static char *writeOperandWithCast(Value* Operand, unsigned Opcode)
       shouldCast = false;
       break;
   }
-  return writeOperandWithCastICmp(Operand, shouldCast, castIsSigned);
+  return writeOperandWithCastICmp(thisp, Operand, shouldCast, castIsSigned);
 }
 static const char *writeInstructionCast(const Instruction &I)
 {
@@ -708,7 +708,7 @@ static const char *printConstExprCast(const ConstantExpr* CE)
       TypeIsSigned = false; // not integer, sign doesn't matter
   return printType(Ty, TypeIsSigned, "", "((", ")())");
 }
-static char *printConstantWithCast(Constant* CPV, unsigned Opcode, const char *postfix)
+static char *printConstantWithCast(Function ***thisp, Constant* CPV, unsigned Opcode, const char *postfix)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -720,11 +720,11 @@ static char *printConstantWithCast(Constant* CPV, unsigned Opcode, const char *p
       typeIsSigned = true;
       break;
     default:
-      strcat(cbuffer, printConstant("", CPV));
+      strcat(cbuffer, printConstant(thisp, "", CPV));
       goto exitlab;
   }
   strcat(cbuffer, printType(CPV->getType(), typeIsSigned, "", "((", ")"));
-  strcat(cbuffer, printConstant("", CPV));
+  strcat(cbuffer, printConstant(thisp, "", CPV));
   strcat(cbuffer, ")");
   strcat(cbuffer, postfix);
 exitlab:
@@ -757,13 +757,13 @@ static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy)
 exitlab:
     return strdup(cbuffer);
 }
-char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
+char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
   ConstantInt *CI;
   if (I == E)
-    return writeOperand(Ptr, false);
+    return writeOperand(thisp, Ptr, false);
   VectorType *LastIndexIsVector = 0;
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
@@ -773,7 +773,7 @@ char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
     strcat(cbuffer, "&");
-    strcat(cbuffer, writeOperand(Ptr, false));
+    strcat(cbuffer, writeOperand(thisp, Ptr, false));
   } else {
     bool expose = isAddressExposed(Ptr);
     ++I;  // Skip the zero index.
@@ -791,11 +791,11 @@ char *printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
             }
             else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
                 ERRORIF (val);
-                strcat(cbuffer, printConstantDataArray(CA));
+                strcat(cbuffer, printConstantDataArray(thisp, CA));
                 goto next;
             }
         }
-        strcat(cbuffer, writeOperand(Ptr, true));
+        strcat(cbuffer, writeOperand(thisp, Ptr, true));
 next:
         if (val) {
             char temp[100];
@@ -806,15 +806,15 @@ next:
     else {
         strcat(cbuffer, "&");
         if (expose) {
-          strcat(cbuffer, writeOperand(Ptr, true));
+          strcat(cbuffer, writeOperand(thisp, Ptr, true));
         } else if (I != E && (*I)->isStructTy()) {
-          strcat(cbuffer, writeOperand(Ptr, false));
+          strcat(cbuffer, writeOperand(thisp, Ptr, false));
           strcat(cbuffer, "->");
           strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
           ++I;  // eat the struct index as well.
         } else {
           strcat(cbuffer, "(");
-          strcat(cbuffer, writeOperand(Ptr, true));
+          strcat(cbuffer, writeOperand(thisp, Ptr, true));
           strcat(cbuffer, ")");
         }
     }
@@ -826,12 +826,12 @@ next:
       strcat(cbuffer, fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue()));
     } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
       strcat(cbuffer, "[");
-      strcat(cbuffer, writeOperand(I.getOperand(), false));
+      strcat(cbuffer, writeOperand(thisp, I.getOperand(), false));
       strcat(cbuffer, "]");
     } else {
       if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
         strcat(cbuffer, ")+(");
-        strcat(cbuffer, writeOperandWithCast(I.getOperand(), Instruction::GetElementPtr));
+        strcat(cbuffer, writeOperandWithCast(thisp, I.getOperand(), Instruction::GetElementPtr));
       }
       strcat(cbuffer, "))");
     }
@@ -839,7 +839,7 @@ next:
   strcat(cbuffer, ")");
     return strdup(cbuffer);
 }
-static char *printConstant(const char *prefix, Constant *CPV)
+static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -858,19 +858,19 @@ static char *printConstant(const char *prefix, Constant *CPV)
       if (op == Instruction::SExt &&
           CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
         strcat(cbuffer, "0-");
-      strcat(cbuffer, printConstant("", CE->getOperand(0)));
+      strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
       if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
           (op == Instruction::Trunc || op == Instruction::FPToUI ||
            op == Instruction::FPToSI || op == Instruction::PtrToInt))
         strcat(cbuffer, "&1u");
       break;
     case Instruction::GetElementPtr:
-      strcat(cbuffer, printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
+      strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
       break;
     case Instruction::Select:
-      strcat(cbuffer, printConstant("", CE->getOperand(0)));
-      strcat(cbuffer, printConstant("?", CE->getOperand(1)));
-      strcat(cbuffer, printConstant(":", CE->getOperand(2)));
+      strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
+      strcat(cbuffer, printConstant(thisp, "?", CE->getOperand(1)));
+      strcat(cbuffer, printConstant(thisp, ":", CE->getOperand(2)));
       break;
     case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
     case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
@@ -880,13 +880,13 @@ static char *printConstant(const char *prefix, Constant *CPV)
     case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
     case Instruction::AShr:
     {
-      strcat(cbuffer, printConstantWithCast(CE->getOperand(0), op, " "));
+      strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, " "));
       if (op == Instruction::ICmp)
         strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
       else
         strcat(cbuffer, intmapLookup(opcodeMap, op));
       strcat(cbuffer, " ");
-      strcat(cbuffer, printConstantWithCast(CE->getOperand(1), op, ""));
+      strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ""));
       strcat(cbuffer, printConstExprCast(CE));
       break;
     }
@@ -899,8 +899,8 @@ static char *printConstant(const char *prefix, Constant *CPV)
         strcat(cbuffer, "llvm_fcmp_");
         strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
         strcat(cbuffer, "(");
-        strcat(cbuffer, printConstantWithCast(CE->getOperand(0), op, ", "));
-        strcat(cbuffer, printConstantWithCast(CE->getOperand(1), op, ")"));
+        strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, ", "));
+        strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ")"));
       }
       strcat(cbuffer, printConstExprCast(CE));
       break;
@@ -952,14 +952,14 @@ static char *printConstant(const char *prefix, Constant *CPV)
       } else {
         strcat(cbuffer, "{");
         for (unsigned i = 0, e = len; i != e; ++i) {
-            strcat(cbuffer, printConstant(sep, cast<Constant>(CPA->getOperand(i))));
+            strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPA->getOperand(i))));
             sep = ", ";
         }
         strcat(cbuffer, " }");
       }
     }
     else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
-      strcat(cbuffer, printConstantDataArray(CA));
+      strcat(cbuffer, printConstantDataArray(thisp, CA));
     else
       ERRORIF(1);
     break;
@@ -967,7 +967,7 @@ static char *printConstant(const char *prefix, Constant *CPV)
     strcat(cbuffer, "{");
     if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
         for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
-            strcat(cbuffer, printConstant(sep, cast<Constant>(CV->getOperand(i))));
+            strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CV->getOperand(i))));
             sep = ", ";
         }
     }
@@ -979,7 +979,7 @@ static char *printConstant(const char *prefix, Constant *CPV)
     strcat(cbuffer, "{");
     ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
     for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
-        strcat(cbuffer, printConstant(sep, cast<Constant>(CPV->getOperand(i))));
+        strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPV->getOperand(i))));
         sep = ", ";
     }
     strcat(cbuffer, " }");
@@ -988,7 +988,7 @@ static char *printConstant(const char *prefix, Constant *CPV)
     if (isa<ConstantPointerNull>(CPV))
       strcat(cbuffer, printType(CPV->getType(), false, "", "((", ")/*NULL*/0)")); // sign doesn't matter
     else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
-      strcat(cbuffer, writeOperand(GV, false));
+      strcat(cbuffer, writeOperand(thisp, GV, false));
     break;
   default:
     errs() << "Unknown constant type: " << *CPV << "\n";
@@ -998,7 +998,7 @@ static char *printConstant(const char *prefix, Constant *CPV)
 exitlab:
     return strdup(cbuffer);
 }
-char *writeOperand(Value *Operand, bool Indirect)
+char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -1014,13 +1014,13 @@ char *writeOperand(Value *Operand, bool Indirect)
       strcat(cbuffer, "(&");  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       strcat(cbuffer, "(");
-      strcat(cbuffer, processInstruction(NULL, I, 2));
+      strcat(cbuffer, processInstruction(thisp, I, 2));
       strcat(cbuffer, ")");
   }
   else {
       Constant* CPV = dyn_cast<Constant>(Operand);
       if (CPV && !isa<GlobalValue>(CPV))
-          strcat(cbuffer, printConstant("", CPV));
+          strcat(cbuffer, printConstant(thisp, "", CPV));
       else
           strcat(cbuffer, GetValueName(Operand).c_str());
   }
@@ -1087,7 +1087,7 @@ void generateCppData(FILE *OStr, Module &Mod)
                 fprintf(OStr, "static ");
               fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", ""));
               if (!I->getInitializer()->isNullValue())
-                fprintf(OStr, " = %s", writeOperand(I->getInitializer(), false));
+                fprintf(OStr, " = %s", writeOperand(NULL, I->getInitializer(), false));
               fprintf(OStr, ";\n");
           }
         }
@@ -1117,7 +1117,7 @@ void generateCppData(FILE *OStr, Module &Mod)
                      && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          fprintf(OStr, "%s", printConstant(sep, V));
+                          fprintf(OStr, "%s", printConstant(NULL, sep, V));
                           sep = ", ";
                         }
                     else

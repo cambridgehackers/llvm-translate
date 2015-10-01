@@ -216,7 +216,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
         {
         if (generate == 2) {
             GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-            return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
+            return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
         }
         uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
         if (!slotarray[operand_list[1].value].svalue) {
@@ -235,7 +235,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
         if (generate == 2) {
             LoadInst &IL = static_cast<LoadInst&>(*ins);
             ERRORIF (IL.isVolatile());
-            return writeOperand(ins->getOperand(0), true);
+            return writeOperand(thisp, ins->getOperand(0), true);
         }
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
         PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
