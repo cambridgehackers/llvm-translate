@@ -56,18 +56,6 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     int opcode = I.getOpcode();
     vout[0] = 0;
     switch(opcode) {
-    /* used in recursive calls!!*/
-    case Instruction::GetElementPtr: {
-        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        strcat(vout, printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false));
-        }
-        break;
-    case Instruction::Load: {
-        LoadInst &IL = static_cast<LoadInst&>(I);
-        ERRORIF (IL.isVolatile());
-        strcat(vout, writeOperand(I.getOperand(0), true));
-        }
-        break;
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {

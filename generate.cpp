@@ -211,62 +211,62 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
 {
-            switch (ins->getOpcode()) {
-            case Instruction::GetElementPtr:
-                {
-                if (generate == 2) {
-                    GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-                    return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
-                }
-                uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
-                if (!slotarray[operand_list[1].value].svalue) {
-                    printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
-                    break;
-                    exit(1);
-                }
-                uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-                slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
-                slotarray[operand_list[0].value].svalue = ptr;
-                slotarray[operand_list[0].value].offset = Total;
-                }
-                break;
-            case Instruction::Load:
-                {
-                if (generate == 2) {
-                    LoadInst &IL = static_cast<LoadInst&>(*ins);
-                    ERRORIF (IL.isVolatile());
-                    return writeOperand(ins->getOperand(0), true);
-                }
-                slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-                PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-                if(!Ptr) {
-                    printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-                    if (!slotarray[operand_list[0].value].svalue)
-                        operand_list[0].type = OpTypeInt;
-                    break;
-                }
-                slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
-                slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
-                }
-                break;
-            default:
-                {
-                if (generate == 2)
-                    return processCInstruction(thisp, *ins);
-                else
-                    return generate ? generateVerilog(thisp, *ins)
-                                    : calculateGuardUpdate(thisp, *ins);
-                }
-                break;
-            case Instruction::Alloca: // ignore
-                if (generate == 2) {
-                    if (const AllocaInst *AI = isDirectAlloca(&*ins))
-                      return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-                }
-                else
-                memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
-                break;
-            }
+    switch (ins->getOpcode()) {
+    case Instruction::GetElementPtr:
+        {
+        if (generate == 2) {
+            GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
+            return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG), false);
+        }
+        uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
+        if (!slotarray[operand_list[1].value].svalue) {
+            printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
+            break;
+            exit(1);
+        }
+        uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
+        slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
+        slotarray[operand_list[0].value].svalue = ptr;
+        slotarray[operand_list[0].value].offset = Total;
+        }
+        break;
+    case Instruction::Load:
+        {
+        if (generate == 2) {
+            LoadInst &IL = static_cast<LoadInst&>(*ins);
+            ERRORIF (IL.isVolatile());
+            return writeOperand(ins->getOperand(0), true);
+        }
+        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+        PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
+        if(!Ptr) {
+            printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+            if (!slotarray[operand_list[0].value].svalue)
+                operand_list[0].type = OpTypeInt;
+            break;
+        }
+        slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
+        slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
+        }
+        break;
+    default:
+        {
+        if (generate == 2)
+            return processCInstruction(thisp, *ins);
+        else
+            return generate ? generateVerilog(thisp, *ins)
+                            : calculateGuardUpdate(thisp, *ins);
+        }
+        break;
+    case Instruction::Alloca: // ignore
+        if (generate == 2) {
+            if (const AllocaInst *AI = isDirectAlloca(&*ins))
+              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+        }
+        else
+        memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
+        break;
+    }
     return NULL;
 }
 
