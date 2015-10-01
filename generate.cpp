@@ -65,6 +65,46 @@ INTMAP_TYPE opcodeMap[] = {
 /*
  * Common utilities for processing Instruction lists
  */
+
+const char *intmapLookup(INTMAP_TYPE *map, int value)
+{
+    while (map->name) {
+        if (map->value == value)
+            return map->name;
+        map++;
+    }
+    return "unknown";
+}
+
+void recursiveDelete(Value *V)
+{
+    Instruction *I = dyn_cast<Instruction>(V);
+    if (!I)
+        return;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+        Value *OpV = I->getOperand(i);
+        I->setOperand(i, 0);
+        if (OpV->use_empty())
+            recursiveDelete(OpV);
+    }
+    I->eraseFromParent();
+}
+
+const char *getParam(int arg)
+{
+   char temp[MAX_CHAR_BUFFER];
+   temp[0] = 0;
+   if (operand_list[arg].type == OpTypeLocalRef)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeExternalFunction)
+       return slotarray[operand_list[arg].value].name;
+   else if (operand_list[arg].type == OpTypeInt)
+       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
+   else if (operand_list[arg].type == OpTypeString)
+       return (const char *)operand_list[arg].value;
+   return strdup(temp);
+}
+
 int getLocalSlot(const Value *V)
 {
     std::map<const Value *, int>::iterator FI = slotmap.find(V);
@@ -268,9 +308,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                       if (ins->getType() != Type::getVoidTy(BB->getContext()))
                           strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                   }
-                  char *p = processInstruction(work.thisp, *ins);
-                  if (p)
-                      strcat(cbuffer, p);
+                  strcat(cbuffer, processInstruction(work.thisp, *ins));
                   if (next_ins != ins_end)
                       strcat(cbuffer, ";\n");
                 }
@@ -322,9 +360,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                           if (ins->getType() != Type::getVoidTy(BB->getContext()))
                               strcat(cbuffer, printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                       }
-                      char *p = processInstruction(work.thisp, *ins);
-                      if (p)
-                          strcat(cbuffer, p);
+                      strcat(cbuffer, processInstruction(work.thisp, *ins));
                       if (next_ins != ins_end)
                           strcat(cbuffer, ";\n");
                     }

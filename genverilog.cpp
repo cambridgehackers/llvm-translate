@@ -28,52 +28,12 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static char vout[MAX_CHAR_BUFFER];
-
-const char *intmapLookup(INTMAP_TYPE *map, int value)
-{
-    while (map->name) {
-        if (map->value == value)
-            return map->name;
-        map++;
-    }
-    return "unknown";
-}
-
-static void recursiveDelete(Value *V)
-{
-    Instruction *I = dyn_cast<Instruction>(V);
-    if (!I)
-        return;
-    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
-        Value *OpV = I->getOperand(i);
-        I->setOperand(i, 0);
-        if (OpV->use_empty())
-            recursiveDelete(OpV);
-    }
-    I->eraseFromParent();
-}
-
-const char *getParam(int arg)
-{
-   char temp[MAX_CHAR_BUFFER];
-   temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeExternalFunction)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
-   else if (operand_list[arg].type == OpTypeString)
-       return (const char *)operand_list[arg].value;
-   return strdup(temp);
-}
-
 /*
  * Generate Verilog output for Store and Call instructions
  */
 const char *generateVerilog(Function ***thisp, Instruction &I)
 {
+    static char vout[MAX_CHAR_BUFFER];
     int dump_operands = trace_full;
     int opcode = I.getOpcode();
 

@@ -740,7 +740,7 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
 /*
  * Output instructions
  */
-char *processInstruction(Function ***thisp, Instruction &I)
+const char *processInstruction(Function ***thisp, Instruction &I)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
