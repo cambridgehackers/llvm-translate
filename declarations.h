@@ -188,3 +188,4 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect);
 char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E);
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
 uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);
+void *mapLookup(std::string name);

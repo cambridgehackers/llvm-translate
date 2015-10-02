@@ -36,6 +36,7 @@ static int trace_map;// = 1;
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
+static std::map<std::string, void *> maplookup;
 static std::list<MAPTYPE_WORK> mapwork, mapwork_non_class;
 static struct {
     void *p;
@@ -137,6 +138,8 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
         name = g->getName().str();
     if (name.length() != 0) {
         mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
+        if (name != "")
+            maplookup[name] = arg;
         if (trace_mapa) {
             const char *t = "";
             if (type) {
@@ -154,6 +157,13 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
     if (trace_mapa)
         printf("%s: %p\n", __FUNCTION__, arg);
     return temp;
+}
+void *mapLookup(std::string name)
+{
+    std::map<std::string, void *>::iterator MI = maplookup.find(name);
+    if (MI != maplookup.end())
+        return MI->second;
+    return NULL;
 }
 
 static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string aname)

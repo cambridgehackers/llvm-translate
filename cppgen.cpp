@@ -170,16 +170,27 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        strcat(vout, writeOperand(thisp, IS.getPointerOperand(), true));
-        strcat(vout, " = ");
+        const char *pdest = writeOperand(thisp, IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        const char *sval = writeOperand(thisp, Operand, false);
+        if (!strncmp(pdest, "*((0x", 5)) {
+            char *endptr;
+            void *pint = (void *)strtol(pdest+5, &endptr, 16);
+            const char *pname = mapAddress(pint, "", NULL);
+printf("[%s:%d] SSSSSSSSSSS %s[%lx] = %s\n", __FUNCTION__, __LINE__, pname, (long)pint, pdest);
+            if (strncmp(pname, "0x", 2)) {
+                pdest = pname;
+            }
+        }
+        strcat(vout, pdest);
+        strcat(vout, " = ");
         if (BitMask)
           strcat(vout, "((");
-        strcat(vout, writeOperand(thisp, Operand, false));
+        strcat(vout, sval);
         if (BitMask) {
           strcat(vout, printConstant(thisp, ") & ", BitMask));
           strcat(vout, ")");
@@ -814,7 +825,7 @@ next:
           std::map<std::string, void *>::iterator NI = nameMap.find(p);
 printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
           if (NI != nameMap.end() && NI->second) {
-              sprintf(&cbuffer[strlen(cbuffer)], "0x%p", Total + (uint8_t *)NI->second);
+              sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
           }
           else {

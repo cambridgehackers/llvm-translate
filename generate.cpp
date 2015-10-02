@@ -361,15 +361,33 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
-            if (generate == 2 && !isInlinableInst(*ins) && !isDirectAlloca(&*ins)
-             && ins->getType() != Type::getVoidTy(BB->getContext()))
-                fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
             if (generate != 2 || !isInlinableInst(*ins)) {
             const char *vout = processInstruction(work.thisp, ins, generate);
             if (vout) {
                 if (generate == 2) {
-                    if (strcmp(vout, ""))
+                    if (strcmp(vout, "")) {
+                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())) {
+                            std::string name = GetValueName(&*ins);
+                            fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
+printf("[%s:%d] CSETEMP '%s' = '%s'\n", __FUNCTION__, __LINE__, name.c_str(), vout);
+        if (!strncmp(vout, "*((0x", 5)) {
+            char *endptr;
+            void *pint = (void *)strtol(vout+5, &endptr, 16);
+            vout = mapAddress(pint, "", NULL);
+printf("[%s:%d]JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ *%lx = %lx vout %s\n", __FUNCTION__, __LINE__, pint, *(void **)pint, vout);
+        }
+        void *tval = mapLookup(vout);
+        if (tval) {
+            const char *ptemp = mapAddress(*(void **)tval, "", NULL);
+            if (strncmp(ptemp, "0x", 2)) {
+printf("[%s:%d] name %s vout %s tval %p ptemp %s\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval, ptemp);
+                //vout = ptemp;
+                nameMap[name] = tval;
+            }
+        }
+                        }
                         fprintf(outputFile, "        %s;\n", vout);
+                    }
                 }
                 else {
                     if (!already_printed_header) {
