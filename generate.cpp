@@ -152,7 +152,7 @@ retlab:
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
  */
-static uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
+uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
 {
     const DataLayout *TD = EE->getDataLayout();
     uint64_t Total = 0;
@@ -215,18 +215,16 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr:
         {
-        uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
         if (generate == 2) {
             GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-            const char *p = printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
-//printf("[%s:%d] new '%s' \n", __FUNCTION__, __LINE__, p);
-            return p;
+            return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
         }
-        if (thisp && !slotarray[operand_list[1].value].svalue) {
+        if (!slotarray[operand_list[1].value].svalue) {
             printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
             break;
             exit(1);
         }
+        uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
         uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
         slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
         slotarray[operand_list[0].value].svalue = ptr;
@@ -244,16 +242,14 @@ printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
             return p;
         }
         PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-        if(thisp) {
-            if (!Ptr) {
-                printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-                if (!slotarray[operand_list[0].value].svalue)
-                    operand_list[0].type = OpTypeInt;
-                break;
-            }
-            slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
-            slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
+        if (!Ptr) {
+            printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
+            if (!slotarray[operand_list[0].value].svalue)
+                operand_list[0].type = OpTypeInt;
+            break;
         }
+        slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
+        slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
         }
         break;
     default:
