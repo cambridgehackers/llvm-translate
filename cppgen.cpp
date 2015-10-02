@@ -36,6 +36,7 @@ enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPTo
 std::list<StructType *> structWork;
 int structWork_run;
 static std::map<Type *, int> structMap;
+std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
@@ -810,16 +811,13 @@ next:
           strcat(cbuffer, writeOperand(thisp, Ptr, true));
         } else if (I != E && (*I)->isStructTy()) {
           const char *p = writeOperand(thisp, Ptr, false);
-          //const char *pname = mapAddress(((uint8_t *)thisp) + Total, "", NULL);
-printf("[%s:%d] writeop %s\n", __FUNCTION__, __LINE__, p);
-#if 0
-          if (pname && strncmp(pname, "0x", 2)) {
-              strcat(cbuffer, "&");
-              strcat(cbuffer, pname);
+          std::map<std::string, void *>::iterator NI = nameMap.find(p);
+printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
+          if (NI != nameMap.end() && NI->second) {
+              sprintf(&cbuffer[strlen(cbuffer)], "0x%p", Total + (uint8_t *)NI->second);
+              goto exitlab;
           }
-          else 
-#endif
-{
+          else {
               strcat(cbuffer, "&");
               strcat(cbuffer, p);
               strcat(cbuffer, "->");
@@ -851,6 +849,7 @@ printf("[%s:%d] writeop %s\n", __FUNCTION__, __LINE__, p);
       strcat(cbuffer, "))");
     }
   }
+exitlab:
   strcat(cbuffer, ")");
     return strdup(cbuffer);
 }
@@ -1030,10 +1029,15 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
       prefix = "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       const char *p = processInstruction(thisp, I, 2);
-      if (!strcmp(prefix, "*") && !strncmp(p, "(&", 2)) {
-//printf("[%s:%d] starpref %s\n", __FUNCTION__, __LINE__, p);
-          strcat(cbuffer, p+2);
-          cbuffer[strlen(cbuffer)-1] = 0;
+      const char *pnew = NULL;
+      if (!strcmp(prefix, "*") && !strncmp(p, "(0x", 2)) {
+          char *endptr;
+          void **pint = (void **)strtol(p+3, &endptr, 16);
+          pnew = mapAddress(*pint, "", NULL);
+//printf("[%s:%d] starpref %s ptr %p new %s\n", __FUNCTION__, __LINE__, p, pint, pnew);
+      }
+      if (pnew && strncmp(pnew, "0x", 2)) {
+          strcat(cbuffer, pnew);
       }
       else {
           strcat(cbuffer, prefix);

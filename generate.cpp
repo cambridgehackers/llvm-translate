@@ -288,6 +288,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
         temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
         guardName = strdup(temp);
     }
+    nameMap.clear();
     slotmap.clear();
     slotmapIndex = 1;
     memset(slotarray, 0, sizeof(slotarray));
@@ -329,6 +330,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
         funcSeen[func] = 1;
         fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n"));
     }
+    nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());

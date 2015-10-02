@@ -150,6 +150,7 @@ extern cl::list<std::string> MAttrs;
 extern std::list<StructType *> structWork;
 extern int structWork_run;
 extern unsigned NextAnonValueNumber;
+extern std::map<std::string, void *> nameMap;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
