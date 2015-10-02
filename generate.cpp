@@ -375,11 +375,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                                 vout = mapAddress(pint, "", NULL);
                             }
                             void *tval = mapLookup(vout);
+printf("[%s:%d] WWWWWWWWWWWWWWWWWWWWW %s = %s [ %p]\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval);
                             if (tval) {
-                                const char *ptemp = mapAddress(*(void **)tval, "", NULL);
-                                if (strncmp(ptemp, "0x", 2)) {
+                                //const char *ptemp = mapAddress(*(void **)tval, "", NULL);
+                                //if (strncmp(ptemp, "0x", 2)) {
                                     nameMap[name] = tval;
-                                }
+                                //}
                             }
                         }
                         fprintf(outputFile, "        %s;\n", vout);
