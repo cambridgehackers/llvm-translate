@@ -178,13 +178,11 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         const char *sval = writeOperand(thisp, Operand, false);
         if (!strncmp(pdest, "*((0x", 5)) {
-            char *endptr;
+            char *endptr = NULL;
             void *pint = (void *)strtol(pdest+5, &endptr, 16);
             const char *pname = mapAddress(pint, "", NULL);
-printf("[%s:%d] SSSSSSSSSSS %s[%lx] = %s\n", __FUNCTION__, __LINE__, pname, (long)pint, pdest);
-            if (strncmp(pname, "0x", 2)) {
+            if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
-            }
         }
         strcat(vout, pdest);
         strcat(vout, " = ");
