@@ -762,6 +762,7 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
     char cbuffer[10000];
     cbuffer[0] = 0;
   ConstantInt *CI;
+  uint64_t Total = executeGEPOperation(I, E);
   if (I == E)
     return writeOperand(thisp, Ptr, false);
   VectorType *LastIndexIsVector = 0;
@@ -804,15 +805,29 @@ next:
         }
     }
     else {
-        strcat(cbuffer, "&");
         if (expose) {
+          strcat(cbuffer, "&");
           strcat(cbuffer, writeOperand(thisp, Ptr, true));
         } else if (I != E && (*I)->isStructTy()) {
-          strcat(cbuffer, writeOperand(thisp, Ptr, false));
-          strcat(cbuffer, "->");
-          strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+          const char *p = writeOperand(thisp, Ptr, false);
+          //const char *pname = mapAddress(((uint8_t *)thisp) + Total, "", NULL);
+printf("[%s:%d] writeop %s\n", __FUNCTION__, __LINE__, p);
+#if 0
+          if (pname && strncmp(pname, "0x", 2)) {
+              strcat(cbuffer, "&");
+              strcat(cbuffer, pname);
+          }
+          else 
+#endif
+{
+              strcat(cbuffer, "&");
+              strcat(cbuffer, p);
+              strcat(cbuffer, "->");
+              strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+          }
           ++I;  // eat the struct index as well.
         } else {
+          strcat(cbuffer, "&");
           strcat(cbuffer, "(");
           strcat(cbuffer, writeOperand(thisp, Ptr, true));
           strcat(cbuffer, ")");
