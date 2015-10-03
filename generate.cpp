@@ -369,19 +369,10 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())) {
                             std::string name = GetValueName(&*ins);
                             fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
-                            if (!strncmp(vout, "*((0x", 5)) {
-                                char *endptr;
-                                void *pint = (void *)strtol(vout+5, &endptr, 16);
-                                vout = mapAddress(pint, "", NULL);
-                            }
                             void *tval = mapLookup(vout);
+                            if (tval)
+                                nameMap[name] = tval;
 printf("[%s:%d] WWWWWWWWWWWWWWWWWWWWW %s = %s [ %p]\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval);
-                            if (tval) {
-                                //const char *ptemp = mapAddress(*(void **)tval, "", NULL);
-                                //if (strncmp(ptemp, "0x", 2)) {
-                                    nameMap[name] = tval;
-                                //}
-                            }
                         }
                         fprintf(outputFile, "        %s;\n", vout);
                     }
