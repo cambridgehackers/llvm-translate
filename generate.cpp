@@ -369,10 +369,12 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())) {
                             std::string name = GetValueName(&*ins);
                             fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
-                            void *tval = mapLookup(vout);
-                            if (tval)
-                                nameMap[name] = tval;
-printf("[%s:%d] WWWWWWWWWWWWWWWWWWWWW %s = %s [ %p]\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval);
+                            if (vout[0] == '&') {
+                                void *tval = mapLookup(vout+1);
+                                if (tval)
+                                    nameMap[name] = tval;
+//printf("[%s:%d] WWWWWWWWWWWWWWWWWWWWW %s = %s [ %p]\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval);
+                            }
                         }
                         fprintf(outputFile, "        %s;\n", vout);
                     }

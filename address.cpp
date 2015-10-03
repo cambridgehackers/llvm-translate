@@ -78,6 +78,7 @@ extern "C" void *llvm_translate_malloc(size_t size)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
+    memset(ptr, 0x5a, newsize);
     if (trace_malloc)
         printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
     addItemToList(ptr, newsize);
@@ -131,15 +132,17 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
     std::map<void *, ADDRESSMAP_TYPE *>::iterator MI = mapitem.find(arg);
     if (MI != mapitem.end()) {
         //if (trace_mapa)
-        //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second.c_str());
+        //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second->name.c_str());
         return MI->second->name.c_str();
     }
     if (g)
         name = g->getName().str();
     if (name.length() != 0) {
         mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
-        if (name != "")
+        if (name != "") {
             maplookup[name] = arg;
+            //printf("%s: setname %s = %p\n", __FUNCTION__, name.c_str(), arg);
+        }
         if (trace_mapa) {
             const char *t = "";
             if (type) {
@@ -253,7 +256,8 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                 if (!cp.length())
                     cp = DIG.getName().str();
                 void *addr = EE->getPointerToGlobal(gv);
-                mapitem[addr] = new ADDRESSMAP_TYPE(cp, DIG.getType());
+                //mapitem[addr] = new ADDRESSMAP_TYPE(cp, DIG.getType());
+                mapAddress(addr, cp, DIG.getType());
                 DICompositeType CTy(DIG.getType());
                 int tag = CTy.getTag();
                 Value *contextp = DIG.getContext();

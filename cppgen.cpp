@@ -1044,7 +1044,6 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
       prefix = "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       const char *p = processInstruction(thisp, I, 2);
-      const char *pnew = NULL;
       if (!strcmp(prefix, "*") && !strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
           prefix = "";
           char *ptemp = strdup(p+2);
@@ -1054,17 +1053,17 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
       if (!strcmp(prefix, "*") && !strncmp(p, "(0x", 3)) {
           char *endptr;
           void **pint = (void **)strtol(p+3, &endptr, 16);
-          pnew = mapAddress(*pint, "", NULL); /* Try to see what value it is */
+          const char *pnew = mapAddress(*pint, "", NULL); /* Try to see what value it is */
           if (pnew && strncmp(pnew, "0x", 2)) {
-printf("[%s:%d] starpref %s ptr %p new %s\n", __FUNCTION__, __LINE__, p, pint, pnew);
+//printf("[%s:%d] starpref %s ptr %p new %s\n", __FUNCTION__, __LINE__, p, *pint, pnew);
               strcat(cbuffer, "&");
               strcat(cbuffer, pnew);
           }
           else {
-              const char *pone = mapAddress(pint, "", NULL);
-printf("[%s:%d] pone %p '%s'\n", __FUNCTION__, __LINE__, pint, pone);
-              if (strncmp(pone, "0x", 2))
-                  strcat(cbuffer, pone);
+              pnew = mapAddress(pint, "", NULL);
+//printf("[%s:%d] pnew %p '%s'\n", __FUNCTION__, __LINE__, pint, pnew);
+              if (strncmp(pnew, "0x", 2))
+                  strcat(cbuffer, pnew);
               else
                   goto oldstyle;
           }
