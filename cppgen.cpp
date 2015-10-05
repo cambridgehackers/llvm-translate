@@ -308,6 +308,7 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
         const char *sep = "";
+        int skip = (thisp != NULL);
         Function ***callthisp = NULL;
         Function *func = ICL.getCalledFunction();
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
@@ -317,6 +318,10 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         Function *RF = NULL;
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
             Callee = RF;
             strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
@@ -324,23 +329,29 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         strcat(vout, writeOperand(thisp, Callee, false));
         if (RF)
             strcat(vout, ")");
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-        unsigned len = FTy->getNumParams();
-        CallSite CS(&I);
-        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        if (thisp && AI != AE) {
+            const char *p = writeOperand(thisp, *AI, false);
+            if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
+                char *ptemp = strdup(p+2);
+                ptemp[strlen(ptemp)-1] = 0;
+                callthisp = (Function ***)mapLookup(ptemp);
+            }
+            else
+                printf("[%s:%d] Call could not determine 'this'\n", __FUNCTION__, __LINE__);
+            strcat(vout, "::::");
+            strcat(vout, mapAddress(callthisp, "", NULL));
+        }
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
+            if (!skip) {
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
             const char *p = writeOperand(thisp, *AI, false);
             strcat(vout, p);
-            if (!strcmp(sep, "") && !strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-                char *ptemp = strdup(p+2);
-                ptemp[strlen(ptemp)-1] = 0;
-                callthisp = (Function ***)mapLookup(ptemp);
-            }
             sep = ", ";
+            }
+            skip = 0;
         }
         strcat(vout, ")");
         vtablework.push_back(VTABLE_WORK(func, callthisp, SLOTARRAY_TYPE()));
@@ -1111,26 +1122,38 @@ oldstyle:
       strcat(cbuffer, ")");
   return strdup(cbuffer);
 }
-char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix)
+char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, void *thisp)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
+  int skip = (thisp != NULL);
   const char *sep = "";
   const char *statstr = "";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   if (F->hasLocalLinkage()) statstr = "static ";
-  FunctionInnards << GetValueName(F) << '(';
+  FunctionInnards << GetValueName(F);
+  if (thisp) {
+      FunctionInnards << "::::";
+      FunctionInnards << mapAddress(thisp, "", NULL);
+  }
+  FunctionInnards << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
+      if (!skip) {
       FunctionInnards << printType(*I, /*isSigned=*/false, "", sep, "");
       sep = ", ";
+      }
+      skip = 0;
     }
   } else if (!F->arg_empty()) {
     for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+      if (!skip) {
       std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
       FunctionInnards << printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
       sep = ", ";
+      }
+      skip = 0;
     }
   }
   if (!strcmp(sep, ""))
@@ -1247,7 +1270,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
          || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
          || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n"));
+            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", NULL));
     }
     UnnamedStructIDs.clear();
 }

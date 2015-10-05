@@ -5,6 +5,7 @@ set -x
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
 #catchsegv ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
+c++filt <foo.tmp.xc >foo.tmp.tmp
 
 #    gdb ./Debug+Asserts/bin/llvm-translate
 

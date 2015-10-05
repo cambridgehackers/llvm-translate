@@ -328,7 +328,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
          || MI != funcSeen.end())
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n"));
+        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n", work.thisp));
     }
     nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
