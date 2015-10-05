@@ -366,7 +366,8 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             if (vout) {
                 if (generate == 2) {
                     if (strcmp(vout, "")) {
-                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())) {
+                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                         && ins->use_begin() != ins->use_end()) {
                             std::string name = GetValueName(&*ins);
                             fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
                             if (vout[0] == '&') {

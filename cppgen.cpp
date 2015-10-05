@@ -386,7 +386,8 @@ bool isInlinableInst(const Instruction &I)
     return true;
   if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
       || isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I)
-      || isa<LoadInst>(I) || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
+      //|| isa<LoadInst>(I)
+      || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
       || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
     return false;
   if (I.hasOneUse()) {
