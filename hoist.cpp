@@ -95,7 +95,7 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
 }
 
 /*
- * Perform guard(), confirm() hoisting.  Insert shadow variable access for store.
+ * Perform guard(), update() hoisting.  Insert shadow variable access for store.
  */
 const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 {
