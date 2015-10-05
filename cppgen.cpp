@@ -308,6 +308,7 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
         const char *sep = "";
+        Function ***callthisp = NULL;
         Function *func = ICL.getCalledFunction();
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
@@ -332,11 +333,17 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            strcat(vout, writeOperand(thisp, *AI, false));
+            const char *p = writeOperand(thisp, *AI, false);
+            strcat(vout, p);
+            if (!strcmp(sep, "") && !strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
+                char *ptemp = strdup(p+2);
+                ptemp[strlen(ptemp)-1] = 0;
+                callthisp = (Function ***)mapLookup(ptemp);
+            }
             sep = ", ";
         }
         strcat(vout, ")");
-        vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+        vtablework.push_back(VTABLE_WORK(func, callthisp, SLOTARRAY_TYPE()));
 //        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
 //        Function *f = (Function *)slotarray[tcall].svalue;
 //        if (!f) {
