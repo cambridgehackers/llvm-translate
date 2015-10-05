@@ -833,12 +833,26 @@ printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMa
               sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
           }
-          else {
-              strcat(cbuffer, "&");
-              strcat(cbuffer, p);
-              strcat(cbuffer, "->");
-              strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+          if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
+              char *ptemp = strdup(p+2);
+              ptemp[strlen(ptemp)-1] = 0;
+              p = ptemp;
+              void *tval = mapLookup(p);
+              if (tval) {
+                  sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)tval);
+                  goto exitlab;
+              }
+              else {
+                  strcat(cbuffer, "&");
+                  strcat(cbuffer, p);
+                  strcat(cbuffer, ".");
+                  strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+              }
           }
+          strcat(cbuffer, "&");
+          strcat(cbuffer, p);
+          strcat(cbuffer, "->");
+          strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
           ++I;  // eat the struct index as well.
         } else {
           strcat(cbuffer, "&");
