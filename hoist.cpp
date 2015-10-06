@@ -243,7 +243,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
             sprintf(temp, "class.%s", ret+11);
             parentGuardName = lookup_method(temp, "guard");
-            parentUpdateName = lookup_method(temp, "update");
+            //parentUpdateName = lookup_method(temp, "update");
         }
         printf("[%s:%d] pguard %d pupdate %d\n", __FUNCTION__, __LINE__, parentGuardName, parentUpdateName);
         if (guardName >= 0 && parentGuardName >= 0) {

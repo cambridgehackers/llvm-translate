@@ -419,12 +419,12 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
         Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
         while (rulep) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-            static std::string method[] = { "body", "guard", "update", ""};
+            static std::string method[] = { "update", "guard", ""};
             std::string *p = method;
             do {
                 vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
                     rulep, SLOTARRAY_TYPE()));
-            } while (*++p != "" && generate); // only preprocess 'body'
+            } while (*++p != "" && generate); // only preprocess 'update'
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next
