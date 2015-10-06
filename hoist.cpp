@@ -211,12 +211,28 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             if (trace_translate)
                 printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
                       f->getName().str().c_str(), thisp);
+            int len = 0;
+            int status;
+            const char *demang = abi::__cxa_demangle(f->getName().str().c_str(), 0, 0, &status);
+            if (demang) {
+                const char *p = demang;
+                while (*p && *p != '(')
+                    p++;
+                while (p != demang && *p != ':') {
+                    len++;
+                    p--;
+                }
             const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
             const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
             const StructType *STy = cast<StructType>(p1->getPointerElementType());
             const char *tname = strdup(STy->getName().str().c_str());
-            guardName = lookup_method(tname, "guard");
-            updateName = lookup_method(tname, "update");
+                if (len > 2) {
+                    char tempname[1000];
+                    memcpy(tempname, p+1, len-1);
+                    strcpy(tempname+len-1, "__guard");
+                    guardName = lookup_method(tname, tempname);
+                }
+            }
         }
         printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
         const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
@@ -229,6 +245,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             parentGuardName = lookup_method(temp, "guard");
             parentUpdateName = lookup_method(temp, "update");
         }
+        printf("[%s:%d] pguard %d pupdate %d\n", __FUNCTION__, __LINE__, parentGuardName, parentUpdateName);
         if (guardName >= 0 && parentGuardName >= 0) {
             Function *peer_guard = parent_thisp[0][parentGuardName];
             TerminatorInst *TI = peer_guard->begin()->getTerminator();

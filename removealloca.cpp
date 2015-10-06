@@ -80,16 +80,19 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                   const char *cp = Operand->getName().str().c_str();
                   if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
                       I->eraseFromParent(); // delete this instruction
-                      break;
                       changed = true;
+                      break;
                   }
                 }
+#if 0
+// we inlined a function that still had llvm.dbg.declare
                 Instruction *nexti = PI;
                 if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
                     printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
                     InlineFunctionInfo IFI;
                     InlineFunction(CI, IFI, false);
                 }
+#endif
             }
             break;
         };

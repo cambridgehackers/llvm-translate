@@ -47,7 +47,6 @@ cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input 
 cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)"));
 cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 
-int trace_translate;// = 1;
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 static int output_stdout;// = 1;

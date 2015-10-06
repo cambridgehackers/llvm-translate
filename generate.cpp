@@ -30,6 +30,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+int trace_translate ;//= 1;
 SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 std::list<VTABLE_WORK> vtablework;
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
