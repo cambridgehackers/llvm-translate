@@ -363,6 +363,8 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
             if (generate != 2 || !isInlinableInst(*ins)) {
+                if (trace_translate && generate == 2)
+                    fprintf(outputFile, "/*before opcode %d.=%s*/\n", ins->getOpcode(), ins->getOpcodeName());
             const char *vout = processInstruction(work.thisp, ins, generate);
             if (vout) {
                 if (generate == 2) {

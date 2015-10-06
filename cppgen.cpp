@@ -290,6 +290,8 @@ bool isInlinableInst(const Instruction &I)
 {
   if (isa<CmpInst>(I))
     return true;
+  if (isa<LoadInst>(I))
+    return true;
   if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
       || isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I)
       //|| isa<LoadInst>(I)
