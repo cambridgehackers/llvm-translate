@@ -248,7 +248,8 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
             skip = 0;
         }
         strcat(vout, ")");
-        vtablework.push_back(VTABLE_WORK(func, callthisp, SLOTARRAY_TYPE()));
+        if (func)
+            vtablework.push_back(VTABLE_WORK(func, callthisp, SLOTARRAY_TYPE()));
 //        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
 //        Function *f = (Function *)slotarray[tcall].svalue;
 //        if (!f) {
