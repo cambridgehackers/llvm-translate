@@ -178,7 +178,7 @@ bool endswith(const char *str, const char *suffix);
 void generateCppData(FILE *OStr, Module &Mod);
 void generateCppHeader(Module &Mod, FILE *OStr);
 const char *processCInstruction(Function ***thisp, Instruction &I);
-char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, void *thisp);
+char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, int skip);
 std::string GetValueName(const Value *Operand);
 char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 bool isInlinableInst(const Instruction &I);

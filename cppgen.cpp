@@ -1009,23 +1009,16 @@ oldstyle:
       strcat(cbuffer, ")");
   return strdup(cbuffer);
 }
-char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, void *thisp)
+char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, int skip)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
-  int skip = (thisp != NULL);
   const char *sep = "";
   const char *statstr = "";
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   if (F->hasLocalLinkage()) statstr = "static ";
   FunctionInnards << GetValueName(F);
-#if 0
-  if (thisp) {
-      FunctionInnards << "::::";
-      FunctionInnards << mapAddress(thisp, "", NULL);
-  }
-#endif
   FunctionInnards << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
@@ -1157,7 +1150,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         std::string name = I->getName().str();
-        void * tptr = NULL;
+        int skip = 0;
         Type *Ty;
         FunctionType *FTy;
         PointerType  *PTy;
@@ -1169,12 +1162,12 @@ void generateCppHeader(Module &Mod, FILE *OStr)
          && Ty  && (Ty->getNumContainedTypes() > 1)
          && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
          && Ty  && (Ty->getStructName() == "class.Rule"))
-            tptr = (void *)OStr;
+            skip = 1;
 #endif
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", tptr));
+            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", skip));
     }
     UnnamedStructIDs.clear();
 }
