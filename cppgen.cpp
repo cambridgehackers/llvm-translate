@@ -64,7 +64,6 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             strcat(vout, writeOperand(thisp, I.getOperand(0), false));
           strcat(vout, ";\n");
         }
-//            sprintf(vout, "%s = %s;", globalName, getParam(1));
         break;
     case Instruction::Unreachable:
         break;
@@ -154,9 +153,6 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         }
         }
         break;
-    //case Instruction::AtomicCmpXchg:
-    //case Instruction::AtomicRMW:
-    //case Instruction::Fence:
 
     // Convert instructions...
     case Instruction::SExt:
@@ -201,7 +197,6 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
         const char *sep = "";
-        Function ***callthisp = NULL;
         Function *func = ICL.getCalledFunction();
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
@@ -221,20 +216,6 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         strcat(vout, writeOperand(thisp, Callee, false));
         if (RF)
             strcat(vout, ")");
-#if 0  // generate generic methods
-        if (thisp && AI != AE) {
-            const char *p = writeOperand(thisp, *AI, false);
-            if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-                char *ptemp = strdup(p+2);
-                ptemp[strlen(ptemp)-1] = 0;
-                callthisp = (Function ***)mapLookup(ptemp);
-            }
-            else
-                printf("[%s:%d] Call could not determine 'this'\n", __FUNCTION__, __LINE__);
-            strcat(vout, "::::");
-            strcat(vout, mapAddress(callthisp, "", NULL));
-        }
-#endif
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
             strcat(vout, sep);
@@ -246,24 +227,7 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         }
         strcat(vout, ")");
         if (func)
-            vtablework.push_back(VTABLE_WORK(func, callthisp, SLOTARRAY_TYPE()));
-//        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-//        Function *f = (Function *)slotarray[tcall].svalue;
-//        if (!f) {
-//            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-//            break;
-//        }
-//        Value *oldcall = I.getOperand(I.getNumOperands()-1);
-//        I.setOperand(I.getNumOperands()-1, f);
-//        recursiveDelete(oldcall);
-//        SLOTARRAY_TYPE arg;
-//        if (operand_list_index > 3)
-//            arg = slotarray[operand_list[2].value];
-//else
-//        vtablework.push_back(VTABLE_WORK(
-//            ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
-//            (Function ***)slotarray[operand_list[1].value].svalue, arg));
-//        slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
         }
         break;
     default:
@@ -668,15 +632,15 @@ static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   }
   strcat(cbuffer, printType(DstTy, TypeIsSigned, "", "(", ")"));
   switch (opc) {
-    case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
-    case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
-      goto exitlab; // These don't need a source cast.
-    case Instruction::IntToPtr: case Instruction::PtrToInt:
+  case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
+  case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
+      break; // These don't need a source cast.
+  case Instruction::IntToPtr: case Instruction::PtrToInt:
       strcat(cbuffer, "(unsigned long)");
-      goto exitlab;
+      break;
+  default:
+      strcat(cbuffer, printType(SrcTy, TypeIsSigned, "", "(", ")"));
   }
-  strcat(cbuffer, printType(SrcTy, TypeIsSigned, "", "(", ")"));
-exitlab:
     return strdup(cbuffer);
 }
 char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
@@ -1054,6 +1018,21 @@ static int processVar(const GlobalVariable *GV)
       return 0;
   return 1;
 }
+static int checkIfRule(Type *aTy)
+{
+    Type *Ty;
+    FunctionType *FTy;
+    PointerType  *PTy;
+    if ((PTy = dyn_cast<PointerType>(aTy))
+     && PTy && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
+     && FTy && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
+     && PTy && (Ty = PTy->getElementType())
+     && Ty  && (Ty->getNumContainedTypes() > 1)
+     && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
+     && Ty  && (Ty->getStructName() == "class.Rule"))
+       return 1;
+    return 0;
+}
 void generateCppData(FILE *OStr, Module &Mod)
 {
     ArrayType *ATy;
@@ -1061,6 +1040,7 @@ void generateCppData(FILE *OStr, Module &Mod)
     const FunctionType *FT;
     StructType *STy, *ISTy;
     const ConstantExpr *CE;
+    std::list<std::string> ruleList;
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
@@ -1081,7 +1061,6 @@ void generateCppData(FILE *OStr, Module &Mod)
         }
     }
     fprintf(OStr, "\n\n//******************** vtables for Classes *******************\n");
-std::list<std::string> ruleList;
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (processVar(I)) {
           Type *Ty = I->getType()->getElementType();
@@ -1105,7 +1084,7 @@ std::list<std::string> ruleList;
                      && (STy = cast<StructType>(PPTy->getElementType()))
                      && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
                      && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule")){
-ruleList.push_back(strName);
+                        ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
                           fprintf(OStr, "%s", printConstant(NULL, sep, V));
@@ -1161,19 +1140,8 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         std::string name = I->getName().str();
         int skip = 0;
-        Type *Ty;
-        FunctionType *FTy;
-        PointerType  *PTy;
-#if 1
-        if ((PTy = dyn_cast<PointerType>(I->getType()))
-         && PTy && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
-         && FTy && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
-         && PTy && (Ty = PTy->getElementType())
-         && Ty  && (Ty->getNumContainedTypes() > 1)
-         && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
-         && Ty  && (Ty->getStructName() == "class.Rule"))
+        if (checkIfRule(I->getType()))
             skip = 1;
-#endif
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))

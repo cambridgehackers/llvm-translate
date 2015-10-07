@@ -485,17 +485,10 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generate cpp code
     generateCppData(Out, Mod);
-#if 1
+
     // Generating code for all rules
     processRules(*modfirst, 2, Out);
-#else
-    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I)
-        vtablework.push_back(VTABLE_WORK(&*I, NULL, SLOTARRAY_TYPE()));
-    while (vtablework.begin() != vtablework.end()) {
-        processFunction(*vtablework.begin(), 2, Out);
-        vtablework.pop_front();
-    }
-#endif
+
     generateCppHeader(Mod, OutHeader);
     return false;
 }
