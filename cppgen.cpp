@@ -141,10 +141,10 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         if (BitMask)
           strcat(vout, "((");
         std::map<std::string, void *>::iterator NI = nameMap.find(sval);
-printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
+//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
         if (NI != nameMap.end() && NI->second) {
             sval = mapAddress(NI->second, "", NULL);
-printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
+//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
         }
         strcat(vout, sval);
         if (BitMask) {
@@ -697,7 +697,7 @@ next:
         } else if (I != E && (*I)->isStructTy()) {
           const char *p = writeOperand(thisp, Ptr, false);
           std::map<std::string, void *>::iterator NI = nameMap.find(p);
-printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
+//printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
           if (NI != nameMap.end() && NI->second) {
               sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
@@ -819,7 +819,7 @@ static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
       break;
     }
     default:
-      errs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
+      outs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
       llvm_unreachable(0);
     }
     strcat(cbuffer, ")");
@@ -904,7 +904,7 @@ static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
       strcat(cbuffer, writeOperand(thisp, GV, false));
     break;
   default:
-    errs() << "Unknown constant type: " << *CPV << "\n";
+    outs() << "Unknown constant type: " << *CPV << "\n";
     llvm_unreachable(0);
   }
   }

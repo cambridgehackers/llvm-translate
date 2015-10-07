@@ -35,7 +35,7 @@ SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 std::list<VTABLE_WORK> vtablework;
 OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
 int operand_list_index;
-Function *EntryFn;
+const Function *EntryFn;
 const char *globalName;
 
 static int slotmapIndex = 1;
@@ -202,7 +202,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
             rv = (uint64_t) *((PointerTy*)Ptr);
         break;
     default:
-        errs() << "Cannot load value of type " << *Ty << "!";
+        outs() << "Cannot load value of type " << *Ty << "!";
         exit(1);
     }
     if (trace_full)
@@ -212,7 +212,7 @@ static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
 {
-    //errs() << "processinst" << *ins;
+    //outs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr:
         {
@@ -239,7 +239,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
             LoadInst &IL = static_cast<LoadInst&>(*ins);
             ERRORIF (IL.isVolatile());
             const char *p = writeOperand(thisp, ins->getOperand(0), true);
-printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
+//printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
             return p;
         }
         PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
@@ -276,12 +276,13 @@ printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static std::map<Function *, int> funcSeen;
+static std::map<const Function *, int> funcSeen;
 static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
 {
     Function *func = work.f;
     const char *guardName = NULL;
     globalName = strdup(func->getName().str().c_str());
+printf("[%s:%d] processing %s\n", __FUNCTION__, __LINE__, globalName);
     NextAnonValueNumber = 0;
     if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
@@ -322,7 +323,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     if (generate == 2) {
         int status;
         const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
-        std::map<Function *, int>::iterator MI = funcSeen.find(func);
+        std::map<const Function *, int>::iterator MI = funcSeen.find(func);
         if ((demang && strstr(demang, "::~"))
          || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
          || !strcmp(globalName, "__dtor_echoTest")
@@ -425,7 +426,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             std::string *p = method;
             do {
                 vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
-                    rulep, SLOTARRAY_TYPE()));
+                    (Function ***)rulep, SLOTARRAY_TYPE()));
             } while (*++p != "" //&& generate
 ); // only preprocess 'update'
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
@@ -480,6 +481,9 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
     processRules(*modfirst, 0, outputFile);
+
+    // package together referenced classes
+    createClassInstances();
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile);

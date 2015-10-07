@@ -79,7 +79,7 @@ public:
 
 class VTABLE_WORK {
 public:
-    Function *f;
+    Function *f;      // Since passes modify instructions, this cannot be 'const'
     Function ***thisp;
     SLOTARRAY_TYPE arg;
     VTABLE_WORK(Function *a, Function ***b, SLOTARRAY_TYPE c) {
@@ -144,7 +144,7 @@ extern int operand_list_index;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern FILE *outputFile;
-extern Function *EntryFn;
+extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
 extern std::list<StructType *> structWork;
@@ -189,3 +189,4 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
 uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);
 void *mapLookup(std::string name);
+void createClassInstances(void);

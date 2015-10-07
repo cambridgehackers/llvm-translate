@@ -200,7 +200,6 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
             std::replace(name.begin(), name.end(), ':', '_');
             std::replace(name.begin(), name.end(), '<', '_');
             std::replace(name.begin(), name.end(), '>', '_');
-printf("[%s:%d] KKKKKKKKKKKKKKKKKKKKK %s\n", __FUNCTION__, __LINE__, name.c_str());
         }
     }
     if (aname.length() > 0)

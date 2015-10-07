@@ -31,6 +31,7 @@ using namespace llvm;
 #include "declarations.h"
 
 static std::map<const Value *, Value *> cloneVmap;
+static std::map<std::string,int> classCreate;
 int trace_clone;
 
 /*
@@ -122,7 +123,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
     // Memory instructions...
     case Instruction::Store:
-        printf("%s: STORE %s=%s\n", __FUNCTION__, getParam(2), getParam(1));
+        //printf("%s: STORE %s=%s\n", __FUNCTION__, getParam(2), getParam(1));
         if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
             operand_list[1].type = OpTypeInt;
         if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
@@ -175,14 +176,14 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Value *called = I.getOperand(I.getNumOperands()-1);
         const char *cp = called->getName().str().c_str();
-        const Function *CF = dyn_cast<Function>(called);
+        Function *CF = dyn_cast<Function>(called);
         if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
             cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
             Function *F = I.getParent()->getParent();
             Module *Mod = F->getParent();
             std::string Fname = F->getName().str();
-            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "4bodyEv";
+            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
             Function *otherBody = Mod->getFunction(otherName);
             TerminatorInst *TI = otherBody->begin()->getTerminator();
             prepareClone(TI, &I);
@@ -202,13 +203,14 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             break;
         }
         int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *f = (Function *)slotarray[tcall].svalue;
+        Function *f = CF;
+//(Function *)slotarray[tcall].svalue;
         Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
         if (!f) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
         }
         else {
-            if (trace_translate)
+            //if (trace_translate)
                 printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
                       f->getName().str().c_str(), thisp);
             int len = 0;
@@ -222,23 +224,27 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                     len++;
                     p--;
                 }
-            const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-            if (IC) {
-            const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
-            const StructType *STy = cast<StructType>(p1->getPointerElementType());
-            const char *tname = strdup(STy->getName().str().c_str());
-                if (len > 2) {
-                    char tempname[1000];
-                    memcpy(tempname, p+1, len-1);
-                    strcpy(tempname+len-1, "__guard");
-                    guardName = lookup_method(tname, tempname);
+                const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+                const SequentialType *p1;
+                const StructType *STy;
+                if (IC && (p1 = dyn_cast<SequentialType>(IC->getOperand(0)->getType()->getPointerElementType()))
+                     && (STy = dyn_cast<StructType>(p1->getPointerElementType()))) {
+                    std::string tname = STy->getName().str();
+                    classCreate[tname] = 1;
+                    if (len > 2) {
+                        char tempname[1000];
+                        memcpy(tempname, p+1, len-1);
+                        strcpy(tempname+len-1, "__guard");
+                        guardName = lookup_method(tname.c_str(), tempname);
+                    }
                 }
-            }
             }
         }
         printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
-        const GlobalValue *g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-        printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
+        const GlobalValue *g = NULL;
+        if (parent_thisp)
+            g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
+        //printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
@@ -277,12 +283,19 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             }
         }
 //if (operand_list_index <= 3)
+#if 0
         if (f && thisp) {
             vtablework.push_back(VTABLE_WORK(thisp[0][slotarray[tcall].offset/sizeof(uint64_t)],
                 thisp,
                 (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
             slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
         }
+#else
+        if (f) {
+printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
+            vtablework.push_back(VTABLE_WORK(f, NULL, SLOTARRAY_TYPE()));
+        }
+#endif
         }
         break;
     default:
@@ -299,4 +312,26 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         break;
     }
     return NULL;
+}
+void createClassInstances(void)
+{
+    while (classCreate.begin() != classCreate.end()) {
+        std::string key = classCreate.begin()->first;
+        classCreate.erase(key);
+        CLASS_META *mptr = lookup_class(key.c_str());
+printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
+printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
+        DIType thisType(mptr->node);
+        thisType->dump();
+        printf("\n");
+        DIType inheritType(mptr->inherit);
+        inheritType->dump();
+        printf("\n");
+        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
+            printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
+            DIType memberType(*FI);
+            memberType->dump();
+            printf("\n");
+        }
+    }
 }
