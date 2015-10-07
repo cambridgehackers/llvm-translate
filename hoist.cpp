@@ -223,6 +223,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                     p--;
                 }
             const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+            if (IC) {
             const Type *p1 = IC->getOperand(0)->getType()->getPointerElementType();
             const StructType *STy = cast<StructType>(p1->getPointerElementType());
             const char *tname = strdup(STy->getName().str().c_str());
@@ -232,6 +233,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                     strcpy(tempname+len-1, "__guard");
                     guardName = lookup_method(tname, tempname);
                 }
+            }
             }
         }
         printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);

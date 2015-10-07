@@ -426,7 +426,8 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             do {
                 vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
                     rulep, SLOTARRAY_TYPE()));
-            } while (*++p != "" && generate); // only preprocess 'update'
+            } while (*++p != "" //&& generate
+); // only preprocess 'update'
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next
