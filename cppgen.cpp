@@ -23,7 +23,6 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include <string.h>
-#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/InstIterator.h"
@@ -202,7 +201,6 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
         const char *sep = "";
-        int skip = (thisp != NULL);
         Function ***callthisp = NULL;
         Function *func = ICL.getCalledFunction();
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
@@ -223,6 +221,7 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
         strcat(vout, writeOperand(thisp, Callee, false));
         if (RF)
             strcat(vout, ")");
+#if 0  // generate generic methods
         if (thisp && AI != AE) {
             const char *p = writeOperand(thisp, *AI, false);
             if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
@@ -235,17 +234,15 @@ printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval)
             strcat(vout, "::::");
             strcat(vout, mapAddress(callthisp, "", NULL));
         }
+#endif
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
-            if (!skip) {
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
             const char *p = writeOperand(thisp, *AI, false);
             strcat(vout, p);
             sep = ", ";
-            }
-            skip = 0;
         }
         strcat(vout, ")");
         if (func)
@@ -1023,10 +1020,12 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   if (F->hasLocalLinkage()) statstr = "static ";
   FunctionInnards << GetValueName(F);
+#if 0
   if (thisp) {
       FunctionInnards << "::::";
       FunctionInnards << mapAddress(thisp, "", NULL);
   }
+#endif
   FunctionInnards << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
@@ -1157,10 +1156,25 @@ void generateCppHeader(Module &Mod, FILE *OStr)
     fprintf(OStr, "\n/* Function Declarations */\n");
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
-        if (!(I->isIntrinsic() || I->getName() == "main" || I->getName() == "atexit"
-         || I->getName() == "printf" || I->getName() == "__cxa_pure_virtual"
-         || I->getName() == "setjmp" || I->getName() == "longjmp" || I->getName() == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", NULL));
+        std::string name = I->getName().str();
+        void * tptr = NULL;
+        Type *Ty;
+        FunctionType *FTy;
+        PointerType  *PTy;
+#if 0
+        if ((PTy = dyn_cast<PointerType>(I->getType()))
+         && PTy && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
+         && FTy && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
+         && PTy && (Ty = PTy->getElementType())
+         && Ty  && (Ty->getNumContainedTypes() > 1)
+         && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
+         && Ty  && (Ty->getStructName() == "class.Rule"))
+            tptr = (void *)OStr;
+#endif
+        if (!(I->isIntrinsic() || name == "main" || name == "atexit"
+         || name == "printf" || name == "__cxa_pure_virtual"
+         || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
+            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", tptr));
     }
     UnnamedStructIDs.clear();
 }

@@ -197,10 +197,14 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
             }
             if (!derived)
                 CTy = DICompositeType(classp->node);
+            std::replace(name.begin(), name.end(), ':', '_');
+            std::replace(name.begin(), name.end(), '<', '_');
+            std::replace(name.begin(), name.end(), '>', '_');
+printf("[%s:%d] KKKKKKKKKKKKKKKKKKKKK %s\n", __FUNCTION__, __LINE__, name.c_str());
         }
     }
     if (aname.length() > 0)
-        fname = aname + ":" + name;
+        fname = aname + "_ZZ_" + name;
     if (tag == dwarf::DW_TAG_pointer_type) {
         if (addr_target && mapitem.find(addr_target) == mapitem.end()) { // process item, if not seen before
             const MDNode *node = getNode(CTy.getTypeDerivedFrom());
