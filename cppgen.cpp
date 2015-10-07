@@ -1036,9 +1036,6 @@ static int checkIfRule(Type *aTy)
 void generateCppData(FILE *OStr, Module &Mod)
 {
     ArrayType *ATy;
-    PointerType *PTy, *PPTy;
-    const FunctionType *FT;
-    StructType *STy, *ISTy;
     const ConstantExpr *CE;
     std::list<std::string> ruleList;
     NextTypeID = 1;
@@ -1079,11 +1076,7 @@ void generateCppData(FILE *OStr, Module &Mod)
                     fprintf(OStr, "{");
                     const char *sep = " ";
                     if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
-                     && (PTy = cast<PointerType>(CE->getOperand(0)->getType())) && (FT = dyn_cast<FunctionType>(PTy->getElementType()))
-                     && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
-                     && (STy = cast<StructType>(PPTy->getElementType()))
-                     && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
-                     && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule")){
+                     && checkIfRule(CE->getOperand(0)->getType())) {
                         ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
