@@ -44,8 +44,9 @@ int i;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-  _GLOBAL__I_a();
+  //_GLOBAL__I_a();
     while (!stop_main_program) {
+#if 0
         struct l_class_OC_Module *curmod = _ZN6Module5firstE;
         while (curmod) {
             struct l_class_OC_Rule *currule = curmod->rfirst;
@@ -57,6 +58,23 @@ int main(int argc, const char *argv[])
             }
             curmod = curmod->next;
         }
+#else
+printf("_ZN8EchoTest5drive5guardEv: %p\n", &_ZN8EchoTest5drive5guardEv);
+printf("_ZN8EchoTest5drive6updateEv: %p\n", &_ZN8EchoTest5drive6updateEv);
+printf("_ZN4Echo7respond8respond25guardEv: %p\n", &_ZN4Echo7respond8respond25guardEv);
+printf("_ZN4Echo7respond8respond15guardEv: %p\n", &_ZN4Echo7respond8respond15guardEv);
+        const RuleVTab *currule = ruleList;
+        while (*currule) {
+printf("[%s:%d] currule %p\n", __FUNCTION__, __LINE__, currule);
+printf("[%s:%d] [0] %p [1] %p\n", __FUNCTION__, __LINE__, currule[0], currule[1]);
+printf("[%s:%d] [0] %p [1] %p\n", __FUNCTION__, __LINE__, currule[0][0], currule[0][1]);
+            if (((int (*)(void))currule[0][0])()) {
+printf("[%s:%d] call update\n", __FUNCTION__, __LINE__);
+                ((void (*)(void))currule[0][1])();
+            }
+            currule++;
+        }
+#endif
     }
   printf("[%s:%d] ending\n", __FUNCTION__, __LINE__);
   return 0;

@@ -1081,6 +1081,7 @@ void generateCppData(FILE *OStr, Module &Mod)
         }
     }
     fprintf(OStr, "\n\n//******************** vtables for Classes *******************\n");
+std::list<std::string> ruleList;
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (processVar(I)) {
           Type *Ty = I->getType()->getElementType();
@@ -1088,7 +1089,8 @@ void generateCppData(FILE *OStr, Module &Mod)
            && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
               if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
-              fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", ""));
+              std::string strName = GetValueName(I);
+              fprintf(OStr, "%s", printType(Ty, false, strName, "", ""));
               if (!I->getInitializer()->isNullValue()) {
                 fprintf(OStr, " = " );
                 Constant* CPV = dyn_cast<Constant>(I->getInitializer());
@@ -1102,12 +1104,14 @@ void generateCppData(FILE *OStr, Module &Mod)
                      && FT->getNumParams() >= 1 && (PPTy = cast<PointerType>(FT->getParamType(0)))
                      && (STy = cast<StructType>(PPTy->getElementType()))
                      && STy->getNumElements() > 0 && STy->getElementType(0)->getTypeID() == Type::StructTyID
-                     && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule"))
+                     && (ISTy = cast<StructType>(STy->getElementType(0))) && !strcmp(ISTy->getName().str().c_str(), "class.Rule")){
+ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
                           fprintf(OStr, "%s", printConstant(NULL, sep, V));
                           sep = ", ";
                         }
+                    }
                     else
                         fprintf(OStr, "0");
                     fprintf(OStr, " }");
@@ -1116,6 +1120,12 @@ void generateCppData(FILE *OStr, Module &Mod)
               fprintf(OStr, ";\n");
           }
     }
+    fprintf(OStr, "typedef unsigned char **RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n    ");
+    while (ruleList.begin() != ruleList.end()) {
+        fprintf(OStr, "%s, ", ruleList.begin()->c_str());
+        ruleList.pop_front();
+    }
+    fprintf(OStr, "NULL};\n");
 }
 
 static void printContainedStructs(Type *Ty, FILE *OStr)
@@ -1154,7 +1164,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         Type *Ty;
         FunctionType *FTy;
         PointerType  *PTy;
-#if 0
+#if 1
         if ((PTy = dyn_cast<PointerType>(I->getType()))
          && PTy && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
          && FTy && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))

@@ -485,7 +485,7 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generate cpp code
     generateCppData(Out, Mod);
-#if 0
+#if 1
     // Generating code for all rules
     processRules(*modfirst, 2, Out);
 #else
