@@ -47,14 +47,6 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         }
         break;
 #if 0
-    case Instruction::Ret:
-        if (I.getParent()->getParent()->getReturnType()->getTypeID()
-               == Type::IntegerTyID && operand_list_index > 1) {
-            operand_list[0].type = OpTypeString;
-            operand_list[0].value = (uint64_t)getParam(1);
-            sprintf(vout, "%s = %s;", globalName, getParam(1));
-        }
-        break;
     case Instruction::Br:
         {
         if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
@@ -85,42 +77,6 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
           //prepareOperand(i.getCaseValue());
           //prepareOperand(i.getCaseSuccessor());
         //}
-    //case Instruction::IndirectBr:
-    //case Instruction::Invoke:
-    //case Instruction::Resume:
-    case Instruction::Unreachable:
-        break;
-
-    // Standard binary operators...
-    case Instruction::Add: case Instruction::FAdd:
-    case Instruction::Sub: case Instruction::FSub:
-    case Instruction::Mul: case Instruction::FMul:
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
-    // Logical operators...
-    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
-        const char *op1 = getParam(1), *op2 = getParam(2);
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(opcodeMap, opcode), op2);
-        if (operand_list[0].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
-
-    // Memory instructions...
-    case Instruction::Store: {
-        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
-            operand_list[1].type = OpTypeInt;
-        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            sprintf(vout, "%s = %s;", getParam(2), getParam(1));
-        else
-            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-        }
-        break;
 #endif
 
     // Memory instructions...
@@ -193,34 +149,11 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         }
         strcat(vout, ")");
         if (func)
-            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK(func, NULL));
         }
         break;
 
 #if 0
-    // Convert instructions...
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        }
-        break;
-
-    // Other instructions...
-    case Instruction::ICmp: case Instruction::FCmp: {
-        const char *op1 = getParam(1), *op2 = getParam(2);
-        const CmpInst *CI;
-        if (!(CI = dyn_cast<CmpInst>(&I)) || operand_list[0].type != OpTypeLocalRef) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        char temp[MAX_CHAR_BUFFER];
-        sprintf(temp, "((%s) %s (%s))", op1, intmapLookup(predText, CI->getPredicate()), op2);
-        slotarray[operand_list[0].value].name = strdup(temp);
-        }
-        break;
     case Instruction::PHI:
         {
         char temp[MAX_CHAR_BUFFER];
@@ -258,32 +191,6 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             strcat(vout, temp);
         }
         dump_operands = 1;
-        }
-        break;
-    //case Instruction::Select:
-    case Instruction::Call: {
-        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *func = (Function *)slotarray[tcall].svalue;
-        if (!func) {
-            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
-            break;
-        }
-#if 1
-        Value *oldcall = I.getOperand(I.getNumOperands()-1);
-        I.setOperand(I.getNumOperands()-1, func);
-        recursiveDelete(oldcall);
-#else
-printf("[%s:%d] DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDONT REPLACE CALL with %p\n", __FUNCTION__, __LINE__, func);
-#endif
-printf("[%s:%d] RRRRRRRRR CALL func %p = %s\n", __FUNCTION__, __LINE__, func, func->getName().str().c_str());
-        SLOTARRAY_TYPE arg;
-        if (operand_list_index > 3)
-            arg = slotarray[operand_list[2].value];
-else
-        vtablework.push_back(VTABLE_WORK(
-            ((Function ***)slotarray[operand_list[1].value].svalue)[0][slotarray[tcall].offset/sizeof(uint64_t)],
-            (Function ***)slotarray[operand_list[1].value].svalue, arg));
-        slotarray[operand_list[0].value].name = strdup(func->getName().str().c_str());
         }
         break;
 #endif

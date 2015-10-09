@@ -31,10 +31,7 @@ using namespace llvm;
 #include "declarations.h"
 
 int trace_translate ;//= 1;
-SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
 std::list<VTABLE_WORK> vtablework;
-OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
-int operand_list_index;
 const Function *EntryFn;
 const char *globalName;
 
@@ -89,64 +86,6 @@ void recursiveDelete(Value *V)
             recursiveDelete(OpV);
     }
     I->eraseFromParent();
-}
-
-const char *getParam(int arg)
-{
-   char temp[MAX_CHAR_BUFFER];
-   temp[0] = 0;
-   if (operand_list[arg].type == OpTypeLocalRef)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeExternalFunction)
-       return slotarray[operand_list[arg].value].name;
-   else if (operand_list[arg].type == OpTypeInt)
-       sprintf(temp, "%lld", (long long)slotarray[operand_list[arg].value].offset);
-   else if (operand_list[arg].type == OpTypeString)
-       return (const char *)operand_list[arg].value;
-   return strdup(temp);
-}
-
-int getLocalSlot(const Value *V)
-{
-    std::map<const Value *, int>::iterator FI = slotmap.find(V);
-    if (FI == slotmap.end()) {
-       slotmap.insert(std::pair<const Value *, int>(V, slotmapIndex++));
-       return getLocalSlot(V);
-    }
-    return (int)FI->second;
-}
-void prepareOperand(const Value *Operand)
-{
-    if (!Operand)
-        return;
-    int slotindex = getLocalSlot(Operand);
-    operand_list[operand_list_index].value = slotindex;
-    if (Operand->hasName()) {
-        if (isa<Constant>(Operand)) {
-            operand_list[operand_list_index].type = OpTypeExternalFunction;
-            slotarray[slotindex].name = Operand->getName().str().c_str();
-            goto retlab;
-        }
-    }
-    else {
-        const Constant *CV = dyn_cast<Constant>(Operand);
-        if (CV && !isa<GlobalValue>(CV)) {
-            if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-                operand_list[operand_list_index].type = OpTypeInt;
-                slotarray[slotindex].offset = CI->getZExtValue();
-                goto retlab;
-            }
-            printf("[%s:%d] non integer constant\n", __FUNCTION__, __LINE__);
-        }
-        if (dyn_cast<MDNode>(Operand) || dyn_cast<MDString>(Operand)
-         || Operand->getValueID() == Value::PseudoSourceValueVal ||
-            Operand->getValueID() == Value::FixedStackPseudoSourceValueVal) {
-            printf("[%s:%d] MDNode/MDString/Pseudo\n", __FUNCTION__, __LINE__);
-        }
-    }
-    operand_list[operand_list_index].type = OpTypeLocalRef;
-retlab:
-    operand_list_index++;
 }
 
 /*
@@ -237,7 +176,6 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
         }
         break;
     case Instruction::Alloca: // ignore
-        memset(&slotarray[operand_list[0].value], 0, sizeof(slotarray[0]));
         if (generate == 2) {
             if (const AllocaInst *AI = isDirectAlloca(&*ins))
               return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
@@ -269,12 +207,12 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     nameMap.clear();
     slotmap.clear();
     slotmapIndex = 1;
-    memset(slotarray, 0, sizeof(slotarray));
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
         func->dump();
         printf("TRANSLATE:\n");
     }
+#if 0
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
@@ -293,6 +231,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         else
             printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
+#endif
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
     int already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
@@ -318,8 +257,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
             if (trace_translate)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
-            for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
-                prepareOperand(ins->getOperand(i));
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generate == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
@@ -383,10 +320,8 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             static std::string method[] = { "update", "guard", ""};
             std::string *p = method;
             do {
-                vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)],
-                    (Function ***)rulep, SLOTARRAY_TYPE()));
-            } while (*++p != "" //&& generate
-); // only preprocess 'update'
+                vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep));
+            } while (*++p != "");
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next

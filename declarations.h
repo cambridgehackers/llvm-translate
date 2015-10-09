@@ -31,8 +31,6 @@
 #define SEPARATOR ":"
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
-#define MAX_SLOTARRAY 1000
-#define MAX_OPERAND_LIST 200
 #define MAX_CHAR_BUFFER 1000
 #define MAX_CLASS_DEFS  200
 #define MAX_VTAB_EXTRA 100
@@ -43,17 +41,6 @@
           exit(1); \
       }}
 
-class SLOTARRAY_TYPE {
-public:
-    const char *name;
-    uint8_t *svalue;
-    uint64_t offset;
-    SLOTARRAY_TYPE() {
-        name = NULL;
-        svalue = NULL;
-        offset = 0;
-    }
-};
 class MAPTYPE_WORK {
 public:
     int derived;
@@ -81,11 +68,9 @@ class VTABLE_WORK {
 public:
     Function *f;      // Since passes modify instructions, this cannot be 'const'
     Function ***thisp;
-    SLOTARRAY_TYPE arg;
-    VTABLE_WORK(Function *a, Function ***b, SLOTARRAY_TYPE c) {
+    VTABLE_WORK(Function *a, Function ***b) {
        f = a;
        thisp = b;
-       arg = c;
     }
 };
 
@@ -138,9 +123,6 @@ extern int trace_full;
 extern const char *globalName;
 
 extern std::list<VTABLE_WORK> vtablework;
-extern SLOTARRAY_TYPE slotarray[MAX_SLOTARRAY];
-extern OPERAND_ITEM_TYPE operand_list[MAX_OPERAND_LIST];
-extern int operand_list_index;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern FILE *outputFile;
@@ -161,10 +143,6 @@ void process_metadata(NamedMDNode *CU_Nodes);
 CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
-
-void prepareOperand(const Value *Operand);
-const char *getParam(int arg);
-int getLocalSlot(const Value *V);
 
 const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 const char *generateVerilog(Function ***thisp, Instruction &I);

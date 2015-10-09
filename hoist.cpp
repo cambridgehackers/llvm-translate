@@ -281,7 +281,7 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
         }
         if (CF) {
 printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
-            vtablework.push_back(VTABLE_WORK(CF, NULL, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK(CF, NULL));
         }
         }
         break;
