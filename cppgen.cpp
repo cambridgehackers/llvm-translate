@@ -167,7 +167,7 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         char ptemp[1000];
         //printf("[%s:%d] RRRRRR %s %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), p, thisp);
         if (!strcmp(p, "Vthis") && thisp) {
-            sprintf(ptemp, "0x%lx", thisp);
+            sprintf(ptemp, "0x%lx", (unsigned long)thisp);
             p = ptemp;
         }
         if (p[0] == '&') {
@@ -509,7 +509,7 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
       break;
       }
   case Type::StructTyID:
-      typeOutstr << "struct " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
+      typeOutstr << "class " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
       break;
   case Type::ArrayTyID: {
       ArrayType *ATy = cast<ArrayType>(Ty);
@@ -1177,17 +1177,27 @@ void generateCppData(FILE *OStr, Module &Mod)
 static void printContainedStructs(Type *Ty, FILE *OStr)
 {
     std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    if (FI == structMap.end() && !Ty->isPointerTy() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+    PointerType *PTy = dyn_cast<PointerType>(Ty);
+    if (PTy)
+            printContainedStructs(PTy->getElementType(), OStr);
+    else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        StructType *STy = dyn_cast<StructType>(Ty);
+        std::string name;
         structMap[Ty] = 1;
+        if (STy) {
+            name = getStructName(STy);
+            fprintf(OStr, "class %s;\n", name.c_str());
+            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+                printContainedStructs(*I, OStr);
+        }
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr);
-        if (StructType *STy = dyn_cast<StructType>(Ty)) {
-            std::string name = getStructName(STy);
-            fprintf(OStr, "typedef struct %s {\n", name.c_str());
+        if (STy) {
+            fprintf(OStr, "class %s {\npublic:\n", name.c_str());
             unsigned Idx = 0;
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
               fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
-            fprintf(OStr, "} %s;\n\n", name.c_str());
+            fprintf(OStr, "};\n\n");
         }
     }
 }
