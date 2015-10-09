@@ -222,11 +222,11 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                     len++;
                     p--;
                 }
-                const Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-                const SequentialType *p1;
+                const PointerType *PTy;
                 const StructType *STy;
-                if (IC && (p1 = dyn_cast<SequentialType>(IC->getOperand(0)->getType()->getPointerElementType()))
-                     && (STy = dyn_cast<StructType>(p1->getPointerElementType()))) {
+                if (CF->arg_begin() != CF->arg_end()
+                 && (PTy = dyn_cast<PointerType>(CF->arg_begin()->getType()))
+                 && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
                     std::string tname = STy->getName().str();
                     classCreate[tname] = 1;
                     if (len > 2) {
@@ -303,9 +303,6 @@ printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
 printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
         DIType thisType(mptr->node);
         thisType->dump();
-        printf("\n");
-        DIType inheritType(mptr->inherit);
-        inheritType->dump();
         printf("\n");
         for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
             DIType memberType(*FI);
