@@ -303,12 +303,22 @@ printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
 printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
         DIType thisType(mptr->node);
         thisType->dump();
-        printf("\n");
+        fprintf(stderr, "\n");
+        if (mptr->node->getNumOperands() > 3) {
+            Value *val = mptr->node->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+        }
         for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
             DIType memberType(*FI);
             //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
             //memberType->dump();
             //printf("\n");
+            const MDNode *mnode = *FI;
+            if (mnode->getNumOperands() > 3) {
+                const Value *val = mnode->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+val->getType()->dump();
+            }
         }
     }
 }
