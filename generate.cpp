@@ -216,7 +216,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr:
         {
-        if (generate == 2) {
+        if (generate != 1) {
             GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
             return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
         }
@@ -235,12 +235,10 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
     case Instruction::Load:
         {
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        if (generate == 2) {
+        if (generate != 1) {
             LoadInst &IL = static_cast<LoadInst&>(*ins);
             ERRORIF (IL.isVolatile());
-            const char *p = writeOperand(thisp, ins->getOperand(0), true);
-//printf("[%s:%d] new '%s'\n", __FUNCTION__, __LINE__, p);
-            return p;
+            return getOperand(thisp, ins->getOperand(0), true);
         }
         PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
         if (!Ptr) {
@@ -282,7 +280,7 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     Function *func = work.f;
     const char *guardName = NULL;
     globalName = strdup(func->getName().str().c_str());
-printf("[%s:%d] processing %s\n", __FUNCTION__, __LINE__, globalName);
+printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     NextAnonValueNumber = 0;
     if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
@@ -363,23 +361,24 @@ printf("[%s:%d] processing %s\n", __FUNCTION__, __LINE__, globalName);
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
-            if (generate != 2 || !isInlinableInst(*ins)) {
-                if (trace_translate && generate == 2)
-                    fprintf(outputFile, "/*before opcode %d.=%s*/\n", ins->getOpcode(), ins->getOpcodeName());
+            if (generate == 1 || !isInlinableInst(*ins)) {
+                //if (trace_translate && generate == 2)
+                    printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
             const char *vout = processInstruction(work.thisp, ins, generate);
             if (vout) {
+                if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                 && ins->use_begin() != ins->use_end()) {
+                    std::string name = GetValueName(&*ins);
+                    void *tval = mapLookup(vout+1);
+                    if (tval)
+                        nameMap[name] = tval;
+                }
                 if (generate == 2) {
                     if (strcmp(vout, "")) {
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                          && ins->use_begin() != ins->use_end()) {
                             std::string name = GetValueName(&*ins);
                             fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
-                            if (vout[0] == '&') {
-                                void *tval = mapLookup(vout+1);
-                                if (tval)
-                                    nameMap[name] = tval;
-//printf("[%s:%d] WWWWWWWWWWWWWWWWWWWWW %s = %s [ %p]\n", __FUNCTION__, __LINE__, name.c_str(), vout, tval);
-                            }
                         }
                         fprintf(outputFile, "        %s;\n", vout);
                     }

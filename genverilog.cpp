@@ -193,9 +193,14 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
             break;
         }
+#if 1
         Value *oldcall = I.getOperand(I.getNumOperands()-1);
         I.setOperand(I.getNumOperands()-1, func);
         recursiveDelete(oldcall);
+#else
+printf("[%s:%d] DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDONT REPLACE CALL with %p\n", __FUNCTION__, __LINE__, func);
+#endif
+printf("[%s:%d] RRRRRRRRR CALL func %p = %s\n", __FUNCTION__, __LINE__, func, func->getName().str().c_str());
         SLOTARRAY_TYPE arg;
         if (operand_list_index > 3)
             arg = slotarray[operand_list[2].value];

@@ -185,6 +185,7 @@ bool isInlinableInst(const Instruction &I);
 const AllocaInst *isDirectAlloca(const Value *V);
 void recursiveDelete(Value *V);
 char *writeOperand(Function ***thisp, Value *Operand, bool Indirect);
+char *getOperand(Function ***thisp, Value *Operand, bool Indirect);
 char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E);
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
 uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);

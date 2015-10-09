@@ -103,6 +103,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
     int opcode = I.getOpcode();
     switch (opcode) {
     // Terminators
+#if 0
     case Instruction::Br:
         if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
             const BranchInst &BI(cast<BranchInst>(I));
@@ -120,9 +121,11 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                 prepareOperand(I.getOperand(i));
         }
         break;
+#endif
 
     // Memory instructions...
     case Instruction::Store:
+#if 0
         //printf("%s: STORE %s=%s\n", __FUNCTION__, getParam(2), getParam(1));
         if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
             operand_list[1].type = OpTypeInt;
@@ -130,13 +133,16 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             printf("%s: STORE %s;", __FUNCTION__, getParam(2));
         else
             slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
+#endif
         break;
 
     // Convert instructions...
     case Instruction::Trunc:
     case Instruction::ZExt:
     case Instruction::BitCast:
+#if 0
         slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
+#endif
         break;
 
     // Other instructions...
@@ -173,10 +179,33 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         break;
     case Instruction::Call:
         {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        Function *func = ICL.getCalledFunction();
+        Value *Callee = ICL.getCalledValue();
+        PointerType  *PTy = cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        unsigned len = FTy->getNumParams();
+        Function *RF;
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+            Callee = RF;
+        }
+        const char *p = getOperand(parent_thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
-        Value *called = I.getOperand(I.getNumOperands()-1);
-        const char *cp = called->getName().str().c_str();
-        Function *CF = dyn_cast<Function>(called);
+        Function *CF = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
+        if (!CF) {
+            void *pact = mapLookup(p);
+            CF = static_cast<Function *>(pact);
+        }
+        printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, CF, parent_thisp);
+        const char *cp = NULL;
+        if (CF) {
+            cp = CF->getName().str().c_str();
+            printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, cp);
+        }
         if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
             cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
@@ -202,20 +231,16 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             I.eraseFromParent();
             break;
         }
-        int tcall = operand_list[operand_list_index-1].value; // Callee is _last_ operand
-        Function *f = CF;
-//(Function *)slotarray[tcall].svalue;
-        Function ***thisp = (Function ***)slotarray[operand_list[1].value].svalue;
-        if (!f) {
+        if (!CF) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
         }
         else {
-            //if (trace_translate)
+            if (trace_translate)
                 printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
-                      f->getName().str().c_str(), thisp);
+                      CF->getName().str().c_str(), parent_thisp);
             int len = 0;
             int status;
-            const char *demang = abi::__cxa_demangle(f->getName().str().c_str(), 0, 0, &status);
+            const char *demang = abi::__cxa_demangle(CF->getName().str().c_str(), 0, 0, &status);
             if (demang) {
                 const char *p = demang;
                 while (*p && *p != '(')
@@ -288,12 +313,12 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
             vtablework.push_back(VTABLE_WORK(thisp[0][slotarray[tcall].offset/sizeof(uint64_t)],
                 thisp,
                 (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
-            slotarray[operand_list[0].value].name = strdup(f->getName().str().c_str());
+            slotarray[operand_list[0].value].name = strdup(CF->getName().str().c_str());
         }
 #else
-        if (f) {
+        if (CF) {
 printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
-            vtablework.push_back(VTABLE_WORK(f, NULL, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK(CF, NULL, SLOTARRAY_TYPE()));
         }
 #endif
         }

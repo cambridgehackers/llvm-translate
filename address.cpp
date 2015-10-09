@@ -153,7 +153,8 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
             }
             printf("%s: %p = %s [%s] new\n", __FUNCTION__, arg, name.c_str(), t);
         }
-        return name.c_str();
+        if (name[0] != '(')
+            return name.c_str();
     }
     static char temp[MAX_CHAR_BUFFER];
     sprintf(temp, "%p", arg);
@@ -163,6 +164,10 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
 }
 void *mapLookup(std::string name)
 {
+    if (!strncmp(name.c_str(), "0x", 2)) {
+        char *endptr = NULL;
+        return (void *)strtol(name.c_str()+2, &endptr, 16);
+    }
     std::map<std::string, void *>::iterator MI = maplookup.find(name);
     if (MI != maplookup.end())
         return MI->second;

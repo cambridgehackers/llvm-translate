@@ -164,11 +164,26 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
+        const char *p = writeOperand(thisp, I.getOperand(0), false);
+        if (!strncmp(p, "(&", 2) && p[strlen(p)-1] == ')') {
+            char temp[1000];
+            strcpy(temp, p+2);
+            temp[strlen(temp)-1] = 0;
+            void *tval = mapLookup(temp);
+            if (tval) {
+                strcat(vout, p);
+                break;
+            }
+        }
+        if (!strncmp(p, "0x", 2)) {
+            strcat(vout, p);
+            break;
+        }
         strcat(vout, "(");
         strcat(vout, printCast(opcode, SrcTy, DstTy));
         if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
           strcat(vout, "0-");
-        strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+        strcat(vout, p);
         if (DstTy == Type::getInt1Ty(I.getContext()) &&
             (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
              opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
@@ -648,9 +663,11 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
     char cbuffer[10000];
     cbuffer[0] = 0;
   ConstantInt *CI;
+  void *tval = NULL;
+  char *p;
   uint64_t Total = executeGEPOperation(I, E);
   if (I == E)
-    return writeOperand(thisp, Ptr, false);
+    return getOperand(thisp, Ptr, false);
   VectorType *LastIndexIsVector = 0;
   for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
       LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
@@ -659,8 +676,17 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
     strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")("));
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
+    p = getOperand(thisp, Ptr, false);
+    if (p[0] == '(' && p[strlen(p) - 1] == ')') {
+        char *ptemp = strdup(p+1);
+        ptemp[strlen(ptemp)-1] = 0;
+        if ((tval = mapLookup(ptemp)))
+            goto tvallab;
+    }
+    if ((tval = mapLookup(p)))
+        goto tvallab;
     strcat(cbuffer, "&");
-    strcat(cbuffer, writeOperand(thisp, Ptr, false));
+    strcat(cbuffer, p);
   } else {
     bool expose = isAddressExposed(Ptr);
     ++I;  // Skip the zero index.
@@ -682,7 +708,7 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
                 goto next;
             }
         }
-        strcat(cbuffer, writeOperand(thisp, Ptr, true));
+        strcat(cbuffer, getOperand(thisp, Ptr, true));
 next:
         if (val) {
             char temp[100];
@@ -693,24 +719,34 @@ next:
     else {
         if (expose) {
           strcat(cbuffer, "&");
-          strcat(cbuffer, writeOperand(thisp, Ptr, true));
+          strcat(cbuffer, getOperand(thisp, Ptr, true));
         } else if (I != E && (*I)->isStructTy()) {
-          const char *p = writeOperand(thisp, Ptr, false);
+          const char *p = getOperand(thisp, Ptr, false);
+          char *ptemp = strdup(p);
           std::map<std::string, void *>::iterator NI = nameMap.find(p);
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
           if (NI != nameMap.end() && NI->second) {
               sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
           }
-          if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-              char *ptemp = strdup(p+2);
+          if (!strncmp(p, "0x", 2)) {
+              tval = mapLookup(p);
+              goto tvallab;
+          }
+          if (!strncmp(p, "(0x", 3) && p[strlen(p) - 1] == ')') {
+              ptemp += 1;
               ptemp[strlen(ptemp)-1] = 0;
               p = ptemp;
-              void *tval = mapLookup(p);
-              if (tval) {
-                  sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)tval);
-                  goto exitlab;
-              }
+              tval = mapLookup(p);
+              goto tvallab;
+          }
+          if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
+              ptemp += 2;
+              ptemp[strlen(ptemp)-1] = 0;
+              p = ptemp;
+              tval = mapLookup(p);
+              if (tval)
+                  goto tvallab;
               else {
                   strcat(cbuffer, "&");
                   strcat(cbuffer, p);
@@ -726,7 +762,7 @@ next:
         } else {
           strcat(cbuffer, "&");
           strcat(cbuffer, "(");
-          strcat(cbuffer, writeOperand(thisp, Ptr, true));
+          strcat(cbuffer, getOperand(thisp, Ptr, true));
           strcat(cbuffer, ")");
         }
     }
@@ -738,7 +774,7 @@ next:
       strcat(cbuffer, fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue()));
     } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
       strcat(cbuffer, "[");
-      strcat(cbuffer, writeOperand(thisp, I.getOperand(), false));
+      strcat(cbuffer, getOperand(thisp, I.getOperand(), false));
       strcat(cbuffer, "]");
     } else {
       if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
@@ -748,9 +784,26 @@ next:
       strcat(cbuffer, "))");
     }
   }
+  goto exitlab;
+tvallab:
+    sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)tval);
 exitlab:
-  strcat(cbuffer, ")");
-    return strdup(cbuffer);
+    strcat(cbuffer, ")");
+    p = strdup(cbuffer);
+    if (!strncmp(p, "(0x", 3)) {
+        p++;
+        p[strlen(p) - 1] = 0;
+    }
+#if 0
+    printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, p);
+    if (!strncmp(p, "0x", 2)) {
+        char *endptr;
+        void **pint = (void **)strtol(p+2, &endptr, 16);
+        printf(" [%p]= %p", pint, *pint);
+    }
+    printf("\n");
+#endif
+    return p;
 }
 static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 {
@@ -911,7 +964,7 @@ static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 exitlab:
     return strdup(cbuffer);
 }
-char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
+char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -928,36 +981,29 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
       prefix = "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
       const char *p = processInstruction(thisp, I, 2);
-      if (!strcmp(prefix, "*") && !strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-          prefix = "";
-          char *ptemp = strdup(p+2);
-          ptemp[strlen(ptemp)-1] = 0;
-          p = ptemp;
+      char *ptemp = strdup(p);
+      p = ptemp;
+      if (ptemp[0] == '(' && ptemp[strlen(ptemp) - 1] == ')') {
+          p++;
+          ptemp[strlen(ptemp) - 1] = 0;
       }
-      if (!strcmp(prefix, "*") && !strncmp(p, "(0x", 3)) {
+      if (!strcmp(prefix, "*") && p[0] == '&') {
+          prefix = "";
+          p++;
+      }
+      if (!strcmp(prefix, "*") && !strncmp(p, "0x", 2)) {
           char *endptr;
-          void **pint = (void **)strtol(p+3, &endptr, 16);
-          const char *pnew = mapAddress(*pint, "", NULL); /* Try to see what value it is */
-          if (pnew && strncmp(pnew, "0x", 2)) {
-//printf("[%s:%d] starpref %s ptr %p new %s\n", __FUNCTION__, __LINE__, p, *pint, pnew);
-              strcat(cbuffer, "&");
-              strcat(cbuffer, pnew);
-          }
-          else {
-              pnew = mapAddress(pint, "", NULL);
-//printf("[%s:%d] pnew %p '%s'\n", __FUNCTION__, __LINE__, pint, pnew);
-              if (strncmp(pnew, "0x", 2))
-                  strcat(cbuffer, pnew);
-              else
-                  goto oldstyle;
-          }
+          void **pint = (void **)strtol(p+2, &endptr, 16);
+          sprintf(cbuffer, "0x%lx", (unsigned long)*pint);
       }
       else {
-oldstyle:
+          int addparen = strncmp(p, "0x", 2) && (p[0] != '(' || p[strlen(p)-1] != ')');
           strcat(cbuffer, prefix);
-          strcat(cbuffer, "(");
+          if (addparen)
+              strcat(cbuffer, "(");
           strcat(cbuffer, p);
-          strcat(cbuffer, ")");
+          if (addparen)
+              strcat(cbuffer, ")");
       }
   }
   else {
@@ -972,6 +1018,17 @@ oldstyle:
   if (isAddressImplicit)
       strcat(cbuffer, ")");
   return strdup(cbuffer);
+}
+char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
+{
+    char *p = getOperand(thisp, Operand, Indirect);
+    void *tval = mapLookup(p);
+    if (tval) {
+        char temp[1000];
+        sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval, "", NULL));
+        return strdup(temp);
+    }
+    return p;
 }
 char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, int skip)
 {
