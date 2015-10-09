@@ -216,39 +216,15 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr:
         {
-        if (generate != 1) {
-            GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-            return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
-        }
-        if (!slotarray[operand_list[1].value].svalue) {
-            printf("[%s:%d] GEP pointer not valid\n", __FUNCTION__, __LINE__);
-            break;
-            exit(1);
-        }
-        uint64_t Total = executeGEPOperation(gep_type_begin(ins), gep_type_end(ins));
-        uint8_t *ptr = slotarray[operand_list[1].value].svalue + Total;
-        slotarray[operand_list[0].value].name = strdup(mapAddress(ptr, "", NULL));
-        slotarray[operand_list[0].value].svalue = ptr;
-        slotarray[operand_list[0].value].offset = Total;
+        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
+        return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
         }
         break;
     case Instruction::Load:
         {
-        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-        if (generate != 1) {
-            LoadInst &IL = static_cast<LoadInst&>(*ins);
-            ERRORIF (IL.isVolatile());
-            return getOperand(thisp, ins->getOperand(0), true);
-        }
-        PointerTy Ptr = (PointerTy)slotarray[operand_list[1].value].svalue;
-        if (!Ptr) {
-            printf("[%s:%d] arg not LocalRef;", __FUNCTION__, __LINE__);
-            if (!slotarray[operand_list[0].value].svalue)
-                operand_list[0].type = OpTypeInt;
-            break;
-        }
-        slotarray[operand_list[0].value].svalue = (uint8_t *)LoadValueFromMemory(Ptr, ins->getType());
-        slotarray[operand_list[0].value].name = strdup(mapAddress(Ptr, "", NULL));
+        LoadInst &IL = static_cast<LoadInst&>(*ins);
+        ERRORIF (IL.isVolatile());
+        return getOperand(thisp, ins->getOperand(0), true);
         }
         break;
     default:
@@ -281,6 +257,8 @@ static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
     const char *guardName = NULL;
     globalName = strdup(func->getName().str().c_str());
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
+//func->dump();
+//fprintf(stderr, "\nENDFUNC\n");
     NextAnonValueNumber = 0;
     if (generate == 1 && endswith(globalName, "updateEv")) {
         char temp[MAX_CHAR_BUFFER];
@@ -328,9 +306,9 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
          || MI != funcSeen.end())
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n", work.thisp != NULL));
+        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n", false));
     }
-    nameMap["Vthis"] = work.thisp;
+    //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
@@ -338,30 +316,11 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             char instruction_label[MAX_CHAR_BUFFER];
 
             BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
-            operand_list_index = 0;
-            memset(operand_list, 0, sizeof(operand_list));
-            if (ins->hasName() || !ins->getType()->isVoidTy()) {
-              int t = getLocalSlot(ins);
-              operand_list[operand_list_index].type = OpTypeLocalRef;
-              operand_list[operand_list_index++].value = t;
-              if (ins->hasName())
-                  slotarray[t].name = strdup(ins->getName().str().c_str());
-              else {
-                  char temp[MAX_CHAR_BUFFER];
-                  sprintf(temp, "%%%d", t);
-                  slotarray[t].name = strdup(temp);
-              }
-              sprintf(instruction_label, "%10s/%d: ", slotarray[t].name, t);
-            }
-            else {
-              operand_list_index++;
-              sprintf(instruction_label, "            : ");
-            }
             if (trace_translate)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
-            if (generate == 1 || !isInlinableInst(*ins)) {
+            if (!isInlinableInst(*ins)) {
                 if (trace_translate && generate == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
             const char *vout = processInstruction(work.thisp, ins, generate);

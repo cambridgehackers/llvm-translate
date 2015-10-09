@@ -41,7 +41,7 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
 {
     bool changed = false;
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        Function::iterator BN = llvm::next(Function::iterator(BB));
+        //Function::iterator BN = llvm::next(Function::iterator(BB));
     BasicBlock::iterator Start = BB->getFirstInsertionPt();
     BasicBlock::iterator E = BB->end();
     if (Start == E) return false;

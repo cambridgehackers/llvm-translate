@@ -191,3 +191,4 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
 uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);
 void *mapLookup(std::string name);
 void createClassInstances(void);
+char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);

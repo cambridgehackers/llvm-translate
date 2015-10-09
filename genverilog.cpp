@@ -34,11 +34,19 @@ using namespace llvm;
 const char *generateVerilog(Function ***thisp, Instruction &I)
 {
     static char vout[MAX_CHAR_BUFFER];
-    int dump_operands = trace_full;
     int opcode = I.getOpcode();
     vout[0] = 0;
     switch(opcode) {
     // Terminators
+    case Instruction::Ret:
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+          strcat(vout, "  return ");
+          if (I.getNumOperands())
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+          strcat(vout, ";\n");
+        }
+        break;
+#if 0
     case Instruction::Ret:
         if (I.getParent()->getParent()->getReturnType()->getTypeID()
                == Type::IntegerTyID && operand_list_index > 1) {
@@ -113,17 +121,84 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
         }
         break;
-    //case Instruction::AtomicCmpXchg:
-    //case Instruction::AtomicRMW:
-    //case Instruction::Fence:
+#endif
 
+    // Memory instructions...
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        const char *pdest = writeOperand(thisp, IS.getPointerOperand(), true);
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        const char *sval = writeOperand(thisp, Operand, false);
+        if (!strncmp(pdest, "*((0x", 5)) {
+            char *endptr = NULL;
+            void *pint = (void *)strtol(pdest+5, &endptr, 16);
+            const char *pname = mapAddress(pint, "", NULL);
+            if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
+                pdest = pname;
+        }
+        strcat(vout, pdest);
+        strcat(vout, " = ");
+        if (BitMask)
+          strcat(vout, "((");
+        std::map<std::string, void *>::iterator NI = nameMap.find(sval);
+//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
+        if (NI != nameMap.end() && NI->second) {
+            sval = mapAddress(NI->second, "", NULL);
+//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
+        }
+        strcat(vout, sval);
+        if (BitMask) {
+          strcat(vout, printConstant(thisp, ") & ", BitMask));
+          strcat(vout, ")");
+        }
+        }
+        break;
+
+    case Instruction::Call: {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        const char *sep = "";
+        Function *func = ICL.getCalledFunction();
+        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+        Value *Callee = ICL.getCalledValue();
+        PointerType  *PTy = cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        Function *RF = NULL;
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+            Callee = RF;
+            strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
+        }
+        strcat(vout, writeOperand(thisp, Callee, false));
+        if (RF)
+            strcat(vout, ")");
+        strcat(vout, "(");
+        for (; AI != AE; ++AI, ++ArgNo) {
+            strcat(vout, sep);
+            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
+                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
+            const char *p = writeOperand(thisp, *AI, false);
+            strcat(vout, p);
+            sep = ", ";
+        }
+        strcat(vout, ")");
+        if (func)
+            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+        }
+        break;
+
+#if 0
     // Convert instructions...
-    //case Instruction::SExt:
-    //case Instruction::FPTrunc: case Instruction::FPExt:
-    //case Instruction::FPToUI: case Instruction::FPToSI:
-    //case Instruction::UIToFP: case Instruction::SIToFP:
-    //case Instruction::IntToPtr: case Instruction::PtrToInt:
-    //case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         if(operand_list[0].type != OpTypeLocalRef || operand_list[1].type != OpTypeLocalRef) {
             printf("[%s:%d]\n", __FUNCTION__, __LINE__);
@@ -211,25 +286,11 @@ else
         slotarray[operand_list[0].value].name = strdup(func->getName().str().c_str());
         }
         break;
-    //case Instruction::VAArg:
-    //case Instruction::ExtractElement:
-    //case Instruction::InsertElement:
-    //case Instruction::ShuffleVector:
-    //case Instruction::ExtractValue:
-    //case Instruction::InsertValue:
-    //case Instruction::LandingPad:
+#endif
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
         break;
-    }
-    if (dump_operands && trace_translate)
-    for (int i = 0; i < operand_list_index; i++) {
-        int t = operand_list[i].value;
-        if (operand_list[i].type == OpTypeLocalRef)
-            printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
-        else if (operand_list[i].type != OpTypeNone)
-            printf(" op[%d]=%s;", i, getParam(i));
     }
     if (vout[0])
         return vout;

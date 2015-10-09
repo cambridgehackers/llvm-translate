@@ -40,7 +40,7 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
 static DenseMap<StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
-static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
+char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
 static char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode);
 static char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned);
 static const char *writeInstructionCast(const Instruction &I);
@@ -52,7 +52,6 @@ static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 const char *processCInstruction(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
-    int dump_operands = trace_full;
     int opcode = I.getOpcode();
     vout[0] = 0;
     switch(opcode) {
@@ -165,7 +164,12 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
         const char *p = getOperand(thisp, I.getOperand(0), false);
-        //printf("[%s:%d] RRRRRR %s %s\n", __FUNCTION__, __LINE__, I.getOpcodeName(), p);
+        char ptemp[1000];
+        //printf("[%s:%d] RRRRRR %s %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), p, thisp);
+        if (!strcmp(p, "Vthis") && thisp) {
+            sprintf(ptemp, "0x%lx", thisp);
+            p = ptemp;
+        }
         if (p[0] == '&') {
             void *tval = mapLookup(p+1);
             if (tval) {
@@ -214,21 +218,38 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        PointerType  *PTy = cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         Function *RF = NULL;
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-        unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        const char *cthisp = getOperand(thisp, *AI, false);
+        Function ***called_thisp = NULL;
+        if (!strncmp(cthisp, "0x", 2))
+            called_thisp = (Function ***)mapLookup(cthisp);
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
             Callee = RF;
             strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
         }
-        strcat(vout, writeOperand(thisp, Callee, false));
+        const char *p = writeOperand(thisp, Callee, false);
+        //strcat(vout, writeOperand(thisp, Callee, false));
+printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
+if (!strncmp(p, "&0x", 3) && !func) {
+void *tval = mapLookup(p+1);
+if (tval) {
+func = static_cast<Function *>(tval);
+if (func) {
+    p = func->getName().str().c_str();
+}
+printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
+}
+}
+        strcat(vout, p);
         if (RF)
             strcat(vout, ")");
+        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
             strcat(vout, sep);
@@ -240,21 +261,13 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         }
         strcat(vout, ")");
         if (func)
-            vtablework.push_back(VTABLE_WORK(func, NULL, SLOTARRAY_TYPE()));
+            vtablework.push_back(VTABLE_WORK(func, called_thisp, SLOTARRAY_TYPE()));
         }
         break;
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
         break;
-    }
-    if (dump_operands && trace_translate)
-    for (int i = 0; i < operand_list_index; i++) {
-        int t = operand_list[i].value;
-        if (operand_list[i].type == OpTypeLocalRef)
-            printf(" op[%d]L=%d:%p:%lld:[%p=%s];", i, t, slotarray[t].svalue, (long long)slotarray[t].offset, slotarray[t].name, slotarray[t].name);
-        else if (operand_list[i].type != OpTypeNone)
-            printf(" op[%d]=%s;", i, getParam(i));
     }
     return strdup(vout);
 }
@@ -722,7 +735,13 @@ next:
           const char *p = getOperand(thisp, Ptr, false);
           char *ptemp = strdup(p);
           std::map<std::string, void *>::iterator NI = nameMap.find(p);
+          const char *fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
+if (!strcmp(fieldp, "module") && !strcmp(p, "Vthis")) {
+tval = thisp;
+printf("[%s:%d] MMMMMMMMMMMMMMMMM %s VthisModule %p\n", __FUNCTION__, __LINE__, p, tval);
+goto tvallab;
+}
           if (NI != nameMap.end() && NI->second) {
               sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
@@ -749,13 +768,13 @@ next:
                   strcat(cbuffer, "&");
                   strcat(cbuffer, p);
                   strcat(cbuffer, ".");
-                  strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+                  strcat(cbuffer, fieldp);
               }
           }
           strcat(cbuffer, "&");
           strcat(cbuffer, p);
           strcat(cbuffer, "->");
-          strcat(cbuffer, fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue()));
+          strcat(cbuffer, fieldp);
           ++I;  // eat the struct index as well.
         } else {
           strcat(cbuffer, "&");
@@ -803,7 +822,7 @@ exitlab:
 #endif
     return p;
 }
-static char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
+char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -1188,8 +1207,8 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         std::string name = I->getName().str();
         int skip = 0;
-        if (checkIfRule(I->getType()))
-            skip = 1;
+        //if (checkIfRule(I->getType()))
+            //skip = 1;
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
