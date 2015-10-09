@@ -123,16 +123,6 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         break;
 #endif
 
-    // Memory instructions...
-    case Instruction::Store:
-        break;
-
-    // Convert instructions...
-    case Instruction::Trunc:
-    case Instruction::ZExt:
-    case Instruction::BitCast:
-        break;
-
     // Other instructions...
 #if 0
     case Instruction::PHI:
@@ -298,14 +288,7 @@ printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
-    case Instruction::Ret: case Instruction::Unreachable:
-    case Instruction::Add: case Instruction::FAdd:
-    case Instruction::Sub: case Instruction::FSub:
-    case Instruction::Mul: case Instruction::FMul:
-    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    case Instruction::And: case Instruction::Or: case Instruction::Xor:
-    case Instruction::ICmp:
+    case Instruction::Store: case Instruction::Ret:
         break;
     }
     return NULL;
@@ -325,10 +308,10 @@ printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->no
         inheritType->dump();
         printf("\n");
         for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
-            printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
             DIType memberType(*FI);
-            memberType->dump();
-            printf("\n");
+            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
+            //memberType->dump();
+            //printf("\n");
         }
     }
 }
