@@ -164,12 +164,10 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         Type *DstTy = I.getType();
         Type *SrcTy = I.getOperand(0)->getType();
-        const char *p = writeOperand(thisp, I.getOperand(0), false);
-        if (!strncmp(p, "(&", 2) && p[strlen(p)-1] == ')') {
-            char temp[1000];
-            strcpy(temp, p+2);
-            temp[strlen(temp)-1] = 0;
-            void *tval = mapLookup(temp);
+        const char *p = getOperand(thisp, I.getOperand(0), false);
+        //printf("[%s:%d] RRRRRR %s %s\n", __FUNCTION__, __LINE__, I.getOpcodeName(), p);
+        if (p[0] == '&') {
+            void *tval = mapLookup(p+1);
             if (tval) {
                 strcat(vout, p);
                 break;

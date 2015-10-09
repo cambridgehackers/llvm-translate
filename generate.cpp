@@ -362,7 +362,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             for (unsigned i = 0, E = ins->getNumOperands(); i != E; ++i)
                 prepareOperand(ins->getOperand(i));
             if (generate == 1 || !isInlinableInst(*ins)) {
-                //if (trace_translate && generate == 2)
+                if (trace_translate && generate == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
             const char *vout = processInstruction(work.thisp, ins, generate);
             if (vout) {

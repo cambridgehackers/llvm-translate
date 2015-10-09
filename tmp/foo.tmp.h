@@ -10,6 +10,12 @@ typedef struct l_class_OC_Fifo {
   struct l_class_OC_Module _vptr_EC_Fifo;
 } l_class_OC_Fifo;
 
+typedef struct l_class_OC_Fifo1 {
+  struct l_class_OC_Fifo Fifo_MD_int_OD_;
+  unsigned int element;
+  unsigned char full;
+} l_class_OC_Fifo1;
+
 typedef struct l_class_OC_Rule {
   unsigned int  (**_vptr_EC_Rule) ( int, ...);
   struct l_class_OC_Rule *next;
@@ -26,12 +32,6 @@ typedef struct l_class_OC_EchoTest {
   unsigned int x;
   struct l_class_OC_EchoTest_KD__KD_drive driveRule;
 } l_class_OC_EchoTest;
-
-typedef struct l_class_OC_Fifo1 {
-  struct l_class_OC_Fifo Fifo_MD_int_OD_;
-  unsigned int element;
-  unsigned char full;
-} l_class_OC_Fifo1;
 
 
 /* External Global Variable Declarations */

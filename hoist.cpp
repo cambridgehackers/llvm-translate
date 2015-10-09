@@ -125,27 +125,16 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
     // Memory instructions...
     case Instruction::Store:
-#if 0
-        //printf("%s: STORE %s=%s\n", __FUNCTION__, getParam(2), getParam(1));
-        if (operand_list[1].type == OpTypeLocalRef && !slotarray[operand_list[1].value].svalue)
-            operand_list[1].type = OpTypeInt;
-        if (operand_list[1].type != OpTypeLocalRef || operand_list[2].type != OpTypeLocalRef)
-            printf("%s: STORE %s;", __FUNCTION__, getParam(2));
-        else
-            slotarray[operand_list[2].value] = slotarray[operand_list[1].value];
-#endif
         break;
 
     // Convert instructions...
     case Instruction::Trunc:
     case Instruction::ZExt:
     case Instruction::BitCast:
-#if 0
-        slotarray[operand_list[0].value] = slotarray[operand_list[1].value];
-#endif
         break;
 
     // Other instructions...
+#if 0
     case Instruction::PHI:
         {
         char temp[MAX_CHAR_BUFFER];
@@ -177,31 +166,25 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         }
         }
         break;
+#endif
     case Instruction::Call:
         {
         CallInst &ICL = static_cast<CallInst&>(I);
-        unsigned ArgNo = 0;
-        Function *func = ICL.getCalledFunction();
         Value *Callee = ICL.getCalledValue();
-        PointerType  *PTy = cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        unsigned len = FTy->getNumParams();
         Function *RF;
-        CallSite CS(&I);
-        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
+        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0))))
             Callee = RF;
-        }
         const char *p = getOperand(parent_thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Function *CF = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
+        const char *cp = NULL;
+printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__, parent_thisp, CF, Callee, p);
         if (!CF) {
             void *pact = mapLookup(p);
             CF = static_cast<Function *>(pact);
         }
         printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, CF, parent_thisp);
-        const char *cp = NULL;
         if (CF) {
             cp = CF->getName().str().c_str();
             printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, cp);
@@ -265,11 +248,10 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                 }
             }
         }
-        printf("[%s:%d] guard %d update %d\n", __FUNCTION__, __LINE__, guardName, updateName);
         const GlobalValue *g = NULL;
         if (parent_thisp)
             g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-        //printf("[%s:%d] %p g %p\n", __FUNCTION__, __LINE__, parent_thisp, g);
+        printf("[%s:%d] guard %d update %d parent_thisp %p g %p\n", __FUNCTION__, __LINE__, guardName, updateName, parent_thisp, g);
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
@@ -307,20 +289,10 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-//if (operand_list_index <= 3)
-#if 0
-        if (f && thisp) {
-            vtablework.push_back(VTABLE_WORK(thisp[0][slotarray[tcall].offset/sizeof(uint64_t)],
-                thisp,
-                (operand_list_index > 3) ? slotarray[operand_list[2].value] : SLOTARRAY_TYPE()));
-            slotarray[operand_list[0].value].name = strdup(CF->getName().str().c_str());
-        }
-#else
         if (CF) {
 printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
             vtablework.push_back(VTABLE_WORK(CF, NULL, SLOTARRAY_TYPE()));
         }
-#endif
         }
         break;
     default:
