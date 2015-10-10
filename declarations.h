@@ -116,6 +116,12 @@ class GeneratePass : public ModulePass {
     GeneratePass(FILE *o, FILE *oh) : ModulePass(ID), Out(o), OutHeader(oh) { }
     bool runOnModule(Module &M);
 };
+class ClassMethodTable {
+public:
+    std::string className;
+    std::map<Function *, std::string> method;
+    ClassMethodTable(const char *name) : className(name) { }
+};
 
 extern ExecutionEngine *EE;
 extern int trace_translate;
@@ -128,10 +134,11 @@ extern FILE *outputFile;
 extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
-extern std::list<StructType *> structWork;
+extern std::list<const StructType *> structWork;
 extern int structWork_run;
 extern unsigned NextAnonValueNumber;
 extern std::map<std::string, void *> nameMap;
+extern std::map<std::string,ClassMethodTable *> classCreate;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
@@ -155,7 +162,7 @@ bool endswith(const char *str, const char *suffix);
 void generateCppData(FILE *OStr, Module &Mod);
 void generateCppHeader(Module &Mod, FILE *OStr);
 const char *processCInstruction(Function ***thisp, Instruction &I);
-char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, int skip);
+char *printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip);
 std::string GetValueName(const Value *Operand);
 char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 bool isInlinableInst(const Instruction &I);
@@ -169,3 +176,7 @@ uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);
 void *mapLookup(std::string name);
 char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
 void pushWork(Function *func, Function ***thisp, int generate);
+ClassMethodTable *findClass(std::string tname);
+std::string getStructName(const StructType *STy);
+std::string CBEMangle(const std::string &S);
+CLASS_META *lookup_class_mangle(const char *cp);

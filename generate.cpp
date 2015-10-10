@@ -34,9 +34,8 @@ int trace_translate ;//= 1;
 static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 const char *globalName;
+std::map<std::string,ClassMethodTable *> classCreate;
 
-static int slotmapIndex = 1;
-static std::map<const Value *, int> slotmap;
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
     {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
@@ -205,8 +204,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         guardName = strdup(temp);
     }
     nameMap.clear();
-    slotmap.clear();
-    slotmapIndex = 1;
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
         func->dump();
@@ -245,7 +242,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
          || MI != funcSeen.end())
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, false, " {\n", false));
+        fprintf(outputFile, "%s", printFunctionSignature(func, NULL, false, " {\n", false));
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -301,41 +298,15 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         fprintf(outputFile, "end;\n");
 }
 
-class ClassMethodTable {
-public:
-    std::string className;
-    std::map<Function *, std::string> method;
-    ClassMethodTable(const char *name) : className(name) { method.clear(); };
-};
-static std::map<std::string,ClassMethodTable *> classCreate;
-static void createClassInstances(void)
+static const StructType *findThisArgument(Function *func)
 {
-    while (classCreate.begin() != classCreate.end()) {
-        std::string key = classCreate.begin()->first;
-        classCreate.erase(key);
-        CLASS_META *mptr = lookup_class(key.c_str());
-printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
-printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
-        DIType thisType(mptr->node);
-        thisType->dump();
-        fprintf(stderr, "\n");
-        if (mptr->node->getNumOperands() > 3) {
-            Value *val = mptr->node->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-        }
-        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
-            DIType memberType(*FI);
-            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
-            //memberType->dump();
-            //printf("\n");
-            const MDNode *mnode = *FI;
-            if (mnode->getNumOperands() > 3) {
-                const Value *val = mnode->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-val->getType()->dump();
-            }
-        }
-    }
+    const PointerType *PTy;
+    const StructType *STy = NULL;
+    if (func->arg_begin() != func->arg_end()
+     && func->arg_begin()->getName() == "this"
+     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType())))
+        STy = dyn_cast<StructType>(PTy->getPointerElementType());
+    return STy;
 }
 
 void pushWork(Function *func, Function ***thisp, int generate)
@@ -351,7 +322,6 @@ void pushWork(Function *func, Function ***thisp, int generate)
     temp[0] = 0;
     std::string pname = func->getName();
     const char *demang = abi::__cxa_demangle(pname.c_str(), 0, 0, &status);
-printf("[%s:%d] %s demang %s class %s method %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod);
     if (demang) {
         strcpy(temp, demang);
         while (*pmethod && pmethod[0] != '(')
@@ -370,22 +340,20 @@ printf("[%s:%d] %s demang %s class %s method %s\n", __FUNCTION__, __LINE__, pnam
             len++;
             p1--;
         }
-printf("[%s:%d] %s demang %s class %s method %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod);
-        if (func->arg_begin() != func->arg_end()
-         && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-         && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
+        if ((STy = findThisArgument(func))) {
+            std::string sname = getStructName(STy);
             std::string tname = STy->getName();
             CLASS_META *mptr = lookup_class(tname.c_str());
             if (mptr->node->getNumOperands() > 3
-             && func->arg_begin()->getName() == "this"
              && mptr->node->getOperand(3)->getName() == temp) {
-                classCreate[tname] = new ClassMethodTable(temp);
-printf("[%s:%d] %s demang %s class %s method %s tname %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod, tname.c_str());
+                if (!findClass(sname))
+                    classCreate[sname] = new ClassMethodTable(temp);
+                classCreate[sname]->method[func] = pmethod;
+//printf("[%s:%d] %s demang %s class %s method %s sname %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod, sname.c_str());
             }
         }
     }
     vtablework.push_back(VTABLE_WORK(func, thisp));
-//static std::map<Function *, std::string> functionClass;
 }
 
 /*
@@ -461,9 +429,6 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
     processRules(*modfirst, 0, outputFile);
-
-    // package together referenced classes
-    createClassInstances();
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile);

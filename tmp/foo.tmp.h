@@ -1,108 +1,132 @@
-typedef struct l_class_OC_Module {
-  struct l_class_OC_Rule *rfirst;
-  struct l_class_OC_Module *next;
-  struct l_class_OC_Module *shadow;
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
+class l_class_OC_Rule;
+class l_class_OC_Rule {
+public:
+  unsigned int  (**_vptr_EC_Rule) ( int, ...);
+  class l_class_OC_Rule *next;
+};
+
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
+public:
+  class l_class_OC_Rule Rule;
+  class l_class_OC_Echo *module;
+};
+
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1;
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 {
+public:
+  class l_class_OC_Rule Rule;
+  class l_class_OC_Echo *module;
+};
+
+class l_class_OC_EchoTest_KD__KD_drive;
+class l_class_OC_EchoTest_KD__KD_drive {
+public:
+  class l_class_OC_Rule Rule;
+  class l_class_OC_EchoTest *module;
+};
+
+class l_class_OC_Fifo1;
+class l_class_OC_Fifo;
+class l_class_OC_Module;
+class l_class_OC_Module {
+public:
+  class l_class_OC_Rule *rfirst;
+  class l_class_OC_Module *next;
+  class l_class_OC_Module *shadow;
   unsigned long long size;
-} l_class_OC_Module;
+};
 
-typedef struct l_class_OC_Fifo {
+class l_class_OC_Fifo {
+public:
   unsigned int  (**Module) ( int, ...);
-  struct l_class_OC_Module _vptr_EC_Fifo;
-} l_class_OC_Fifo;
+  class l_class_OC_Module _vptr_EC_Fifo;
+};
 
-typedef struct l_class_OC_Fifo1 {
-  struct l_class_OC_Fifo Fifo_MD_int_OD_;
+class l_class_OC_Fifo1 {
+public:
+  class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   unsigned char full;
-} l_class_OC_Fifo1;
+  bool enq__guard(void);
+  void enq(unsigned int Vv);
+  bool deq__guard(void);
+  void deq(void);
+  bool first__guard(void);
+  unsigned int first(void);
+  bool notEmpty(void);
+  bool notFull(void);
+};
 
-typedef struct l_class_OC_Rule {
-  unsigned int  (**_vptr_EC_Rule) ( int, ...);
-  struct l_class_OC_Rule *next;
-} l_class_OC_Rule;
-
-typedef struct l_class_OC_EchoTest_KD__KD_drive {
-  struct l_class_OC_Rule Rule;
-  struct l_class_OC_EchoTest *module;
-} l_class_OC_EchoTest_KD__KD_drive;
-
-typedef struct l_class_OC_EchoTest {
-  struct l_class_OC_Module Module;
-  struct l_class_OC_Echo *echo;
+class l_class_OC_EchoTest;
+class l_class_OC_EchoTest {
+public:
+  class l_class_OC_Module Module;
+  class l_class_OC_Echo *echo;
   unsigned int x;
-  struct l_class_OC_EchoTest_KD__KD_drive driveRule;
-} l_class_OC_EchoTest;
-
-typedef struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
-  struct l_class_OC_Rule Rule;
-  struct l_class_OC_Echo *module;
-} l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
-
-typedef struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 {
-  struct l_class_OC_Rule Rule;
-  struct l_class_OC_Echo *module;
-} l_class_OC_Echo_KD__KD_respond_KD__KD_respond1;
+  class l_class_OC_EchoTest_KD__KD_drive driveRule;
+};
 
 
 /* External Global Variable Declarations */
-extern struct l_class_OC_EchoTest echoTest;
+extern class l_class_OC_EchoTest echoTest;
 extern unsigned char *_ZTVN10__cxxabiv120__si_class_type_infoE;
 extern unsigned char *_ZTVN10__cxxabiv117__class_type_infoE;
 extern unsigned char *_ZTVN10__cxxabiv121__vmi_class_type_infoE;
 extern unsigned int stop_main_program;
-extern struct l_class_OC_Module *_ZN6Module5firstE;
+extern class l_class_OC_Module *_ZN6Module5firstE;
 
 /* Function Declarations */
 void _ZN14EchoIndication4echoEi(unsigned int Vv);
 static void __cxx_global_var_init(void);
-void _ZN8EchoTestC1Ev(struct l_class_OC_EchoTest *Vthis);
-void _ZN8EchoTestD1Ev(struct l_class_OC_EchoTest *Vthis);
+void _ZN8EchoTestC1Ev(class l_class_OC_EchoTest *Vthis);
+void _ZN8EchoTestD1Ev(class l_class_OC_EchoTest *Vthis);
 static void __dtor_echoTest(void);
-void _ZN8EchoTestD2Ev(struct l_class_OC_EchoTest *Vthis);
-void _ZN8EchoTestC2Ev(struct l_class_OC_EchoTest *Vthis);
-void _ZN6ModuleC2Em(struct l_class_OC_Module *Vthis, unsigned long long Vsize);
+void _ZN8EchoTestD2Ev(class l_class_OC_EchoTest *Vthis);
+void _ZN8EchoTestC2Ev(class l_class_OC_EchoTest *Vthis);
+void _ZN6ModuleC2Em(class l_class_OC_Module *Vthis, unsigned long long Vsize);
 unsigned char *_Znwm(unsigned long long );
-void _ZN4EchoC1EP14EchoIndication(struct l_class_OC_Echo *Vthis, struct l_class_OC_EchoIndication *Vind);
-void _ZN14EchoIndicationC1Ev(struct l_class_OC_EchoIndication *Vthis);
-void _ZN8EchoTest5driveC1EPS_(struct l_class_OC_EchoTest_KD__KD_drive *Vthis, struct l_class_OC_EchoTest *Vmodule);
-void _ZN8EchoTest5driveC2EPS_(struct l_class_OC_EchoTest_KD__KD_drive *Vthis, struct l_class_OC_EchoTest *Vmodule);
-void _ZN4RuleC2Ev(struct l_class_OC_Rule *Vthis);
-void _ZN6Module7addRuleEP4Rule(struct l_class_OC_Module *Vthis, struct l_class_OC_Rule *Vrule);
-bool _ZN8EchoTest5drive5guardEv(struct l_class_OC_EchoTest_KD__KD_drive *Vthis);
-void _ZN8EchoTest5drive6updateEv(struct l_class_OC_EchoTest_KD__KD_drive *Vthis);
-void _ZN14EchoIndicationC2Ev(struct l_class_OC_EchoIndication *Vthis);
-void _ZN4EchoC2EP14EchoIndication(struct l_class_OC_Echo *Vthis, struct l_class_OC_EchoIndication *Vind);
-void _ZN5Fifo1IiEC1Ev(struct l_class_OC_Fifo1 *Vthis);
-void _ZN4Echo7respondC1EPS_(struct l_class_OC_Echo_KD__KD_respond *Vthis, struct l_class_OC_Echo *Vmodule);
-void _ZN4Echo7respondC2EPS_(struct l_class_OC_Echo_KD__KD_respond *Vthis, struct l_class_OC_Echo *Vmodule);
-void _ZN4Echo7respond8respond1C1EPS_(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, struct l_class_OC_Echo *Vmodule);
-void _ZN4Echo7respond8respond2C1EPS_(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, struct l_class_OC_Echo *Vmodule);
-void _ZN4Echo7respond8respond2C2EPS_(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, struct l_class_OC_Echo *Vmodule);
-bool _ZN4Echo7respond8respond25guardEv(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
-void _ZN4Echo7respond8respond26updateEv(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
-void _ZN4Echo7respond8respond1C2EPS_(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, struct l_class_OC_Echo *Vmodule);
-bool _ZN4Echo7respond8respond15guardEv(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
-void _ZN4Echo7respond8respond16updateEv(struct l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
-void _ZN5Fifo1IiEC2Ev(struct l_class_OC_Fifo1 *Vthis);
-void _ZN4FifoIiEC2Em(struct l_class_OC_Fifo *Vthis, unsigned long long Vsize);
-void _ZN5Fifo1IiED1Ev(struct l_class_OC_Fifo1 *Vthis);
-void _ZN5Fifo1IiED0Ev(struct l_class_OC_Fifo1 *Vthis);
-bool _ZN5Fifo1IiE10enq__guardEv(struct l_class_OC_Fifo1 *Vthis);
-void _ZN5Fifo1IiE3enqEi(struct l_class_OC_Fifo1 *Vthis, unsigned int Vv);
-bool _ZN5Fifo1IiE10deq__guardEv(struct l_class_OC_Fifo1 *Vthis);
-void _ZN5Fifo1IiE3deqEv(struct l_class_OC_Fifo1 *Vthis);
-bool _ZN5Fifo1IiE12first__guardEv(struct l_class_OC_Fifo1 *Vthis);
-unsigned int _ZN5Fifo1IiE5firstEv(struct l_class_OC_Fifo1 *Vthis);
-bool _ZNK5Fifo1IiE8notEmptyEv(struct l_class_OC_Fifo1 *Vthis);
-bool _ZNK5Fifo1IiE7notFullEv(struct l_class_OC_Fifo1 *Vthis);
+void _ZN4EchoC1EP14EchoIndication(class l_class_OC_Echo *Vthis, class l_class_OC_EchoIndication *Vind);
+void _ZN14EchoIndicationC1Ev(class l_class_OC_EchoIndication *Vthis);
+void _ZN8EchoTest5driveC1EPS_(class l_class_OC_EchoTest_KD__KD_drive *Vthis, class l_class_OC_EchoTest *Vmodule);
+void _ZN8EchoTest5driveC2EPS_(class l_class_OC_EchoTest_KD__KD_drive *Vthis, class l_class_OC_EchoTest *Vmodule);
+void _ZN4RuleC2Ev(class l_class_OC_Rule *Vthis);
+void _ZN6Module7addRuleEP4Rule(class l_class_OC_Module *Vthis, class l_class_OC_Rule *Vrule);
+bool _ZN8EchoTest5drive5guardEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
+void _ZN8EchoTest5drive6updateEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
+void _ZN14EchoIndicationC2Ev(class l_class_OC_EchoIndication *Vthis);
+void _ZN4EchoC2EP14EchoIndication(class l_class_OC_Echo *Vthis, class l_class_OC_EchoIndication *Vind);
+void _ZN5Fifo1IiEC1Ev(class l_class_OC_Fifo1 *Vthis);
+void _ZN4Echo7respondC1EPS_(class l_class_OC_Echo_KD__KD_respond *Vthis, class l_class_OC_Echo *Vmodule);
+void _ZN4Echo7respondC2EPS_(class l_class_OC_Echo_KD__KD_respond *Vthis, class l_class_OC_Echo *Vmodule);
+void _ZN4Echo7respond8respond1C1EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, class l_class_OC_Echo *Vmodule);
+void _ZN4Echo7respond8respond2C1EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, class l_class_OC_Echo *Vmodule);
+void _ZN4Echo7respond8respond2C2EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, class l_class_OC_Echo *Vmodule);
+bool _ZN4Echo7respond8respond25guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
+void _ZN4Echo7respond8respond26updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
+void _ZN4Echo7respond8respond1C2EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, class l_class_OC_Echo *Vmodule);
+bool _ZN4Echo7respond8respond15guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
+void _ZN4Echo7respond8respond16updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
+void _ZN5Fifo1IiEC2Ev(class l_class_OC_Fifo1 *Vthis);
+void _ZN4FifoIiEC2Em(class l_class_OC_Fifo *Vthis, unsigned long long Vsize);
+void _ZN5Fifo1IiED1Ev(class l_class_OC_Fifo1 *Vthis);
+void _ZN5Fifo1IiED0Ev(class l_class_OC_Fifo1 *Vthis);
+bool _ZN5Fifo1IiE10enq__guardEv(class l_class_OC_Fifo1 *Vthis);
+void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv);
+bool _ZN5Fifo1IiE10deq__guardEv(class l_class_OC_Fifo1 *Vthis);
+void _ZN5Fifo1IiE3deqEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZN5Fifo1IiE12first__guardEv(class l_class_OC_Fifo1 *Vthis);
+unsigned int _ZN5Fifo1IiE5firstEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZNK5Fifo1IiE8notEmptyEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZNK5Fifo1IiE7notFullEv(class l_class_OC_Fifo1 *Vthis);
 void _ZdlPv(unsigned char *);
-void _ZN5Fifo1IiED2Ev(struct l_class_OC_Fifo1 *Vthis);
-void _ZN4FifoIiED2Ev(struct l_class_OC_Fifo *Vthis);
-void _ZN4FifoIiED1Ev(struct l_class_OC_Fifo *Vthis);
-void _ZN4FifoIiED0Ev(struct l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE10enq__guardEv(struct l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE10deq__guardEv(struct l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE12first__guardEv(struct l_class_OC_Fifo *Vthis);
+void _ZN5Fifo1IiED2Ev(class l_class_OC_Fifo1 *Vthis);
+void _ZN4FifoIiED2Ev(class l_class_OC_Fifo *Vthis);
+void _ZN4FifoIiED1Ev(class l_class_OC_Fifo *Vthis);
+void _ZN4FifoIiED0Ev(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE10enq__guardEv(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE10deq__guardEv(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE12first__guardEv(class l_class_OC_Fifo *Vthis);
 unsigned char *malloc(unsigned long long );
 static void _GLOBAL__I_a(void);
 void _Z16run_main_programv(void);

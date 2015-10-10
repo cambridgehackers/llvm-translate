@@ -239,6 +239,17 @@ CLASS_META *lookup_class(const char *cp)
     }
     return NULL;
 }
+CLASS_META *lookup_class_mangle(const char *cp)
+{
+    CLASS_META *classp = class_data;
+    for (int i = 0; i < class_data_index; i++) {
+      std::string mang = "l_" + CBEMangle(classp->name);
+      if (cp == mang)
+          return classp;
+      classp++;
+    }
+    return NULL;
+}
 const MDNode *lookup_class_member(const char *cp, uint64_t Total)
 {
     CLASS_META *classp = lookup_class(cp);

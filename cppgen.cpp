@@ -32,13 +32,13 @@ using namespace llvm;
 #include "declarations.h"
 
 enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
-std::list<StructType *> structWork;
+std::list<const StructType *> structWork;
 int structWork_run;
-static std::map<Type *, int> structMap;
+static std::map<const Type *, int> structMap;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
-static DenseMap<StructType*, unsigned> UnnamedStructIDs;
+static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static unsigned NextTypeID;
 char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
 static char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode);
@@ -376,7 +376,7 @@ static int getCastGroup(int op)
 /*
  * Name functions
  */
-static std::string CBEMangle(const std::string &S)
+std::string CBEMangle(const std::string &S)
 {
   std::string Result;
   for (unsigned i = 0, e = S.size(); i != e; ++i)
@@ -390,7 +390,7 @@ static std::string CBEMangle(const std::string &S)
     }
   return Result;
 }
-static const char *fieldName(StructType *STy, uint64_t ind)
+static const char *fieldName(const StructType *STy, uint64_t ind)
 {
     static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
@@ -412,7 +412,7 @@ static const char *fieldName(StructType *STy, uint64_t ind)
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
-static std::string getStructName(StructType *STy)
+std::string getStructName(const StructType *STy)
 {
     std::string name;
     if (!STy->isLiteral() && !STy->getName().empty())
@@ -1046,7 +1046,7 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
     }
     return p;
 }
-char *printFunctionSignature(const Function *F, bool Prototype, const char *postfix, int skip)
+char *printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip)
 {
   std::string tstr;
   raw_string_ostream FunctionInnards(tstr);
@@ -1055,7 +1055,10 @@ char *printFunctionSignature(const Function *F, bool Prototype, const char *post
   FunctionType *FT = cast<FunctionType>(F->getFunctionType());
   ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
   if (F->hasLocalLinkage()) statstr = "static ";
-  FunctionInnards << GetValueName(F);
+  if (altname)
+      FunctionInnards << altname;
+  else
+      FunctionInnards << GetValueName(F);
   FunctionInnards << '(';
   if (F->isDeclaration()) {
     for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
@@ -1173,29 +1176,87 @@ void generateCppData(FILE *OStr, Module &Mod)
     fprintf(OStr, "NULL};\n");
 }
 
-static void printContainedStructs(Type *Ty, FILE *OStr)
+static void createClassInstances(FILE *OStr)
 {
-    std::map<Type *, int>::iterator FI = structMap.find(Ty);
-    PointerType *PTy = dyn_cast<PointerType>(Ty);
-    if (PTy)
-            printContainedStructs(PTy->getElementType(), OStr);
+    while (classCreate.begin() != classCreate.end()) {
+        std::string key = classCreate.begin()->first;
+        ClassMethodTable *table = classCreate.begin()->second;
+        classCreate.erase(key);
+        CLASS_META *mptr = lookup_class_mangle(key.c_str());
+printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
+printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
+        DIType thisType(mptr->node);
+        thisType->dump();
+        fprintf(stderr, "\n");
+        if (mptr->node->getNumOperands() > 3) {
+            Value *val = mptr->node->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+        }
+        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
+            DIType memberType(*FI);
+            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
+            //memberType->dump();
+            //printf("\n");
+            const MDNode *mnode = *FI;
+            if (mnode->getNumOperands() > 3) {
+                const Value *val = mnode->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+//val->getType()->dump();
+            }
+        }
+printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, table->className.c_str());
+        //const StructType *STy = findThisArgument(func);
+        //std::string tname = STy->getName();
+        //CLASS_META *mptr = lookup_class(tname.c_str());
+        for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+printf("[%s:%d] func %p name %s\n", __FUNCTION__, __LINE__, FI->first, FI->second.c_str());
+            fprintf(OStr, "     %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
+        }
+    }
+}
+
+ClassMethodTable *findClass(std::string tname)
+{
+    std::map<std::string, ClassMethodTable *>::iterator FI = classCreate.find(tname);
+    if (FI != classCreate.end())
+        return classCreate[tname];
+    return NULL;
+}
+
+static void printContainedStructs(const Type *Ty, FILE *OStr)
+{
+    std::map<const Type *, int>::iterator FI = structMap.find(Ty);
+    const PointerType *PTy = dyn_cast<PointerType>(Ty);
+    const StructType *STy = dyn_cast<StructType>(Ty);
+    if (PTy) {
+        const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
+        if (subSTy) { /* Not recursion!  These are generated afterword, if we didn't generate before */
+            std::map<const Type *, int>::iterator FI = structMap.find(subSTy);
+            if (FI != structMap.end())
+                structWork.push_back(subSTy);
+        }
+    }
     else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
-        StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;
         if (STy) {
             name = getStructName(STy);
             fprintf(OStr, "class %s;\n", name.c_str());
-            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-                printContainedStructs(*I, OStr);
         }
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr);
         if (STy) {
+            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+                printContainedStructs(*I, OStr);
             fprintf(OStr, "class %s {\npublic:\n", name.c_str());
             unsigned Idx = 0;
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
               fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
+            ClassMethodTable *table = findClass(name);
+            if (table)
+                for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+                    fprintf(OStr, "  %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
+                }
             fprintf(OStr, "};\n\n");
         }
     }
@@ -1207,6 +1268,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
+createClassInstances(stdout);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
@@ -1215,13 +1277,10 @@ void generateCppHeader(Module &Mod, FILE *OStr)
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
         std::string name = I->getName().str();
-        int skip = 0;
-        //if (checkIfRule(I->getType()))
-            //skip = 1;
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, true, ";\n", skip));
+            fprintf(OStr, "%s", printFunctionSignature(I, NULL, true, ";\n", 0));
     }
     UnnamedStructIDs.clear();
 }
