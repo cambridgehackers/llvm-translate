@@ -31,7 +31,7 @@ using namespace llvm;
 #include "declarations.h"
 
 int trace_translate ;//= 1;
-std::list<VTABLE_WORK> vtablework;
+static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 const char *globalName;
 
@@ -301,6 +301,93 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         fprintf(outputFile, "end;\n");
 }
 
+class ClassMethodTable {
+public:
+    std::string className;
+    std::map<Function *, std::string> method;
+    ClassMethodTable(const char *name) : className(name) { method.clear(); };
+};
+static std::map<std::string,ClassMethodTable *> classCreate;
+static void createClassInstances(void)
+{
+    while (classCreate.begin() != classCreate.end()) {
+        std::string key = classCreate.begin()->first;
+        classCreate.erase(key);
+        CLASS_META *mptr = lookup_class(key.c_str());
+printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
+printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
+        DIType thisType(mptr->node);
+        thisType->dump();
+        fprintf(stderr, "\n");
+        if (mptr->node->getNumOperands() > 3) {
+            Value *val = mptr->node->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+        }
+        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
+            DIType memberType(*FI);
+            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
+            //memberType->dump();
+            //printf("\n");
+            const MDNode *mnode = *FI;
+            if (mnode->getNumOperands() > 3) {
+                const Value *val = mnode->getOperand(3);
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+val->getType()->dump();
+            }
+        }
+    }
+}
+
+void pushWork(Function *func, Function ***thisp, int generate)
+{
+    const PointerType *PTy;
+    const StructType *STy;
+    int status;
+    char temp[1000];
+    char *pmethod = temp;
+
+    if (!func)
+        return;
+    temp[0] = 0;
+    std::string pname = func->getName();
+    const char *demang = abi::__cxa_demangle(pname.c_str(), 0, 0, &status);
+printf("[%s:%d] %s demang %s class %s method %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod);
+    if (demang) {
+        strcpy(temp, demang);
+        while (*pmethod && pmethod[0] != '(')
+            pmethod++;
+        *pmethod = 0;
+        while (pmethod > temp && pmethod[0] != ':')
+            pmethod--;
+        char *p = pmethod++;
+        while (p[0] == ':')
+            *p-- = 0;
+        int len = 0;
+        const char *p1 = demang;
+        while (*p1 && *p1 != '(')
+            p1++;
+        while (p1 != demang && *p1 != ':') {
+            len++;
+            p1--;
+        }
+printf("[%s:%d] %s demang %s class %s method %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod);
+        if (func->arg_begin() != func->arg_end()
+         && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
+         && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
+            std::string tname = STy->getName();
+            CLASS_META *mptr = lookup_class(tname.c_str());
+            if (mptr->node->getNumOperands() > 3
+             && func->arg_begin()->getName() == "this"
+             && mptr->node->getOperand(3)->getName() == temp) {
+                classCreate[tname] = new ClassMethodTable(temp);
+printf("[%s:%d] %s demang %s class %s method %s tname %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod, tname.c_str());
+            }
+        }
+    }
+    vtablework.push_back(VTABLE_WORK(func, thisp));
+//static std::map<Function *, std::string> functionClass;
+}
+
 /*
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
@@ -320,7 +407,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
             static std::string method[] = { "update", "guard", ""};
             std::string *p = method;
             do {
-                vtablework.push_back(VTABLE_WORK(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep));
+                pushWork(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep, 0);
             } while (*++p != "");
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }

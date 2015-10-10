@@ -148,8 +148,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             sep = ", ";
         }
         strcat(vout, ")");
-        if (func)
-            vtablework.push_back(VTABLE_WORK(func, NULL));
+        pushWork(func, NULL, 1);
         }
         break;
 

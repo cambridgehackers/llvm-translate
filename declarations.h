@@ -122,7 +122,6 @@ extern int trace_translate;
 extern int trace_full;
 extern const char *globalName;
 
-extern std::list<VTABLE_WORK> vtablework;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern FILE *outputFile;
@@ -168,5 +167,5 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
 const char *processInstruction(Function ***thisp, Instruction *ins, int generate);
 uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E);
 void *mapLookup(std::string name);
-void createClassInstances(void);
 char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
+void pushWork(Function *func, Function ***thisp, int generate);

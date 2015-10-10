@@ -260,8 +260,7 @@ printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
             sep = ", ";
         }
         strcat(vout, ")");
-        if (func)
-            vtablework.push_back(VTABLE_WORK(func, called_thisp));
+        pushWork(func, called_thisp, 2);
         }
         break;
     default:

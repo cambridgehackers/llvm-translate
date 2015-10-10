@@ -31,7 +31,6 @@ using namespace llvm;
 #include "declarations.h"
 
 static std::map<const Value *, Value *> cloneVmap;
-static std::map<std::string,int> classCreate;
 int trace_clone;
 
 /*
@@ -228,7 +227,6 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                  && (PTy = dyn_cast<PointerType>(CF->arg_begin()->getType()))
                  && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
                     std::string tname = STy->getName().str();
-                    classCreate[tname] = 1;
                     if (len > 2) {
                         char tempname[1000];
                         memcpy(tempname, p+1, len-1);
@@ -279,10 +277,7 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-        if (CF) {
-printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
-            vtablework.push_back(VTABLE_WORK(CF, NULL));
-        }
+        pushWork(CF, NULL, 0);
         }
         break;
     default:
@@ -292,33 +287,4 @@ printf("[%s:%d] pushback\n", __FUNCTION__, __LINE__);
         break;
     }
     return NULL;
-}
-void createClassInstances(void)
-{
-    while (classCreate.begin() != classCreate.end()) {
-        std::string key = classCreate.begin()->first;
-        classCreate.erase(key);
-        CLASS_META *mptr = lookup_class(key.c_str());
-printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
-printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
-        DIType thisType(mptr->node);
-        thisType->dump();
-        fprintf(stderr, "\n");
-        if (mptr->node->getNumOperands() > 3) {
-            Value *val = mptr->node->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-        }
-        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
-            DIType memberType(*FI);
-            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
-            //memberType->dump();
-            //printf("\n");
-            const MDNode *mnode = *FI;
-            if (mnode->getNumOperands() > 3) {
-                const Value *val = mnode->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-val->getType()->dump();
-            }
-        }
-    }
 }
