@@ -188,7 +188,7 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-static void processFunction(VTABLE_WORK &work, int generate, FILE *outputFile)
+void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile)
 {
     Function *func = work.f;
     const char *guardName = NULL;
@@ -236,13 +236,13 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         int status;
         const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
         std::map<const Function *, int>::iterator MI = funcSeen.find(func);
-        if ((demang && strstr(demang, "::~"))
+        if (!newName && ((demang && strstr(demang, "::~"))
          || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
          || !strcmp(globalName, "__dtor_echoTest")
-         || MI != funcSeen.end())
+         || MI != funcSeen.end()))
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, NULL, false, " {\n", false));
+        fprintf(outputFile, "%s", printFunctionSignature(func, newName, false, " {\n", newName != NULL));
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -384,7 +384,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        processFunction(*vtablework.begin(), generate, outputFile);
+        processFunction(*vtablework.begin(), generate, NULL, outputFile);
         vtablework.pop_front();
     }
 }

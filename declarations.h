@@ -139,6 +139,7 @@ extern int structWork_run;
 extern unsigned NextAnonValueNumber;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string,ClassMethodTable *> classCreate;
+extern int regen_methods;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
@@ -180,3 +181,4 @@ ClassMethodTable *findClass(std::string tname);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 CLASS_META *lookup_class_mangle(const char *cp);
+void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile);

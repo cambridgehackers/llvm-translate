@@ -45,6 +45,7 @@ static char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Op
 static char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned);
 static const char *writeInstructionCast(const Instruction &I);
 static const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
+int regen_methods;
 
 /*
  * Output instructions
@@ -453,6 +454,8 @@ std::string GetValueName(const Value *Operand)
       VarName += buffer;
     }
   }
+  if (regen_methods)
+      return VarName;
   return "V" + VarName;
 }
 /*
@@ -1204,10 +1207,7 @@ printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
 //val->getType()->dump();
             }
         }
-printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, table->className.c_str());
-        //const StructType *STy = findThisArgument(func);
-        //std::string tname = STy->getName();
-        //CLASS_META *mptr = lookup_class(tname.c_str());
+printf("[%s:%d] name %s JJJJJJ\n", __FUNCTION__, __LINE__, table->className.c_str());
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
 printf("[%s:%d] func %p name %s\n", __FUNCTION__, __LINE__, FI->first, FI->second.c_str());
             fprintf(OStr, "     %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
@@ -1255,7 +1255,12 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
             ClassMethodTable *table = findClass(name);
             if (table)
                 for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-                    fprintf(OStr, "  %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
+                    //fprintf(OStr, "  %s //JJJJJJ\n", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
+                    //fprintf(stdout, "  %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
+                    VTABLE_WORK foo(FI->first, NULL);
+                    regen_methods = 1;
+                    processFunction(foo, 2, FI->second.c_str(), OStr);
+                    regen_methods = 0;
                 }
             fprintf(OStr, "};\n\n");
         }
