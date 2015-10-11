@@ -35,6 +35,7 @@ static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 const char *globalName;
 std::map<std::string,ClassMethodTable *> classCreate;
+std::map<Function *,ClassMethodTable *> functionIndex;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -321,8 +322,6 @@ const StructType *findThisArgumentType(FunctionType *func)
 
 void pushWork(Function *func, Function ***thisp, int generate)
 {
-    const PointerType *PTy;
-    const StructType *STy;
     int status;
     char temp[1000];
     char *pmethod = temp;
@@ -333,6 +332,7 @@ void pushWork(Function *func, Function ***thisp, int generate)
     std::string pname = func->getName();
     const char *demang = abi::__cxa_demangle(pname.c_str(), 0, 0, &status);
     if (demang) {
+        const StructType *STy;
         strcpy(temp, demang);
         while (*pmethod && pmethod[0] != '(')
             pmethod++;
@@ -357,9 +357,9 @@ void pushWork(Function *func, Function ***thisp, int generate)
             if (mptr->node->getNumOperands() > 3
              && mptr->node->getOperand(3)->getName() == temp) {
                 if (!findClass(sname))
-                    classCreate[sname] = new ClassMethodTable(temp);
+                    classCreate[sname] = new ClassMethodTable(sname, temp);
                 classCreate[sname]->method[func] = pmethod;
-//printf("[%s:%d] %s demang %s class %s method %s sname %s\n", __FUNCTION__, __LINE__, pname.c_str(), demang, temp, pmethod, sname.c_str());
+                functionIndex[func] = classCreate[sname];
             }
         }
     }
@@ -370,7 +370,7 @@ void pushWork(Function *func, Function ***thisp, int generate)
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, int generate, FILE *outputFile)
+static void processRules(Function ***modp, int generate, FILE *outputFile, FILE *outputNull)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
@@ -394,7 +394,9 @@ static void processRules(Function ***modp, int generate, FILE *outputFile)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        processFunction(*vtablework.begin(), generate, NULL, outputFile);
+        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(vtablework.begin()->f);
+        processFunction(*vtablework.begin(), generate, NULL,
+           ((NI != functionIndex.end()) ? outputNull : outputFile));
         vtablework.pop_front();
     }
 }
@@ -438,16 +440,16 @@ bool GeneratePass::runOnModule(Module &Mod)
     constructAddressMap(CU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processRules(*modfirst, 0, outputFile);
+    processRules(*modfirst, 0, outputFile, OutNull);
 
     // Generating code for all rules
-    processRules(*modfirst, 1, outputFile);
+    processRules(*modfirst, 1, outputFile, OutNull);
 
     // Generate cpp code
     generateCppData(Out, Mod);
 
     // Generating code for all rules
-    processRules(*modfirst, 2, Out);
+    processRules(*modfirst, 2, Out, OutNull);
 
     generateCppHeader(Mod, OutHeader);
     return false;

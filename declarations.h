@@ -111,16 +111,18 @@ class CallProcessPass : public BasicBlockPass {
 class GeneratePass : public ModulePass {
     FILE *Out;
     FILE *OutHeader;
+    FILE *OutNull;
   public:
     static char ID;
-    GeneratePass(FILE *o, FILE *oh) : ModulePass(ID), Out(o), OutHeader(oh) { }
+    GeneratePass(FILE *o, FILE *oh, FILE *on) : ModulePass(ID), Out(o), OutHeader(oh), OutNull(on) { }
     bool runOnModule(Module &M);
 };
 class ClassMethodTable {
 public:
+    std::string classOrig;
     std::string className;
     std::map<Function *, std::string> method;
-    ClassMethodTable(const char *name) : className(name) { }
+    ClassMethodTable(std::string corig, const char *name) : classOrig(corig), className(name) { }
 };
 
 extern ExecutionEngine *EE;
@@ -139,6 +141,7 @@ extern int structWork_run;
 extern unsigned NextAnonValueNumber;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string,ClassMethodTable *> classCreate;
+extern std::map<Function *,ClassMethodTable *> functionIndex;
 extern int regen_methods;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);

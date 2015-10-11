@@ -106,11 +106,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     FILE *Outc_fd = fopen("foo.tmp.xc", "w");
     FILE *Outch_fd = fopen("foo.tmp.h", "w");
+    FILE *OutNull = fopen("/dev/null", "w");
 
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());
     Passes.add(new CallProcessPass());
-    Passes.add(new GeneratePass(Outc_fd, Outch_fd));
+    Passes.add(new GeneratePass(Outc_fd, Outch_fd, OutNull));
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);

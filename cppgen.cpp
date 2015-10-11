@@ -232,19 +232,30 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
         }
         const char *p = writeOperand(thisp, Callee, false);
-        //strcat(vout, writeOperand(thisp, Callee, false));
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
-if (!strncmp(p, "&0x", 3) && !func) {
-void *tval = mapLookup(p+1);
-if (tval) {
-func = static_cast<Function *>(tval);
-if (func) {
-    p = func->getName().str().c_str();
-}
-printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
-}
-}
-        strcat(vout, p);
+        if (!strncmp(p, "&0x", 3) && !func) {
+            void *tval = mapLookup(p+1);
+            if (tval) {
+                func = static_cast<Function *>(tval);
+                if (func)
+                    p = func->getName().str().c_str();
+                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
+            }
+        }
+        pushWork(func, called_thisp, 2);
+        int skip = regen_methods;
+        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
+        if (NI != functionIndex.end()) {
+            p = writeOperand(thisp, *AI, false);
+            if (p[0] == '&')
+                p++;
+            strcat(vout, p);
+            strcat(vout, ".");
+            strcat(vout, NI->second->method[func].c_str());
+            skip = 1;
+        }
+        else
+            strcat(vout, p);
         if (RF)
             strcat(vout, ")");
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
@@ -252,7 +263,6 @@ printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         strcat(vout, "(");
-        int skip = regen_methods;
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
             strcat(vout, sep);
@@ -265,7 +275,6 @@ printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
             skip = 0;
         }
         strcat(vout, ")");
-        pushWork(func, called_thisp, 2);
         }
         break;
     default:
@@ -770,11 +779,10 @@ next:
           std::map<std::string, void *>::iterator NI = nameMap.find(p);
           const char *fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
-if (!strcmp(fieldp, "module") && !strcmp(p, "Vthis")) {
-tval = thisp;
-printf("[%s:%d] MMMMMMMMMMMMMMMMM %s VthisModule %p\n", __FUNCTION__, __LINE__, p, tval);
-goto tvallab;
-}
+          if (!strcmp(fieldp, "module") && !strcmp(p, "Vthis")) {
+              tval = thisp;
+              goto tvallab;
+          }
           if (NI != nameMap.end() && NI->second) {
               sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
               goto exitlab;
@@ -1210,6 +1218,7 @@ void generateCppData(FILE *OStr, Module &Mod)
     fprintf(OStr, "NULL};\n");
 }
 
+#if 0
 static void createClassInstances(FILE *OStr)
 {
     while (classCreate.begin() != classCreate.end()) {
@@ -1219,25 +1228,16 @@ static void createClassInstances(FILE *OStr)
         CLASS_META *mptr = lookup_class_mangle(key.c_str());
 printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
 printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
-        DIType thisType(mptr->node);
-        thisType->dump();
-        fprintf(stderr, "\n");
-        if (mptr->node->getNumOperands() > 3) {
-            Value *val = mptr->node->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-        }
-        for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
-            DIType memberType(*FI);
-            //printf("[%s:%d] memb %p\n", __FUNCTION__, __LINE__, *FI);
-            //memberType->dump();
-            //printf("\n");
-            const MDNode *mnode = *FI;
-            if (mnode->getNumOperands() > 3) {
-                const Value *val = mnode->getOperand(3);
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-//val->getType()->dump();
-            }
-        }
+        //if (mptr->node->getNumOperands() > 3) {
+            //Value *val = mptr->node->getOperand(3);
+//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+        //}
+        //for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
+            //if ((*FI)->getNumOperands() > 3) {
+                //const Value *val = (*FI)->getOperand(3);
+//printf("[%s:%d] from metadata %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
+            //}
+        //}
 printf("[%s:%d] name %s JJJJJJ\n", __FUNCTION__, __LINE__, table->className.c_str());
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
 printf("[%s:%d] func %p name %s\n", __FUNCTION__, __LINE__, FI->first, FI->second.c_str());
@@ -1245,6 +1245,7 @@ printf("[%s:%d] func %p name %s\n", __FUNCTION__, __LINE__, FI->first, FI->secon
         }
     }
 }
+#endif
 
 ClassMethodTable *findClass(std::string tname)
 {
@@ -1286,8 +1287,6 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
             ClassMethodTable *table = findClass(name);
             if (table)
                 for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-                    //fprintf(OStr, "  %s //JJJJJJ\n", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
-                    //fprintf(stdout, "  %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
                     VTABLE_WORK foo(FI->first, NULL);
                     regen_methods = 1;
                     processFunction(foo, 2, FI->second.c_str(), OStr);
@@ -1304,7 +1303,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
-createClassInstances(stdout);
+//createClassInstances(stdout);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
