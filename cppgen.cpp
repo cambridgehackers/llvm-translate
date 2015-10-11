@@ -252,13 +252,17 @@ printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         strcat(vout, "(");
+        int skip = regen_methods;
         for (; AI != AE; ++AI, ++ArgNo) {
+            if (!skip) {
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
             const char *p = writeOperand(thisp, *AI, false);
             strcat(vout, p);
             sep = ", ";
+            }
+            skip = 0;
         }
         strcat(vout, ")");
         pushWork(func, called_thisp, 2);
@@ -391,7 +395,7 @@ std::string CBEMangle(const std::string &S)
     }
   return Result;
 }
-static const char *fieldName(const StructType *STy, uint64_t ind)
+static const char *lookupMember(const StructType *STy, uint64_t ind, int tag)
 {
     static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
@@ -404,7 +408,8 @@ static const char *fieldName(const StructType *STy, uint64_t ind)
     }
     for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member) {
+        //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
+        if (Ty.getTag() == tag) {
             if (!ind--)
                 return CBEMangle(Ty.getName().str()).c_str();
         }
@@ -412,6 +417,14 @@ static const char *fieldName(const StructType *STy, uint64_t ind)
     }
     sprintf(temp, "field%d", (int)ind);
     return temp;
+}
+static const char *fieldName(const StructType *STy, uint64_t ind)
+{
+    return lookupMember(STy, ind, dwarf::DW_TAG_member);
+}
+static const char *methodName(const StructType *STy, uint64_t ind)
+{
+    return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
 }
 std::string getStructName(const StructType *STy)
 {
@@ -690,6 +703,23 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
   Value *FirstOp = I.getOperand();
   if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
     p = getOperand(thisp, Ptr, false);
+    if (strlen(p) > 12 && !strncmp(p, "(*((", 4) && !strncmp(&p[strlen(p)-9], "*))this))", 9)) {
+        fprintf(stderr, "[%s:%d] %s offset %d this %p\n", __FUNCTION__, __LINE__, p, (int)Total, thisp);
+        PointerType *PTy;
+        FunctionType *FTy;
+        const StructType *STy;
+        if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
+         && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
+         && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
+         && (STy = findThisArgumentType(FTy))) {
+            const char *name = methodName(STy, 1+        //// WHY????????????????
+                   Total/sizeof(void *));
+            printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
+            strcat(cbuffer, "&this->");
+            strcat(cbuffer, name);
+            goto exitlab;
+        }
+    }
     if (p[0] == '(' && p[strlen(p) - 1] == ')') {
         char *ptemp = strdup(p+1);
         ptemp[strlen(ptemp)-1] = 0;
@@ -732,7 +762,8 @@ next:
     else {
         if (expose) {
           strcat(cbuffer, "&");
-          strcat(cbuffer, getOperand(thisp, Ptr, true));
+          const char *p = getOperand(thisp, Ptr, true);
+          strcat(cbuffer, p);
         } else if (I != E && (*I)->isStructTy()) {
           const char *p = getOperand(thisp, Ptr, false);
           char *ptemp = strdup(p);

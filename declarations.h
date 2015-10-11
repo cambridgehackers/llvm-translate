@@ -182,3 +182,5 @@ std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 CLASS_META *lookup_class_mangle(const char *cp);
 void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile);
+const StructType *findThisArgument(Function *func);
+const StructType *findThisArgumentType(FunctionType *func);
