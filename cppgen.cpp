@@ -1218,35 +1218,6 @@ void generateCppData(FILE *OStr, Module &Mod)
     fprintf(OStr, "NULL};\n");
 }
 
-#if 0
-static void createClassInstances(FILE *OStr)
-{
-    while (classCreate.begin() != classCreate.end()) {
-        std::string key = classCreate.begin()->first;
-        ClassMethodTable *table = classCreate.begin()->second;
-        classCreate.erase(key);
-        CLASS_META *mptr = lookup_class_mangle(key.c_str());
-printf("[%s:%d] '%s' %p\n", __FUNCTION__, __LINE__, key.c_str(), mptr);
-printf("[%s:%d] node %p inherit %p count %d\n", __FUNCTION__, __LINE__, mptr->node, mptr->inherit, mptr->member_count);
-        //if (mptr->node->getNumOperands() > 3) {
-            //Value *val = mptr->node->getOperand(3);
-//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-        //}
-        //for (std::list<const MDNode *>::iterator FI = mptr->memberl.begin(); FI != mptr->memberl.end(); FI++) {
-            //if ((*FI)->getNumOperands() > 3) {
-                //const Value *val = (*FI)->getOperand(3);
-//printf("[%s:%d] from metadata %s\n", __FUNCTION__, __LINE__, val->getName().str().c_str());
-            //}
-        //}
-printf("[%s:%d] name %s JJJJJJ\n", __FUNCTION__, __LINE__, table->className.c_str());
-        for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-printf("[%s:%d] func %p name %s\n", __FUNCTION__, __LINE__, FI->first, FI->second.c_str());
-            fprintf(OStr, "     %s", printFunctionSignature(FI->first, FI->second.c_str(), false, ";\n", true));
-        }
-    }
-}
-#endif
-
 ClassMethodTable *findClass(std::string tname)
 {
     std::map<std::string, ClassMethodTable *>::iterator FI = classCreate.find(tname);
@@ -1303,7 +1274,6 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
-//createClassInstances(stdout);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
