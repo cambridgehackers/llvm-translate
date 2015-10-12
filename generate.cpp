@@ -45,6 +45,7 @@ unsigned NextAnonValueNumber;
 DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
+int generateRegion;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -350,7 +351,7 @@ std::string GetValueName(const Value *Operand)
       VarName += buffer;
     }
   }
-  if (regen_methods == 1 && VarName != "this")
+  if (generateRegion == 1 && VarName != "this")
       return globalName + ("_" + VarName);
   if (regen_methods)
       return VarName;
@@ -1387,9 +1388,11 @@ bool GeneratePass::runOnModule(Module &Mod)
     constructAddressMap(CU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
+    generateRegion = 0;
     processRules(*modfirst, 0, OutNull, OutNull);
 
     // Generating code for all rules
+    generateRegion = 1;
     fprintf(outputFile, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
     processRules(*modfirst, 1, outputFile, OutNull);
     fprintf(outputFile, "  end // always @ (posedge CLK)\nendmodule \n\n");
@@ -1397,6 +1400,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     generateVerilogHeader(Mod, outputFile, OutNull);
 
     // Generate cpp code
+    generateRegion = 2;
     generateCppData(Out, Mod);
 
     // Generating code for all rules

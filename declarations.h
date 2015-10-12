@@ -138,6 +138,7 @@ extern std::map<Function *,ClassMethodTable *> functionIndex;
 extern int regen_methods;
 extern unsigned NextTypeID;
 extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
+extern int generateRegion;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
