@@ -83,16 +83,11 @@ typedef struct {
 } CLASS_META;
 
 typedef struct {
-   int type;
-   uint64_t value;
-} OPERAND_ITEM_TYPE;
-
-typedef struct {
     int value;
     const char *name;
 } INTMAP_TYPE;
 
-enum {OpTypeNone, OpTypeInt, OpTypeLocalRef, OpTypeExternalFunction, OpTypeString};
+enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
 
 class RemoveAllocaPass : public FunctionPass {
   public:
@@ -143,6 +138,8 @@ extern std::map<std::string, void *> nameMap;
 extern std::map<std::string,ClassMethodTable *> classCreate;
 extern std::map<Function *,ClassMethodTable *> functionIndex;
 extern int regen_methods;
+extern unsigned NextTypeID;
+extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
@@ -187,3 +184,11 @@ CLASS_META *lookup_class_mangle(const char *cp);
 void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile);
 const StructType *findThisArgument(Function *func);
 const StructType *findThisArgumentType(FunctionType *func);
+int checkIfRule(Type *aTy);
+const char *fieldName(const StructType *STy, uint64_t ind);
+const char *methodName(const StructType *STy, uint64_t ind);
+int processVar(const GlobalVariable *GV);
+char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode);
+char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned);
+const char *writeInstructionCast(const Instruction &I);
+const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
