@@ -28,6 +28,8 @@ using namespace llvm;
 
 #include "declarations.h"
 
+std::map<std::string,const Type *> referencedItems;
+
 /*
  * Generate Verilog output for Store and Call instructions
  */
@@ -155,8 +157,11 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p++;
-            prefix = p;
-            prefix = prefix + "." + NI->second->method[func];
+            std::string pnew = p;
+            referencedItems[pnew] = func->getType();
+//(cast<Value>(AI))->getType();
+printf("[%s:%d] QQQJJJJJJ [%s] = %p\n", __FUNCTION__, __LINE__, pnew.c_str(), referencedItems[pnew]);
+            prefix = p + ("." + NI->second->method[func]);
             strcat(vout, prefix.c_str());
             if (!hasRet)
                 strcat(vout, "_ENA = 1");
@@ -267,10 +272,12 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     if (instance) {
         inp = instance;
         outp = instance;
+        fprintf(OStr, "%s %s (\n", name.c_str(), instance);
     }
-    fprintf(OStr, "module %s (\n", name.c_str());
-    fprintf(OStr, "    %s CLK,\n", inp);
-    fprintf(OStr, "    %s RST,\n", inp);
+    else
+        fprintf(OStr, "module %s (\n", name.c_str());
+    fprintf(OStr, "    %sCLK,\n", inp);
+    fprintf(OStr, "    %sRST,\n", inp);
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
@@ -321,4 +328,19 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
+    for (std::map<std::string,const Type *>::iterator RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
+        const FunctionType *FTy;
+        const PointerType *PTy;
+        const StructType *STy;
+        if ((PTy = dyn_cast<PointerType>(RI->second))
+         && (FTy = dyn_cast<FunctionType>(PTy->getPointerElementType()))
+         && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
+         && (STy = dyn_cast<StructType>(PTy->getElementType()))) {
+            std::string name = getStructName(STy);
+            ClassMethodTable *table = findClass(name);
+printf("[%s:%d] name %s type %p table %p\n", __FUNCTION__, __LINE__, name.c_str(), RI->second, table);
+            if (table && RI->first != "Vthis")
+                generateModuleSignature(name, OStr, table, RI->first.c_str());
+        }
+    }
 }

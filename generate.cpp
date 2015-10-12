@@ -311,6 +311,7 @@ const char *methodName(const StructType *STy, uint64_t ind)
 std::string getStructName(const StructType *STy)
 {
     std::string name;
+    assert(STy);
     if (!STy->isLiteral() && !STy->getName().empty())
         name = CBEMangle("l_"+STy->getName().str());
     else {
