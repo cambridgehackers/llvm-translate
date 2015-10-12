@@ -58,44 +58,44 @@ public:
   unsigned int element;
   unsigned char full;
 bool enq__guard(void) {
-bool call =         (this->notFull)();
+bool call =         (notFull)();
           return call;
 ;
 }
 
 void enq(unsigned int v) {
-        (this->element) = v;
-        (this->full) = ((unsigned char )1);
+        (element) = v;
+        (full) = ((unsigned char )1);
 }
 
 bool deq__guard(void) {
-bool call =         (this->notEmpty)();
+bool call =         (notEmpty)();
           return call;
 ;
 }
 
 void deq(void) {
-        (this->full) = ((unsigned char )0);
+        (full) = ((unsigned char )0);
 }
 
 bool first__guard(void) {
-bool call =         (this->notEmpty)();
+bool call =         (notEmpty)();
           return call;
 ;
 }
 
 unsigned int first(void) {
-          return (this->element);
+          return (element);
 ;
 }
 
 bool notEmpty(void) {
-          return ((bool )(this->full)&1u);
+          return ((bool )(full)&1u);
 ;
 }
 
 bool notFull(void) {
-          return (((bool )(this->full)&1u) ^ 1);
+          return (((bool )(full)&1u) ^ 1);
 ;
 }
 

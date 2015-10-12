@@ -147,38 +147,57 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             }
         }
         pushWork(func, called_thisp, 2);
+        int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         int skip = regen_methods;
+        std::string prefix;
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
         if (NI != functionIndex.end()) {
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p++;
-            strcat(vout, p);
-            strcat(vout, ".");
-            strcat(vout, NI->second->method[func].c_str());
+            prefix = p;
+            prefix = prefix + "." + NI->second->method[func];
+            //strcat(vout, p);
+            //strcat(vout, ".");
+            //strcat(vout, NI->second->method[func].c_str());
+            strcat(vout, prefix.c_str());
+            if (!hasRet)
+                strcat(vout, "_ENA = 1");
             skip = 1;
         }
-        else
+        else {
             strcat(vout, p);
+        }
         if (RF)
             strcat(vout, ")");
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
-        strcat(vout, "(");
+        if (prefix == "")
+            strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
             strcat(vout, sep);
+            const char *p = writeOperand(thisp, *AI, false);
+            if (prefix != "") {
+                strcat(vout, ";\n            ");
+                strcat(vout, prefix.c_str());
+                strcat(vout, ".");
+                strcat(vout, "argname");
+                strcat(vout, " = ");
+            }
+            else {
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            const char *p = writeOperand(thisp, *AI, false);
-            strcat(vout, p);
             sep = ", ";
+            }
+            strcat(vout, p);
             }
             skip = 0;
         }
-        strcat(vout, ")");
+        if (prefix == "")
+            strcat(vout, ")");
         }
         break;
 

@@ -1,99 +1,123 @@
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN4Echo7respond8respond25guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          _ZN4Echo7respond8respond25guardEv = 1;
+//processing _ZN4Echo7respond8respond26updateEv
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN4Echo7respond8respond16updateEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-if (_ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16enableEv) then begin
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq()
-        Vcall = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first()
-        _ZN14EchoIndication4echoEi(Vcall)
-end;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN4Echo7respond8respond15guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard()
-        Vtmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard()
-          _ZN4Echo7respond8respond15guardEv = (Vtmp__1 & Vtmp__2);
+//processing _ZN4Echo7respond8respond25guardEv
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN8EchoTest5drive6updateEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-if (_ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6enableEv) then begin
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22)
-end;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN8EchoTest5drive5guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard()
-          _ZN8EchoTest5drive5guardEv = Vtmp__1;
+//processing _ZN4Echo7respond8respond16updateEv
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN14EchoIndication4echoEi
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        printf((("Heard an echo: %d\n")), Vv)
-        stop_main_program = 1
+//processing _ZN4Echo7respond8respond15guardEv
+
+
+//processing _ZN8EchoTest5drive6updateEv
+
+
+//processing _ZN8EchoTest5drive5guardEv
+
+
+//processing _ZN14EchoIndication4echoEi
+
+
+//processing printf
+
+
+//processing _ZN4Echo7respond8respond26updateEv
+if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) begin
+end; // if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) 
+
+
+//processing _ZN4Echo7respond8respond25guardEv
+        _ZN4Echo7respond8respond25guardEv = 1;
+
+
+//processing _ZN4Echo7respond8respond16updateEv
+if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) begin
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq_ENA = 1
+            Vcall = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first
+            _ZN14EchoIndication4echoEi(Vcall)
+end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) 
+
+
+//processing _ZN4Echo7respond8respond15guardEv
+        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard
+        Vtmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard
+        _ZN4Echo7respond8respond15guardEv = (Vtmp__1 & Vtmp__2);
+
+
+//processing _ZN8EchoTest5drive6updateEv
+if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) begin
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq_ENA = 1;
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq.argname = 22
+end; // if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) 
+
+
+//processing _ZN8EchoTest5drive5guardEv
+        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard
+        _ZN8EchoTest5drive5guardEv = Vtmp__1;
+
+
+//processing _ZN14EchoIndication4echoEi
+            printf((("Heard an echo: %d\n")), Vv)
+            stop_main_program = 1
+
+
+//processing printf
+
 module l_class_OC_Fifo1 (
+    input CLK,
+    input RST,
+    output enq__guard,
+    input  enq_ENA,
+    input  enq_v,
+    output deq__guard,
+    input  deq_ENA,
+    output first__guard,
+    output first,
+    output notEmpty,
+    output notFull,
+)
+
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   unsigned char full;
+  always @( posedge CLK) begin
+    if RST then begin
+    end
+    else begin
+        // Start of enq__guard
+        call = (notFull)()
+        _ZN5Fifo1IiE10enq__guardEv = call;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE10enq__guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        call = (this->notFull)()
-          _ZN5Fifo1IiE10enq__guardEv = call;
+        // Start of enq
+        if (enq_ENA) begin
+            (element) = v
+            (full) = ((unsigned char )1)
+        end; // End of enq
 
+        // Start of deq__guard
+        call = (notEmpty)()
+        _ZN5Fifo1IiE10deq__guardEv = call;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE3enqEi
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        (this->element) = v
-        (this->full) = ((unsigned char )1)
+        // Start of deq
+        if (deq_ENA) begin
+            (full) = ((unsigned char )0)
+        end; // End of deq
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE10deq__guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        call = (this->notEmpty)()
-          _ZN5Fifo1IiE10deq__guardEv = call;
+        // Start of first__guard
+        call = (notEmpty)()
+        _ZN5Fifo1IiE12first__guardEv = call;
 
+        // Start of first
+        _ZN5Fifo1IiE5firstEv = (element);
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE3deqEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        (this->full) = ((unsigned char )0)
+        // Start of notEmpty
+        _ZNK5Fifo1IiE8notEmptyEv = ((bool )(full)&1u);
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE12first__guardEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        call = (this->notEmpty)()
-          _ZN5Fifo1IiE12first__guardEv = call;
+        // Start of notFull
+        _ZNK5Fifo1IiE7notFullEv = (((bool )(full)&1u) ^ 1);
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE5firstEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          _ZN5Fifo1IiE5firstEv = (this->element);
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZNK5Fifo1IiE8notEmptyEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          _ZNK5Fifo1IiE8notEmptyEv = ((bool )(this->full)&1u);
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZNK5Fifo1IiE7notFullEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-          _ZNK5Fifo1IiE7notFullEv = (((bool )(this->full)&1u) ^ 1);
-
+  end // always @ (posedge CLK)
 endmodule 
 

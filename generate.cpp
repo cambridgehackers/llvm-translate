@@ -1082,8 +1082,16 @@ void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE 
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     globalName = strdup(func->getName().str().c_str());
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
+if (!newName)
+    fprintf(outputFile, "\n//processing %s\n", globalName);
 //func->dump();
 //fprintf(stderr, "\nENDFUNC\n");
+    std::string guardName;
+    if (generate == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
+        guardName = globalName;
+        guardName = guardName.substr(1, strlen(globalName) - 10);
+        fprintf(outputFile, "if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
+    }
     NextAnonValueNumber = 0;
     nameMap.clear();
     if (trace_translate) {
@@ -1167,8 +1175,12 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             ins = next_ins;
         }
     }
+    if (guardName != "")
+        fprintf(outputFile, "end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
     if (generate == 2)
         fprintf(outputFile, "}\n\n");
+    else if (!newName)
+        fprintf(outputFile, "\n");
 }
 
 const StructType *findThisArgument(Function *func)
