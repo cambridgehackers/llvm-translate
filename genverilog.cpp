@@ -40,7 +40,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          strcat(vout, "  return ");
+          sprintf(vout, "  %s = ", globalName);
           if (I.getNumOperands())
             strcat(vout, writeOperand(thisp, I.getOperand(0), false));
           strcat(vout, ";\n");

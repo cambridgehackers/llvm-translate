@@ -1168,7 +1168,12 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                             fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
                     }
                     already_printed_header = 1;
-                    fprintf(outputFile, "        %s\n", vout);
+                    fprintf(outputFile, "        ");
+                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                         && ins->use_begin() != ins->use_end()) {
+                            fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
+                        }
+                    fprintf(outputFile, "%s\n", vout);
                 }
             }
             }
