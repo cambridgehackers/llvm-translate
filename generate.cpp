@@ -1080,7 +1080,10 @@ void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE 
 {
     Function *func = work.f;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-    globalName = strdup(func->getName().str().c_str());
+    if (newName)
+        globalName = newName;
+    else
+        globalName = strdup(func->getName().str().c_str());
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
 if (!newName)
     fprintf(outputFile, "\n//processing %s\n", globalName);
@@ -1090,7 +1093,7 @@ if (!newName)
     if (generate == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
         guardName = globalName;
         guardName = guardName.substr(1, strlen(globalName) - 10);
-        fprintf(outputFile, "if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
+        fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
     }
     NextAnonValueNumber = 0;
     nameMap.clear();
@@ -1110,8 +1113,6 @@ if (!newName)
         slotarray[slotindex].name = strdup(AI->getName().str().c_str());
     }
 #endif
-    /* If this is an 'update' method, generate 'if guard' around instruction stream */
-    int already_printed_header = 0;
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     if (generate == 2) {
         int status;
@@ -1158,7 +1159,6 @@ if (!newName)
                     }
                 }
                 else {
-                    already_printed_header = 1;
                     fprintf(outputFile, "        ");
                     if (!hasRet)
                         fprintf(outputFile, "    ");
@@ -1176,7 +1176,7 @@ if (!newName)
         }
     }
     if (guardName != "")
-        fprintf(outputFile, "end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
+        fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
     if (generate == 2)
         fprintf(outputFile, "}\n\n");
     else if (!newName)
@@ -1369,7 +1369,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     constructAddressMap(CU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
-    processRules(*modfirst, 0, outputFile, OutNull);
+    processRules(*modfirst, 0, OutNull, OutNull);
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile, OutNull);

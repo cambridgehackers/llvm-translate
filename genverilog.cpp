@@ -157,9 +157,6 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 p++;
             prefix = p;
             prefix = prefix + "." + NI->second->method[func];
-            //strcat(vout, p);
-            //strcat(vout, ".");
-            //strcat(vout, NI->second->method[func].c_str());
             strcat(vout, prefix.c_str());
             if (!hasRet)
                 strcat(vout, "_ENA = 1");
@@ -167,6 +164,10 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         }
         else {
             strcat(vout, p);
+            if (regen_methods) {
+                strcat(vout, ";");
+                break;
+            }
         }
         if (RF)
             strcat(vout, ")");
@@ -184,7 +185,15 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 strcat(vout, ";\n            ");
                 strcat(vout, prefix.c_str());
                 strcat(vout, ".");
-                strcat(vout, "argname");
+                //strcat(vout, "argname");
+#if 1
+    //if (func->arg_begin() != func->arg_end()
+     //&& func->arg_begin()->getName() == "this"
+fprintf(stderr, "ZZZ:");
+//AI->dump();
+fprintf(stderr, "\n");
+#endif
+                strcat(vout, (*AI)->getName().str().c_str());
                 strcat(vout, " = ");
             }
             else {
