@@ -1389,7 +1389,9 @@ bool GeneratePass::runOnModule(Module &Mod)
     processRules(*modfirst, 0, OutNull, OutNull);
 
     // Generating code for all rules
+    fprintf(outputFile, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
     processRules(*modfirst, 1, outputFile, OutNull);
+    fprintf(outputFile, "  end // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(outputFile, 1);
     generateVerilogHeader(Mod, outputFile, OutNull);
 

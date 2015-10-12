@@ -1,3 +1,8 @@
+module top(input CLK, input RST);
+  always @( posedge CLK) begin
+    if RST then begin
+    end
+    else begin
 
 //processing _ZN4Echo7respond8respond26updateEv
     if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) begin
@@ -40,6 +45,9 @@
 
 
 //processing printf
+
+  end // always @ (posedge CLK)
+endmodule 
 
 module l_class_OC_Fifo1 (
     input CLK,
