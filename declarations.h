@@ -131,8 +131,6 @@ extern FILE *outputFile;
 extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
-extern std::list<const StructType *> structWork;
-extern int structWork_run;
 extern unsigned NextAnonValueNumber;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string,ClassMethodTable *> classCreate;
@@ -193,5 +191,5 @@ char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCas
 const char *writeInstructionCast(const Instruction &I);
 const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
-void generateModuleDef(const Type *Ty, FILE *OStr);
-void generateClassDef(const Type *Ty, FILE *OStr);
+void generateModuleDef(const StructType *STy, FILE *OStr, int generate);
+void generateClassDef(const StructType *STy, FILE *OStr, int generate);

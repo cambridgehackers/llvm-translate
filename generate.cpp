@@ -37,8 +37,8 @@ const Function *EntryFn;
 const char *globalName;
 std::map<std::string,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
-std::list<const StructType *> structWork;
-int structWork_run;
+static std::list<const StructType *> structWork;
+static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 unsigned NextAnonValueNumber;
@@ -1285,6 +1285,51 @@ static void processRules(Function ***modp, int generate, FILE *outputFile, FILE 
     }
 }
 
+static std::map<const Type *, int> structMap;
+static void printContainedStructs(const Type *Ty, FILE *OStr, int generate)
+{
+    std::map<const Type *, int>::iterator FI = structMap.find(Ty);
+    const PointerType *PTy = dyn_cast<PointerType>(Ty);
+    if (PTy) {
+        const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
+        if (subSTy) { /* Not recursion!  These are generated afterword, if we didn't generate before */
+            std::map<const Type *, int>::iterator FI = structMap.find(subSTy);
+            if (FI != structMap.end())
+                structWork.push_back(subSTy);
+        }
+    }
+    else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        const StructType *STy = dyn_cast<StructType>(Ty);
+        std::string name;
+        structMap[Ty] = 1;
+        if (STy) {
+            name = getStructName(STy);
+            if (generate == 2)
+                fprintf(OStr, "class %s;\n", name.c_str());
+        }
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+            printContainedStructs(*I, OStr, generate);
+        if (STy) {
+            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+                printContainedStructs(*I, OStr, generate);
+            if (generate == 1)
+                generateModuleDef(STy, OStr, generate);
+            else
+                generateClassDef(STy, OStr, generate);
+        }
+    }
+}
+void generateStructs(FILE *OStr, int generate)
+{
+    structWork_run = 1;
+    structMap.clear();
+    while (structWork.begin() != structWork.end()) {
+        printContainedStructs(*structWork.begin(), OStr, generate);
+        structWork.pop_front();
+    }
+    structWork_run = 0;
+}
+
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
@@ -1328,6 +1373,7 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile, OutNull);
+    generateStructs(outputFile, 1);
     generateVerilogHeader(Mod, outputFile, OutNull);
 
     // Generate cpp code
@@ -1336,6 +1382,7 @@ bool GeneratePass::runOnModule(Module &Mod)
     // Generating code for all rules
     processRules(*modfirst, 2, Out, OutNull);
 
+    generateStructs(OutHeader, 2);
     generateCppHeader(Mod, OutHeader);
     return false;
 }

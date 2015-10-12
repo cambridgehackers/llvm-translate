@@ -1,75 +1,87 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN4Echo7respond8respond24bodyEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        echoTest:EchoTest:echo::Echo:pipetemp = 0;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN4Echo7respond8respond25guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN4Echo7respond8respond25guardEv = 1;
+          return 1;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZN4Echo7respond8respond16updateEv
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+if (_ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16enableEv) then begin
+        &0xedf720(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        &0xedfc10(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        _ZN14EchoIndication4echoEi(Vcall)
+end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN4Echo7respond8respond15guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN4Echo7respond8respond15guardEv = ((_ZN5Fifo1IiE10FirstValue5guardEv) & (_ZN5Fifo1IiE9DeqAction5guardEv));
+        &0xedf4a0(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        &0xedf990(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+          return (Vtmp__1 & Vtmp__2);
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZN8EchoTest5drive6updateEv
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+if (_ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6enableEv) then begin
+        &0xedf230(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_, 22)
+end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN8EchoTest5drive5guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN8EchoTest5drive5guardEv = _ZN5Fifo1IiE9EnqAction5guardEv;
+        &0xedefb0(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+          return Vtmp__1;
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE10FirstValue5valueEv
+; _ZN14EchoIndication4echoEi
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN5Fifo1IiE10FirstValue5valueEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element;
+        printf((("Heard an echo: %d\n")), Vv)
+        stop_main_program = 1
+module l_class_OC_Fifo1 (
+  class l_class_OC_Fifo Fifo_MD_int_OD_;
+  unsigned int element;
+  unsigned char full;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE10FirstValue5valueEv
+; _ZN5Fifo1IiE10enq__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN5Fifo1IiE10FirstValue5valueEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element;
+        (this->notFull)(this)
+          return call;
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE10FirstValue5guardEv
+; _ZN5Fifo1IiE3enqEi
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN5Fifo1IiE10FirstValue5guardEv = _ZNK5Fifo1IiE8notEmptyEv;
+        (this->element) = v
+        (this->full) = ((unsigned char )1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE9DeqAction5guardEv
+; _ZN5Fifo1IiE10deq__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN5Fifo1IiE9DeqAction5guardEv = _ZNK5Fifo1IiE8notEmptyEv;
+        (this->notEmpty)(this)
+          return call;
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE9DeqAction6updateEv
+; _ZN5Fifo1IiE3deqEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-if (_ZN5Fifo1IiE9DeqAction5guardEv && _ZN5Fifo1IiE9DeqAction6enableEv) then begin
-        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full = 0;
-end;
+        (this->full) = ((unsigned char )0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE9EnqAction5guardEv
+; _ZN5Fifo1IiE12first__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZN5Fifo1IiE9EnqAction5guardEv = _ZNK5Fifo1IiE7notFullEv;
+        (this->notEmpty)(this)
+          return call;
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZN5Fifo1IiE9EnqAction6updateEv
+; _ZN5Fifo1IiE5firstEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-if (_ZN5Fifo1IiE9EnqAction5guardEv && _ZN5Fifo1IiE9EnqAction6enableEv) then begin
-        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:element = 16;
-        echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full = 1;
-end;
+          return (this->element);
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZNK5Fifo1IiE8notEmptyEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZNK5Fifo1IiE8notEmptyEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full;
+endmodule 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZNK5Fifo1IiE8notEmptyEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZNK5Fifo1IiE8notEmptyEv = echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; _ZNK5Fifo1IiE7notFullEv
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        _ZNK5Fifo1IiE7notFullEv = ((echoTest:EchoTest:echo::Echo:fifo::Fifo1<int>:full) ^ (1));

@@ -203,60 +203,26 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     return NULL;
 }
 
-static std::map<const Type *, int> structMap;
-static void printContainedStructs(const Type *Ty, FILE *OStr)
+void generateModuleDef(const StructType *STy, FILE *OStr, int generate)
 {
-    std::map<const Type *, int>::iterator FI = structMap.find(Ty);
-    const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    if (PTy) {
-        const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
-        if (subSTy) { /* Not recursion!  These are generated afterword, if we didn't generate before */
-            std::map<const Type *, int>::iterator FI = structMap.find(subSTy);
-            if (FI != structMap.end())
-                structWork.push_back(subSTy);
-        }
-    }
-    else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
-        generateModuleDef(Ty, OStr);
-    }
-}
+    std::string name = getStructName(STy);
+    unsigned Idx = 0;
+    ClassMethodTable *table = findClass(name);
 
-void generateModuleDef(const Type *Ty, FILE *OStr)
-{
-    const StructType *STy = dyn_cast<StructType>(Ty);
-        std::string name;
-        structMap[Ty] = 1;
-        if (STy) {
-            name = getStructName(STy);
-            //fprintf(OStr, "class %s;\n", name.c_str());
-        }
-        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I, OStr);
-        if (STy) {
-            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-                printContainedStructs(*I, OStr);
-            ClassMethodTable *table = findClass(name);
-            if (table) {
-            fprintf(OStr, "module %s (\n", name.c_str());
-            unsigned Idx = 0;
-            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-              fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
-                for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-                    VTABLE_WORK foo(FI->first, NULL);
-                    regen_methods = 1;
-                    processFunction(foo, 1, FI->second.c_str(), OStr);
-                    regen_methods = 0;
-                }
-            fprintf(OStr, "endmodule \n\n");
+printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
+    if (table) {
+        fprintf(OStr, "module %s (\n", name.c_str());
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
+            for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+                VTABLE_WORK foo(FI->first, NULL);
+                regen_methods = 1;
+                processFunction(foo, 1, FI->second.c_str(), OStr);
+                regen_methods = 0;
             }
-        }
+        fprintf(OStr, "endmodule \n\n");
+    }
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
-    structWork_run = 1;
-    while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin(), OStr);
-        structWork.pop_front();
-    }
-    structWork_run = 0;
 }
