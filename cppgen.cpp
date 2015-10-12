@@ -341,7 +341,6 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
 {
     std::map<const Type *, int>::iterator FI = structMap.find(Ty);
     const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    const StructType *STy = dyn_cast<StructType>(Ty);
     if (PTy) {
         const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
         if (subSTy) { /* Not recursion!  These are generated afterword, if we didn't generate before */
@@ -351,6 +350,12 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
         }
     }
     else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+        generateClassDef(Ty, OStr);
+    }
+}
+void generateClassDef(const Type *Ty, FILE *OStr)
+{
+    const StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;
         if (STy) {
@@ -376,7 +381,6 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
                 }
             fprintf(OStr, "};\n\n");
         }
-    }
 }
 void generateCppHeader(Module &Mod, FILE *OStr)
 {
