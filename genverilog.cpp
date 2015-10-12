@@ -40,10 +40,10 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          sprintf(vout, "  %s = ", globalName);
+          sprintf(vout, "%s = ", globalName);
           if (I.getNumOperands())
             strcat(vout, writeOperand(thisp, I.getOperand(0), false));
-          strcat(vout, ";\n");
+          strcat(vout, ";");
         }
         break;
 #if 0
@@ -240,18 +240,44 @@ void generateModuleDef(const StructType *STy, FILE *OStr, int generate)
     ClassMethodTable *table = findClass(name);
 
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
-    if (table) {
-        fprintf(OStr, "module %s (\n", name.c_str());
-        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
-            for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-                VTABLE_WORK foo(FI->first, NULL);
-                regen_methods = 1;
-                processFunction(foo, 1, FI->second.c_str(), OStr);
-                regen_methods = 0;
-            }
-        fprintf(OStr, "endmodule \n\n");
+    if (!table)
+        return;
+    fprintf(OStr, "module %s (\n    input CLK,\n    input RST,\n", name.c_str());
+    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+        Function *func = FI->first;
+        std::string mname = FI->second;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (hasRet)
+            fprintf(OStr, "    output %s,\n", mname.c_str());
+        else
+            fprintf(OStr, "    input  %s_ENA,\n", mname.c_str());
+        int skip = 1;
+        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip)
+                fprintf(OStr, "    input  %s_%s,\n", mname.c_str(), AI->getName().str().c_str());
+            skip = 0;
+        }
     }
+    fprintf(OStr, ")\n\n");
+    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
+    fprintf(OStr, "  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
+    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+        Function *func = FI->first;
+        std::string mname = FI->second;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        fprintf(OStr, "        // Start of %s\n", mname.c_str());
+        if (!hasRet)
+            fprintf(OStr, "        if (%s_ENA) begin\n", mname.c_str());
+        regen_methods = 1;
+        VTABLE_WORK foo(func, NULL);
+        processFunction(foo, 1, mname.c_str(), OStr);
+        regen_methods = 0;
+        if (!hasRet)
+            fprintf(OStr, "        end; // End of %s\n", mname.c_str());
+        fprintf(OStr, "\n");
+    }
+    fprintf(OStr, "  end // always @ (posedge CLK)\nendmodule \n\n");
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {

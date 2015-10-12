@@ -597,7 +597,8 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
             const char *name = methodName(STy, 1+        //// WHY????????????????
                    Total/sizeof(void *));
             printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
-            strcat(cbuffer, "&this->");
+            //strcat(cbuffer, "&this->");
+            strcat(cbuffer, "&");
             strcat(cbuffer, name);
             goto exitlab;
         }
@@ -686,8 +687,10 @@ next:
               }
           }
           strcat(cbuffer, "&");
-          strcat(cbuffer, p);
-          strcat(cbuffer, "->");
+          if (strcmp(p, "this")) {
+              strcat(cbuffer, p);
+              strcat(cbuffer, "->");
+          }
           strcat(cbuffer, fieldp);
           ++I;  // eat the struct index as well.
         } else {
@@ -1076,18 +1079,12 @@ static std::map<const Function *, int> funcSeen;
 void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile)
 {
     Function *func = work.f;
-    const char *guardName = NULL;
+    int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     globalName = strdup(func->getName().str().c_str());
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
 //func->dump();
 //fprintf(stderr, "\nENDFUNC\n");
     NextAnonValueNumber = 0;
-    if (generate == 1 && endswith(globalName, "updateEv")) {
-        char temp[MAX_CHAR_BUFFER];
-        strcpy(temp, globalName);
-        temp[strlen(globalName) - 9] = 0;  // truncate "updateEv"
-        guardName = strdup(temp);
-    }
     nameMap.clear();
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
@@ -1103,15 +1100,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             exit(1);
         }
         slotarray[slotindex].name = strdup(AI->getName().str().c_str());
-        if (trace_full)
-            printf("%s: [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
-        if (!strcmp(slotarray[slotindex].name, "this"))
-            slotarray[slotindex].svalue = (uint8_t *)work.thisp;
-        else if (!strcmp(slotarray[slotindex].name, "v")) {
-            slotarray[slotindex] = work.arg;
-        }
-        else
-            printf("%s: unknown parameter!! [%d] '%s'\n", __FUNCTION__, slotindex, slotarray[slotindex].name);
     }
 #endif
     /* If this is an 'update' method, generate 'if guard' around instruction stream */
@@ -1162,17 +1150,14 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                     }
                 }
                 else {
-                    if (!already_printed_header) {
-                        fprintf(outputFile, "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n; %s\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n", globalName);
-                        if (guardName)
-                            fprintf(outputFile, "if (%s5guardEv && %s6enableEv) then begin\n", guardName, guardName);
-                    }
                     already_printed_header = 1;
                     fprintf(outputFile, "        ");
-                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                         && ins->use_begin() != ins->use_end()) {
-                            fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
-                        }
+                    if (!hasRet)
+                        fprintf(outputFile, "    ");
+                    if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                     && ins->use_begin() != ins->use_end()) {
+                        fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
+                    }
                     fprintf(outputFile, "%s\n", vout);
                 }
             }
@@ -1184,8 +1169,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     }
     if (generate == 2)
         fprintf(outputFile, "}\n\n");
-    if (guardName && already_printed_header)
-        fprintf(outputFile, "end;\n");
 }
 
 const StructType *findThisArgument(Function *func)
