@@ -277,11 +277,12 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-        pushWork(CF, NULL, 0);
+        pushWork(CF, NULL);
         }
         break;
     default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        return processCInstruction(parent_thisp, I);
+        printf("HOther opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
     case Instruction::Store: case Instruction::Ret:
         break;

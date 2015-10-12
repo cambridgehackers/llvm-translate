@@ -148,7 +148,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
             }
         }
-        pushWork(func, called_thisp, 2);
+        pushWork(func, called_thisp);
         int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         int skip = regen_methods;
         std::string prefix;
@@ -248,7 +248,8 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         break;
 #endif
     default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        return processCInstruction(thisp, I);
+        printf("Verilog Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
         break;
     }
@@ -287,7 +288,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     fprintf(OStr, ")\n\n");
 }
 
-void generateModuleDef(const StructType *STy, FILE *OStr, int generate)
+void generateModuleDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     unsigned Idx = 0;
@@ -309,7 +310,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "        if (%s_ENA) begin\n", mname.c_str());
         regen_methods = 1;
         VTABLE_WORK foo(func, NULL);
-        processFunction(foo, 1, mname.c_str(), OStr);
+        processFunction(foo, mname.c_str(), OStr);
         regen_methods = 0;
         if (!hasRet)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());

@@ -15,32 +15,32 @@ module top(input CLK, input RST);
 
 //processing _ZN4Echo7respond8respond16updateEv
     if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) begin
-            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq_ENA = 1
-            Vcall = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first
-            _ZN14EchoIndication4echoEi(Vcall)
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq_ENA = 1
+            _ZN4Echo7respond8respond16updateEv_call = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first
+            _ZN14EchoIndication4echoEi(_ZN4Echo7respond8respond16updateEv_call)
     end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) 
 
 
 //processing _ZN4Echo7respond8respond15guardEv
-        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard
-        Vtmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard
-        _ZN4Echo7respond8respond15guardEv = (Vtmp__1 & Vtmp__2);
+        _ZN4Echo7respond8respond15guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq__guard
+        _ZN4Echo7respond8respond15guardEv_tmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first__guard
+        (_ZN4Echo7respond8respond15guardEv_tmp__1 & _ZN4Echo7respond8respond15guardEv_tmp__2);
 
 
 //processing _ZN8EchoTest5drive6updateEv
     if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) begin
-            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq_ENA = 1;
-            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq. = 22
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_ENA = 1;
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_v = 22
     end; // if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) 
 
 
 //processing _ZN8EchoTest5drive5guardEv
-        Vtmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard
-        _ZN8EchoTest5drive5guardEv = Vtmp__1;
+        _ZN8EchoTest5drive5guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq__guard
+        _ZN8EchoTest5drive5guardEv = _ZN8EchoTest5drive5guardEv_tmp__1;
 
 
 //processing _ZN14EchoIndication4echoEi
-            printf((("Heard an echo: %d\n")), Vv)
+            printf((("Heard an echo: %d\n")), _ZN14EchoIndication4echoEi_v)
             stop_main_program = 1
 
 
@@ -50,8 +50,8 @@ module top(input CLK, input RST);
 endmodule 
 
 module l_class_OC_Fifo1 (
-    input  CLK,
-    input  RST,
+    input CLK,
+    input RST,
     output enq__guard,
     input enq_ENA,
     input enq_v,
@@ -97,11 +97,25 @@ module l_class_OC_Fifo1 (
         first = (element);
 
         // Start of notEmpty
-        notEmpty = ((bool )(full)&1u);
+        ((bool )(full)&1u);
 
         // Start of notFull
-        notFull = (((bool )(full)&1u) ^ 1);
+        (((bool )(full)&1u) ^ 1);
 
   end // always @ (posedge CLK)
 endmodule 
+
+l_class_OC_Fifo1 echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_ (
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_CLK,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_RST,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq__guard,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_ENA,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_v,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq__guard,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq_ENA,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first__guard,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_notEmpty,
+    echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_notFull,
+)
 

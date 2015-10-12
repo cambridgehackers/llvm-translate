@@ -918,7 +918,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
   if (isAddressImplicit)
       prefix = "(&";  // Global variables are referenced as their addresses by llvm
   if (I && isInlinableInst(*I)) {
-      const char *p = processInstruction(thisp, I, 2);
+      const char *p = processInstruction(thisp, I);
       char *ptemp = strdup(p);
       p = ptemp;
       if (ptemp[0] == '(' && ptemp[strlen(ptemp) - 1] == ')') {
@@ -1040,7 +1040,7 @@ ClassMethodTable *findClass(std::string tname)
     return NULL;
 }
 
-const char *processInstruction(Function ***thisp, Instruction *ins, int generate)
+const char *processInstruction(Function ***thisp, Instruction *ins)
 {
     //outs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
@@ -1059,15 +1059,15 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
         break;
     default:
         {
-        if (generate == 2)
+        if (generateRegion == 2)
             return processCInstruction(thisp, *ins);
         else
-            return generate ? generateVerilog(thisp, *ins)
+            return generateRegion ? generateVerilog(thisp, *ins)
                             : calculateGuardUpdate(thisp, *ins);
         }
         break;
     case Instruction::Alloca: // ignore
-        if (generate == 2) {
+        if (generateRegion == 2) {
             if (const AllocaInst *AI = isDirectAlloca(&*ins))
               return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
         }
@@ -1114,7 +1114,7 @@ static int getClassName(const char *name, const char **className, const char **m
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile)
+void processFunction(VTABLE_WORK &work, const char *newName, FILE *outputFile)
 {
     Function *func = work.f;
     const char *className, *methodName;
@@ -1132,7 +1132,7 @@ if (!newName)
 //func->dump();
 //fprintf(stderr, "\nENDFUNC\n");
     std::string guardName;
-    if (generate == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
+    if (generateRegion == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
         guardName = globalName;
         guardName = guardName.substr(1, strlen(globalName) - 10);
         fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
@@ -1156,7 +1156,7 @@ if (!newName)
     }
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    if (generate == 2) {
+    if (generateRegion == 2) {
         int status;
         const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
         std::map<const Function *, int>::iterator MI = funcSeen.find(func);
@@ -1179,9 +1179,9 @@ if (!newName)
             if (trace_translate)
             printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             if (!isInlinableInst(*ins)) {
-                if (trace_translate && generate == 2)
+                if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-            const char *vout = processInstruction(work.thisp, ins, generate);
+            const char *vout = processInstruction(work.thisp, ins);
             if (vout) {
                 if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                  && ins->use_begin() != ins->use_end()) {
@@ -1190,7 +1190,7 @@ if (!newName)
                     if (tval)
                         nameMap[name] = tval;
                 }
-                if (generate == 2) {
+                if (generateRegion == 2) {
                     if (strcmp(vout, "")) {
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                          && ins->use_begin() != ins->use_end()) {
@@ -1219,7 +1219,7 @@ if (!newName)
     }
     if (guardName != "")
         fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
-    if (generate == 2)
+    if (generateRegion == 2)
         fprintf(outputFile, "}\n\n");
     else if (!newName)
         fprintf(outputFile, "\n");
@@ -1246,7 +1246,7 @@ const StructType *findThisArgumentType(FunctionType *func)
     return STy;
 }
 
-void pushWork(Function *func, Function ***thisp, int generate)
+void pushWork(Function *func, Function ***thisp)
 {
     const char *className, *methodName;
     const StructType *STy;
@@ -1273,7 +1273,7 @@ void pushWork(Function *func, Function ***thisp, int generate)
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, int generate, FILE *outputFile, FILE *outputNull)
+static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
@@ -1288,7 +1288,7 @@ static void processRules(Function ***modp, int generate, FILE *outputFile, FILE 
             static std::string method[] = { "update", "guard", ""};
             std::string *p = method;
             do {
-                pushWork(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep, 0);
+                pushWork(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep);
             } while (*++p != "");
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
@@ -1298,14 +1298,14 @@ static void processRules(Function ***modp, int generate, FILE *outputFile, FILE 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(vtablework.begin()->f);
-        processFunction(*vtablework.begin(), generate, NULL,
+        processFunction(*vtablework.begin(), NULL,
            ((NI != functionIndex.end()) ? outputNull : outputFile));
         vtablework.pop_front();
     }
 }
 
 static std::map<const Type *, int> structMap;
-static void printContainedStructs(const Type *Ty, FILE *OStr, int generate)
+static void printContainedStructs(const Type *Ty, FILE *OStr)
 {
     std::map<const Type *, int>::iterator FI = structMap.find(Ty);
     const PointerType *PTy = dyn_cast<PointerType>(Ty);
@@ -1323,27 +1323,27 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, int generate)
         structMap[Ty] = 1;
         if (STy) {
             name = getStructName(STy);
-            if (generate == 2)
+            if (generateRegion == 2)
                 fprintf(OStr, "class %s;\n", name.c_str());
         }
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I, OStr, generate);
+            printContainedStructs(*I, OStr);
         if (STy) {
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-                printContainedStructs(*I, OStr, generate);
-            if (generate == 1)
-                generateModuleDef(STy, OStr, generate);
+                printContainedStructs(*I, OStr);
+            if (generateRegion == 1)
+                generateModuleDef(STy, OStr);
             else
-                generateClassDef(STy, OStr, generate);
+                generateClassDef(STy, OStr);
         }
     }
 }
-void generateStructs(FILE *OStr, int generate)
+void generateStructs(FILE *OStr)
 {
     structWork_run = 1;
     structMap.clear();
     while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin(), OStr, generate);
+        printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
     structWork_run = 0;
@@ -1389,14 +1389,14 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
     generateRegion = 0;
-    processRules(*modfirst, 0, OutNull, OutNull);
+    processRules(*modfirst, OutNull, OutNull);
 
     // Generating code for all rules
     generateRegion = 1;
     fprintf(outputFile, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
-    processRules(*modfirst, 1, outputFile, OutNull);
+    processRules(*modfirst, outputFile, OutNull);
     fprintf(outputFile, "  end // always @ (posedge CLK)\nendmodule \n\n");
-    generateStructs(outputFile, 1);
+    generateStructs(outputFile);
     generateVerilogHeader(Mod, outputFile, OutNull);
 
     // Generate cpp code
@@ -1404,9 +1404,9 @@ bool GeneratePass::runOnModule(Module &Mod)
     generateCppData(Out, Mod);
 
     // Generating code for all rules
-    processRules(*modfirst, 2, Out, OutNull);
+    processRules(*modfirst, Out, OutNull);
 
-    generateStructs(OutHeader, 2);
+    generateStructs(OutHeader);
     generateCppHeader(Mod, OutHeader);
     return false;
 }

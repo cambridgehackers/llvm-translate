@@ -223,7 +223,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
             }
         }
-        pushWork(func, called_thisp, 2);
+        pushWork(func, called_thisp);
         int skip = regen_methods;
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
         if (NI != functionIndex.end()) {
@@ -266,7 +266,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
     return strdup(vout);
 }
 
-void generateClassDef(const StructType *STy, FILE *OStr, int generate)
+void generateClassDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
@@ -278,7 +278,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, int generate)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
             VTABLE_WORK foo(FI->first, NULL);
             regen_methods = 2;
-            processFunction(foo, 2, FI->second.c_str(), OStr);
+            processFunction(foo, FI->second.c_str(), OStr);
             regen_methods = 0;
         }
     fprintf(OStr, "};\n\n");
