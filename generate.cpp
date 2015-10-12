@@ -1117,21 +1117,18 @@ static std::map<const Function *, int> funcSeen;
 void processFunction(VTABLE_WORK &work, const char *newName, FILE *outputFile)
 {
     Function *func = work.f;
-    const char *className, *methodName;
-
+    std::string guardName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+
     //if (regen_methods && getClassName(func->getName().str().c_str(), &className, &methodName))
         //globalName = methodName;
     if (newName)
         globalName = newName;
-    else
+    else {
         globalName = strdup(func->getName().str().c_str());
+        fprintf(outputFile, "\n//processing %s\n", globalName);
+    }
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
-if (!newName)
-    fprintf(outputFile, "\n//processing %s\n", globalName);
-//func->dump();
-//fprintf(stderr, "\nENDFUNC\n");
-    std::string guardName;
     if (generateRegion == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
         guardName = globalName;
         guardName = guardName.substr(1, strlen(globalName) - 10);
