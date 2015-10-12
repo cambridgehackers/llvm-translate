@@ -1328,6 +1328,7 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generating code for all rules
     processRules(*modfirst, 1, outputFile, OutNull);
+    generateVerilogHeader(Mod, outputFile, OutNull);
 
     // Generate cpp code
     generateCppData(Out, Mod);

@@ -31,8 +31,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static std::map<const Type *, int> structMap;
-
 /*
  * Output instructions
  */
@@ -338,6 +336,7 @@ void generateCppData(FILE *OStr, Module &Mod)
     fprintf(OStr, "NULL};\n");
 }
 
+static std::map<const Type *, int> structMap;
 static void printContainedStructs(const Type *Ty, FILE *OStr)
 {
     std::map<const Type *, int>::iterator FI = structMap.find(Ty);
@@ -386,6 +385,7 @@ void generateCppHeader(Module &Mod, FILE *OStr)
         printContainedStructs(*structWork.begin(), OStr);
         structWork.pop_front();
     }
+    structWork_run = 0;
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())

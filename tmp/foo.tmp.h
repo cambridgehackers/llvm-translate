@@ -1,4 +1,14 @@
-class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
+class l_class_OC_EchoTest;
+class l_class_OC_Module;
+class l_class_OC_Module {
+public:
+  class l_class_OC_Rule *rfirst;
+  class l_class_OC_Module *next;
+  class l_class_OC_Module *shadow;
+  unsigned long long size;
+};
+
+class l_class_OC_EchoTest_KD__KD_drive;
 class l_class_OC_Rule;
 class l_class_OC_Rule {
 public:
@@ -6,6 +16,21 @@ public:
   class l_class_OC_Rule *next;
 };
 
+class l_class_OC_EchoTest_KD__KD_drive {
+public:
+  class l_class_OC_Rule Rule;
+  class l_class_OC_EchoTest *module;
+};
+
+class l_class_OC_EchoTest {
+public:
+  class l_class_OC_Module Module;
+  class l_class_OC_Echo *echo;
+  unsigned int x;
+  class l_class_OC_EchoTest_KD__KD_drive driveRule;
+};
+
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
 class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
 public:
   class l_class_OC_Rule Rule;
@@ -19,24 +44,8 @@ public:
   class l_class_OC_Echo *module;
 };
 
-class l_class_OC_EchoTest_KD__KD_drive;
-class l_class_OC_EchoTest_KD__KD_drive {
-public:
-  class l_class_OC_Rule Rule;
-  class l_class_OC_EchoTest *module;
-};
-
 class l_class_OC_Fifo1;
 class l_class_OC_Fifo;
-class l_class_OC_Module;
-class l_class_OC_Module {
-public:
-  class l_class_OC_Rule *rfirst;
-  class l_class_OC_Module *next;
-  class l_class_OC_Module *shadow;
-  unsigned long long size;
-};
-
 class l_class_OC_Fifo {
 public:
   unsigned int  (**Module) ( int, ...);
@@ -48,23 +57,48 @@ public:
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   unsigned char full;
-  bool enq__guard(void);
-  void enq(unsigned int Vv);
-  bool deq__guard(void);
-  void deq(void);
-  bool first__guard(void);
-  unsigned int first(void);
-  bool notEmpty(void);
-  bool notFull(void);
-};
+bool enq__guard(void) {
+bool call =         (this->notFull)();
+          return call;
+;
+}
 
-class l_class_OC_EchoTest;
-class l_class_OC_EchoTest {
-public:
-  class l_class_OC_Module Module;
-  class l_class_OC_Echo *echo;
-  unsigned int x;
-  class l_class_OC_EchoTest_KD__KD_drive driveRule;
+void enq(unsigned int v) {
+        (this->element) = v;
+        (this->full) = ((unsigned char )1);
+}
+
+bool deq__guard(void) {
+bool call =         (this->notEmpty)();
+          return call;
+;
+}
+
+void deq(void) {
+        (this->full) = ((unsigned char )0);
+}
+
+bool first__guard(void) {
+bool call =         (this->notEmpty)();
+          return call;
+;
+}
+
+unsigned int first(void) {
+          return (this->element);
+;
+}
+
+bool notEmpty(void) {
+          return ((bool )(this->full)&1u);
+;
+}
+
+bool notFull(void) {
+          return (((bool )(this->full)&1u) ^ 1);
+;
+}
+
 };
 
 

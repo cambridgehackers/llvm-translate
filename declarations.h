@@ -192,3 +192,4 @@ char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode);
 char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned);
 const char *writeInstructionCast(const Instruction &I);
 const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
+void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);

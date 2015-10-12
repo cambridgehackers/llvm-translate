@@ -25,72 +25,30 @@ bool _ZN4Echo7respond8respond25guardEv(class l_class_OC_Echo_KD__KD_respond_KD__
 }
 
 void _ZN4Echo7respond8respond16updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
-        _ZN5Fifo1IiE3deqEv((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_);
-unsigned int Vcall =         _ZN5Fifo1IiE5firstEv((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_);
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
+unsigned int Vcall =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
         _ZN14EchoIndication4echoEi(Vcall);
 }
 
 bool _ZN4Echo7respond8respond15guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
-bool Vtmp__1 =         _ZN5Fifo1IiE10deq__guardEv((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_);
-bool Vtmp__2 =         _ZN5Fifo1IiE12first__guardEv((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_);
+bool Vtmp__1 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard();
+bool Vtmp__2 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard();
           return (Vtmp__1 & Vtmp__2);
 ;
 }
 
 void _ZN8EchoTest5drive6updateEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
-        _ZN5Fifo1IiE3enqEi((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_, 22);
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22);
 }
 
 bool _ZN8EchoTest5drive5guardEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
-bool Vtmp__1 =         _ZN5Fifo1IiE10enq__guardEv((class l_class_OC_Fifo1 *)&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_);
+bool Vtmp__1 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard();
           return Vtmp__1;
-;
-}
-
-void _ZN5Fifo1IiE3deqEv(class l_class_OC_Fifo1 *Vthis) {
-        (Vthis->full) = ((unsigned char )0);
-}
-
-unsigned int _ZN5Fifo1IiE5firstEv(class l_class_OC_Fifo1 *Vthis) {
-          return (Vthis->element);
 ;
 }
 
 void _ZN14EchoIndication4echoEi(unsigned int Vv) {
         printf((("Heard an echo: %d\n")), Vv);
         stop_main_program = 1;
-}
-
-bool _ZN5Fifo1IiE10deq__guardEv(class l_class_OC_Fifo1 *Vthis) {
-bool Vcall =         _ZNK5Fifo1IiE8notEmptyEv(Vthis);
-          return Vcall;
-;
-}
-
-bool _ZN5Fifo1IiE12first__guardEv(class l_class_OC_Fifo1 *Vthis) {
-bool Vcall =         _ZNK5Fifo1IiE8notEmptyEv(Vthis);
-          return Vcall;
-;
-}
-
-void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv) {
-        (Vthis->element) = Vv;
-        (Vthis->full) = ((unsigned char )1);
-}
-
-bool _ZN5Fifo1IiE10enq__guardEv(class l_class_OC_Fifo1 *Vthis) {
-bool Vcall =         _ZNK5Fifo1IiE7notFullEv(Vthis);
-          return Vcall;
-;
-}
-
-bool _ZNK5Fifo1IiE8notEmptyEv(class l_class_OC_Fifo1 *Vthis) {
-          return ((bool )(Vthis->full)&1u);
-;
-}
-
-bool _ZNK5Fifo1IiE7notFullEv(class l_class_OC_Fifo1 *Vthis) {
-          return (((bool )(Vthis->full)&1u) ^ 1);
-;
 }
 
