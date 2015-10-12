@@ -159,9 +159,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 p++;
             std::string pnew = p;
             referencedItems[pnew] = func->getType();
-//(cast<Value>(AI))->getType();
-printf("[%s:%d] QQQJJJJJJ [%s] = %p\n", __FUNCTION__, __LINE__, pnew.c_str(), referencedItems[pnew]);
-            prefix = p + ("." + NI->second->method[func]);
+            prefix = p + NI->second->method[func];
             strcat(vout, prefix.c_str());
             if (!hasRet)
                 strcat(vout, "_ENA = 1");
@@ -182,23 +180,16 @@ printf("[%s:%d] QQQJJJJJJ [%s] = %p\n", __FUNCTION__, __LINE__, pnew.c_str(), re
         unsigned len = FTy->getNumParams();
         if (prefix == "")
             strcat(vout, "(");
-        for (; AI != AE; ++AI, ++ArgNo) {
+        Function::const_arg_iterator FAI = func->arg_begin(), FAE = func->arg_end();
+        for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
             strcat(vout, sep);
             const char *p = writeOperand(thisp, *AI, false);
             if (prefix != "") {
                 strcat(vout, ";\n            ");
                 strcat(vout, prefix.c_str());
-                strcat(vout, ".");
-                //strcat(vout, "argname");
-#if 1
-    //if (func->arg_begin() != func->arg_end()
-     //&& func->arg_begin()->getName() == "this"
-fprintf(stderr, "ZZZ:");
-//AI->dump();
-fprintf(stderr, "\n");
-#endif
-                strcat(vout, (*AI)->getName().str().c_str());
+                strcat(vout, "_");
+                strcat(vout, FAI->getName().str().c_str());
                 strcat(vout, " = ");
             }
             else {
