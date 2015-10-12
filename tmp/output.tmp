@@ -1,31 +1,7 @@
 
 //processing _ZN4Echo7respond8respond26updateEv
-
-
-//processing _ZN4Echo7respond8respond25guardEv
-
-
-//processing _ZN4Echo7respond8respond16updateEv
-
-
-//processing _ZN4Echo7respond8respond15guardEv
-
-
-//processing _ZN8EchoTest5drive6updateEv
-
-
-//processing _ZN8EchoTest5drive5guardEv
-
-
-//processing _ZN14EchoIndication4echoEi
-
-
-//processing printf
-
-
-//processing _ZN4Echo7respond8respond26updateEv
-if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) begin
-end; // if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) 
+    if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) begin
+    end; // if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26updateEv__ENA) 
 
 
 //processing _ZN4Echo7respond8respond25guardEv
@@ -33,11 +9,11 @@ end; // if (ZN4Echo7respond8respond25guardEv && _ZN4Echo7respond8respond26update
 
 
 //processing _ZN4Echo7respond8respond16updateEv
-if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) begin
+    if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) begin
             echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq_ENA = 1
             Vcall = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first
             _ZN14EchoIndication4echoEi(Vcall)
-end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) 
+    end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) 
 
 
 //processing _ZN4Echo7respond8respond15guardEv
@@ -47,10 +23,10 @@ end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16update
 
 
 //processing _ZN8EchoTest5drive6updateEv
-if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) begin
+    if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) begin
             echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq_ENA = 1;
-            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq.argname = 22
-end; // if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) 
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq. = 22
+    end; // if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) 
 
 
 //processing _ZN8EchoTest5drive5guardEv
@@ -87,18 +63,18 @@ module l_class_OC_Fifo1 (
     end
     else begin
         // Start of enq__guard
-        call = (notFull)()
-        _ZN5Fifo1IiE10enq__guardEv = call;
+        enq__guard_call = (notFull);
+        enq__guard = enq__guard_call;
 
         // Start of enq
         if (enq_ENA) begin
-            (element) = v
+            (element) = enq_v
             (full) = ((unsigned char )1)
         end; // End of enq
 
         // Start of deq__guard
-        call = (notEmpty)()
-        _ZN5Fifo1IiE10deq__guardEv = call;
+        deq__guard_call = (notEmpty);
+        deq__guard = deq__guard_call;
 
         // Start of deq
         if (deq_ENA) begin
@@ -106,17 +82,17 @@ module l_class_OC_Fifo1 (
         end; // End of deq
 
         // Start of first__guard
-        call = (notEmpty)()
-        _ZN5Fifo1IiE12first__guardEv = call;
+        first__guard_call = (notEmpty);
+        first__guard = first__guard_call;
 
         // Start of first
-        _ZN5Fifo1IiE5firstEv = (element);
+        first = (element);
 
         // Start of notEmpty
-        _ZNK5Fifo1IiE8notEmptyEv = ((bool )(full)&1u);
+        notEmpty = ((bool )(full)&1u);
 
         // Start of notFull
-        _ZNK5Fifo1IiE7notFullEv = (((bool )(full)&1u) ^ 1);
+        notFull = (((bool )(full)&1u) ^ 1);
 
   end // always @ (posedge CLK)
 endmodule 

@@ -349,6 +349,8 @@ std::string GetValueName(const Value *Operand)
       VarName += buffer;
     }
   }
+  if (regen_methods == 1 && VarName != "this")
+      return globalName + ("_" + VarName);
   if (regen_methods)
       return VarName;
   return "V" + VarName;
@@ -1072,6 +1074,40 @@ const char *processInstruction(Function ***thisp, Instruction *ins, int generate
     return NULL;
 }
 
+static int getClassName(const char *name, const char **className, const char **methodName)
+{
+    int status;
+    static char temp[1000];
+    char *pmethod = temp;
+    temp[0] = 0;
+    *className = NULL;
+    *methodName = NULL;
+    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
+    if (demang) {
+        strcpy(temp, demang);
+        while (*pmethod && pmethod[0] != '(')
+            pmethod++;
+        *pmethod = 0;
+        while (pmethod > temp && pmethod[0] != ':')
+            pmethod--;
+        char *p = pmethod++;
+        while (p[0] == ':')
+            *p-- = 0;
+        int len = 0;
+        const char *p1 = demang;
+        while (*p1 && *p1 != '(')
+            p1++;
+        while (p1 != demang && *p1 != ':') {
+            len++;
+            p1--;
+        }
+        *className = temp;
+        *methodName = pmethod;
+        return 1;
+    }
+    return 0;
+}
+
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
@@ -1079,7 +1115,11 @@ static std::map<const Function *, int> funcSeen;
 void processFunction(VTABLE_WORK &work, int generate, const char *newName, FILE *outputFile)
 {
     Function *func = work.f;
+    const char *className, *methodName;
+
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+    //if (regen_methods && getClassName(func->getName().str().c_str(), &className, &methodName))
+        //globalName = methodName;
     if (newName)
         globalName = newName;
     else
@@ -1206,45 +1246,22 @@ const StructType *findThisArgumentType(FunctionType *func)
 
 void pushWork(Function *func, Function ***thisp, int generate)
 {
-    int status;
-    char temp[1000];
-    char *pmethod = temp;
+    const char *className, *methodName;
+    const StructType *STy;
 
     if (!func)
         return;
-    temp[0] = 0;
-    std::string pname = func->getName();
-    const char *demang = abi::__cxa_demangle(pname.c_str(), 0, 0, &status);
-    if (demang) {
-        const StructType *STy;
-        strcpy(temp, demang);
-        while (*pmethod && pmethod[0] != '(')
-            pmethod++;
-        *pmethod = 0;
-        while (pmethod > temp && pmethod[0] != ':')
-            pmethod--;
-        char *p = pmethod++;
-        while (p[0] == ':')
-            *p-- = 0;
-        int len = 0;
-        const char *p1 = demang;
-        while (*p1 && *p1 != '(')
-            p1++;
-        while (p1 != demang && *p1 != ':') {
-            len++;
-            p1--;
-        }
-        if ((STy = findThisArgument(func))) {
-            std::string sname = getStructName(STy);
-            std::string tname = STy->getName();
-            CLASS_META *mptr = lookup_class(tname.c_str());
-            if (mptr->node->getNumOperands() > 3
-             && mptr->node->getOperand(3)->getName() == temp) {
-                if (!findClass(sname))
-                    classCreate[sname] = new ClassMethodTable(sname, temp);
-                classCreate[sname]->method[func] = pmethod;
-                functionIndex[func] = classCreate[sname];
-            }
+    if (getClassName(func->getName().str().c_str(), &className, &methodName)
+     && (STy = findThisArgument(func))) {
+        std::string sname = getStructName(STy);
+        std::string tname = STy->getName();
+        CLASS_META *mptr = lookup_class(tname.c_str());
+        if (mptr->node->getNumOperands() > 3
+         && mptr->node->getOperand(3)->getName() == className) {
+            if (!findClass(sname))
+                classCreate[sname] = new ClassMethodTable(sname, className);
+            classCreate[sname]->method[func] = methodName;
+            functionIndex[func] = classCreate[sname];
         }
     }
     vtablework.push_back(VTABLE_WORK(func, thisp));

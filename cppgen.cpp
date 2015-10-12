@@ -277,7 +277,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, int generate)
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
             VTABLE_WORK foo(FI->first, NULL);
-            regen_methods = 1;
+            regen_methods = 2;
             processFunction(foo, 2, FI->second.c_str(), OStr);
             regen_methods = 0;
         }
