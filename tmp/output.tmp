@@ -9,16 +9,16 @@
 ; _ZN4Echo7respond8respond16updateEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 if (_ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16enableEv) then begin
-        &0xedf720(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
-        &0xedfc10(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq()
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first()
         _ZN14EchoIndication4echoEi(Vcall)
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN4Echo7respond8respond15guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        &0xedf4a0(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
-        &0xedf990(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard()
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard()
           return (Vtmp__1 & Vtmp__2);
 
 
@@ -26,13 +26,13 @@ end;
 ; _ZN8EchoTest5drive6updateEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 if (_ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6enableEv) then begin
-        &0xedf230(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_, 22)
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22)
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN8EchoTest5drive5guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        &0xedefb0(&echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_)
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard()
           return Vtmp__1;
 
 
@@ -49,7 +49,7 @@ module l_class_OC_Fifo1 (
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN5Fifo1IiE10enq__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        (this->notFull)(this)
+        (this->notFull)()
           return call;
 
 
@@ -62,7 +62,7 @@ module l_class_OC_Fifo1 (
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN5Fifo1IiE10deq__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        (this->notEmpty)(this)
+        (this->notEmpty)()
           return call;
 
 
@@ -74,7 +74,7 @@ module l_class_OC_Fifo1 (
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; _ZN5Fifo1IiE12first__guardEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        (this->notEmpty)(this)
+        (this->notEmpty)()
           return call;
 
 
@@ -82,6 +82,18 @@ module l_class_OC_Fifo1 (
 ; _ZN5Fifo1IiE5firstEv
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
           return (this->element);
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZNK5Fifo1IiE8notEmptyEv
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          return ((bool )(this->full)&1u);
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; _ZNK5Fifo1IiE7notFullEv
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+          return (((bool )(this->full)&1u) ^ 1);
 
 endmodule 
 

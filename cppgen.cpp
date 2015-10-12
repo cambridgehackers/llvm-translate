@@ -22,10 +22,7 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
-#include <string.h>
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/InstIterator.h"
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 

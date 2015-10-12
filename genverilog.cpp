@@ -123,32 +123,62 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        PointerType  *PTy = cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         Function *RF = NULL;
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-        unsigned len = FTy->getNumParams();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        const char *cthisp = getOperand(thisp, *AI, false);
+        Function ***called_thisp = NULL;
+        if (!strncmp(cthisp, "0x", 2))
+            called_thisp = (Function ***)mapLookup(cthisp);
         if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
             Callee = RF;
             strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
         }
-        strcat(vout, writeOperand(thisp, Callee, false));
+        const char *p = writeOperand(thisp, Callee, false);
+printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
+        if (!strncmp(p, "&0x", 3) && !func) {
+            void *tval = mapLookup(p+1);
+            if (tval) {
+                func = static_cast<Function *>(tval);
+                if (func)
+                    p = func->getName().str().c_str();
+                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
+            }
+        }
+        pushWork(func, called_thisp, 2);
+        int skip = regen_methods;
+        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
+        if (NI != functionIndex.end()) {
+            p = writeOperand(thisp, *AI, false);
+            if (p[0] == '&')
+                p++;
+            strcat(vout, p);
+            strcat(vout, ".");
+            strcat(vout, NI->second->method[func].c_str());
+            skip = 1;
+        }
+        else
+            strcat(vout, p);
         if (RF)
             strcat(vout, ")");
+        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
+            if (!skip) {
             strcat(vout, sep);
             if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
                 strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
             const char *p = writeOperand(thisp, *AI, false);
             strcat(vout, p);
             sep = ", ";
+            }
+            skip = 0;
         }
         strcat(vout, ")");
-        pushWork(func, NULL, 1);
         }
         break;
 
