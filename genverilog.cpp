@@ -260,6 +260,34 @@ fprintf(stderr, "\n");
         return vout;
     return NULL;
 }
+static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
+{
+    const char *inp = "input ";
+    const char *outp = "output ";
+    if (instance) {
+        inp = instance;
+        outp = instance;
+    }
+    fprintf(OStr, "module %s (\n", name.c_str());
+    fprintf(OStr, "    %s CLK,\n", inp);
+    fprintf(OStr, "    %s RST,\n", inp);
+    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+        Function *func = FI->first;
+        std::string mname = FI->second;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (hasRet)
+            fprintf(OStr, "    %s%s,\n", outp, mname.c_str());
+        else
+            fprintf(OStr, "    %s%s_ENA,\n", inp, mname.c_str());
+        int skip = 1;
+        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip)
+                fprintf(OStr, "    %s%s_%s,\n", inp, mname.c_str(), AI->getName().str().c_str());
+            skip = 0;
+        }
+    }
+    fprintf(OStr, ")\n\n");
+}
 
 void generateModuleDef(const StructType *STy, FILE *OStr, int generate)
 {
@@ -270,23 +298,7 @@ void generateModuleDef(const StructType *STy, FILE *OStr, int generate)
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
     if (!table)
         return;
-    fprintf(OStr, "module %s (\n    input CLK,\n    input RST,\n", name.c_str());
-    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-        Function *func = FI->first;
-        std::string mname = FI->second;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (hasRet)
-            fprintf(OStr, "    output %s,\n", mname.c_str());
-        else
-            fprintf(OStr, "    input  %s_ENA,\n", mname.c_str());
-        int skip = 1;
-        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip)
-                fprintf(OStr, "    input  %s_%s,\n", mname.c_str(), AI->getName().str().c_str());
-            skip = 0;
-        }
-    }
-    fprintf(OStr, ")\n\n");
+    generateModuleSignature(name, OStr, table, NULL);
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
         fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
     fprintf(OStr, "  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");

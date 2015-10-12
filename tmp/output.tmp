@@ -50,13 +50,13 @@ module top(input CLK, input RST);
 endmodule 
 
 module l_class_OC_Fifo1 (
-    input CLK,
-    input RST,
+    input  CLK,
+    input  RST,
     output enq__guard,
-    input  enq_ENA,
-    input  enq_v,
+    input enq_ENA,
+    input enq_v,
     output deq__guard,
-    input  deq_ENA,
+    input deq_ENA,
     output first__guard,
     output first,
     output notEmpty,
