@@ -193,3 +193,4 @@ char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCas
 const char *writeInstructionCast(const Instruction &I);
 const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
+void generateModuleDef(const Type *Ty, FILE *OStr);
