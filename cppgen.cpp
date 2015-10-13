@@ -31,7 +31,7 @@ using namespace llvm;
 /*
  * Output instructions
  */
-const char *processCInstruction(Function ***thisp, Instruction &I)
+char *processCInstruction(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
     int opcode = I.getOpcode();

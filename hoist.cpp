@@ -97,7 +97,7 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
 /*
  * Perform guard(), update() hoisting.  Insert shadow variable access for store.
  */
-const char *calculateGuardUpdate(Function ***thisp, Instruction &I)
+char *calculateGuardUpdate(Function ***thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
     switch (opcode) {
@@ -110,9 +110,6 @@ const char *calculateGuardUpdate(Function ***thisp, Instruction &I)
             int cond_item = getLocalSlot(BI.getCondition());
             char temp[MAX_CHAR_BUFFER];
             sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-            if (slotarray[cond_item].name) {
-                slotarray[cond_item].name = strdup(temp);
-            }
             prepareOperand(BI.getSuccessor(0));
             prepareOperand(BI.getSuccessor(1));
         } else if (isa<IndirectBrInst>(I)) {
@@ -129,7 +126,6 @@ const char *calculateGuardUpdate(Function ***thisp, Instruction &I)
         const PHINode *PN = dyn_cast<PHINode>(&I);
         I.getType()->dump();
         sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
-        slotarray[operand_list[0].value].name = strdup(temp);
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
             int valuein = getLocalSlot(PN->getIncomingValue(op));
             prepareOperand(PN->getIncomingValue(op));

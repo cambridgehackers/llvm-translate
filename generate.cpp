@@ -619,7 +619,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
     if (isAddressImplicit)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
-        char *p = strdup(processInstruction(thisp, I));
+        char *p = processInstruction(thisp, I);
         if (p[0] == '(' && p[strlen(p) - 1] == ')') {
             p++;
             p[strlen(p) - 1] = 0;
@@ -757,7 +757,7 @@ int checkIfRule(Type *aTy)
     return 0;
 }
 
-const char *processInstruction(Function ***thisp, Instruction *ins)
+char *processInstruction(Function ***thisp, Instruction *ins)
 {
     //outs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
@@ -776,14 +776,12 @@ const char *processInstruction(Function ***thisp, Instruction *ins)
               return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
         }
         break;
-    default:
-        if (generateRegion == 2)
-            return processCInstruction(thisp, *ins);
-        else
-            return generateRegion ? generateVerilog(thisp, *ins)
-                            : calculateGuardUpdate(thisp, *ins);
     }
-    return NULL;
+    if (generateRegion == 2)
+        return processCInstruction(thisp, *ins);
+    else
+        return generateRegion ? generateVerilog(thisp, *ins)
+                        : calculateGuardUpdate(thisp, *ins);
 }
 
 /*

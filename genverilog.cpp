@@ -33,7 +33,7 @@ static std::map<std::string,Type *> referencedItems;
 /*
  * Generate Verilog output for Store and Call instructions
  */
-const char *generateVerilog(Function ***thisp, Instruction &I)
+char *generateVerilog(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
     int opcode = I.getOpcode();
