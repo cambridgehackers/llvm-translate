@@ -28,7 +28,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-std::map<std::string,Type *> referencedItems;
+static std::map<std::string,Type *> referencedItems;
 
 /*
  * Generate Verilog output for Store and Call instructions

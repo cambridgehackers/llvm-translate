@@ -131,11 +131,10 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        Type *DstTy = I.getType();
-        Type *SrcTy = I.getOperand(0)->getType();
+        //Type *DstTy = I.getType();
+        //Type *SrcTy = I.getOperand(0)->getType();
         const char *p = getOperand(thisp, I.getOperand(0), false);
         char ptemp[1000];
-        //printf("[%s:%d] RRRRRR %s %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), p, thisp);
         if (!strcmp(p, "Vthis") && thisp) {
             sprintf(ptemp, "0x%lx", (unsigned long)thisp);
             p = ptemp;
@@ -152,13 +151,13 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             break;
         }
         strcat(vout, "(");
-        if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
-            strcat(vout, "0-");
+        //if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
+            //strcat(vout, "0-");
         strcat(vout, p);
-        if (DstTy == Type::getInt1Ty(I.getContext())
-         && (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
-           || opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
-            strcat(vout, "&1u");
+        //if (DstTy == Type::getInt1Ty(I.getContext())
+         //&& (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
+           //|| opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
+            //strcat(vout, "&1u");
         strcat(vout, ")");
         break;
         }

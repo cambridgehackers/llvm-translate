@@ -97,10 +97,10 @@ module l_class_OC_Fifo1 (
     first = (element);
 
         // Start of notEmpty
-    notEmpty = ((full)&1u);
+    notEmpty = (full);
 
         // Start of notFull
-    notFull = (((full)&1u) ^ 1);
+    notFull = ((full) ^ 1);
 
   end // always @ (posedge CLK)
 endmodule 
