@@ -331,7 +331,7 @@ int getClassName(const char *name, const char **className, const char **methodNa
 /*
  * Output types
  */
-char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
+std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -402,7 +402,7 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
         llvm_unreachable("Unhandled case in getTypeProps!");
     }
     typeOutstr << postfix;
-    return strdup(typeOutstr.str().c_str());
+    return typeOutstr.str();
 }
 
 /*
@@ -412,13 +412,13 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
  */
-static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
+static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
     ConstantInt *CI;
     void *tval = NULL;
-    char *p;
+    std::string p;
     uint64_t Total = 0;
     const DataLayout *TD = EE->getDataLayout();
     if (I == E)
@@ -441,11 +441,11 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
     }
     strcat(cbuffer, "(");
     if (LastIndexIsVector)
-        strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")("));
+        strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(").c_str());
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         p = getOperand(thisp, Ptr, false);
-        if (!strcmp(p, "(*(this))")) {
+        if (!strcmp(p.c_str(), "(*(this))")) {
             PointerType *PTy;
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
@@ -458,16 +458,15 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
                 goto exitlab;
             }
         }
-        if (p[0] == '(' && p[strlen(p) - 1] == ')') {
-            char *ptemp = strdup(p+1);
-            ptemp[strlen(ptemp)-1] = 0;
-            if ((tval = mapLookup(ptemp)))
+        if (p[0] == '(' && p[p.length()-1] == ')') {
+            std::string ptemp = p.substr(1, p.length() - 2);
+            if ((tval = mapLookup(ptemp.c_str())))
                 goto tvallab;
         }
-        if ((tval = mapLookup(p)))
+        if ((tval = mapLookup(p.c_str())))
             goto tvallab;
         strcat(cbuffer, "&");
-        strcat(cbuffer, p);
+        strcat(cbuffer, p.c_str());
     } else {
        bool expose = isAddressExposed(Ptr);
        ++I;  // Skip the zero index.
@@ -493,7 +492,7 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
                        strcat(cbuffer, "{");
                        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
                            strcat(cbuffer, sep);
-                           strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false));
+                           strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false).c_str());
                            sep = ", ";
                        }
                        strcat(cbuffer, " }");
@@ -501,7 +500,7 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
                    goto next;
                }
            }
-           strcat(cbuffer, getOperand(thisp, Ptr, true));
+           strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
 next:
            if (val) {
                char temp[100];
@@ -512,14 +511,13 @@ next:
        else {
            if (expose) {
              strcat(cbuffer, "&");
-             const char *p = getOperand(thisp, Ptr, true);
-             strcat(cbuffer, p);
+             strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
            } else if (I != E && (*I)->isStructTy()) {
-             char *p = getOperand(thisp, Ptr, false);
+             std::string p = getOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
              const char *fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
-             if (!strcmp(fieldp, "module") && !strcmp(p, "Vthis")) {
+             if (!strcmp(fieldp, "module") && !strcmp(p.c_str(), "Vthis")) {
                  tval = thisp;
                  goto tvallab;
              }
@@ -527,32 +525,30 @@ next:
                  sprintf(&cbuffer[strlen(cbuffer)], "0x%llx", (long long)Total + (long)NI->second);
                  goto exitlab;
              }
-             if (!strncmp(p, "0x", 2)) {
-                 tval = mapLookup(p);
+             if (!strncmp(p.c_str(), "0x", 2)) {
+                 tval = mapLookup(p.c_str());
                  goto tvallab;
              }
-             if (!strncmp(p, "(0x", 3) && p[strlen(p) - 1] == ')') {
-                 p += 1;
-                 p[strlen(p)-1] = 0;
-                 tval = mapLookup(p);
+             if (!strncmp(p.c_str(), "(0x", 3) && p[p.length()-1] == ')') {
+                 p = p.substr(1,p.length()-2);
+                 tval = mapLookup(p.c_str());
                  goto tvallab;
              }
-             if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-                 p += 2;
-                 p[strlen(p)-1] = 0;
-                 tval = mapLookup(p);
+             if (!strncmp(p.c_str(), "(&", 2) && p[p.length()-1] == ')') {
+                 p = p.substr(2,p.length()-2);
+                 tval = mapLookup(p.c_str());
                  if (tval)
                      goto tvallab;
                  else {
                      strcat(cbuffer, "&");
-                     strcat(cbuffer, p);
+                     strcat(cbuffer, p.c_str());
                      strcat(cbuffer, ".");
                      strcat(cbuffer, fieldp);
                  }
              }
              strcat(cbuffer, "&");
-             if (strcmp(p, "this")) {
-                 strcat(cbuffer, p);
+             if (strcmp(p.c_str(), "this")) {
+                 strcat(cbuffer, p.c_str());
                  strcat(cbuffer, "->");
              }
              strcat(cbuffer, fieldp);
@@ -560,7 +556,7 @@ next:
            } else {
              strcat(cbuffer, "&");
              strcat(cbuffer, "(");
-             strcat(cbuffer, getOperand(thisp, Ptr, true));
+             strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
              strcat(cbuffer, ")");
            }
         }
@@ -572,12 +568,12 @@ next:
             strcat(cbuffer, fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue()));
         } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
             strcat(cbuffer, "[");
-            strcat(cbuffer, getOperand(thisp, I.getOperand(), false));
+            strcat(cbuffer, getOperand(thisp, I.getOperand(), false).c_str());
             strcat(cbuffer, "]");
         } else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
                 strcat(cbuffer, ")+(");
-                strcat(cbuffer, writeOperand(thisp, I.getOperand(), false));
+                strcat(cbuffer, writeOperand(thisp, I.getOperand(), false).c_str());
             }
             strcat(cbuffer, "))");
         }
@@ -588,9 +584,8 @@ tvallab:
 exitlab:
     strcat(cbuffer, ")");
     p = strdup(cbuffer);
-    if (!strncmp(p, "(0x", 3)) {
-        p++;
-        p[strlen(p) - 1] = 0;
+    if (!strncmp(p.c_str(), "(0x", 3)) {
+        p = p.substr(1, p.length()-2);
     }
 #if 0
     printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, p);
@@ -601,9 +596,9 @@ exitlab:
     }
     printf("\n");
 #endif
-    return p;
+    return std::string(p);
 }
-char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
+std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -619,26 +614,25 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
     if (isAddressImplicit)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
-        char *p = processInstruction(thisp, I);
-        if (p[0] == '(' && p[strlen(p) - 1] == ')') {
-            p++;
-            p[strlen(p) - 1] = 0;
+        std::string p = processInstruction(thisp, I);
+        if (p[0] == '(' && p[p.length()-1] == ')') {
+            p = p.substr(1,p.length()-2);
         }
         if (prefix == "*" && p[0] == '&') {
             prefix = "";
-            p++;
+            p = p.substr(1);
         }
-        if (prefix == "*" && !strncmp(p, "0x", 2)) {
+        if (prefix == "*" && !strncmp(p.c_str(), "0x", 2)) {
             char *endptr;
-            void **pint = (void **)strtol(p+2, &endptr, 16);
+            void **pint = (void **)strtol(p.c_str()+2, &endptr, 16);
             sprintf(cbuffer, "0x%lx", (unsigned long)*pint);
         }
         else {
-            int addparen = strncmp(p, "0x", 2) && (p[0] != '(' || p[strlen(p)-1] != ')');
+            int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
             strcat(cbuffer, prefix.c_str());
             if (addparen)
                 strcat(cbuffer, "(");
-            strcat(cbuffer, p);
+            strcat(cbuffer, p.c_str());
             if (addparen)
                 strcat(cbuffer, ")");
         }
@@ -656,7 +650,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
                 int op = CE->getOpcode();
                 assert (op == Instruction::GetElementPtr);
                 // used for character string args to printf()
-                strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
+                strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)).c_str());
                 strcat(cbuffer, ")");
             }
             else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
@@ -682,18 +676,18 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
         strcat(cbuffer, ")");
     return strdup(cbuffer);
 }
-char *writeOperand(Function ***thisp, Value *Operand, bool Indirect)
+std::string writeOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
-    char *p = getOperand(thisp, Operand, Indirect);
-    void *tval = mapLookup(p);
+    std::string p = getOperand(thisp, Operand, Indirect);
+    void *tval = mapLookup(p.c_str());
     if (tval) {
         char temp[1000];
         sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval, "", NULL));
-        return strdup(temp);
+        return std::string(temp);
     }
     return p;
 }
-char *printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip)
+std::string printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip)
 {
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
@@ -757,7 +751,7 @@ int checkIfRule(Type *aTy)
     return 0;
 }
 
-char *processInstruction(Function ***thisp, Instruction *ins)
+std::string processInstruction(Function ***thisp, Instruction *ins)
 {
     //outs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
@@ -833,7 +827,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
          || MI != funcSeen.end()))
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem));
+        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem).c_str());
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -848,12 +842,12 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-                const char *vout = processInstruction(work.thisp, ins);
-                if (vout && strcmp(vout, "")) {
+                std::string vout = processInstruction(work.thisp, ins);
+                if (vout != "") {
                     if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {
                         std::string name = GetValueName(&*ins);
-                        void *tval = mapLookup(vout+1);
+                        void *tval = mapLookup(vout.c_str()+1);
                         if (tval)
                             nameMap[name] = tval;
                     }
@@ -861,7 +855,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                     if (generateRegion == 2) {
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                          && ins->use_begin() != ins->use_end())
-                            fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
+                            fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = ").c_str());
                         fprintf(outputFile, "    ");
                     }
                     else {
@@ -872,7 +866,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                             fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
                         }
                     }
-                    fprintf(outputFile, "%s;\n", vout);
+                    fprintf(outputFile, "%s;\n", vout.c_str());
                 }
             }
             if (trace_translate)

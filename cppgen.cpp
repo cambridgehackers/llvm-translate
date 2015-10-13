@@ -31,7 +31,7 @@ using namespace llvm;
 /*
  * Output instructions
  */
-char *processCInstruction(Function ***thisp, Instruction &I)
+std::string processCInstruction(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
     int opcode = I.getOpcode();
@@ -42,7 +42,7 @@ char *processCInstruction(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
             strcat(vout, "  return ");
             if (I.getNumOperands())
-                strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+                strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
             strcat(vout, ";\n");
         }
         break;
@@ -61,11 +61,11 @@ char *processCInstruction(Function ***thisp, Instruction &I)
         assert(!I.getType()->isPointerTy());
         if (BinaryOperator::isNeg(&I)) {
             strcat(vout, "-(");
-            strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
+            strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false).c_str());
             strcat(vout, ")");
         } else if (BinaryOperator::isFNeg(&I)) {
             strcat(vout, "-(");
-            strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
+            strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false).c_str());
             strcat(vout, ")");
         } else if (I.getOpcode() == Instruction::FRem) {
             if (I.getType() == Type::getFloatTy(I.getContext()))
@@ -74,16 +74,16 @@ char *processCInstruction(Function ***thisp, Instruction &I)
                 strcat(vout, "fmod(");
             else  // all 3 flavors of long double
                 strcat(vout, "fmodl(");
-            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
             strcat(vout, ", ");
-            strcat(vout, writeOperand(thisp, I.getOperand(1), false));
+            strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
             strcat(vout, ")");
         } else {
-            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
             strcat(vout, " ");
             strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
             strcat(vout, " ");
-            strcat(vout, writeOperand(thisp, I.getOperand(1), false));
+            strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
         }
         break;
         }
@@ -92,32 +92,32 @@ char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        const char *pdest = writeOperand(thisp, IS.getPointerOperand(), true);
+        std::string pdest = writeOperand(thisp, IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        const char *sval = writeOperand(thisp, Operand, false);
-        if (!strncmp(pdest, "*((0x", 5)) {
+        std::string sval = writeOperand(thisp, Operand, false);
+        if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
-            void *pint = (void *)strtol(pdest+5, &endptr, 16);
-            const char *pname = mapAddress(pint, "", NULL);
-            if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
+            void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
+            std::string pname = mapAddress(pint, "", NULL);
+            if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
-        strcat(vout, pdest);
+        strcat(vout, pdest.c_str());
         strcat(vout, " = ");
         if (BitMask)
           strcat(vout, "((");
-        std::map<std::string, void *>::iterator NI = nameMap.find(sval);
-//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
+        std::map<std::string, void *>::iterator NI = nameMap.find(sval.c_str());
+//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval.c_str(), (NI != nameMap.end()));
         if (NI != nameMap.end() && NI->second)
             sval = mapAddress(NI->second, "", NULL);
-        strcat(vout, sval);
+        strcat(vout, sval.c_str());
         if (BitMask) {
           strcat(vout, ") & ");
-          strcat(vout, writeOperand(thisp, BitMask, false));
+          strcat(vout, writeOperand(thisp, BitMask, false).c_str());
           strcat(vout, ")");
         }
         break;
@@ -133,27 +133,27 @@ char *processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
         //Type *DstTy = I.getType();
         //Type *SrcTy = I.getOperand(0)->getType();
-        const char *p = getOperand(thisp, I.getOperand(0), false);
+        std::string p = getOperand(thisp, I.getOperand(0), false);
         char ptemp[1000];
-        if (!strcmp(p, "Vthis") && thisp) {
+        if (!strcmp(p.c_str(), "Vthis") && thisp) {
             sprintf(ptemp, "0x%lx", (unsigned long)thisp);
             p = ptemp;
         }
         if (p[0] == '&') {
-            void *tval = mapLookup(p+1);
+            void *tval = mapLookup(p.c_str()+1);
             if (tval) {
-                strcat(vout, p);
+                strcat(vout, p.c_str());
                 break;
             }
         }
-        if (!strncmp(p, "0x", 2)) {
-            strcat(vout, p);
+        if (!strncmp(p.c_str(), "0x", 2)) {
+            strcat(vout, p.c_str());
             break;
         }
         strcat(vout, "(");
         //if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
             //strcat(vout, "0-");
-        strcat(vout, p);
+        strcat(vout, p.c_str());
         //if (DstTy == Type::getInt1Ty(I.getContext())
          //&& (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
            //|| opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
@@ -165,11 +165,11 @@ char *processCInstruction(Function ***thisp, Instruction &I)
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+        strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
         strcat(vout, " ");
         strcat(vout, intmapLookup(predText, CI.getPredicate()));
         strcat(vout, " ");
-        strcat(vout, writeOperand(thisp, I.getOperand(1), false));
+        strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
         break;
         }
     case Instruction::Call: {
@@ -182,19 +182,19 @@ char *processCInstruction(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        const char *cthisp = getOperand(thisp, *AI, false);
+        std::string cthisp = getOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
-        if (!strncmp(cthisp, "0x", 2))
-            called_thisp = (Function ***)mapLookup(cthisp);
-        const char *p = writeOperand(thisp, Callee, false);
-printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
-        if (!strncmp(p, "&0x", 3) && !func) {
-            void *tval = mapLookup(p+1);
+        if (!strncmp(cthisp.c_str(), "0x", 2))
+            called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        std::string p = writeOperand(thisp, Callee, false);
+printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        if (!strncmp(p.c_str(), "&0x", 3) && !func) {
+            void *tval = mapLookup(p.c_str()+1);
             if (tval) {
                 func = static_cast<Function *>(tval);
                 if (func)
-                    p = func->getName().str().c_str();
-                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
+                    p = func->getName();
+                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
             }
         }
         pushWork(func, called_thisp);
@@ -203,12 +203,12 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         if (NI != functionIndex.end()) {
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
-                p++;
+                p = p.substr(1);
             strcat(vout, (p + ("." + NI->second->method[func])).c_str());
             skip = 1;
         }
         else
-            strcat(vout, p);
+            strcat(vout, p.c_str());
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
@@ -218,7 +218,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             if (!skip) {
                 ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                 strcat(vout, sep);
-                strcat(vout, writeOperand(thisp, *AI, false));
+                strcat(vout, writeOperand(thisp, *AI, false).c_str());
                 sep = ", ";
             }
             skip = 0;
@@ -231,7 +231,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         exit(1);
         break;
     }
-    return strdup(vout);
+    return std::string(vout);
 }
 
 void generateClassDef(const StructType *STy, FILE *OStr)
@@ -240,7 +240,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
+        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
     ClassMethodTable *table = findClass(name);
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
@@ -269,9 +269,9 @@ void generateCppData(FILE *OStr, Module &Mod)
            && I->getInitializer()->isNullValue()) {
               if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
-              fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", ""));
+              fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
               if (!I->getInitializer()->isNullValue())
-                fprintf(OStr, " = %s", writeOperand(NULL, I->getInitializer(), false));
+                fprintf(OStr, " = %s", writeOperand(NULL, I->getInitializer(), false).c_str());
               fprintf(OStr, ";\n");
           }
         }
@@ -285,7 +285,7 @@ void generateCppData(FILE *OStr, Module &Mod)
               if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
               std::string strName = GetValueName(I);
-              fprintf(OStr, "%s", printType(Ty, false, strName, "", ""));
+              fprintf(OStr, "%s", printType(Ty, false, strName, "", "").c_str());
               if (!I->getInitializer()->isNullValue()) {
                 fprintf(OStr, " = " );
                 Constant* CPV = dyn_cast<Constant>(I->getInitializer());
@@ -301,8 +301,8 @@ void generateCppData(FILE *OStr, Module &Mod)
                             Constant* V = dyn_cast<Constant>(CA->getOperand(i));
                             //char *p = writeOperand(NULL, V, false);
                             assert (dyn_cast<PointerType>(V->getType()));
-                            char *p = writeOperand(NULL, V->getOperand(0), false);
-                            fprintf(OStr, "%s (unsigned char *)%s", sep, p);
+                            std::string p = writeOperand(NULL, V->getOperand(0), false);
+                            fprintf(OStr, "%s (unsigned char *)%s", sep, p.c_str());
                             sep = ",";
                         }
                     }
@@ -327,7 +327,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())
-          fprintf(OStr, "%s", printType(I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n"));
+          fprintf(OStr, "%s", printType(I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n").c_str());
     fprintf(OStr, "\n/* Function Declarations */\n");
     for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
         ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
@@ -335,7 +335,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, NULL, true, ";\n", 0));
+            fprintf(OStr, "%s", printFunctionSignature(I, NULL, true, ";\n", 0).c_str());
     }
     UnnamedStructIDs.clear();
 }

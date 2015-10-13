@@ -33,7 +33,7 @@ static std::map<std::string,Type *> referencedItems;
 /*
  * Generate Verilog output for Store and Call instructions
  */
-char *generateVerilog(Function ***thisp, Instruction &I)
+std::string generateVerilog(Function ***thisp, Instruction &I)
 {
     char vout[MAX_CHAR_BUFFER];
     int opcode = I.getOpcode();
@@ -44,7 +44,7 @@ char *generateVerilog(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
             sprintf(vout, "%s = ", globalName);
             if (I.getNumOperands())
-                strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+                strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
         }
         break;
 #if 0
@@ -83,21 +83,21 @@ char *generateVerilog(Function ***thisp, Instruction &I)
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        const char *pdest = writeOperand(thisp, IS.getPointerOperand(), true);
+        std::string pdest = writeOperand(thisp, IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        const char *sval = writeOperand(thisp, Operand, false);
-        if (!strncmp(pdest, "*((0x", 5)) {
+        std::string sval = writeOperand(thisp, Operand, false);
+        if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
-            void *pint = (void *)strtol(pdest+5, &endptr, 16);
+            void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
             const char *pname = mapAddress(pint, "", NULL);
             if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
-        strcat(vout, pdest);
+        strcat(vout, pdest.c_str());
         strcat(vout, " = ");
         if (BitMask)
           strcat(vout, "((");
@@ -107,10 +107,10 @@ char *generateVerilog(Function ***thisp, Instruction &I)
             sval = mapAddress(NI->second, "", NULL);
 //printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
         }
-        strcat(vout, sval);
+        strcat(vout, sval.c_str());
         if (BitMask) {
           strcat(vout, ") & ");
-          strcat(vout, writeOperand(thisp, BitMask, false));
+          strcat(vout, writeOperand(thisp, BitMask, false).c_str());
           strcat(vout, ")");
         }
         break;
@@ -126,19 +126,19 @@ char *generateVerilog(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        const char *cthisp = getOperand(thisp, *AI, false);
+        std::string cthisp = getOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
-        if (!strncmp(cthisp, "0x", 2))
-            called_thisp = (Function ***)mapLookup(cthisp);
-        const char *p = writeOperand(thisp, Callee, false);
-printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
-        if (!strncmp(p, "&0x", 3) && !func) {
-            void *tval = mapLookup(p+1);
+        if (!strncmp(cthisp.c_str(), "0x", 2))
+            called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        std::string p = writeOperand(thisp, Callee, false);
+printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        if (!strncmp(p.c_str(), "&0x", 3) && !func) {
+            void *tval = mapLookup(p.c_str()+1);
             if (tval) {
                 func = static_cast<Function *>(tval);
                 if (func)
-                    p = func->getName().str().c_str();
-                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p);
+                    p = func->getName();
+                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
             }
         }
         pushWork(func, called_thisp);
@@ -149,7 +149,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         if (NI != functionIndex.end()) {
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
-                p++;
+                p = p.substr(1);
             std::string pnew = p;
             referencedItems[pnew] = func->getType();
             prefix = p + NI->second->method[func];
@@ -159,7 +159,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             skip = 1;
         }
         else {
-            strcat(vout, p);
+            strcat(vout, p.c_str());
             if (regen_methods) {
                 break;
             }
@@ -174,14 +174,14 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
                 strcat(vout, sep);
-                const char *p = writeOperand(thisp, *AI, false);
+                std::string p = writeOperand(thisp, *AI, false);
                 if (prefix != "")
                     strcat(vout, (";\n            " + prefix + "_" + FAI->getName().str() + " = ").c_str());
                 else {
                     ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
-                strcat(vout, p);
+                strcat(vout, p.c_str());
             }
             skip = 0;
         }
@@ -236,7 +236,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         exit(1);
         break;
     }
-    return strdup(vout);
+    return std::string(vout);
 }
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
 {
@@ -280,7 +280,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         return;
     generateModuleSignature(name, OStr, table, NULL);
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n"));
+        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
     fprintf(OStr, "  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;

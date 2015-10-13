@@ -97,7 +97,7 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
 /*
  * Perform guard(), update() hoisting.  Insert shadow variable access for store.
  */
-char *calculateGuardUpdate(Function ***thisp, Instruction &I)
+std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
     switch (opcode) {
@@ -156,16 +156,16 @@ char *calculateGuardUpdate(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
-        const char *p = getOperand(thisp, Callee, false);
+        std::string p = getOperand(thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         std::string fname;
         const StructType *STy;
         const char *className, *methodName;
         const GlobalValue *g = NULL;
-printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p);
+printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
         if (!func) {
-            void *pact = mapLookup(p);
+            void *pact = mapLookup(p.c_str());
             func = static_cast<Function *>(pact);
         }
         printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, func, thisp);
@@ -260,5 +260,5 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
     case Instruction::Store: case Instruction::Ret:
         break;
     }
-    return NULL;
+    return "";
 }
