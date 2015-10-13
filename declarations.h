@@ -171,7 +171,7 @@ ClassMethodTable *findClass(std::string tname);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 CLASS_META *lookup_class_mangle(const char *cp);
-void processFunction(VTABLE_WORK &work, const char *newName, FILE *outputFile);
+void processFunction(VTABLE_WORK &work, FILE *outputFile);
 int checkIfRule(Type *aTy);
 const char *fieldName(const StructType *STy, uint64_t ind);
 int processVar(const GlobalVariable *GV);

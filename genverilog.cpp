@@ -238,9 +238,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         exit(1);
         break;
     }
-    if (vout[0])
-        return strdup(vout);
-    return NULL;
+    return strdup(vout);
 }
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
 {
@@ -295,7 +293,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "        if (%s_ENA) begin\n", mname.c_str());
         regen_methods = 1;
         VTABLE_WORK foo(func, NULL);
-        processFunction(foo, mname.c_str(), OStr);
+        processFunction(foo, OStr);
         regen_methods = 0;
         if (!hasRet)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());

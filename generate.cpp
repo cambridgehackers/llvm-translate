@@ -859,18 +859,21 @@ const char *processInstruction(Function ***thisp, Instruction *ins)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-void processFunction(VTABLE_WORK &work, const char *newName, FILE *outputFile)
+void processFunction(VTABLE_WORK &work, FILE *outputFile)
 {
     Function *func = work.f;
     std::string guardName;
+    const char *className;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+    int regenItem = 0;
+    std::string fname = func->getName();
 
-    //if (regen_methods && getClassName(func->getName().str().c_str(), &className, &methodName))
-        //globalName = methodName;
-    if (newName)
-        globalName = newName;
+    NextAnonValueNumber = 0;
+    nameMap.clear();
+    if (regen_methods && getClassName(fname.c_str(), &className, &globalName))
+        regenItem = 1;
     else {
-        globalName = strdup(func->getName().str().c_str());
+        globalName = strdup(fname.c_str());
         fprintf(outputFile, "\n//processing %s\n", globalName);
     }
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
@@ -879,8 +882,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         guardName = guardName.substr(1, strlen(globalName) - 10);
         fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
     }
-    NextAnonValueNumber = 0;
-    nameMap.clear();
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
         func->dump();
@@ -899,13 +900,13 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         int status;
         const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
         std::map<const Function *, int>::iterator MI = funcSeen.find(func);
-        if (!newName && ((demang && strstr(demang, "::~"))
+        if (!regenItem && ((demang && strstr(demang, "::~"))
          || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
          || !strcmp(globalName, "__dtor_echoTest")
          || MI != funcSeen.end()))
             return; // MI->second->name;
         funcSeen[func] = 1;
-        fprintf(outputFile, "%s", printFunctionSignature(func, newName, false, " {\n", newName != NULL));
+        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem));
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -920,34 +921,32 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-            const char *vout = processInstruction(work.thisp, ins);
-            if (vout && strcmp(vout, "")) {
-                if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                 && ins->use_begin() != ins->use_end()) {
-                    std::string name = GetValueName(&*ins);
-                    void *tval = mapLookup(vout+1);
-                    if (tval)
-                        nameMap[name] = tval;
-                }
-                fprintf(outputFile, "    ");
-                if (generateRegion == 2) {
-                    if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                const char *vout = processInstruction(work.thisp, ins);
+                if (vout && strcmp(vout, "")) {
+                    if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {
                         std::string name = GetValueName(&*ins);
-                        fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
+                        void *tval = mapLookup(vout+1);
+                        if (tval)
+                            nameMap[name] = tval;
                     }
                     fprintf(outputFile, "    ");
-                }
-                else {
-                    if (!hasRet)
+                    if (generateRegion == 2) {
+                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                         && ins->use_begin() != ins->use_end())
+                            fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = "));
                         fprintf(outputFile, "    ");
-                    if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                     && ins->use_begin() != ins->use_end()) {
-                        fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
                     }
+                    else {
+                        if (!hasRet)
+                            fprintf(outputFile, "    ");
+                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                         && ins->use_begin() != ins->use_end()) {
+                            fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
+                        }
+                    }
+                    fprintf(outputFile, "%s;\n", vout);
                 }
-                fprintf(outputFile, "%s;\n", vout);
-            }
             }
             if (trace_translate)
                 printf("\n");
@@ -958,7 +957,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
     if (generateRegion == 2)
         fprintf(outputFile, "}\n\n");
-    else if (!newName)
+    else if (!regenItem)
         fprintf(outputFile, "\n");
 }
 
@@ -1014,8 +1013,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(vtablework.begin()->f);
-        processFunction(*vtablework.begin(), NULL,
-           ((NI != functionIndex.end()) ? outputNull : outputFile));
+        processFunction(*vtablework.begin(), ((NI != functionIndex.end()) ? outputNull : outputFile));
         vtablework.pop_front();
     }
 }
