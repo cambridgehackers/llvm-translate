@@ -41,7 +41,7 @@ static std::list<const StructType *> structWork;
 static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
-unsigned NextAnonValueNumber;
+static unsigned NextAnonValueNumber;
 DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
@@ -619,7 +619,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
     cbuffer[0] = 0;
     Instruction *I = dyn_cast<Instruction>(Operand);
     bool isAddressImplicit = isAddressExposed(Operand);
-    const char *prefix = "";
+    std::string prefix;
     if (Indirect && isAddressImplicit) {
         isAddressImplicit = false;
         Indirect = false;
@@ -634,18 +634,18 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
             p++;
             p[strlen(p) - 1] = 0;
         }
-        if (!strcmp(prefix, "*") && p[0] == '&') {
+        if (prefix == "*" && p[0] == '&') {
             prefix = "";
             p++;
         }
-        if (!strcmp(prefix, "*") && !strncmp(p, "0x", 2)) {
+        if (prefix == "*" && !strncmp(p, "0x", 2)) {
             char *endptr;
             void **pint = (void **)strtol(p+2, &endptr, 16);
             sprintf(cbuffer, "0x%lx", (unsigned long)*pint);
         }
         else {
             int addparen = strncmp(p, "0x", 2) && (p[0] != '(' || p[strlen(p)-1] != ')');
-            strcat(cbuffer, prefix);
+            strcat(cbuffer, prefix.c_str());
             if (addparen)
                 strcat(cbuffer, "(");
             strcat(cbuffer, p);
@@ -654,7 +654,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
         }
     }
     else {
-        strcat(cbuffer, prefix);
+        strcat(cbuffer, prefix.c_str());
         Constant* CPV = dyn_cast<Constant>(Operand);
         if (!CPV || isa<GlobalValue>(CPV))
             strcat(cbuffer, GetValueName(Operand).c_str());
@@ -671,13 +671,13 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
                 case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
                     if (dyn_cast<PointerType>(CE->getType()))
                         strcat(cbuffer, "(unsigned char *)");
-                    if (op == Instruction::SExt &&
-                        CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
+                    if (op == Instruction::SExt
+                     && CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
                       strcat(cbuffer, "0-");
                     strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
-                    if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
-                        (op == Instruction::Trunc || op == Instruction::FPToUI ||
-                         op == Instruction::FPToSI || op == Instruction::PtrToInt))
+                    if (CE->getType() == Type::getInt1Ty(CPV->getContext())
+                     && (op == Instruction::Trunc || op == Instruction::FPToUI
+                        || op == Instruction::FPToSI || op == Instruction::PtrToInt))
                       strcat(cbuffer, "&1u");
                     break;
                 case Instruction::GetElementPtr:
@@ -924,7 +924,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                 if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
             const char *vout = processInstruction(work.thisp, ins);
-            if (vout) {
+            if (vout && strcmp(vout, "")) {
                 if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                  && ins->use_begin() != ins->use_end()) {
                     std::string name = GetValueName(&*ins);
@@ -933,17 +933,15 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                         nameMap[name] = tval;
                 }
                 if (generateRegion == 2) {
-                    if (strcmp(vout, "")) {
-                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                         && ins->use_begin() != ins->use_end()) {
-                            std::string name = GetValueName(&*ins);
-                            fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
-                        }
-                        fprintf(outputFile, "        %s;\n", vout);
+                    if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
+                     && ins->use_begin() != ins->use_end()) {
+                        std::string name = GetValueName(&*ins);
+                        fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
                     }
+                    fprintf(outputFile, "        %s;\n", vout);
                 }
                 else {
-                    fprintf(outputFile, "        ");
+                    fprintf(outputFile, "    ");
                     if (!hasRet)
                         fprintf(outputFile, "    ");
                     if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())

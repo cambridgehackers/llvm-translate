@@ -129,7 +129,6 @@ extern FILE *outputFile;
 extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
-extern unsigned NextAnonValueNumber;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string,ClassMethodTable *> classCreate;
 extern std::map<Function *,ClassMethodTable *> functionIndex;
