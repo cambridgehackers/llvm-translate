@@ -446,12 +446,10 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
         p = getOperand(thisp, Ptr, false);
         if (!strcmp(p, "(*(this))")) {
             PointerType *PTy;
-            FunctionType *FTy;
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
              && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-             && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
-             && (STy = findThisArgumentType(FTy))) {
+             && (STy = findThisArgumentType(dyn_cast<FunctionType>(PTy->getElementType())))) {
                 const char *name = methodName(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
                 printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
@@ -517,8 +515,7 @@ next:
              const char *p = getOperand(thisp, Ptr, true);
              strcat(cbuffer, p);
            } else if (I != E && (*I)->isStructTy()) {
-             const char *p = getOperand(thisp, Ptr, false);
-             char *ptemp = strdup(p);
+             char *p = getOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
              const char *fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
@@ -535,16 +532,14 @@ next:
                  goto tvallab;
              }
              if (!strncmp(p, "(0x", 3) && p[strlen(p) - 1] == ')') {
-                 ptemp += 1;
-                 ptemp[strlen(ptemp)-1] = 0;
-                 p = ptemp;
+                 p += 1;
+                 p[strlen(p)-1] = 0;
                  tval = mapLookup(p);
                  goto tvallab;
              }
              if (!strncmp(p, "(&", 2) && p[strlen(p) - 1] == ')') {
-                 ptemp += 2;
-                 ptemp[strlen(ptemp)-1] = 0;
-                 p = ptemp;
+                 p += 2;
+                 p[strlen(p)-1] = 0;
                  tval = mapLookup(p);
                  if (tval)
                      goto tvallab;
@@ -752,12 +747,12 @@ int checkIfRule(Type *aTy)
     FunctionType *FTy;
     PointerType  *PTy;
     if ((PTy = dyn_cast<PointerType>(aTy))
-     && PTy && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
-     && FTy && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
-     && PTy && (Ty = PTy->getElementType())
-     && Ty  && (Ty->getNumContainedTypes() > 1)
+     && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
+     && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
+     && (Ty = PTy->getElementType())
+     && (Ty->getNumContainedTypes() > 1)
      && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
-     && Ty  && (Ty->getStructName() == "class.Rule"))
+     && (Ty->getStructName() == "class.Rule"))
        return 1;
     return 0;
 }
