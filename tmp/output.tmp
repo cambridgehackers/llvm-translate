@@ -15,33 +15,33 @@ module top(input CLK, input RST);
 
 //processing _ZN4Echo7respond8respond16updateEv
     if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) begin
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq_ENA = 1
-        _ZN4Echo7respond8respond16updateEv_call = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first
-        _ZN14EchoIndication4echoEi(_ZN4Echo7respond8respond16updateEv_call)
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq_ENA = 1;
+        _ZN4Echo7respond8respond16updateEv_call = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first;
+        _ZN14EchoIndication4echoEi(_ZN4Echo7respond8respond16updateEv_call);
     end; // if (ZN4Echo7respond8respond15guardEv && _ZN4Echo7respond8respond16updateEv__ENA) 
 
 
 //processing _ZN4Echo7respond8respond15guardEv
-    _ZN4Echo7respond8respond15guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq__guard
-    _ZN4Echo7respond8respond15guardEv_tmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first__guard
+    _ZN4Echo7respond8respond15guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq__guard;
+    _ZN4Echo7respond8respond15guardEv_tmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first__guard;
     _ZN4Echo7respond8respond15guardEv = (_ZN4Echo7respond8respond15guardEv_tmp__1 & _ZN4Echo7respond8respond15guardEv_tmp__2);
 
 
 //processing _ZN8EchoTest5drive6updateEv
     if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) begin
         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_ENA = 1;
-            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_v = 22
+            echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq_v = 22;
     end; // if (ZN8EchoTest5drive5guardEv && _ZN8EchoTest5drive6updateEv__ENA) 
 
 
 //processing _ZN8EchoTest5drive5guardEv
-    _ZN8EchoTest5drive5guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq__guard
+    _ZN8EchoTest5drive5guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_enq__guard;
     _ZN8EchoTest5drive5guardEv = _ZN8EchoTest5drive5guardEv_tmp__1;
 
 
 //processing _ZN14EchoIndication4echoEi
-        printf((("Heard an echo: %d\n")), _ZN14EchoIndication4echoEi_v)
-        stop_main_program = 1
+        printf((("Heard an echo: %d\n")), _ZN14EchoIndication4echoEi_v);
+        stop_main_program = 1;
 
 
 //processing printf
@@ -76,8 +76,8 @@ module l_class_OC_Fifo1 (
 
         // Start of enq
         if (enq_ENA) begin
-        (element) = enq_v
-        (full) = 1
+        (element) = enq_v;
+        (full) = 1;
         end; // End of enq
 
         // Start of deq__guard
@@ -86,7 +86,7 @@ module l_class_OC_Fifo1 (
 
         // Start of deq
         if (deq_ENA) begin
-        (full) = 0
+        (full) = 0;
         end; // End of deq
 
         // Start of first__guard

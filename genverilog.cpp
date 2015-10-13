@@ -45,7 +45,6 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             sprintf(vout, "%s = ", globalName);
             if (I.getNumOperands())
                 strcat(vout, writeOperand(thisp, I.getOperand(0), false));
-            strcat(vout, ";");
         }
         break;
 #if 0
@@ -164,7 +163,6 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         else {
             strcat(vout, p);
             if (regen_methods) {
-                strcat(vout, ";");
                 break;
             }
         }

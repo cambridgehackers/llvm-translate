@@ -929,24 +929,24 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
                     if (tval)
                         nameMap[name] = tval;
                 }
+                fprintf(outputFile, "    ");
                 if (generateRegion == 2) {
                     if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {
                         std::string name = GetValueName(&*ins);
                         fprintf(outputFile, "%s", printType(ins->getType(), false, name, "", " = "));
                     }
-                    fprintf(outputFile, "        %s;\n", vout);
+                    fprintf(outputFile, "    ");
                 }
                 else {
-                    fprintf(outputFile, "    ");
                     if (!hasRet)
                         fprintf(outputFile, "    ");
                     if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {
                         fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
                     }
-                    fprintf(outputFile, "%s\n", vout);
                 }
+                fprintf(outputFile, "%s;\n", vout);
             }
             }
             if (trace_translate)

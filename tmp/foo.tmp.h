@@ -21,7 +21,7 @@ public:
   unsigned int element;
   unsigned char full;
 bool enq__guard(void) {
-bool call =         (notFull)();
+    bool call =     (notFull)();
           return call;
 ;
 }
@@ -32,7 +32,7 @@ void enq(unsigned int v) {
 }
 
 bool deq__guard(void) {
-bool call =         (notEmpty)();
+    bool call =     (notEmpty)();
           return call;
 ;
 }
@@ -42,7 +42,7 @@ void deq(void) {
 }
 
 bool first__guard(void) {
-bool call =         (notEmpty)();
+    bool call =     (notEmpty)();
           return call;
 ;
 }

@@ -32,15 +32,15 @@ bool _ZN4Echo7respond8respond25guardEv(class l_class_OC_Echo_KD__KD_respond_KD__
 //processing _ZN4Echo7respond8respond16updateEv
 void _ZN4Echo7respond8respond16updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
-unsigned int Vcall =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
+    unsigned int Vcall =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
         _ZN14EchoIndication4echoEi(Vcall);
 }
 
 
 //processing _ZN4Echo7respond8respond15guardEv
 bool _ZN4Echo7respond8respond15guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
-bool Vtmp__1 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard();
-bool Vtmp__2 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard();
+    bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__guard();
+    bool Vtmp__2 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__guard();
           return (Vtmp__1 & Vtmp__2);
 ;
 }
@@ -54,7 +54,7 @@ void _ZN8EchoTest5drive6updateEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis) 
 
 //processing _ZN8EchoTest5drive5guardEv
 bool _ZN8EchoTest5drive5guardEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
-bool Vtmp__1 =         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard();
+    bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__guard();
           return Vtmp__1;
 ;
 }
