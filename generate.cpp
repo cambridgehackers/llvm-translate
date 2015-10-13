@@ -116,10 +116,7 @@ static bool isInlinableInst(const Instruction &I)
         if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
             return false;
     }
-    if ( I.getParent() != cast<Instruction>(I.use_back())->getParent()) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        exit(1);
-    }
+    ERRORIF ( I.getParent() != cast<Instruction>(I.use_back())->getParent());
     return true;
 }
 static const AllocaInst *isDirectAlloca(const Value *V)
@@ -666,8 +663,6 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
             ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
                 strcat(cbuffer, "(");
-                const char *sep = " ";
-                int tid = CPV->getType()->getTypeID();
                 int op = CE->getOpcode();
                 switch (op) {
                 case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
@@ -898,10 +893,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     /* connect up argument formal param names with actual values */
     for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
-        if (AI->hasByValAttr()) {
-            printf("[%s] hasByVal param not supported\n", __FUNCTION__);
-            exit(1);
-        }
+        ERRORIF (AI->hasByValAttr());
         slotarray[slotindex].name = strdup(AI->getName().str().c_str());
     }
 #endif
@@ -1097,10 +1089,7 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Create the execution environment and allocate memory for static items
     EE = builder.create();
-    if (!EE) {
-        printf("llvm-translate: unknown error creating EE!\n");
-        exit(1);
-    }
+    assert(EE);
 
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod.getFunction("main");

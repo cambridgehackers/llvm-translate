@@ -114,8 +114,8 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
           strcat(vout, writeOperand(thisp, BitMask, false));
           strcat(vout, ")");
         }
-        }
         break;
+        }
 
     case Instruction::Call: {
         CallInst &ICL = static_cast<CallInst&>(I);
@@ -180,31 +180,31 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         unsigned len = FTy->getNumParams();
         if (prefix == "")
             strcat(vout, "(");
-        Function::const_arg_iterator FAI = func->arg_begin(), FAE = func->arg_end();
+        Function::const_arg_iterator FAI = func->arg_begin();
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
-            strcat(vout, sep);
-            const char *p = writeOperand(thisp, *AI, false);
-            if (prefix != "") {
-                strcat(vout, ";\n            ");
-                strcat(vout, prefix.c_str());
-                strcat(vout, "_");
-                strcat(vout, FAI->getName().str().c_str());
-                strcat(vout, " = ");
-            }
-            else {
-            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            sep = ", ";
-            }
-            strcat(vout, p);
+                strcat(vout, sep);
+                const char *p = writeOperand(thisp, *AI, false);
+                if (prefix != "") {
+                    strcat(vout, ";\n            ");
+                    strcat(vout, prefix.c_str());
+                    strcat(vout, "_");
+                    strcat(vout, FAI->getName().str().c_str());
+                    strcat(vout, " = ");
+                }
+                else {
+                    if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
+                        strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
+                    sep = ", ";
+                }
+                strcat(vout, p);
             }
             skip = 0;
         }
         if (prefix == "")
             strcat(vout, ")");
-        }
         break;
+        }
 
 #if 0
     case Instruction::PHI:
