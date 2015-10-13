@@ -296,6 +296,27 @@ std::string getStructName(const StructType *STy)
         structWork.push_back(STy);
     return name;
 }
+
+const StructType *findThisArgument(Function *func)
+{
+    const PointerType *PTy;
+    const StructType *STy = NULL;
+    if (func->arg_begin() != func->arg_end()
+     && func->arg_begin()->getName() == "this"
+     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType())))
+        STy = dyn_cast<StructType>(PTy->getPointerElementType());
+    return STy;
+}
+
+const StructType *findThisArgumentType(FunctionType *func)
+{
+    const PointerType *PTy;
+    const StructType *STy = NULL;
+    if (func->getNumParams() > 0
+     && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
+        STy = dyn_cast<StructType>(PTy->getPointerElementType());
+    return STy;
+}
 std::string GetValueName(const Value *Operand)
 {
   const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
@@ -1209,27 +1230,6 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         fprintf(outputFile, "}\n\n");
     else if (!newName)
         fprintf(outputFile, "\n");
-}
-
-const StructType *findThisArgument(Function *func)
-{
-    const PointerType *PTy;
-    const StructType *STy = NULL;
-    if (func->arg_begin() != func->arg_end()
-     && func->arg_begin()->getName() == "this"
-     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType())))
-        STy = dyn_cast<StructType>(PTy->getPointerElementType());
-    return STy;
-}
-
-const StructType *findThisArgumentType(FunctionType *func)
-{
-    const PointerType *PTy;
-    const StructType *STy = NULL;
-    if (func->getNumParams() > 0
-     && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
-        STy = dyn_cast<StructType>(PTy->getPointerElementType());
-    return STy;
 }
 
 void pushWork(Function *func, Function ***thisp)
