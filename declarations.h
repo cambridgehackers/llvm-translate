@@ -178,6 +178,6 @@ int processVar(const GlobalVariable *GV);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 void generateModuleDef(const StructType *STy, FILE *OStr);
 void generateClassDef(const StructType *STy, FILE *OStr);
-const StructType *findThisArgumentType(FunctionType *func);
+const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(Function *func);
 int getClassName(const char *name, const char **className, const char **methodName);

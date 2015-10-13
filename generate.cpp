@@ -243,11 +243,12 @@ const StructType *findThisArgument(Function *func)
     return STy;
 }
 
-const StructType *findThisArgumentType(FunctionType *func)
+const StructType *findThisArgumentType(const PointerType *PTy)
 {
-    const PointerType *PTy;
     const StructType *STy = NULL;
-    if (func && func->getNumParams() > 0
+    const FunctionType *func;
+    if ((func = dyn_cast<FunctionType>(PTy->getElementType()))
+     && func->getNumParams() > 0
      && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
     return STy;
@@ -448,8 +449,7 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
             PointerType *PTy;
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
-             && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-             && (STy = findThisArgumentType(dyn_cast<FunctionType>(PTy->getElementType())))) {
+             && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))) {
                 const char *name = methodName(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
                 printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
