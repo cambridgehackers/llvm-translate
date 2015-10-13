@@ -207,9 +207,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p++;
-            strcat(vout, p);
-            strcat(vout, ".");
-            strcat(vout, NI->second->method[func].c_str());
+            strcat(vout, (p + ("." + NI->second->method[func])).c_str());
             skip = 1;
         }
         else
