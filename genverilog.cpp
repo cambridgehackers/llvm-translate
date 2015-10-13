@@ -44,7 +44,7 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
           sprintf(vout, "%s = ", globalName);
           if (I.getNumOperands())
-            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+              strcat(vout, writeOperand(thisp, I.getOperand(0), false));
           strcat(vout, ";");
         }
         break;
@@ -68,7 +68,6 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
             prepareOperand(I.getOperand(i));
           }
         }
-        dump_operands = 1;
         }
         break;
     //case Instruction::Switch:
@@ -243,7 +242,6 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
             strcat(vout, temp);
         }
-        dump_operands = 1;
         }
         break;
 #endif

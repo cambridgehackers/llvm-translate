@@ -63,41 +63,40 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         if (I.getType() ==  Type::getInt8Ty(I.getContext())
          || I.getType() == Type::getInt16Ty(I.getContext())
          || I.getType() == Type::getFloatTy(I.getContext())) {
-          needsCast = true;
-          strcat(vout, printType(I.getType(), false, "", "((", ")("));
+            needsCast = true;
+            strcat(vout, printType(I.getType(), false, "", "((", ")("));
         }
         if (BinaryOperator::isNeg(&I)) {
-          strcat(vout, "-(");
-          strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(vout, ")");
+            strcat(vout, "-(");
+            strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false));
+            strcat(vout, ")");
         } else if (BinaryOperator::isFNeg(&I)) {
-          strcat(vout, "-(");
-          strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
-          strcat(vout, ")");
+            strcat(vout, "-(");
+            strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false));
+            strcat(vout, ")");
         } else if (I.getOpcode() == Instruction::FRem) {
-          if (I.getType() == Type::getFloatTy(I.getContext()))
-            strcat(vout, "fmodf(");
-          else if (I.getType() == Type::getDoubleTy(I.getContext()))
-            strcat(vout, "fmod(");
-          else  // all 3 flavors of long double
-            strcat(vout, "fmodl(");
-          strcat(vout, writeOperand(thisp, I.getOperand(0), false));
-          strcat(vout, ", ");
-          strcat(vout, writeOperand(thisp, I.getOperand(1), false));
-          strcat(vout, ")");
+            if (I.getType() == Type::getFloatTy(I.getContext()))
+                strcat(vout, "fmodf(");
+            else if (I.getType() == Type::getDoubleTy(I.getContext()))
+                strcat(vout, "fmod(");
+            else  // all 3 flavors of long double
+                strcat(vout, "fmodl(");
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+            strcat(vout, ", ");
+            strcat(vout, writeOperand(thisp, I.getOperand(1), false));
+            strcat(vout, ")");
         } else {
-          strcat(vout, writeOperandWithCast(thisp, I.getOperand(0), I.getOpcode()));
-          strcat(vout, " ");
-          strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
-          strcat(vout, " ");
-          strcat(vout, writeOperandWithCast(thisp, I.getOperand(1), I.getOpcode()));
-          strcat(vout, writeInstructionCast(I));
+            strcat(vout, writeOperandWithCast(thisp, I.getOperand(0), I.getOpcode()));
+            strcat(vout, " ");
+            strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
+            strcat(vout, " ");
+            strcat(vout, writeOperandWithCast(thisp, I.getOperand(1), I.getOpcode()));
+            strcat(vout, writeInstructionCast(I));
         }
-        if (needsCast) {
-          strcat(vout, "))");
-        }
-        }
+        if (needsCast)
+            strcat(vout, "))");
         break;
+        }
 
     // Memory instructions...
     case Instruction::Store: {
@@ -123,17 +122,15 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
           strcat(vout, "((");
         std::map<std::string, void *>::iterator NI = nameMap.find(sval);
 //printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
-        if (NI != nameMap.end() && NI->second) {
+        if (NI != nameMap.end() && NI->second)
             sval = mapAddress(NI->second, "", NULL);
-//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
-        }
         strcat(vout, sval);
         if (BitMask) {
           strcat(vout, printConstant(thisp, ") & ", BitMask));
           strcat(vout, ")");
         }
-        }
         break;
+        }
 
     // Convert instructions...
     case Instruction::SExt:
@@ -166,16 +163,15 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         strcat(vout, "(");
         strcat(vout, printCast(opcode, SrcTy, DstTy));
         if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
-          strcat(vout, "0-");
+            strcat(vout, "0-");
         strcat(vout, p);
-        if (DstTy == Type::getInt1Ty(I.getContext()) &&
-            (opcode == Instruction::Trunc || opcode == Instruction::FPToUI ||
-             opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt)) {
-          strcat(vout, "&1u");
-        }
+        if (DstTy == Type::getInt1Ty(I.getContext())
+         && (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
+           || opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
+            strcat(vout, "&1u");
         strcat(vout, ")");
-        }
         break;
+        }
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
@@ -189,9 +185,9 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         strcat(vout, writeOperandWithCastICmp(thisp, I.getOperand(1), shouldCast, typeIsSigned));
         strcat(vout, writeInstructionCast(I));
         if (shouldCast)
-          strcat(vout, "))");
-        }
+            strcat(vout, "))");
         break;
+        }
     case Instruction::Call: {
         CallInst &ICL = static_cast<CallInst&>(I);
         unsigned ArgNo = 0;
@@ -256,8 +252,8 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             skip = 0;
         }
         strcat(vout, ")");
-        }
         break;
+        }
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
