@@ -169,7 +169,6 @@ char *writeOperand(Function ***thisp, Value *Operand, bool Indirect);
 char *getOperand(Function ***thisp, Value *Operand, bool Indirect);
 const char *processInstruction(Function ***thisp, Instruction *ins);
 void *mapLookup(std::string name);
-char *printConstant(Function ***thisp, const char *prefix, Constant *CPV);
 void pushWork(Function *func, Function ***thisp);
 ClassMethodTable *findClass(std::string tname);
 std::string getStructName(const StructType *STy);
