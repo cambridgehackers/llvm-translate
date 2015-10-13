@@ -219,12 +219,10 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         strcat(vout, "(");
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
-            strcat(vout, sep);
-            if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-                strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
-            const char *p = writeOperand(thisp, *AI, false);
-            strcat(vout, p);
-            sep = ", ";
+                ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+                strcat(vout, sep);
+                strcat(vout, writeOperand(thisp, *AI, false));
+                sep = ", ";
             }
             skip = 0;
         }
