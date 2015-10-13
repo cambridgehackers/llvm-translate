@@ -667,19 +667,17 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
             else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
                 char temp[100];
                 Type* Ty = CI->getType();
+                temp[0] = 0;
                 if (Ty == Type::getInt1Ty(CPV->getContext()))
                     strcat(cbuffer, CI->getZExtValue() ? "1" : "0");
                 else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
                     sprintf(temp, "%ld", CI->getZExtValue());
-                    strcat(cbuffer, temp);
                 }
-                else {
-                    if (CI->isMinValue(true))
-                        sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
-                    else
-                        sprintf(temp, "%ld", CI->getSExtValue());
-                    strcat(cbuffer, temp);
-                }
+                else if (CI->isMinValue(true))
+                    sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
+                else
+                    sprintf(temp, "%ld", CI->getSExtValue());
+                strcat(cbuffer, temp);
             }
             else
                 ERRORIF(1); /* handle structured types */
