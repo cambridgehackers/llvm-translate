@@ -28,7 +28,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-std::map<std::string,const Type *> referencedItems;
+std::map<std::string,Type *> referencedItems;
 
 /*
  * Generate Verilog output for Store and Call instructions
@@ -303,14 +303,13 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
-    for (std::map<std::string,const Type *>::iterator RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
-        const FunctionType *FTy;
-        const PointerType *PTy;
+    for (std::map<std::string,Type *>::iterator RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
+        FunctionType *FTy;
+        PointerType *PTy;
         const StructType *STy;
         if ((PTy = dyn_cast<PointerType>(RI->second))
          && (FTy = dyn_cast<FunctionType>(PTy->getPointerElementType()))
-         && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
-         && (STy = dyn_cast<StructType>(PTy->getElementType()))) {
+         && (STy = findThisArgumentType(FTy))) {
             std::string name = getStructName(STy);
             ClassMethodTable *table = findClass(name);
 printf("[%s:%d] name %s type %p table %p\n", __FUNCTION__, __LINE__, name.c_str(), RI->second, table);

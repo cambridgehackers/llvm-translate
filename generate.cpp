@@ -245,7 +245,7 @@ static const StructType *findThisArgument(Function *func)
     return STy;
 }
 
-static const StructType *findThisArgumentType(FunctionType *func)
+const StructType *findThisArgumentType(FunctionType *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
