@@ -179,16 +179,10 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             if (!skip) {
                 strcat(vout, sep);
                 const char *p = writeOperand(thisp, *AI, false);
-                if (prefix != "") {
-                    strcat(vout, ";\n            ");
-                    strcat(vout, prefix.c_str());
-                    strcat(vout, "_");
-                    strcat(vout, FAI->getName().str().c_str());
-                    strcat(vout, " = ");
-                }
+                if (prefix != "")
+                    strcat(vout, (";\n            " + prefix + "_" + FAI->getName().str() + " = ").c_str());
                 else {
-                    if (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo))
-                        strcat(vout, printType(FTy->getParamType(ArgNo), /*isSigned=*/false, "", "(", ")"));
+                    ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
                 strcat(vout, p);
