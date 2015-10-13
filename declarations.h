@@ -178,7 +178,6 @@ void processFunction(VTABLE_WORK &work, const char *newName, FILE *outputFile);
 int checkIfRule(Type *aTy);
 const char *fieldName(const StructType *STy, uint64_t ind);
 int processVar(const GlobalVariable *GV);
-const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 void generateModuleDef(const StructType *STy, FILE *OStr);
 void generateClassDef(const StructType *STy, FILE *OStr);

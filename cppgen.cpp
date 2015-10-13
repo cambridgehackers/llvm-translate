@@ -161,7 +161,6 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             break;
         }
         strcat(vout, "(");
-        strcat(vout, printCast(opcode, SrcTy, DstTy));
         if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
             strcat(vout, "0-");
         strcat(vout, p);

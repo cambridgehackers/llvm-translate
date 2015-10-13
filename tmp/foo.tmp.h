@@ -53,12 +53,12 @@ unsigned int first(void) {
 }
 
 bool notEmpty(void) {
-          return ((bool )(full)&1u);
+          return ((full)&1u);
 ;
 }
 
 bool notFull(void) {
-          return (((bool )(full)&1u) ^ 1);
+          return (((full)&1u) ^ 1);
 ;
 }
 

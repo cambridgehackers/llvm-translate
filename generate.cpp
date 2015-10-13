@@ -458,33 +458,6 @@ static char *printConstantWithCast(Function ***thisp, Constant* CPV, unsigned Op
 exitlab:
     return strdup(cbuffer);
 }
-const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy)
-{
-    char cbuffer[10000];
-    cbuffer[0] = 0;
-    bool TypeIsSigned = false;
-    switch (getCastGroup(opc)) {
-    case CastZExt:
-        break;
-    case CastSExt: case CastFPToSI:
-        TypeIsSigned = true;
-        break;
-    default:
-        llvm_unreachable("Invalid cast opcode");
-    }
-    strcat(cbuffer, printType(DstTy, TypeIsSigned, "", "(", ")"));
-    switch (opc) {
-    case Instruction::Trunc: case Instruction::BitCast: case Instruction::FPExt:
-    case Instruction::FPTrunc: case Instruction::FPToSI: case Instruction::FPToUI:
-        break; // These don't need a source cast.
-    case Instruction::IntToPtr: case Instruction::PtrToInt:
-        strcat(cbuffer, "(unsigned long)");
-        break;
-    default:
-        strcat(cbuffer, printType(SrcTy, TypeIsSigned, "", "(", ")"));
-    }
-    return strdup(cbuffer);
-}
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -522,7 +495,7 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         p = getOperand(thisp, Ptr, false);
-        if (strlen(p) > 12 && !strncmp(p, "(*((", 4) && !strncmp(&p[strlen(p)-9], "*))this))", 9)) {
+        if (!strcmp(p, "(*(this))")) {
             PointerType *PTy;
             FunctionType *FTy;
             const StructType *STy;
@@ -573,7 +546,7 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
 next:
            if (val) {
                char temp[100];
-               sprintf(temp, "+%ld", val);
+               sprintf(temp, "+%lld", (long long)val);
                strcat(cbuffer, temp);
            }
        }
@@ -593,7 +566,7 @@ next:
                  goto tvallab;
              }
              if (NI != nameMap.end() && NI->second) {
-                 sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)NI->second);
+                 sprintf(&cbuffer[strlen(cbuffer)], "0x%llx", (long long)Total + (long)NI->second);
                  goto exitlab;
              }
              if (!strncmp(p, "0x", 2)) {
@@ -655,7 +628,7 @@ next:
     }
     goto exitlab;
 tvallab:
-    sprintf(&cbuffer[strlen(cbuffer)], "0x%lx", Total + (long)tval);
+    sprintf(&cbuffer[strlen(cbuffer)], "0x%llx", (long long)Total + (long)tval);
 exitlab:
     strcat(cbuffer, ")");
     p = strdup(cbuffer);
@@ -692,7 +665,8 @@ char *printConstant2(Function ***thisp, const char *prefix, Constant *CPV)
         case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
         case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
         case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-            strcat(cbuffer, printCast(op, CE->getOperand(0)->getType(), CE->getType()));
+            if (dyn_cast<PointerType>(CE->getType()))
+                strcat(cbuffer, "(unsigned char *)");
             if (op == Instruction::SExt &&
                 CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
               strcat(cbuffer, "0-");
