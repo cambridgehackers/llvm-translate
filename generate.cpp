@@ -865,14 +865,12 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
     std::string guardName;
     const char *className;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-    int regenItem = 0;
     std::string fname = func->getName();
+    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &globalName));
 
     NextAnonValueNumber = 0;
     nameMap.clear();
-    if (regen_methods && getClassName(fname.c_str(), &className, &globalName))
-        regenItem = 1;
-    else {
+    if (!regenItem) {
         globalName = strdup(fname.c_str());
         fprintf(outputFile, "\n//processing %s\n", globalName);
     }
