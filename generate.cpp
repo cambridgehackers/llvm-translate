@@ -98,34 +98,6 @@ void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-/*
- * GEP and Load instructions interpreter functions
- * (just execute using the memory areas allocated by the constructors)
- */
-uint64_t executeGEPOperation(gep_type_iterator I, gep_type_iterator E)
-{
-    const DataLayout *TD = EE->getDataLayout();
-    uint64_t Total = 0;
-    for (; I != E; ++I) {
-        if (StructType *STy = dyn_cast<StructType>(*I)) {
-            const StructLayout *SLO = TD->getStructLayout(STy);
-            const ConstantInt *CPU = cast<ConstantInt>(I.getOperand());
-            Total += SLO->getElementOffset(CPU->getZExtValue());
-        } else {
-            SequentialType *ST = cast<SequentialType>(*I);
-            // Get the index number for the array... which must be long type...
-            const Constant *CV = dyn_cast<Constant>(I.getOperand());
-            const ConstantInt *CI;
-
-            if (!CV || isa<GlobalValue>(CV) || !(CI = dyn_cast<ConstantInt>(CV))) {
-                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                exit(1);
-            }
-            Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
-        }
-    }
-    return Total;
-}
 static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -570,27 +542,45 @@ const char *printCast(unsigned opc, Type *SrcTy, Type *DstTy)
   }
     return strdup(cbuffer);
 }
-char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
+/*
+ * GEP and Load instructions interpreter functions
+ * (just execute using the memory areas allocated by the constructors)
+ */
+static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
-  ConstantInt *CI;
-  void *tval = NULL;
-  char *p;
-  uint64_t Total = executeGEPOperation(I, E);
-  if (I == E)
-    return getOperand(thisp, Ptr, false);
-  VectorType *LastIndexIsVector = 0;
-  for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI)
-      LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-  strcat(cbuffer, "(");
-  if (LastIndexIsVector)
-    strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")("));
-  Value *FirstOp = I.getOperand();
-  if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
+    ConstantInt *CI;
+    void *tval = NULL;
+    char *p;
+    uint64_t Total = 0;
+    const DataLayout *TD = EE->getDataLayout();
+    if (I == E)
+        return getOperand(thisp, Ptr, false);
+    VectorType *LastIndexIsVector = 0;
+    for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
+        LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
+    //for (; I != E; ++I) 
+        if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
+            const StructLayout *SLO = TD->getStructLayout(STy);
+            const ConstantInt *CPU = cast<ConstantInt>(TmpI.getOperand());
+            Total += SLO->getElementOffset(CPU->getZExtValue());
+        } else {
+            SequentialType *ST = cast<SequentialType>(*TmpI);
+            // Get the index number for the array... which must be long type...
+            const Constant *CV = dyn_cast<Constant>(TmpI.getOperand());
+            const ConstantInt *CI;
+            ERRORIF(!CV || isa<GlobalValue>(CV) || !(CI = dyn_cast<ConstantInt>(CV)));
+            Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
+        }
+    }
+    strcat(cbuffer, "(");
+    if (LastIndexIsVector)
+        strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")("));
+    Value *FirstOp = I.getOperand();
+    if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
     p = getOperand(thisp, Ptr, false);
     if (strlen(p) > 12 && !strncmp(p, "(*((", 4) && !strncmp(&p[strlen(p)-9], "*))this))", 9)) {
-        fprintf(stderr, "[%s:%d] %s offset %d this %p\n", __FUNCTION__, __LINE__, p, (int)Total, thisp);
         PointerType *PTy;
         FunctionType *FTy;
         const StructType *STy;
@@ -601,7 +591,6 @@ char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep
             const char *name = methodName(STy, 1+        //// WHY????????????????
                    Total/sizeof(void *));
             printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
-            //strcat(cbuffer, "&this->");
             strcat(cbuffer, "&");
             strcat(cbuffer, name);
             goto exitlab;
