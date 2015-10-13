@@ -678,67 +678,10 @@ char *printConstant2(Function ***thisp, const char *prefix, Constant *CPV)
             strcat(cbuffer, ")");
         }
     }
-    else
-        switch (tid) { /* handle structured types */
-        case Type::ArrayTyID:
-            if (ConstantArray *CPA = dyn_cast<ConstantArray>(CPV)) {
-               int len = CPA->getNumOperands();
-               Type *ETy = CPA->getType()->getElementType();
-               if (ETy == Type::getInt8Ty(CPA->getContext()) && len
-                && cast<Constant>(*(CPA->op_end()-1))->isNullValue()) {
-                  char *cp = (char *)malloc(len);
-                  for (int i = 0; i != len-1; ++i)
-                      cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
-                  strcat(cbuffer, printString(cp, len));
-                  free(cp);
-               } else {
-                  strcat(cbuffer, "{");
-                  for (unsigned i = 0, e = len; i != e; ++i) {
-                      strcat(cbuffer, sep);
-                      strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false));
-                      sep = ", ";
-                  }
-                  strcat(cbuffer, " }");
-               }
-           }
-           else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
-               strcat(cbuffer, printConstantDataArray(thisp, CA));
-           else
-               ERRORIF(1);
-           break;
-       case Type::VectorTyID:
-           strcat(cbuffer, "{");
-           if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
-               for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
-                   strcat(cbuffer, sep);
-                   strcat(cbuffer, writeOperand(thisp, CV->getOperand(i), false));
-                   sep = ", ";
-               }
-           }
-           else
-               ERRORIF(1);
-           strcat(cbuffer, " }");
-           break;
-       case Type::StructTyID:
-           strcat(cbuffer, "{");
-           ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
-           for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
-               strcat(cbuffer, sep);
-               strcat(cbuffer, writeOperand(thisp, CPV->getOperand(i), false));
-               sep = ", ";
-           }
-           strcat(cbuffer, " }");
-           break;
-       case Type::PointerTyID:
-           if (isa<ConstantPointerNull>(CPV))
-               strcat(cbuffer, printType(CPV->getType(), false, "", "((", ")/*NULL*/0)")); // sign doesn't matter
-           else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
-               strcat(cbuffer, writeOperand(thisp, GV, false));
-           break;
-       default:
-           outs() << "Unknown constant type: " << *CPV << "\n";
-           llvm_unreachable(0);
-       }
+    else { /* handle structured types */
+        outs() << "Unknown constant type: " << *CPV << "\n";
+        llvm_unreachable(0);
+    }
     return strdup(cbuffer);
 }
 char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
