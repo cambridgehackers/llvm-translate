@@ -181,8 +181,6 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        //ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        //ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         const char *cthisp = getOperand(thisp, *AI, false);

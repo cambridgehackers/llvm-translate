@@ -124,14 +124,12 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         const char *cthisp = getOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp, "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp);
-        ERRORIF(CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         const char *p = writeOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
         if (!strncmp(p, "&0x", 3) && !func) {

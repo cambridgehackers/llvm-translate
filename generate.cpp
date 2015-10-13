@@ -659,74 +659,9 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
                 strcat(cbuffer, "(");
                 int op = CE->getOpcode();
-printf("[%s:%d] ZZZZZZZZZZZZZZZZZZZZZZZZ %d %s\n", __FUNCTION__, __LINE__, op, CE->getOpcodeName());
-                switch (op) {
-#if 0
-                case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
-                case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
-                case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
-                case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-                    if (dyn_cast<PointerType>(CE->getType()))
-                        strcat(cbuffer, "(unsigned char *)");
-                    if (op == Instruction::SExt
-                     && CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
-                      strcat(cbuffer, "0-");
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
-                    if (CE->getType() == Type::getInt1Ty(CPV->getContext())
-                     && (op == Instruction::Trunc || op == Instruction::FPToUI
-                        || op == Instruction::FPToSI || op == Instruction::PtrToInt))
-                      strcat(cbuffer, "&1u");
-                    break;
-#endif
-                case Instruction::GetElementPtr:
-                    strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
-                    break;
-#if 0
-                case Instruction::Select:
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
-                    strcat(cbuffer, "?");
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(1), false));
-                    strcat(cbuffer, ":");
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(2), false));
-                    break;
-                case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
-                case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
-                case Instruction::SDiv: case Instruction::UDiv: case Instruction::FDiv:
-                case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-                case Instruction::And: case Instruction::Or: case Instruction::Xor:
-                case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
-                case Instruction::AShr: {
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
-                    strcat(cbuffer, " ");
-                    if (op == Instruction::ICmp)
-                        strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
-                    else
-                        strcat(cbuffer, intmapLookup(opcodeMap, op));
-                    strcat(cbuffer, " ");
-                    strcat(cbuffer, writeOperand(thisp, CE->getOperand(1), false));
-                    break;
-                    }
-                case Instruction::FCmp: {
-                    if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
-                        strcat(cbuffer, "0");
-                    else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
-                        strcat(cbuffer, "1");
-                    else {
-                        strcat(cbuffer, "llvm_fcmp_");
-                        strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
-                        strcat(cbuffer, "(");
-                        strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
-                        strcat(cbuffer, ", ");
-                        strcat(cbuffer, writeOperand(thisp, CE->getOperand(1), false));
-                        strcat(cbuffer, ")");
-                    }
-                    break;
-                    }
-#endif
-                default:
-                    outs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
-                    llvm_unreachable(0);
-                }
+                assert (op == Instruction::GetElementPtr);
+                // used for character string args to printf()
+                strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
                 strcat(cbuffer, ")");
             }
             else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
