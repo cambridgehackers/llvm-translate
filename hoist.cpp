@@ -163,70 +163,58 @@ const char *calculateGuardUpdate(Function ***thisp, Instruction &I)
         const char *p = getOperand(thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
-        const char *cp = NULL;
+        std::string fname;
+        const StructType *STy;
+        const char *className, *methodName;
+        const GlobalValue *g = NULL;
 printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p);
         if (!func) {
             void *pact = mapLookup(p);
             func = static_cast<Function *>(pact);
         }
         printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, func, thisp);
+        pushWork(func, NULL);
         if (!func) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
+            break;
         }
-        else {
-            cp = func->getName().str().c_str();
-            printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, cp);
-            if (trace_translate)
-                printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), cp, thisp);
-            if (func->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
-                cloneVmap.clear();
-                /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-                Function *F = I.getParent()->getParent();
-                Module *Mod = F->getParent();
-                std::string Fname = F->getName().str();
-                std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
-                Function *otherBody = Mod->getFunction(otherName);
-                TerminatorInst *TI = otherBody->begin()->getTerminator();
-                prepareClone(TI, &I);
-                Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
-                Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-                Instruction *newIC = cloneTree(IC, TI);
-                Instruction *newIT = cloneTree(IT, TI);
-                printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
-                IRBuilder<> builder(TI->getParent());
-                builder.SetInsertPoint(TI);
-                builder.CreateStore(newIC, newIT);
-                IRBuilder<> oldbuilder(I.getParent());
-                oldbuilder.SetInsertPoint(&I);
-                Value *newLoad = oldbuilder.CreateLoad(IT);
-                I.replaceAllUsesWith(newLoad);
-                I.eraseFromParent();
-                break;
-            }
-            int len = 0;
-            int status;
-            const char *demang = abi::__cxa_demangle(func->getName().str().c_str(), 0, 0, &status);
-            if (demang) {
-                const char *p = demang;
-                while (*p && *p != '(')
-                    p++;
-                while (p != demang && *p != ':') {
-                    len++;
-                    p--;
-                }
-                const StructType *STy;
-                if ((STy = findThisArgument(func))) {
-                    std::string tname = STy->getName().str();
-                    if (len > 2) {
-                        char tempname[1000];
-                        memcpy(tempname, p+1, len-1);
-                        strcpy(tempname+len-1, "__guard");
-                        guardName = lookup_method(tname.c_str(), tempname);
-                    }
-                }
-            }
+        fname = func->getName();
+        printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, fname.c_str());
+        if (trace_translate)
+            printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);
+        if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
+            cloneVmap.clear();
+            /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+            Function *F = I.getParent()->getParent();
+            Module *Mod = F->getParent();
+            std::string Fname = F->getName().str();
+            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
+            Function *otherBody = Mod->getFunction(otherName);
+            TerminatorInst *TI = otherBody->begin()->getTerminator();
+            prepareClone(TI, &I);
+            Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+            Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+            Instruction *newIC = cloneTree(IC, TI);
+            Instruction *newIT = cloneTree(IT, TI);
+            printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+            IRBuilder<> builder(TI->getParent());
+            builder.SetInsertPoint(TI);
+            builder.CreateStore(newIC, newIT);
+            IRBuilder<> oldbuilder(I.getParent());
+            oldbuilder.SetInsertPoint(&I);
+            Value *newLoad = oldbuilder.CreateLoad(IT);
+            I.replaceAllUsesWith(newLoad);
+            I.eraseFromParent();
+            break;
         }
-        const GlobalValue *g = NULL;
+        if ((STy = findThisArgument(func))
+         && getClassName(fname.c_str(), &className, &methodName)) {
+            std::string tname = STy->getName();
+            char tempname[1000];
+            strcpy(tempname, methodName);
+            strcat(tempname, "__guard");
+            guardName = lookup_method(tname.c_str(), tempname);
+        }
         if (thisp)
             g = EE->getGlobalValueAtAddress(thisp[0] - 2);
         printf("[%s:%d] guard %d update %d thisp %p g %p\n", __FUNCTION__, __LINE__, guardName, updateName, thisp, g);
@@ -267,7 +255,6 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-        pushWork(func, NULL);
         break;
         }
     default:

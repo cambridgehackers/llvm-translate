@@ -296,7 +296,7 @@ ClassMethodTable *findClass(std::string tname)
     return NULL;
 }
 
-static int getClassName(const char *name, const char **className, const char **methodName)
+int getClassName(const char *name, const char **className, const char **methodName)
 {
     int status;
     static char temp[1000];

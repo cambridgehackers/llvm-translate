@@ -180,3 +180,4 @@ void generateModuleDef(const StructType *STy, FILE *OStr);
 void generateClassDef(const StructType *STy, FILE *OStr);
 const StructType *findThisArgumentType(FunctionType *func);
 const StructType *findThisArgument(Function *func);
+int getClassName(const char *name, const char **className, const char **methodName);
