@@ -122,7 +122,7 @@ static bool isInlinableInst(const Instruction &I)
   }
   return true;
 }
-const AllocaInst *isDirectAlloca(const Value *V)
+static const AllocaInst *isDirectAlloca(const Value *V)
 {
   const AllocaInst *AI = dyn_cast<AllocaInst>(V);
   if (!AI || AI->isArrayAllocation()
@@ -244,7 +244,7 @@ const char *fieldName(const StructType *STy, uint64_t ind)
 {
     return lookupMember(STy, ind, dwarf::DW_TAG_member);
 }
-const char *methodName(const StructType *STy, uint64_t ind)
+static const char *methodName(const StructType *STy, uint64_t ind)
 {
     return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
 }
@@ -264,7 +264,7 @@ std::string getStructName(const StructType *STy)
     return name;
 }
 
-const StructType *findThisArgument(Function *func)
+static const StructType *findThisArgument(Function *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
@@ -275,7 +275,7 @@ const StructType *findThisArgument(Function *func)
     return STy;
 }
 
-const StructType *findThisArgumentType(FunctionType *func)
+static const StructType *findThisArgumentType(FunctionType *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
@@ -485,8 +485,8 @@ static char *printConstantWithCast(Function ***thisp, Constant* CPV, unsigned Op
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
-  bool typeIsSigned = false;
-  switch (getCastGroup(Opcode)) {
+    bool typeIsSigned = false;
+    switch (getCastGroup(Opcode)) {
     case CastUnsigned:
       break;
     case CastSigned:
@@ -495,11 +495,11 @@ static char *printConstantWithCast(Function ***thisp, Constant* CPV, unsigned Op
     default:
       strcat(cbuffer, printConstant(thisp, "", CPV));
       goto exitlab;
-  }
-  strcat(cbuffer, printType(CPV->getType(), typeIsSigned, "", "((", ")"));
-  strcat(cbuffer, printConstant(thisp, "", CPV));
-  strcat(cbuffer, ")");
-  strcat(cbuffer, postfix);
+    }
+    strcat(cbuffer, printType(CPV->getType(), typeIsSigned, "", "((", ")"));
+    strcat(cbuffer, printConstant(thisp, "", CPV));
+    strcat(cbuffer, ")");
+    strcat(cbuffer, postfix);
 exitlab:
     return strdup(cbuffer);
 }
@@ -724,158 +724,155 @@ char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
-  const char *sep = " ";
-  /* handle expressions */
-  strcat(cbuffer, prefix);
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
-    strcat(cbuffer, "(");
-    int op = CE->getOpcode();
-    switch (op) {
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
-    case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
-    case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
-    case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
-      strcat(cbuffer, printCast(op, CE->getOperand(0)->getType(), CE->getType()));
-      if (op == Instruction::SExt &&
-          CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
-        strcat(cbuffer, "0-");
-      strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
-      if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
-          (op == Instruction::Trunc || op == Instruction::FPToUI ||
-           op == Instruction::FPToSI || op == Instruction::PtrToInt))
-        strcat(cbuffer, "&1u");
-      break;
-    case Instruction::GetElementPtr:
-      strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
-      break;
-    case Instruction::Select:
-      strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
-      strcat(cbuffer, printConstant(thisp, "?", CE->getOperand(1)));
-      strcat(cbuffer, printConstant(thisp, ":", CE->getOperand(2)));
-      break;
-    case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
-    case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
-    case Instruction::SDiv: case Instruction::UDiv: case Instruction::FDiv:
-    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
-    case Instruction::And: case Instruction::Or: case Instruction::Xor:
-    case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
-    case Instruction::AShr:
-    {
-      strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, " "));
-      if (op == Instruction::ICmp)
-        strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
-      else
-        strcat(cbuffer, intmapLookup(opcodeMap, op));
-      strcat(cbuffer, " ");
-      strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ""));
-      strcat(cbuffer, printConstExprCast(CE));
-      break;
-    }
-    case Instruction::FCmp: {
-      if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
-        strcat(cbuffer, "0");
-      else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
-        strcat(cbuffer, "1");
-      else {
-        strcat(cbuffer, "llvm_fcmp_");
-        strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
+    const char *sep = " ";
+    int tid = CPV->getType()->getTypeID();
+
+    /* handle expressions */
+    strcat(cbuffer, prefix);
+    ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
+    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
         strcat(cbuffer, "(");
-        strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, ", "));
-        strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ")"));
-      }
-      strcat(cbuffer, printConstExprCast(CE));
-      break;
+        int op = CE->getOpcode();
+        switch (op) {
+        case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
+        case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
+        case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
+        case Instruction::PtrToInt: case Instruction::IntToPtr: case Instruction::BitCast:
+          strcat(cbuffer, printCast(op, CE->getOperand(0)->getType(), CE->getType()));
+          if (op == Instruction::SExt &&
+              CE->getOperand(0)->getType() == Type::getInt1Ty(CPV->getContext()))
+            strcat(cbuffer, "0-");
+          strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
+          if (CE->getType() == Type::getInt1Ty(CPV->getContext()) &&
+              (op == Instruction::Trunc || op == Instruction::FPToUI ||
+               op == Instruction::FPToSI || op == Instruction::PtrToInt))
+            strcat(cbuffer, "&1u");
+          break;
+        case Instruction::GetElementPtr:
+          strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
+          break;
+        case Instruction::Select:
+          strcat(cbuffer, printConstant(thisp, "", CE->getOperand(0)));
+          strcat(cbuffer, printConstant(thisp, "?", CE->getOperand(1)));
+          strcat(cbuffer, printConstant(thisp, ":", CE->getOperand(2)));
+          break;
+        case Instruction::Add: case Instruction::FAdd: case Instruction::Sub:
+        case Instruction::FSub: case Instruction::Mul: case Instruction::FMul:
+        case Instruction::SDiv: case Instruction::UDiv: case Instruction::FDiv:
+        case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+        case Instruction::And: case Instruction::Or: case Instruction::Xor:
+        case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
+        case Instruction::AShr: {
+          strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, " "));
+          if (op == Instruction::ICmp)
+            strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
+          else
+            strcat(cbuffer, intmapLookup(opcodeMap, op));
+          strcat(cbuffer, " ");
+          strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ""));
+          strcat(cbuffer, printConstExprCast(CE));
+          break;
+        }
+        case Instruction::FCmp: {
+          if (CE->getPredicate() == FCmpInst::FCMP_FALSE)
+            strcat(cbuffer, "0");
+          else if (CE->getPredicate() == FCmpInst::FCMP_TRUE)
+            strcat(cbuffer, "1");
+          else {
+            strcat(cbuffer, "llvm_fcmp_");
+            strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
+            strcat(cbuffer, "(");
+            strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, ", "));
+            strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ")"));
+          }
+          strcat(cbuffer, printConstExprCast(CE));
+          break;
+        }
+        default:
+          outs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
+          llvm_unreachable(0);
+        }
+        strcat(cbuffer, ")");
     }
-    default:
-      outs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
-      llvm_unreachable(0);
-    }
-    strcat(cbuffer, ")");
-    goto exitlab;
-  }
-  ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
-  /* handle int */
-  if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
-    char temp[100];
-    Type* Ty = CI->getType();
-    if (Ty == Type::getInt1Ty(CPV->getContext()))
-      strcat(cbuffer, CI->getZExtValue() ? "1" : "0");
-    else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
-      sprintf(temp, "%ld", CI->getZExtValue());
-      strcat(cbuffer, temp);
+    else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
+        char temp[100];
+        Type* Ty = CI->getType();
+        if (Ty == Type::getInt1Ty(CPV->getContext()))
+            strcat(cbuffer, CI->getZExtValue() ? "1" : "0");
+        else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
+            sprintf(temp, "%ld", CI->getZExtValue());
+            strcat(cbuffer, temp);
+        }
+        else {
+            strcat(cbuffer, printType(Ty, false, "", "((", ")"));
+            if (CI->isMinValue(true))
+                sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
+            else
+                sprintf(temp, "%ld", CI->getSExtValue());
+            strcat(cbuffer, temp);
+            strcat(cbuffer, ")");
+        }
     }
     else {
-      strcat(cbuffer, printType(Ty, false, "", "((", ")"));
-      if (CI->isMinValue(true))
-        sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
-      else
-        sprintf(temp, "%ld", CI->getSExtValue());
-      strcat(cbuffer, temp);
-      strcat(cbuffer, ")");
-    }
-    goto exitlab;
-  }
-  {
-  int tid = CPV->getType()->getTypeID();
-  /* handle structured types */
-  switch (tid) {
-  case Type::ArrayTyID:
-    if (ConstantArray *CPA = dyn_cast<ConstantArray>(CPV)) {
-      int len = CPA->getNumOperands();
-      Type *ETy = CPA->getType()->getElementType();
-      if (ETy == Type::getInt8Ty(CPA->getContext()) && len
-       && cast<Constant>(*(CPA->op_end()-1))->isNullValue()) {
-        char *cp = (char *)malloc(len);
-        for (int i = 0; i != len-1; ++i)
-            cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
-        strcat(cbuffer, printString(cp, len));
-        free(cp);
-      } else {
-        strcat(cbuffer, "{");
-        for (unsigned i = 0, e = len; i != e; ++i) {
-            strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPA->getOperand(i))));
-            sep = ", ";
+        /* handle structured types */
+        switch (tid) {
+        case Type::ArrayTyID:
+          if (ConstantArray *CPA = dyn_cast<ConstantArray>(CPV)) {
+           int len = CPA->getNumOperands();
+           Type *ETy = CPA->getType()->getElementType();
+           if (ETy == Type::getInt8Ty(CPA->getContext()) && len
+            && cast<Constant>(*(CPA->op_end()-1))->isNullValue()) {
+             char *cp = (char *)malloc(len);
+             for (int i = 0; i != len-1; ++i)
+                 cp[i] = cast<ConstantInt>(CPA->getOperand(i))->getZExtValue();
+             strcat(cbuffer, printString(cp, len));
+             free(cp);
+           } else {
+             strcat(cbuffer, "{");
+             for (unsigned i = 0, e = len; i != e; ++i) {
+                 strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPA->getOperand(i))));
+                 sep = ", ";
+             }
+             strcat(cbuffer, " }");
+           }
+         }
+         else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
+           strcat(cbuffer, printConstantDataArray(thisp, CA));
+         else
+           ERRORIF(1);
+         break;
+        case Type::VectorTyID:
+         strcat(cbuffer, "{");
+         if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
+             for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
+                 strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CV->getOperand(i))));
+                 sep = ", ";
+             }
+         }
+         else
+           ERRORIF(1);
+         strcat(cbuffer, " }");
+         break;
+        case Type::StructTyID:
+         strcat(cbuffer, "{");
+         ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
+         for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
+             strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPV->getOperand(i))));
+             sep = ", ";
+         }
+         strcat(cbuffer, " }");
+         break;
+        case Type::PointerTyID:
+         if (isa<ConstantPointerNull>(CPV))
+           strcat(cbuffer, printType(CPV->getType(), false, "", "((", ")/*NULL*/0)")); // sign doesn't matter
+         else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
+           strcat(cbuffer, writeOperand(thisp, GV, false));
+         break;
+        default:
+           outs() << "Unknown constant type: " << *CPV << "\n";
+           llvm_unreachable(0);
         }
-        strcat(cbuffer, " }");
-      }
     }
-    else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV))
-      strcat(cbuffer, printConstantDataArray(thisp, CA));
-    else
-      ERRORIF(1);
-    break;
-  case Type::VectorTyID:
-    strcat(cbuffer, "{");
-    if (ConstantVector *CV = dyn_cast<ConstantVector>(CPV)) {
-        for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
-            strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CV->getOperand(i))));
-            sep = ", ";
-        }
-    }
-    else
-      ERRORIF(1);
-    strcat(cbuffer, " }");
-    break;
-  case Type::StructTyID:
-    strcat(cbuffer, "{");
-    ERRORIF(isa<ConstantAggregateZero>(CPV) || isa<UndefValue>(CPV));
-    for (unsigned i = 0, e = CPV->getNumOperands(); i != e; ++i) {
-        strcat(cbuffer, printConstant(thisp, sep, cast<Constant>(CPV->getOperand(i))));
-        sep = ", ";
-    }
-    strcat(cbuffer, " }");
-    break;
-  case Type::PointerTyID:
-    if (isa<ConstantPointerNull>(CPV))
-      strcat(cbuffer, printType(CPV->getType(), false, "", "((", ")/*NULL*/0)")); // sign doesn't matter
-    else if (GlobalValue *GV = dyn_cast<GlobalValue>(CPV))
-      strcat(cbuffer, writeOperand(thisp, GV, false));
-    break;
-  default:
-    outs() << "Unknown constant type: " << *CPV << "\n";
-    llvm_unreachable(0);
-  }
-  }
 exitlab:
     return strdup(cbuffer);
 }
@@ -1034,6 +1031,12 @@ const char *processInstruction(Function ***thisp, Instruction *ins)
         return getOperand(thisp, ins->getOperand(0), true);
         }
         break;
+    case Instruction::Alloca: // ignore
+        if (generateRegion == 2) {
+            if (const AllocaInst *AI = isDirectAlloca(&*ins))
+              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+        }
+        break;
     default:
         {
         if (generateRegion == 2)
@@ -1041,12 +1044,6 @@ const char *processInstruction(Function ***thisp, Instruction *ins)
         else
             return generateRegion ? generateVerilog(thisp, *ins)
                             : calculateGuardUpdate(thisp, *ins);
-        }
-        break;
-    case Instruction::Alloca: // ignore
-        if (generateRegion == 2) {
-            if (const AllocaInst *AI = isDirectAlloca(&*ins))
-              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
         }
         break;
     }
