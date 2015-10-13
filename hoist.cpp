@@ -161,9 +161,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         CallInst &ICL = static_cast<CallInst&>(I);
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        Function *RF;
-        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0))))
-            Callee = RF;
+        ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         const char *p = getOperand(parent_thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Function *CF = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));

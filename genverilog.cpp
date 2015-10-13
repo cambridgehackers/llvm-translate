@@ -126,17 +126,13 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        Function *RF = NULL;
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         const char *cthisp = getOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp, "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp);
-        if (CE && CE->isCast() && (RF = dyn_cast<Function>(CE->getOperand(0)))) {
-            Callee = RF;
-            strcat(vout, printType(ICL.getCalledValue()->getType(), false, "", "((", ")(void*)"));
-        }
+        ERRORIF(CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         const char *p = writeOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
         if (!strncmp(p, "&0x", 3) && !func) {
@@ -172,8 +168,6 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 break;
             }
         }
-        if (RF)
-            strcat(vout, ")");
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
