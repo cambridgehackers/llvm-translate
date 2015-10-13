@@ -75,8 +75,8 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
     if (!returnType)
         return cloneTree(I, TI);
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
-    Instruction *thisp = cloneTree(orig_thisp, TI);
-    Type *Params[] = {thisp->getType()};
+    Instruction *new_thisp = cloneTree(orig_thisp, TI);
+    Type *Params[] = {new_thisp->getType()};
     Type *castType = PointerType::get(
              PointerType::get(
                  PointerType::get(
@@ -86,18 +86,18 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
     Value *vtabbase = builder.CreateLoad(
-             builder.CreateBitCast(thisp, castType));
+             builder.CreateBitCast(new_thisp, castType));
     Value *newCall = builder.CreateCall(
              builder.CreateLoad(
                  builder.CreateConstInBoundsGEP1_32(
-                     vtabbase, methodIndex)), thisp);
+                     vtabbase, methodIndex)), new_thisp);
     return dyn_cast<Instruction>(newCall);
 }
 
 /*
  * Perform guard(), update() hoisting.  Insert shadow variable access for store.
  */
-const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
+const char *calculateGuardUpdate(Function ***thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
     switch (opcode) {
@@ -124,8 +124,7 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
 
     // Other instructions...
 #if 0
-    case Instruction::PHI:
-        {
+    case Instruction::PHI: {
         char temp[MAX_CHAR_BUFFER];
         const PHINode *PN = dyn_cast<PHINode>(&I);
         I.getType()->dump();
@@ -156,61 +155,57 @@ const char *calculateGuardUpdate(Function ***parent_thisp, Instruction &I)
         }
         break;
 #endif
-    case Instruction::Call:
-        {
+    case Instruction::Call: {
         CallInst &ICL = static_cast<CallInst&>(I);
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
-        const char *p = getOperand(parent_thisp, Callee, false);
+        const char *p = getOperand(thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
-        Function *CF = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
+        Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         const char *cp = NULL;
-printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__, parent_thisp, CF, Callee, p);
-        if (!CF) {
+printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p);
+        if (!func) {
             void *pact = mapLookup(p);
-            CF = static_cast<Function *>(pact);
+            func = static_cast<Function *>(pact);
         }
-        printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, CF, parent_thisp);
-        if (CF) {
-            cp = CF->getName().str().c_str();
-            printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, cp);
-        }
-        if (CF && CF->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
-            cloneVmap.clear();
-            /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-            Function *F = I.getParent()->getParent();
-            Module *Mod = F->getParent();
-            std::string Fname = F->getName().str();
-            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
-            Function *otherBody = Mod->getFunction(otherName);
-            TerminatorInst *TI = otherBody->begin()->getTerminator();
-            prepareClone(TI, &I);
-            Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
-            Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-            Instruction *newIC = cloneTree(IC, TI);
-            Instruction *newIT = cloneTree(IT, TI);
-            printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
-            IRBuilder<> builder(TI->getParent());
-            builder.SetInsertPoint(TI);
-            builder.CreateStore(newIC, newIT);
-            IRBuilder<> oldbuilder(I.getParent());
-            oldbuilder.SetInsertPoint(&I);
-            Value *newLoad = oldbuilder.CreateLoad(IT);
-            I.replaceAllUsesWith(newLoad);
-            I.eraseFromParent();
-            break;
-        }
-        if (!CF) {
+        printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, func, thisp);
+        if (!func) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
         }
         else {
+            cp = func->getName().str().c_str();
+            printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, cp);
             if (trace_translate)
-                printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(),
-                      CF->getName().str().c_str(), parent_thisp);
+                printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), cp, thisp);
+            if (func->isDeclaration() && !strncmp(cp, "_Z14PIPELINEMARKER", 18)) {
+                cloneVmap.clear();
+                /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+                Function *F = I.getParent()->getParent();
+                Module *Mod = F->getParent();
+                std::string Fname = F->getName().str();
+                std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
+                Function *otherBody = Mod->getFunction(otherName);
+                TerminatorInst *TI = otherBody->begin()->getTerminator();
+                prepareClone(TI, &I);
+                Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+                Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+                Instruction *newIC = cloneTree(IC, TI);
+                Instruction *newIT = cloneTree(IT, TI);
+                printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+                IRBuilder<> builder(TI->getParent());
+                builder.SetInsertPoint(TI);
+                builder.CreateStore(newIC, newIT);
+                IRBuilder<> oldbuilder(I.getParent());
+                oldbuilder.SetInsertPoint(&I);
+                Value *newLoad = oldbuilder.CreateLoad(IT);
+                I.replaceAllUsesWith(newLoad);
+                I.eraseFromParent();
+                break;
+            }
             int len = 0;
             int status;
-            const char *demang = abi::__cxa_demangle(CF->getName().str().c_str(), 0, 0, &status);
+            const char *demang = abi::__cxa_demangle(func->getName().str().c_str(), 0, 0, &status);
             if (demang) {
                 const char *p = demang;
                 while (*p && *p != '(')
@@ -221,8 +216,8 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                 }
                 const PointerType *PTy;
                 const StructType *STy;
-                if (CF->arg_begin() != CF->arg_end()
-                 && (PTy = dyn_cast<PointerType>(CF->arg_begin()->getType()))
+                if (func->arg_begin() != func->arg_end()
+                 && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
                  && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
                     std::string tname = STy->getName().str();
                     if (len > 2) {
@@ -235,9 +230,9 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
             }
         }
         const GlobalValue *g = NULL;
-        if (parent_thisp)
-            g = EE->getGlobalValueAtAddress(parent_thisp[0] - 2);
-        printf("[%s:%d] guard %d update %d parent_thisp %p g %p\n", __FUNCTION__, __LINE__, guardName, updateName, parent_thisp, g);
+        if (thisp)
+            g = EE->getGlobalValueAtAddress(thisp[0] - 2);
+        printf("[%s:%d] guard %d update %d thisp %p g %p\n", __FUNCTION__, __LINE__, guardName, updateName, thisp, g);
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
@@ -248,7 +243,7 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
         }
         printf("[%s:%d] pguard %d pupdate %d\n", __FUNCTION__, __LINE__, parentGuardName, parentUpdateName);
         if (guardName >= 0 && parentGuardName >= 0) {
-            Function *peer_guard = parent_thisp[0][parentGuardName];
+            Function *peer_guard = thisp[0][parentGuardName];
             TerminatorInst *TI = peer_guard->begin()->getTerminator();
             Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
             if (CallInst *nc = dyn_cast<CallInst>(newI))
@@ -266,7 +261,7 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
             }
         }
         if (parentUpdateName >= 0) {
-            Function *peer_update = parent_thisp[0][parentUpdateName];
+            Function *peer_update = thisp[0][parentUpdateName];
             TerminatorInst *TI = peer_update->begin()->getTerminator();
             if (updateName >= 0)
                 copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
@@ -275,11 +270,11 @@ printf("[%s:%d] parent_thisp %p CF %p Callee %p p %s\n", __FUNCTION__, __LINE__,
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
-        pushWork(CF, NULL);
-        }
+        pushWork(func, NULL);
         break;
+        }
     default:
-        return processCInstruction(parent_thisp, I);
+        return processCInstruction(thisp, I);
         printf("HOther opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
     case Instruction::Store: case Instruction::Ret:
