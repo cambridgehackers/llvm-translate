@@ -86,12 +86,11 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             strcat(vout, writeOperand(thisp, I.getOperand(1), false));
             strcat(vout, ")");
         } else {
-            strcat(vout, writeOperandWithCast(thisp, I.getOperand(0), I.getOpcode()));
+            strcat(vout, writeOperand(thisp, I.getOperand(0), false));
             strcat(vout, " ");
             strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
             strcat(vout, " ");
-            strcat(vout, writeOperandWithCast(thisp, I.getOperand(1), I.getOpcode()));
-            strcat(vout, writeInstructionCast(I));
+            strcat(vout, writeOperand(thisp, I.getOperand(1), false));
         }
         if (needsCast)
             strcat(vout, "))");
@@ -177,16 +176,11 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        bool shouldCast = CI.isRelational();
-        bool typeIsSigned = CI.isSigned();
-        strcat(vout, writeOperandWithCastICmp(thisp, I.getOperand(0), shouldCast, typeIsSigned));
+        strcat(vout, writeOperand(thisp, I.getOperand(0), false));
         strcat(vout, " ");
         strcat(vout, intmapLookup(predText, CI.getPredicate()));
         strcat(vout, " ");
-        strcat(vout, writeOperandWithCastICmp(thisp, I.getOperand(1), shouldCast, typeIsSigned));
-        strcat(vout, writeInstructionCast(I));
-        if (shouldCast)
-            strcat(vout, "))");
+        strcat(vout, writeOperand(thisp, I.getOperand(1), false));
         break;
         }
     case Instruction::Call: {

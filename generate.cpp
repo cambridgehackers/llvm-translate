@@ -414,40 +414,6 @@ static char *printConstantDataArray(Function ***thisp, ConstantDataArray *CPA)
     }
     return strdup(cbuffer);
 }
-char *writeOperandWithCastICmp(Function ***thisp, Value* Operand, bool shouldCast, bool typeIsSigned)
-{
-    return writeOperand(thisp, Operand, false);
-}
-char *writeOperandWithCast(Function ***thisp, Value* Operand, unsigned Opcode)
-{
-    bool castIsSigned = false;
-    bool shouldCast = true;
-    switch (getCastGroup(Opcode)) {
-    case CastUnsigned:
-        break;
-    case CastSigned: case CastGEP:
-        castIsSigned = true;
-        break;
-    default:
-        shouldCast = false;
-        break;
-    }
-    return writeOperandWithCastICmp(thisp, Operand, shouldCast, castIsSigned);
-}
-const char *writeInstructionCast(const Instruction &I)
-{
-    bool typeIsSigned = false;
-    switch (getCastGroup(I.getOpcode())) {
-    case CastUnsigned:
-        break;
-    case CastSigned:
-        typeIsSigned = true;
-        break;
-    default:
-        return "";
-    }
-    return printType(I.getOperand(0)->getType(), typeIsSigned, "", "((", ")())");
-}
 static const char *printConstExprCast(const ConstantExpr* CE)
 {
     Type *Ty = CE->getOperand(0)->getType();
@@ -682,7 +648,7 @@ next:
         } else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
                 strcat(cbuffer, ")+(");
-                strcat(cbuffer, writeOperandWithCast(thisp, I.getOperand(), Instruction::GetElementPtr));
+                strcat(cbuffer, writeOperand(thisp, I.getOperand(), false));
             }
             strcat(cbuffer, "))");
         }
