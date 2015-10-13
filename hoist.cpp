@@ -214,11 +214,8 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
                     len++;
                     p--;
                 }
-                const PointerType *PTy;
                 const StructType *STy;
-                if (func->arg_begin() != func->arg_end()
-                 && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-                 && (STy = dyn_cast<StructType>(PTy->getPointerElementType()))) {
+                if ((STy = findThisArgument(func))) {
                     std::string tname = STy->getName().str();
                     if (len > 2) {
                         char tempname[1000];

@@ -179,3 +179,4 @@ void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 void generateModuleDef(const StructType *STy, FILE *OStr);
 void generateClassDef(const StructType *STy, FILE *OStr);
 const StructType *findThisArgumentType(FunctionType *func);
+const StructType *findThisArgument(Function *func);

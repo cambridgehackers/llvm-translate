@@ -234,7 +234,7 @@ std::string getStructName(const StructType *STy)
     return name;
 }
 
-static const StructType *findThisArgument(Function *func)
+const StructType *findThisArgument(Function *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
