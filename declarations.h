@@ -87,8 +87,6 @@ typedef struct {
     const char *name;
 } INTMAP_TYPE;
 
-enum {CastOther, CastUnsigned, CastSigned, CastGEP, CastSExt, CastZExt, CastFPToSI};
-
 class RemoveAllocaPass : public FunctionPass {
   public:
     static char ID;

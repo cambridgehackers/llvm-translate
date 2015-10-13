@@ -175,29 +175,7 @@ static char *printString(const char *cp, int len)
     strcat(cbuffer, "\"");
     return strdup(cbuffer);
 }
-static int getCastGroup(int op)
-{
-    switch (op) {
-    case Instruction::Add: case Instruction::Sub: case Instruction::Mul:
-    case Instruction::LShr: case Instruction::URem: case Instruction::UDiv:
-        return CastUnsigned;
-    case Instruction::AShr: case Instruction::SRem: case Instruction::SDiv:
-        return CastSigned;
-    case Instruction::GetElementPtr:
-        return CastGEP;
-    case Instruction::SExt:
-        return CastSExt;
-    case Instruction::ZExt: case Instruction::Trunc: case Instruction::FPTrunc:
-    case Instruction::FPExt: case Instruction::UIToFP: case Instruction::SIToFP:
-    case Instruction::FPToUI: case Instruction::PtrToInt:
-    case Instruction::IntToPtr: case Instruction::BitCast:
-        return CastZExt;
-    case Instruction::FPToSI:
-        return CastFPToSI;
-    default:
-        return CastOther;
-    }
-}
+
 /*
  * Name functions
  */
@@ -412,50 +390,6 @@ static char *printConstantDataArray(Function ***thisp, ConstantDataArray *CPA)
         }
         strcat(cbuffer, " }");
     }
-    return strdup(cbuffer);
-}
-static const char *printConstExprCast(const ConstantExpr* CE)
-{
-    Type *Ty = CE->getOperand(0)->getType();
-    bool TypeIsSigned = false;
-    switch (getCastGroup(CE->getOpcode())) {
-    case CastUnsigned:
-        break;
-    case CastSExt:
-        Ty = CE->getType();
-        /* fall through */
-    case CastSigned:
-        TypeIsSigned = true;
-        break;
-    case CastZExt: case CastFPToSI:
-        Ty = CE->getType();
-        break;
-    default: return "";
-    }
-    if (!Ty->isIntegerTy() || Ty == Type::getInt1Ty(Ty->getContext()))
-        TypeIsSigned = false; // not integer, sign doesn't matter
-    return printType(Ty, TypeIsSigned, "", "((", ")())");
-}
-static char *printConstantWithCast(Function ***thisp, Constant* CPV, unsigned Opcode, const char *postfix)
-{
-    char cbuffer[10000];
-    cbuffer[0] = 0;
-    bool typeIsSigned = false;
-    switch (getCastGroup(Opcode)) {
-    case CastUnsigned:
-        break;
-    case CastSigned:
-        typeIsSigned = true;
-        break;
-    default:
-        strcat(cbuffer, writeOperand(thisp, CPV, false));
-        goto exitlab;
-    }
-    strcat(cbuffer, printType(CPV->getType(), typeIsSigned, "", "((", ")"));
-    strcat(cbuffer, writeOperand(thisp, CPV, false));
-    strcat(cbuffer, ")");
-    strcat(cbuffer, postfix);
-exitlab:
     return strdup(cbuffer);
 }
 /*
@@ -693,14 +627,14 @@ char *printConstant2(Function ***thisp, const char *prefix, Constant *CPV)
         case Instruction::And: case Instruction::Or: case Instruction::Xor:
         case Instruction::ICmp: case Instruction::Shl: case Instruction::LShr:
         case Instruction::AShr: {
-            strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, " "));
+            strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
+            strcat(cbuffer, " ");
             if (op == Instruction::ICmp)
                 strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
             else
                 strcat(cbuffer, intmapLookup(opcodeMap, op));
             strcat(cbuffer, " ");
-            strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ""));
-            strcat(cbuffer, printConstExprCast(CE));
+            strcat(cbuffer, writeOperand(thisp, CE->getOperand(1), false));
             break;
             }
         case Instruction::FCmp: {
@@ -712,10 +646,11 @@ char *printConstant2(Function ***thisp, const char *prefix, Constant *CPV)
                 strcat(cbuffer, "llvm_fcmp_");
                 strcat(cbuffer, intmapLookup(predText, CE->getPredicate()));
                 strcat(cbuffer, "(");
-                strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(0), op, ", "));
-                strcat(cbuffer, printConstantWithCast(thisp, CE->getOperand(1), op, ")"));
+                strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
+                strcat(cbuffer, ", ");
+                strcat(cbuffer, writeOperand(thisp, CE->getOperand(1), false));
+                strcat(cbuffer, ")");
             }
-            strcat(cbuffer, printConstExprCast(CE));
             break;
             }
         default:
