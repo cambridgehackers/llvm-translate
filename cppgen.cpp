@@ -181,14 +181,14 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
         ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
         ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
         Value *Callee = ICL.getCalledValue();
-        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        //ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+        //ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         const char *cthisp = getOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp, "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp);
-        ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         const char *p = writeOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p, func, thisp, called_thisp);
         if (!strncmp(p, "&0x", 3) && !func) {
@@ -296,14 +296,17 @@ void generateCppData(FILE *OStr, Module &Mod)
                     Type *ETy = CA->getType()->getElementType();
                     ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
                     fprintf(OStr, "{");
-                    const char *sep = " ";
+                    const char *sep = "";
                     if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
                      && checkIfRule(CE->getOperand(0)->getType())) {
                         ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
-                          Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          fprintf(OStr, "%s%s", sep, writeOperand(NULL, V, false));
-                          sep = ", ";
+                            Constant* V = dyn_cast<Constant>(CA->getOperand(i));
+                            //char *p = writeOperand(NULL, V, false);
+                            assert (dyn_cast<PointerType>(V->getType()));
+                            char *p = writeOperand(NULL, V->getOperand(0), false);
+                            fprintf(OStr, "%s (unsigned char *)%s", sep, p);
+                            sep = ",";
                         }
                     }
                     else
@@ -323,6 +326,7 @@ void generateCppData(FILE *OStr, Module &Mod)
 }
 void generateCppHeader(Module &Mod, FILE *OStr)
 {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())

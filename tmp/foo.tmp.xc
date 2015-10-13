@@ -7,10 +7,10 @@ class l_class_OC_Module *_ZN6Module5firstE;
 
 
 //******************** vtables for Classes *******************
-unsigned char *_ZTVN8EchoTest5driveE[4] = { ((unsigned char *)_ZN8EchoTest5drive5guardEv), ((unsigned char *)_ZN8EchoTest5drive6updateEv) };
+unsigned char *_ZTVN8EchoTest5driveE[4] = { (unsigned char *)_ZN8EchoTest5drive5guardEv, (unsigned char *)_ZN8EchoTest5drive6updateEv };
 unsigned char *_ZTV4Rule[4] = {0 };
-unsigned char *_ZTVN4Echo7respond8respond2E[4] = { ((unsigned char *)_ZN4Echo7respond8respond25guardEv), ((unsigned char *)_ZN4Echo7respond8respond26updateEv) };
-unsigned char *_ZTVN4Echo7respond8respond1E[4] = { ((unsigned char *)_ZN4Echo7respond8respond15guardEv), ((unsigned char *)_ZN4Echo7respond8respond16updateEv) };
+unsigned char *_ZTVN4Echo7respond8respond2E[4] = { (unsigned char *)_ZN4Echo7respond8respond25guardEv, (unsigned char *)_ZN4Echo7respond8respond26updateEv };
+unsigned char *_ZTVN4Echo7respond8respond1E[4] = { (unsigned char *)_ZN4Echo7respond8respond15guardEv, (unsigned char *)_ZN4Echo7respond8respond16updateEv };
 unsigned char *_ZTV5Fifo1IiE[12] = {0 };
 unsigned char *_ZTV4FifoIiE[12] = {0 };
 typedef unsigned char **RuleVTab;//Rules:

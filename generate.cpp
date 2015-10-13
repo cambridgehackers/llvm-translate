@@ -71,9 +71,8 @@ INTMAP_TYPE opcodeMap[] = {
     {Instruction::Shl, "<<"}, {Instruction::LShr, ">>"}, {Instruction::AShr, " >> "}, {}};
 
 /*
- * Common utilities for processing Instruction lists
+ * Utility functions
  */
-
 const char *intmapLookup(INTMAP_TYPE *map, int value)
 {
     while (map->name) {
@@ -98,7 +97,6 @@ void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-/******* Util functions ******/
 static bool isInlinableInst(const Instruction &I)
 {
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
@@ -661,7 +659,9 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
                 strcat(cbuffer, "(");
                 int op = CE->getOpcode();
+printf("[%s:%d] ZZZZZZZZZZZZZZZZZZZZZZZZ %d %s\n", __FUNCTION__, __LINE__, op, CE->getOpcodeName());
                 switch (op) {
+#if 0
                 case Instruction::Trunc: case Instruction::ZExt: case Instruction::SExt:
                 case Instruction::FPTrunc: case Instruction::FPExt: case Instruction::UIToFP:
                 case Instruction::SIToFP: case Instruction::FPToUI: case Instruction::FPToSI:
@@ -677,9 +677,11 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
                         || op == Instruction::FPToSI || op == Instruction::PtrToInt))
                       strcat(cbuffer, "&1u");
                     break;
+#endif
                 case Instruction::GetElementPtr:
                     strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)));
                     break;
+#if 0
                 case Instruction::Select:
                     strcat(cbuffer, writeOperand(thisp, CE->getOperand(0), false));
                     strcat(cbuffer, "?");
@@ -720,6 +722,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
                     }
                     break;
                     }
+#endif
                 default:
                     outs() << "printConstant Error: Unhandled constant expression: " << *CE << "\n";
                     llvm_unreachable(0);
