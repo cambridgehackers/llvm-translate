@@ -28,7 +28,7 @@ bool call =         (notFull)();
 
 void enq(unsigned int v) {
         (element) = v;
-        (full) = ((unsigned char )1);
+        (full) = 1;
 }
 
 bool deq__guard(void) {
@@ -38,7 +38,7 @@ bool call =         (notEmpty)();
 }
 
 void deq(void) {
-        (full) = ((unsigned char )0);
+        (full) = 0;
 }
 
 bool first__guard(void) {

@@ -293,6 +293,48 @@ std::string GetValueName(const Value *Operand)
         return VarName;
     return "V" + VarName;
 }
+
+ClassMethodTable *findClass(std::string tname)
+{
+    std::map<std::string, ClassMethodTable *>::iterator FI = classCreate.find(tname);
+    if (FI != classCreate.end())
+        return classCreate[tname];
+    return NULL;
+}
+
+static int getClassName(const char *name, const char **className, const char **methodName)
+{
+    int status;
+    static char temp[1000];
+    char *pmethod = temp;
+    temp[0] = 0;
+    *className = NULL;
+    *methodName = NULL;
+    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
+    if (demang) {
+        strcpy(temp, demang);
+        while (*pmethod && pmethod[0] != '(')
+            pmethod++;
+        *pmethod = 0;
+        while (pmethod > temp && pmethod[0] != ':')
+            pmethod--;
+        char *p = pmethod++;
+        while (p[0] == ':')
+            *p-- = 0;
+        int len = 0;
+        const char *p1 = demang;
+        while (*p1 && *p1 != '(')
+            p1++;
+        while (p1 != demang && *p1 != ':') {
+            len++;
+            p1--;
+        }
+        *className = temp;
+        *methodName = pmethod;
+        return 1;
+    }
+    return 0;
+}
 /*
  * Output types
  */
@@ -373,25 +415,6 @@ char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string pref
 /*
  * Output expressions
  */
-static char *printConstantDataArray(Function ***thisp, ConstantDataArray *CPA)
-{
-    char cbuffer[10000];
-    cbuffer[0] = 0;
-    const char *sep = " ";
-    if (CPA->isString()) {
-        StringRef value = CPA->getAsString();
-        strcat(cbuffer, printString(value.str().c_str(), value.str().length()));
-    } else {
-        strcat(cbuffer, "{");
-        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-            strcat(cbuffer, sep);
-            strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false));
-            sep = ", ";
-        }
-        strcat(cbuffer, " }");
-    }
-    return strdup(cbuffer);
-}
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -470,9 +493,21 @@ static char *printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator
                    ERRORIF (val != 2);
                    val = 0;
                }
-               else if (ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CPV)) {
+               else if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
                    ERRORIF (val);
-                   strcat(cbuffer, printConstantDataArray(thisp, CA));
+                   if (CPA->isString()) {
+                       StringRef value = CPA->getAsString();
+                       strcat(cbuffer, printString(value.str().c_str(), value.str().length()));
+                   } else {
+                       const char *sep = " ";
+                       strcat(cbuffer, "{");
+                       for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
+                           strcat(cbuffer, sep);
+                           strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false));
+                           sep = ", ";
+                       }
+                       strcat(cbuffer, " }");
+                   }
                    goto next;
                }
            }
@@ -597,12 +632,10 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
     if (isAddressImplicit)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
-        const char *p = processInstruction(thisp, I);
-        char *ptemp = strdup(p);
-        p = ptemp;
-        if (ptemp[0] == '(' && ptemp[strlen(ptemp) - 1] == ')') {
+        char *p = strdup(processInstruction(thisp, I));
+        if (p[0] == '(' && p[strlen(p) - 1] == ')') {
             p++;
-            ptemp[strlen(ptemp) - 1] = 0;
+            p[strlen(p) - 1] = 0;
         }
         if (!strcmp(prefix, "*") && p[0] == '&') {
             prefix = "";
@@ -711,13 +744,11 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
                     strcat(cbuffer, temp);
                 }
                 else {
-                    strcat(cbuffer, printType(Ty, false, "", "((", ")"));
                     if (CI->isMinValue(true))
                         sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
                     else
                         sprintf(temp, "%ld", CI->getSExtValue());
                     strcat(cbuffer, temp);
-                    strcat(cbuffer, ")");
                 }
             }
             else
@@ -803,14 +834,6 @@ int checkIfRule(Type *aTy)
     return 0;
 }
 
-ClassMethodTable *findClass(std::string tname)
-{
-    std::map<std::string, ClassMethodTable *>::iterator FI = classCreate.find(tname);
-    if (FI != classCreate.end())
-        return classCreate[tname];
-    return NULL;
-}
-
 const char *processInstruction(Function ***thisp, Instruction *ins)
 {
     //outs() << "processinst" << *ins;
@@ -838,40 +861,6 @@ const char *processInstruction(Function ***thisp, Instruction *ins)
                             : calculateGuardUpdate(thisp, *ins);
     }
     return NULL;
-}
-
-static int getClassName(const char *name, const char **className, const char **methodName)
-{
-    int status;
-    static char temp[1000];
-    char *pmethod = temp;
-    temp[0] = 0;
-    *className = NULL;
-    *methodName = NULL;
-    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
-    if (demang) {
-        strcpy(temp, demang);
-        while (*pmethod && pmethod[0] != '(')
-            pmethod++;
-        *pmethod = 0;
-        while (pmethod > temp && pmethod[0] != ':')
-            pmethod--;
-        char *p = pmethod++;
-        while (p[0] == ':')
-            *p-- = 0;
-        int len = 0;
-        const char *p1 = demang;
-        while (*p1 && *p1 != '(')
-            p1++;
-        while (p1 != demang && *p1 != ':') {
-            len++;
-            p1--;
-        }
-        *className = temp;
-        *methodName = pmethod;
-        return 1;
-    }
-    return 0;
 }
 
 /*

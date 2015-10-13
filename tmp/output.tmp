@@ -77,7 +77,7 @@ module l_class_OC_Fifo1 (
         // Start of enq
         if (enq_ENA) begin
             (element) = enq_v
-            (full) = ((unsigned char )1)
+            (full) = 1
         end; // End of enq
 
         // Start of deq__guard
@@ -86,7 +86,7 @@ module l_class_OC_Fifo1 (
 
         // Start of deq
         if (deq_ENA) begin
-            (full) = ((unsigned char )0)
+            (full) = 0
         end; // End of deq
 
         // Start of first__guard
