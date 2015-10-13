@@ -304,12 +304,10 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
     for (std::map<std::string,Type *>::iterator RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
-        FunctionType *FTy;
         PointerType *PTy;
         const StructType *STy;
         if ((PTy = dyn_cast<PointerType>(RI->second))
-         && (FTy = dyn_cast<FunctionType>(PTy->getPointerElementType()))
-         && (STy = findThisArgumentType(FTy))) {
+         && (STy = findThisArgumentType(dyn_cast<FunctionType>(PTy->getPointerElementType())))) {
             std::string name = getStructName(STy);
             ClassMethodTable *table = findClass(name);
 printf("[%s:%d] name %s type %p table %p\n", __FUNCTION__, __LINE__, name.c_str(), RI->second, table);

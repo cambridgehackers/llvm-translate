@@ -249,7 +249,7 @@ const StructType *findThisArgumentType(FunctionType *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
-    if (func->getNumParams() > 0
+    if (func && func->getNumParams() > 0
      && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
     return STy;
