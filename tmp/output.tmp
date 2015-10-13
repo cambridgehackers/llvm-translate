@@ -24,7 +24,7 @@ module top(input CLK, input RST);
 //processing _ZN4Echo7respond8respond15guardEv
         _ZN4Echo7respond8respond15guardEv_tmp__1 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_deq__guard
         _ZN4Echo7respond8respond15guardEv_tmp__2 = echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_first__guard
-        (_ZN4Echo7respond8respond15guardEv_tmp__1 & _ZN4Echo7respond8respond15guardEv_tmp__2);
+        _ZN4Echo7respond8respond15guardEv = (_ZN4Echo7respond8respond15guardEv_tmp__1 & _ZN4Echo7respond8respond15guardEv_tmp__2);
 
 
 //processing _ZN8EchoTest5drive6updateEv
@@ -97,10 +97,10 @@ module l_class_OC_Fifo1 (
         first = (element);
 
         // Start of notEmpty
-        ((bool )(full)&1u);
+        notEmpty = ((bool )(full)&1u);
 
         // Start of notFull
-        (((bool )(full)&1u) ^ 1);
+        notFull = (((bool )(full)&1u) ^ 1);
 
   end // always @ (posedge CLK)
 endmodule 

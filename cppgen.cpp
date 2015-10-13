@@ -126,7 +126,8 @@ const char *processCInstruction(Function ***thisp, Instruction &I)
             sval = mapAddress(NI->second, "", NULL);
         strcat(vout, sval);
         if (BitMask) {
-          strcat(vout, printConstant(thisp, ") & ", BitMask));
+          strcat(vout, ") & ");
+          strcat(vout, writeOperand(thisp, BitMask, false));
           strcat(vout, ")");
         }
         break;
@@ -327,7 +328,7 @@ void generateCppData(FILE *OStr, Module &Mod)
                         ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                           Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                          fprintf(OStr, "%s", printConstant(NULL, sep, V));
+                          fprintf(OStr, "%s%s", sep, writeOperand(NULL, V, false));
                           sep = ", ";
                         }
                     }

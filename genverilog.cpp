@@ -110,7 +110,8 @@ const char *generateVerilog(Function ***thisp, Instruction &I)
         }
         strcat(vout, sval);
         if (BitMask) {
-          strcat(vout, printConstant(thisp, ") & ", BitMask));
+          strcat(vout, ") & ");
+          strcat(vout, writeOperand(thisp, BitMask, false));
           strcat(vout, ")");
         }
         }

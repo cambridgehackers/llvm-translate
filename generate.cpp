@@ -717,7 +717,7 @@ exitlab:
 #endif
     return p;
 }
-char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
+char *printConstant2(Function ***thisp, const char *prefix, Constant *CPV)
 {
     char cbuffer[10000];
     cbuffer[0] = 0;
@@ -871,6 +871,15 @@ char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
 exitlab:
     return strdup(cbuffer);
 }
+char *printConstant(Function ***thisp, const char *prefix, Constant *CPV)
+{
+    char cbuffer[10000];
+    strcpy(cbuffer, prefix);
+    //char *p = printConstant2(thisp, "", CPV);
+    char *p = writeOperand(thisp, CPV, false);
+    strcat(cbuffer, p);
+    return strdup(cbuffer);
+}
 char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     char cbuffer[10000];
@@ -916,7 +925,7 @@ char *getOperand(Function ***thisp, Value *Operand, bool Indirect)
     else {
         Constant* CPV = dyn_cast<Constant>(Operand);
         if (CPV && !isa<GlobalValue>(CPV))
-            strcat(cbuffer, printConstant(thisp, prefix, CPV));
+            strcat(cbuffer, printConstant2(thisp, prefix, CPV));
         else {
             strcat(cbuffer, prefix);
             strcat(cbuffer, GetValueName(Operand).c_str());
