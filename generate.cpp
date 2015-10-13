@@ -98,41 +98,8 @@ void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-static uint64_t LoadValueFromMemory(PointerTy Ptr, Type *Ty)
-{
-    const DataLayout *TD = EE->getDataLayout();
-    const unsigned LoadBytes = TD->getTypeStoreSize(Ty);
-    uint64_t rv = 0;
-
-    if (trace_full)
-        printf("[%s:%d] bytes %d type %x\n", __FUNCTION__, __LINE__, LoadBytes, Ty->getTypeID());
-    switch (Ty->getTypeID()) {
-    case Type::IntegerTyID:
-        if (LoadBytes > sizeof(rv)) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        memcpy(&rv, (uint8_t*)Ptr, LoadBytes);
-        break;
-    case Type::PointerTyID:
-        if (!Ptr) {
-            printf("[%s:%d] %p\n", __FUNCTION__, __LINE__, Ptr);
-            exit(1);
-        }
-        else
-            rv = (uint64_t) *((PointerTy*)Ptr);
-        break;
-    default:
-        outs() << "Cannot load value of type " << *Ty << "!";
-        exit(1);
-    }
-    if (trace_full)
-        printf("[%s:%d] rv %llx\n", __FUNCTION__, __LINE__, (long long)rv);
-    return rv;
-}
-
 /******* Util functions ******/
-bool isInlinableInst(const Instruction &I)
+static bool isInlinableInst(const Instruction &I)
 {
   if (isa<CmpInst>(I))
     return true;

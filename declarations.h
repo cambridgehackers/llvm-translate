@@ -164,7 +164,6 @@ const char *processCInstruction(Function ***thisp, Instruction &I);
 char *printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip);
 std::string GetValueName(const Value *Operand);
 char *printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
-bool isInlinableInst(const Instruction &I);
 const AllocaInst *isDirectAlloca(const Value *V);
 void recursiveDelete(Value *V);
 char *writeOperand(Function ***thisp, Value *Operand, bool Indirect);
