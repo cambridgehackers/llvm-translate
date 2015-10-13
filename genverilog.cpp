@@ -35,17 +35,17 @@ std::map<std::string,const Type *> referencedItems;
  */
 const char *generateVerilog(Function ***thisp, Instruction &I)
 {
-    static char vout[MAX_CHAR_BUFFER];
+    char vout[MAX_CHAR_BUFFER];
     int opcode = I.getOpcode();
     vout[0] = 0;
     switch(opcode) {
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-          sprintf(vout, "%s = ", globalName);
-          if (I.getNumOperands())
-              strcat(vout, writeOperand(thisp, I.getOperand(0), false));
-          strcat(vout, ";");
+            sprintf(vout, "%s = ", globalName);
+            if (I.getNumOperands())
+                strcat(vout, writeOperand(thisp, I.getOperand(0), false));
+            strcat(vout, ";");
         }
         break;
 #if 0
@@ -252,7 +252,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         break;
     }
     if (vout[0])
-        return vout;
+        return strdup(vout);
     return NULL;
 }
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
