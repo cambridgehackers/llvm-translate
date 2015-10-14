@@ -414,8 +414,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
  */
 static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
-    char cbuffer[10000];
-    cbuffer[0] = 0;
+    std::string cbuffer = "";
     ConstantInt *CI;
     void *tval = NULL;
     std::string p;
@@ -439,9 +438,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
         }
     }
-    strcat(cbuffer, "(");
+    cbuffer += "(";
     if (LastIndexIsVector)
-        strcat(cbuffer, printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(").c_str());
+        cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         p = getOperand(thisp, Ptr, false);
@@ -450,11 +449,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
              && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))) {
-                const char *name = methodName(STy, 1+        //// WHY????????????????
+                std::string name = methodName(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
-                printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name);
-                strcat(cbuffer, "&");
-                strcat(cbuffer, name);
+                printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
+                cbuffer += "&";
+                cbuffer += name;
                 goto exitlab;
             }
         }
@@ -465,8 +464,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         }
         if ((tval = mapLookup(p.c_str())))
             goto tvallab;
-        strcat(cbuffer, "&");
-        strcat(cbuffer, p.c_str());
+        cbuffer += "&";
+        cbuffer += p;
     } else {
        bool expose = isAddressExposed(Ptr);
        ++I;  // Skip the zero index.
@@ -486,32 +485,32 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                    ERRORIF (val);
                    if (CPA->isString()) {
                        StringRef value = CPA->getAsString();
-                       strcat(cbuffer, printString(value.str().c_str(), value.str().length()));
+                       cbuffer += printString(value.str().c_str(), value.str().length());
                    } else {
                        const char *sep = " ";
-                       strcat(cbuffer, "{");
+                       cbuffer += "{";
                        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-                           strcat(cbuffer, sep);
-                           strcat(cbuffer, writeOperand(thisp, CPA->getOperand(i), false).c_str());
+                           cbuffer += sep;
+                           cbuffer += writeOperand(thisp, CPA->getOperand(i), false);
                            sep = ", ";
                        }
-                       strcat(cbuffer, " }");
+                       cbuffer += " }";
                    }
                    goto next;
                }
            }
-           strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
+           cbuffer += getOperand(thisp, Ptr, true);
 next:
            if (val) {
                char temp[100];
                sprintf(temp, "+%lld", (long long)val);
-               strcat(cbuffer, temp);
+               cbuffer += temp;
            }
        }
        else {
            if (expose) {
-             strcat(cbuffer, "&");
-             strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
+             cbuffer += "&";
+             cbuffer += getOperand(thisp, Ptr, true);
            } else if (I != E && (*I)->isStructTy()) {
              std::string p = getOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
@@ -522,7 +521,9 @@ next:
                  goto tvallab;
              }
              if (NI != nameMap.end() && NI->second) {
-                 sprintf(&cbuffer[strlen(cbuffer)], "0x%llx", (long long)Total + (long)NI->second);
+                 char temp[1000];
+                 sprintf(temp, "0x%llx", (long long)Total + (long)NI->second);
+                 cbuffer += temp;
                  goto exitlab;
              }
              if (!strncmp(p.c_str(), "0x", 2)) {
@@ -540,63 +541,65 @@ next:
                  if (tval)
                      goto tvallab;
                  else {
-                     strcat(cbuffer, "&");
-                     strcat(cbuffer, p.c_str());
-                     strcat(cbuffer, ".");
-                     strcat(cbuffer, fieldp);
+                     cbuffer += "&";
+                     cbuffer += p;
+                     cbuffer += ".";
+                     cbuffer += fieldp;
                  }
              }
-             strcat(cbuffer, "&");
+             cbuffer += "&";
              if (strcmp(p.c_str(), "this")) {
-                 strcat(cbuffer, p.c_str());
-                 strcat(cbuffer, "->");
+                 cbuffer += p;
+                 cbuffer += "->";
              }
-             strcat(cbuffer, fieldp);
+             cbuffer += fieldp;
              ++I;  // eat the struct index as well.
            } else {
-             strcat(cbuffer, "&");
-             strcat(cbuffer, "(");
-             strcat(cbuffer, getOperand(thisp, Ptr, true).c_str());
-             strcat(cbuffer, ")");
+             cbuffer += "&";
+             cbuffer += "(";
+             cbuffer += getOperand(thisp, Ptr, true);
+             cbuffer += ")";
            }
         }
     }
     for (; I != E; ++I) {
         if ((*I)->isStructTy()) {
             StructType *STy = dyn_cast<StructType>(*I);
-            strcat(cbuffer, ".");
-            strcat(cbuffer, fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue()));
+            cbuffer += ".";
+            cbuffer += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
         } else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
-            strcat(cbuffer, "[");
-            strcat(cbuffer, getOperand(thisp, I.getOperand(), false).c_str());
-            strcat(cbuffer, "]");
+            cbuffer += "[";
+            cbuffer += getOperand(thisp, I.getOperand(), false);
+            cbuffer += "]";
         } else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue()) {
-                strcat(cbuffer, ")+(");
-                strcat(cbuffer, writeOperand(thisp, I.getOperand(), false).c_str());
+                cbuffer += ")+(";
+                cbuffer += writeOperand(thisp, I.getOperand(), false);
             }
-            strcat(cbuffer, "))");
+            cbuffer += "))";
         }
     }
     goto exitlab;
 tvallab:
-    sprintf(&cbuffer[strlen(cbuffer)], "0x%llx", (long long)Total + (long)tval);
+    char temp2[1000];
+    sprintf(temp2, "0x%llx", (long long)Total + (long)tval);
+    cbuffer += temp2;
 exitlab:
-    strcat(cbuffer, ")");
-    p = strdup(cbuffer);
+    cbuffer += ")";
+    p = cbuffer;
     if (!strncmp(p.c_str(), "(0x", 3)) {
         p = p.substr(1, p.length()-2);
     }
 #if 0
-    printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, p);
-    if (!strncmp(p, "0x", 2)) {
+    printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, p.c_str());
+    if (!strncmp(p.c_str(), "0x", 2)) {
         char *endptr;
-        void **pint = (void **)strtol(p+2, &endptr, 16);
+        void **pint = (void **)strtol(p.c_str()+2, &endptr, 16);
         printf(" [%p]= %p", pint, *pint);
     }
     printf("\n");
 #endif
-    return std::string(p);
+    return p;
 }
 std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
