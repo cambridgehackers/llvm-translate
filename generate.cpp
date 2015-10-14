@@ -126,7 +126,7 @@ static bool isAddressExposed(const Value *V)
 {
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
-static char *printString(const char *cp, int len)
+static std::string printString(const char *cp, int len)
 {
     char cbuffer[10000];
     char temp[100];
@@ -165,7 +165,7 @@ static char *printString(const char *cp, int len)
       }
     }
     strcat(cbuffer, "\"");
-    return strdup(cbuffer);
+    return cbuffer;
 }
 
 /*
