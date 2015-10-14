@@ -173,7 +173,7 @@ std::string CBEMangle(const std::string &S);
 CLASS_META *lookup_class_mangle(const char *cp);
 void processFunction(VTABLE_WORK &work, FILE *outputFile);
 int checkIfRule(Type *aTy);
-const char *fieldName(const StructType *STy, uint64_t ind);
+std::string fieldName(const StructType *STy, uint64_t ind);
 int processVar(const GlobalVariable *GV);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 void generateModuleDef(const StructType *STy, FILE *OStr);
