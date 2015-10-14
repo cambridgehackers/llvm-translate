@@ -585,8 +585,7 @@ exitlab:
 }
 std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
-    char cbuffer[10000];
-    cbuffer[0] = 0;
+    std::string cbuffer;
     Instruction *I = dyn_cast<Instruction>(Operand);
     bool isAddressImplicit = isAddressExposed(Operand);
     std::string prefix;
@@ -610,40 +609,41 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
         if (prefix == "*" && !strncmp(p.c_str(), "0x", 2)) {
             char *endptr;
             void **pint = (void **)strtol(p.c_str()+2, &endptr, 16);
-            sprintf(cbuffer, "0x%lx", (unsigned long)*pint);
+            char temp[100];
+            sprintf(temp, "0x%lx", (unsigned long)*pint);
+            cbuffer += temp;
         }
         else {
             int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
-            strcat(cbuffer, prefix.c_str());
+            cbuffer += prefix;
             if (addparen)
-                strcat(cbuffer, "(");
-            strcat(cbuffer, p.c_str());
+                cbuffer += "(";
+            cbuffer += p;
             if (addparen)
-                strcat(cbuffer, ")");
+                cbuffer += ")";
         }
     }
     else {
-        strcat(cbuffer, prefix.c_str());
+        cbuffer += prefix;
         Constant* CPV = dyn_cast<Constant>(Operand);
         if (!CPV || isa<GlobalValue>(CPV))
-            strcat(cbuffer, GetValueName(Operand).c_str());
+            cbuffer += GetValueName(Operand);
         else {
             /* handle expressions */
             ERRORIF(isa<UndefValue>(CPV) && CPV->getType()->isSingleValueType()); /* handle 'undefined' */
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>(CPV)) {
-                strcat(cbuffer, "(");
+                cbuffer += "(";
                 int op = CE->getOpcode();
                 assert (op == Instruction::GetElementPtr);
                 // used for character string args to printf()
-                strcat(cbuffer, printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)).c_str());
-                strcat(cbuffer, ")");
+                cbuffer += printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)) +  ")";
             }
             else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
                 char temp[100];
                 Type* Ty = CI->getType();
                 temp[0] = 0;
                 if (Ty == Type::getInt1Ty(CPV->getContext()))
-                    strcat(cbuffer, CI->getZExtValue() ? "1" : "0");
+                    cbuffer += CI->getZExtValue() ? "1" : "0";
                 else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
                     sprintf(temp, "%ld", CI->getZExtValue());
                 }
@@ -651,15 +651,15 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
                     sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
                 else
                     sprintf(temp, "%ld", CI->getSExtValue());
-                strcat(cbuffer, temp);
+                cbuffer += temp;
             }
             else
                 ERRORIF(1); /* handle structured types */
         }
     }
     if (isAddressImplicit)
-        strcat(cbuffer, ")");
-    return strdup(cbuffer);
+        cbuffer += ")";
+    return cbuffer;
 }
 std::string writeOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
@@ -676,8 +676,8 @@ std::string printFunctionSignature(const Function *F, const char *altname, bool 
 {
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
-    const char *sep = "";
-    const char *statstr = "";
+    std::string sep = "";
+    std::string statstr = "";
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
     ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
@@ -704,7 +704,7 @@ std::string printFunctionSignature(const Function *F, const char *altname, bool 
             skip = 0;
         }
     }
-    if (!strcmp(sep, ""))
+    if (sep == "")
         FunctionInnards << "void"; // ret() -> ret(void) in C.
     FunctionInnards << ')';
     return printType(F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), statstr, postfix);
