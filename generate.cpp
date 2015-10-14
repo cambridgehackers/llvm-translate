@@ -330,61 +330,54 @@ int getClassName(const char *name, const char **className, const char **methodNa
  */
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
-    char cbuffer[10000];
-    cbuffer[0] = 0;
-    const char *sp = (isSigned?"signed":"unsigned");
-    const char *sep = "";
-    std::string ostr;
-    raw_string_ostream typeOutstr(ostr);
+    std::string sp = (isSigned?"signed":"unsigned");
+    std::string sep = "";
+    std::string cbuffer = prefix;
 
-    typeOutstr << prefix;
     switch (Ty->getTypeID()) {
     case Type::VoidTyID:
-        typeOutstr << "void " << NameSoFar;
+        cbuffer += "void " + NameSoFar;
         break;
     case Type::IntegerTyID: {
         unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
         assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
         if (NumBits == 1)
-            typeOutstr << "bool";
+            cbuffer += "bool";
         else if (NumBits <= 8)
-            typeOutstr << sp << " char";
+            cbuffer += sp + " char";
         else if (NumBits <= 16)
-            typeOutstr << sp << " short";
+            cbuffer += sp + " short";
         else if (NumBits <= 32)
-            typeOutstr << sp << " int";
+            cbuffer += sp + " int";
         else if (NumBits <= 64)
-            typeOutstr << sp << " long long";
+            cbuffer += sp + " long long";
         }
-        typeOutstr << " " << NameSoFar;
+        cbuffer += " " + NameSoFar;
         break;
     case Type::FunctionTyID: {
         FunctionType *FTy = cast<FunctionType>(Ty);
-        std::string tstr;
-        raw_string_ostream FunctionInnards(tstr);
-        FunctionInnards << " (" << NameSoFar << ") (";
+        std::string tstr = " (" + NameSoFar + ") (";
         for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            FunctionInnards << printType(*I, /*isSigned=*/false, "", sep, "");
+            tstr += printType(*I, /*isSigned=*/false, "", sep, "");
             sep = ", ";
         }
         if (FTy->isVarArg()) {
             if (!FTy->getNumParams())
-                FunctionInnards << " int"; //dummy argument for empty vaarg functs
-            FunctionInnards << ", ...";
+                tstr += " int"; //dummy argument for empty vaarg functs
+            tstr += ", ...";
         } else if (!FTy->getNumParams())
-            FunctionInnards << "void";
-        FunctionInnards << ')';
-        typeOutstr << printType(FTy->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), "", "");
+            tstr += "void";
+        cbuffer += printType(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "");
         break;
         }
     case Type::StructTyID:
-        typeOutstr << "class " << getStructName(cast<StructType>(Ty)) << " " << NameSoFar;
+        cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
         ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
-        typeOutstr << printType(ATy->getElementType(), false, "", "", "") << NameSoFar << "[" + utostr(len) + "]";
+        cbuffer += printType(ATy->getElementType(), false, "", "", "") + NameSoFar + "[" + utostr(len) + "]";
         break;
         }
     case Type::PointerTyID: {
@@ -392,14 +385,14 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
-        typeOutstr << printType(PTy->getElementType(), false, ptrName, "", "");
+        cbuffer += printType(PTy->getElementType(), false, ptrName, "", "");
         break;
         }
     default:
         llvm_unreachable("Unhandled case in getTypeProps!");
     }
-    typeOutstr << postfix;
-    return typeOutstr.str();
+    cbuffer += postfix;
+    return cbuffer;
 }
 
 /*
