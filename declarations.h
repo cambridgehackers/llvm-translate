@@ -121,7 +121,7 @@ public:
 extern ExecutionEngine *EE;
 extern int trace_translate;
 extern int trace_full;
-extern const char *globalName;
+extern std::string globalName;
 
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
@@ -158,7 +158,7 @@ bool endswith(const char *str, const char *suffix);
 void generateCppData(FILE *OStr, Module &Mod);
 void generateCppHeader(Module &Mod, FILE *OStr);
 std::string processCInstruction(Function ***thisp, Instruction &I);
-std::string printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip);
+std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
 std::string GetValueName(const Value *Operand);
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 void recursiveDelete(Value *V);

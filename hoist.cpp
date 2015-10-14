@@ -109,7 +109,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
             prepareOperand(BI.getCondition());
             int cond_item = getLocalSlot(BI.getCondition());
             char temp[MAX_CHAR_BUFFER];
-            sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
+            sprintf(temp, "%s" SEPARATOR "%s_cond", globalName.c_str(), I.getParent()->getName().str().c_str());
             prepareOperand(BI.getSuccessor(0));
             prepareOperand(BI.getSuccessor(1));
         } else if (isa<IndirectBrInst>(I)) {
@@ -125,7 +125,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         char temp[MAX_CHAR_BUFFER];
         const PHINode *PN = dyn_cast<PHINode>(&I);
         I.getType()->dump();
-        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
+        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName.c_str(), I.getParent()->getName().str().c_str());
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
             int valuein = getLocalSlot(PN->getIncomingValue(op));
             prepareOperand(PN->getIncomingValue(op));

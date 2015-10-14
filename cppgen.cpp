@@ -297,7 +297,7 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         if (!(I->isIntrinsic() || name == "main" || name == "atexit"
          || name == "printf" || name == "__cxa_pure_virtual"
          || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, NULL, true, ";\n", 0).c_str());
+            fprintf(OStr, "%s", printFunctionSignature(I, "", true, ";\n", 0).c_str());
     }
     UnnamedStructIDs.clear();
 }

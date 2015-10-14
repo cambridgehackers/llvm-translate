@@ -34,7 +34,7 @@ using namespace llvm;
 int trace_translate ;//= 1;
 static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
-const char *globalName;
+std::string globalName;
 std::map<std::string,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
@@ -278,7 +278,7 @@ std::string GetValueName(const Value *Operand)
         }
     }
     if (generateRegion == 1 && VarName != "this")
-        return globalName + ("_" + VarName);
+        return globalName + "_" + VarName;
     if (regen_methods)
         return VarName;
     return "V" + VarName;
@@ -669,7 +669,7 @@ std::string writeOperand(Function ***thisp, Value *Operand, bool Indirect)
     }
     return p;
 }
-std::string printFunctionSignature(const Function *F, const char *altname, bool Prototype, const char *postfix, int skip)
+std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
 {
     std::string tstr;
     raw_string_ostream FunctionInnards(tstr);
@@ -678,7 +678,7 @@ std::string printFunctionSignature(const Function *F, const char *altname, bool 
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
     ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
-    if (altname)
+    if (altname != "")
         FunctionInnards << altname;
     else
         FunctionInnards << GetValueName(F);
@@ -768,22 +768,24 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
 {
     Function *func = work.f;
     std::string guardName;
-    const char *className;
+    const char *className, *methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &globalName));
+    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName));
 
     NextAnonValueNumber = 0;
     nameMap.clear();
-    if (!regenItem) {
-        globalName = strdup(fname.c_str());
-        fprintf(outputFile, "\n//processing %s\n", globalName);
+    if (regenItem)
+        globalName = methodName;
+    else {
+        globalName = fname;
+        fprintf(outputFile, "\n//processing %s\n", globalName.c_str());
     }
-printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
-    if (generateRegion == 1 && !strncmp(&globalName[strlen(globalName) - 9], "6updateEv", 9)) {
+printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
+    if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 9], "6updateEv", 9)) {
         guardName = globalName;
-        guardName = guardName.substr(1, strlen(globalName) - 10);
-        fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName);
+        guardName = guardName.substr(1, globalName.length() - 10);
+        fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName.c_str());
     }
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
@@ -801,11 +803,11 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     if (generateRegion == 2) {
         int status;
-        const char *demang = abi::__cxa_demangle(globalName, 0, 0, &status);
+        const char *demang = abi::__cxa_demangle(globalName.c_str(), 0, 0, &status);
         std::map<const Function *, int>::iterator MI = funcSeen.find(func);
         if (!regenItem && ((demang && strstr(demang, "::~"))
-         || func->isDeclaration() || !strcmp(globalName, "_Z16run_main_programv") || !strcmp(globalName, "main")
-         || !strcmp(globalName, "__dtor_echoTest")
+         || func->isDeclaration() || globalName == "_Z16run_main_programv" || globalName == "main"
+         || globalName == "__dtor_echoTest"
          || MI != funcSeen.end()))
             return; // MI->second->name;
         funcSeen[func] = 1;
@@ -857,7 +859,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
         }
     }
     if (guardName != "")
-        fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName);
+        fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName.c_str());
     if (generateRegion == 2)
         fprintf(outputFile, "}\n\n");
     else if (!regenItem)

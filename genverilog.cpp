@@ -41,8 +41,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            vout += globalName;
-            vout += " = ";
+            vout += globalName + " = ";
             if (I.getNumOperands())
                 vout += writeOperand(thisp, I.getOperand(0), false);
         }
@@ -55,7 +54,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
           const BranchInst &BI(cast<BranchInst>(I));
           prepareOperand(BI.getCondition());
           int cond_item = getLocalSlot(BI.getCondition());
-          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
+          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName.c_str(), I.getParent()->getName().str().c_str());
           sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
           prepareOperand(BI.getSuccessor(0));
           prepareOperand(BI.getSuccessor(1));
@@ -194,7 +193,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             exit(1);
         }
         I.getType()->dump();
-        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
+        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName.c_str(), I.getParent()->getName().str().c_str());
         vout += temp + " = ";
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
             int valuein = getLocalSlot(PN->getIncomingValue(op));
