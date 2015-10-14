@@ -94,6 +94,20 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
     return dyn_cast<Instruction>(newCall);
 }
 
+void recursiveDelete(Value *V)
+{
+    Instruction *I = dyn_cast<Instruction>(V);
+    if (!I)
+        return;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+        Value *OpV = I->getOperand(i);
+        I->setOperand(i, 0);
+        if (OpV->use_empty())
+            recursiveDelete(OpV);
+    }
+    I->eraseFromParent();
+}
+
 /*
  * Perform guard(), update() hoisting.  Insert shadow variable access for store.
  */

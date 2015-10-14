@@ -83,20 +83,6 @@ const char *intmapLookup(INTMAP_TYPE *map, int value)
     return "unknown";
 }
 
-void recursiveDelete(Value *V)
-{
-    Instruction *I = dyn_cast<Instruction>(V);
-    if (!I)
-        return;
-    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
-        Value *OpV = I->getOperand(i);
-        I->setOperand(i, 0);
-        if (OpV->use_empty())
-            recursiveDelete(OpV);
-    }
-    I->eraseFromParent();
-}
-
 static bool isInlinableInst(const Instruction &I)
 {
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
@@ -564,9 +550,8 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
         std::string p = processInstruction(thisp, I);
-        if (p[0] == '(' && p[p.length()-1] == ')') {
+        if (p[0] == '(' && p[p.length()-1] == ')')
             p = p.substr(1,p.length()-2);
-        }
         if (prefix == "*" && p[0] == '&') {
             prefix = "";
             p = p.substr(1);
@@ -613,7 +598,7 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
                     sprintf(temp, "%ld", CI->getZExtValue());
                 }
                 else if (CI->isMinValue(true))
-                    sprintf(temp, "%ld", CI->getZExtValue());// << 'u';
+                    sprintf(temp, "%ld", CI->getZExtValue());//  'u';
                 else
                     sprintf(temp, "%ld", CI->getSExtValue());
                 cbuffer += temp;
@@ -699,7 +684,6 @@ int checkIfRule(Type *aTy)
 
 std::string processInstruction(Function ***thisp, Instruction *ins)
 {
-    //outs() << "processinst" << *ins;
     switch (ins->getOpcode()) {
     case Instruction::GetElementPtr: {
         GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
@@ -770,8 +754,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
         const char *demang = abi::__cxa_demangle(globalName.c_str(), 0, 0, &status);
         if (!regenItem && ((demang && strstr(demang, "::~"))
          || func->isDeclaration() || globalName == "_Z16run_main_programv" || globalName == "main"
-         || globalName == "__dtor_echoTest"
-         || funcSeen[func]))
+         || globalName == "__dtor_echoTest" || funcSeen[func]))
             return;
         funcSeen[func] = 1;
         fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem).c_str());
@@ -809,9 +792,8 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
                         if (!hasRet)
                             fprintf(outputFile, "    ");
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                         && ins->use_begin() != ins->use_end()) {
+                         && ins->use_begin() != ins->use_end())
                             fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
-                        }
                     }
                     fprintf(outputFile, "%s;\n", vout.c_str());
                 }
