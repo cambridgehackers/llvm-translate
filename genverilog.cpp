@@ -96,16 +96,14 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         vout += pdest + " = ";
         if (BitMask)
           vout += "((";
-        std::map<std::string, void *>::iterator NI = nameMap.find(sval);
-//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
-        if (NI != nameMap.end() && NI->second) {
-            sval = mapAddress(NI->second, "", NULL);
-//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
+//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
+        if (void *temp = nameMap[sval]) {
+            sval = mapAddress(temp, "", NULL);
+//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, temp, sval);
         }
         vout += sval;
-        if (BitMask) {
+        if (BitMask)
           vout += ") & " + printOperand(thisp, BitMask, false) + ")";
-        }
         break;
         }
 

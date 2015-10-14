@@ -778,12 +778,11 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
     if (generateRegion == 2) {
         int status;
         const char *demang = abi::__cxa_demangle(globalName.c_str(), 0, 0, &status);
-        std::map<const Function *, int>::iterator MI = funcSeen.find(func);
         if (!regenItem && ((demang && strstr(demang, "::~"))
          || func->isDeclaration() || globalName == "_Z16run_main_programv" || globalName == "main"
          || globalName == "__dtor_echoTest"
-         || MI != funcSeen.end()))
-            return; // MI->second->name;
+         || funcSeen[func]))
+            return;
         funcSeen[func] = 1;
         fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem).c_str());
     }
