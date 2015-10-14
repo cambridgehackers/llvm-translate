@@ -203,7 +203,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
         fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
-    ClassMethodTable *table = findClass(name);
+    ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
             VTABLE_WORK foo(FI->first, NULL);

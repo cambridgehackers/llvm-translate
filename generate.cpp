@@ -134,33 +134,33 @@ static std::string printString(const char *cp, int len)
         len--;
     bool LastWasHex = false;
     for (unsigned i = 0, e = len; i != e; ++i) {
-      unsigned char C = cp[i];
-      if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
-        LastWasHex = false;
-        if (C == '"' || C == '\\')
-          cbuffer += "\\";
-        sprintf(temp, "%c", (char)C);
-        cbuffer += temp;
-      } else {
-        LastWasHex = false;
-        switch (C) {
-        case '\n': cbuffer += "\\n"; break;
-        case '\t': cbuffer += "\\t"; break;
-        case '\r': cbuffer += "\\r"; break;
-        case '\v': cbuffer += "\\v"; break;
-        case '\a': cbuffer += "\\a"; break;
-        case '\"': cbuffer += "\\\""; break;
-        case '\'': cbuffer += "\\\'"; break;
-        default:
-          cbuffer += "\\x";
-          sprintf(temp, "%c", (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A')));
-          cbuffer += temp;
-          sprintf(temp, "%c", (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A')));
-          cbuffer += temp;
-          LastWasHex = true;
-          break;
+        unsigned char C = cp[i];
+        if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
+            LastWasHex = false;
+            if (C == '"' || C == '\\')
+                cbuffer += "\\";
+            sprintf(temp, "%c", (char)C);
+            cbuffer += temp;
+        } else {
+            LastWasHex = false;
+            switch (C) {
+            case '\n': cbuffer += "\\n"; break;
+            case '\t': cbuffer += "\\t"; break;
+            case '\r': cbuffer += "\\r"; break;
+            case '\v': cbuffer += "\\v"; break;
+            case '\a': cbuffer += "\\a"; break;
+            case '\"': cbuffer += "\\\""; break;
+            case '\'': cbuffer += "\\\'"; break;
+            default:
+                cbuffer += "\\x";
+                sprintf(temp, "%c", (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A')));
+                cbuffer += temp;
+                sprintf(temp, "%c", (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A')));
+                cbuffer += temp;
+                LastWasHex = true;
+                break;
+            }
         }
-      }
     }
     return cbuffer + "\"";
 }
@@ -172,9 +172,9 @@ std::string CBEMangle(const std::string &S)
 {
     std::string Result;
     for (unsigned i = 0, e = S.size(); i != e; ++i)
-        if (isalnum(S[i]) || S[i] == '_') {
+        if (isalnum(S[i]) || S[i] == '_')
             Result += S[i];
-        } else {
+        else {
             Result += '_';
             Result += 'A'+(S[i]&15);
             Result += 'A'+((S[i]>>4)&15);
@@ -196,10 +196,9 @@ static std::string lookupMember(const StructType *STy, uint64_t ind, int tag)
     for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         DIType Ty(*MI);
         //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
-        if (Ty.getTag() == tag) {
+        if (Ty.getTag() == tag)
             if (!ind--)
                 return CBEMangle(Ty.getName().str());
-        }
     }
     }
     sprintf(temp, "field%d", (int)ind);
@@ -215,18 +214,16 @@ static std::string methodName(const StructType *STy, uint64_t ind)
 }
 std::string getStructName(const StructType *STy)
 {
-    std::string name;
     assert(STy);
+    if (!structWork_run)
+        structWork.push_back(STy);
     if (!STy->isLiteral() && !STy->getName().empty())
-        name = CBEMangle("l_"+STy->getName().str());
+        return CBEMangle("l_"+STy->getName().str());
     else {
         if (!UnnamedStructIDs[STy])
             UnnamedStructIDs[STy] = NextTypeID++;
-        name = "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
+        return "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
     }
-    if (!structWork_run)
-        structWork.push_back(STy);
-    return name;
 }
 
 const StructType *findThisArgument(Function *func)
@@ -282,14 +279,6 @@ std::string GetValueName(const Value *Operand)
     if (regen_methods)
         return VarName;
     return "V" + VarName;
-}
-
-ClassMethodTable *findClass(std::string tname)
-{
-    std::map<std::string, ClassMethodTable *>::iterator FI = classCreate.find(tname);
-    if (FI != classCreate.end())
-        return classCreate[tname];
-    return NULL;
 }
 
 int getClassName(const char *name, const char **className, const char **methodName)
@@ -865,7 +854,7 @@ void pushWork(Function *func, Function ***thisp)
         CLASS_META *mptr = lookup_class(tname.c_str());
         if (mptr->node->getNumOperands() > 3
          && mptr->node->getOperand(3)->getName() == className) {
-            if (!findClass(sname))
+            if (!classCreate[sname])
                 classCreate[sname] = new ClassMethodTable(sname, className);
             classCreate[sname]->method[func] = methodName;
             functionIndex[func] = classCreate[sname];

@@ -167,7 +167,6 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string processInstruction(Function ***thisp, Instruction *ins);
 void *mapLookup(std::string name);
 void pushWork(Function *func, Function ***thisp);
-ClassMethodTable *findClass(std::string tname);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 CLASS_META *lookup_class_mangle(const char *cp);

@@ -265,7 +265,7 @@ void generateModuleDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     unsigned Idx = 0;
-    ClassMethodTable *table = findClass(name);
+    ClassMethodTable *table = classCreate[name];
 
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
     if (!table)
@@ -297,7 +297,7 @@ void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
         const StructType *STy;
         if ((STy = findThisArgumentType(dyn_cast<PointerType>(RI->second)))) {
             std::string name = getStructName(STy);
-            ClassMethodTable *table = findClass(name);
+            ClassMethodTable *table = classCreate[name];
 printf("[%s:%d] name %s type %p table %p\n", __FUNCTION__, __LINE__, name.c_str(), RI->second, table);
             if (table && RI->first != "Vthis")
                 generateModuleSignature(name, OStr, table, RI->first.c_str());
