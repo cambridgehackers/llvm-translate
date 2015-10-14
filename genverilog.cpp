@@ -35,16 +35,16 @@ static std::map<std::string,Type *> referencedItems;
  */
 std::string generateVerilog(Function ***thisp, Instruction &I)
 {
-    char vout[MAX_CHAR_BUFFER];
+    std::string vout;
     int opcode = I.getOpcode();
-    vout[0] = 0;
     switch(opcode) {
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            sprintf(vout, "%s = ", globalName);
+            vout += globalName;
+            vout += " = ";
             if (I.getNumOperands())
-                strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
+                vout += writeOperand(thisp, I.getOperand(0), false);
         }
         break;
 #if 0
@@ -97,21 +97,18 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
             if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
-        strcat(vout, pdest.c_str());
-        strcat(vout, " = ");
+        vout += pdest + " = ";
         if (BitMask)
-          strcat(vout, "((");
+          vout += "((";
         std::map<std::string, void *>::iterator NI = nameMap.find(sval);
 //printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval, (NI != nameMap.end()));
         if (NI != nameMap.end() && NI->second) {
             sval = mapAddress(NI->second, "", NULL);
 //printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, NI->second, sval);
         }
-        strcat(vout, sval.c_str());
+        vout += sval;
         if (BitMask) {
-          strcat(vout, ") & ");
-          strcat(vout, writeOperand(thisp, BitMask, false).c_str());
-          strcat(vout, ")");
+          vout += ") & " + writeOperand(thisp, BitMask, false) + ")";
         }
         break;
         }
@@ -153,13 +150,13 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             std::string pnew = p;
             referencedItems[pnew] = func->getType();
             prefix = p + NI->second->method[func];
-            strcat(vout, prefix.c_str());
+            vout += prefix;
             if (!hasRet)
-                strcat(vout, "_ENA = 1");
+                vout += "_ENA = 1";
             skip = 1;
         }
         else {
-            strcat(vout, p.c_str());
+            vout += p;
             if (regen_methods) {
                 break;
             }
@@ -169,24 +166,24 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         if (prefix == "")
-            strcat(vout, "(");
+            vout += "(";
         Function::const_arg_iterator FAI = func->arg_begin();
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
-                strcat(vout, sep);
+                vout += sep;
                 std::string p = writeOperand(thisp, *AI, false);
                 if (prefix != "")
-                    strcat(vout, (";\n            " + prefix + "_" + FAI->getName().str() + " = ").c_str());
+                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
                 else {
                     ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
-                strcat(vout, p.c_str());
+                vout += p;
             }
             skip = 0;
         }
         if (prefix == "")
-            strcat(vout, ")");
+            vout += ")";
         break;
         }
 
@@ -201,7 +198,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         }
         I.getType()->dump();
         sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
-        sprintf(vout, "%s = ", temp);
+        vout += temp + " = ";
         slotarray[operand_list[0].value].name = strdup(temp);
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
             int valuein = getLocalSlot(PN->getIncomingValue(op));
@@ -219,13 +216,13 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
               trailch = ":";
               //prepareOperand(BI->getSuccessor(0));
               //prepareOperand(BI->getSuccessor(1));
-              strcat(vout, temp);
+              vout += temp;
             }
             if (slotarray[valuein].name)
                 sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
             else
                 sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
-            strcat(vout, temp);
+            vout += temp;
         }
         }
         break;
@@ -236,7 +233,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         exit(1);
         break;
     }
-    return std::string(vout);
+    return vout;
 }
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
 {
