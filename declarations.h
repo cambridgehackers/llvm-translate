@@ -162,7 +162,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
 std::string GetValueName(const Value *Operand);
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 void recursiveDelete(Value *V);
-std::string writeOperand(Function ***thisp, Value *Operand, bool Indirect);
+std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string getOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string processInstruction(Function ***thisp, Instruction *ins);
 void *mapLookup(std::string name);

@@ -41,7 +41,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
             vout += "  return ";
             if (I.getNumOperands())
-                vout += writeOperand(thisp, I.getOperand(0), false);
+                vout += printOperand(thisp, I.getOperand(0), false);
             vout += ";\n";
         }
         break;
@@ -59,9 +59,9 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::And: case Instruction::Or: case Instruction::Xor:
         assert(!I.getType()->isPointerTy());
         if (BinaryOperator::isNeg(&I))
-            vout += "-(" + writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+            vout += "-(" + printOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         else if (BinaryOperator::isFNeg(&I))
-            vout += "-(" + writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+            vout += "-(" + printOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         else if (I.getOpcode() == Instruction::FRem) {
             if (I.getType() == Type::getFloatTy(I.getContext()))
                 vout += "fmodf(";
@@ -69,25 +69,25 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
                 vout += "fmod(";
             else  // all 3 flavors of long double
                 vout += "fmodl(";
-            vout += writeOperand(thisp, I.getOperand(0), false) + ", "
-                 + writeOperand(thisp, I.getOperand(1), false) + ")";
+            vout += printOperand(thisp, I.getOperand(0), false) + ", "
+                 + printOperand(thisp, I.getOperand(1), false) + ")";
         } else
-            vout += writeOperand(thisp, I.getOperand(0), false)
+            vout += printOperand(thisp, I.getOperand(0), false)
                  + " " + intmapLookup(opcodeMap, I.getOpcode()) + " "
-                 + writeOperand(thisp, I.getOperand(1), false);
+                 + printOperand(thisp, I.getOperand(1), false);
         break;
 
     // Memory instructions...
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        std::string pdest = writeOperand(thisp, IS.getPointerOperand(), true);
+        std::string pdest = printOperand(thisp, IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        std::string sval = writeOperand(thisp, Operand, false);
+        std::string sval = printOperand(thisp, Operand, false);
         if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
             void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
@@ -104,7 +104,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             sval = mapAddress(NI->second, "", NULL);
         vout += sval;
         if (BitMask) {
-          vout += ") & " + writeOperand(thisp, BitMask, false) + ")";
+          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
         }
         break;
         }
@@ -130,9 +130,9 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        vout += writeOperand(thisp, I.getOperand(0), false)
+        vout += printOperand(thisp, I.getOperand(0), false)
              + " " + intmapLookup(predText, CI.getPredicate()) + " "
-             + writeOperand(thisp, I.getOperand(1), false);
+             + printOperand(thisp, I.getOperand(1), false);
         break;
         }
     case Instruction::Call: {
@@ -149,7 +149,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
-        std::string p = writeOperand(thisp, Callee, false);
+        std::string p = printOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(p.c_str()+1);
@@ -164,7 +164,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         int skip = regen_methods;
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
         if (NI != functionIndex.end()) {
-            p = writeOperand(thisp, *AI, false);
+            p = printOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
             vout += p + ("." + NI->second->method[func]);
@@ -180,7 +180,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
                 ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
-                vout += sep + writeOperand(thisp, *AI, false);
+                vout += sep + printOperand(thisp, *AI, false);
                 sep = ", ";
             }
             skip = 0;
@@ -233,7 +233,7 @@ void generateCppData(FILE *OStr, Module &Mod)
                 fprintf(OStr, "static ");
               fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
               if (!I->getInitializer()->isNullValue())
-                fprintf(OStr, " = %s", writeOperand(NULL, I->getInitializer(), false).c_str());
+                fprintf(OStr, " = %s", printOperand(NULL, I->getInitializer(), false).c_str());
               fprintf(OStr, ";\n");
           }
         }
@@ -261,9 +261,9 @@ void generateCppData(FILE *OStr, Module &Mod)
                         ruleList.push_back(strName);
                         for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
                             Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                            //char *p = writeOperand(NULL, V, false);
+                            //char *p = printOperand(NULL, V, false);
                             assert (dyn_cast<PointerType>(V->getType()));
-                            std::string p = writeOperand(NULL, V->getOperand(0), false);
+                            std::string p = printOperand(NULL, V->getOperand(0), false);
                             fprintf(OStr, "%s (unsigned char *)%s", sep, p.c_str());
                             sep = ",";
                         }

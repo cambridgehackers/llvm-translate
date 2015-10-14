@@ -43,7 +43,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
             vout += globalName + " = ";
             if (I.getNumOperands())
-                vout += writeOperand(thisp, I.getOperand(0), false);
+                vout += printOperand(thisp, I.getOperand(0), false);
         }
         break;
 #if 0
@@ -79,13 +79,13 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        std::string pdest = writeOperand(thisp, IS.getPointerOperand(), true);
+        std::string pdest = printOperand(thisp, IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        std::string sval = writeOperand(thisp, Operand, false);
+        std::string sval = printOperand(thisp, Operand, false);
         if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
             void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
@@ -104,7 +104,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         }
         vout += sval;
         if (BitMask) {
-          vout += ") & " + writeOperand(thisp, BitMask, false) + ")";
+          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
         }
         break;
         }
@@ -123,7 +123,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
-        std::string p = writeOperand(thisp, Callee, false);
+        std::string p = printOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(p.c_str()+1);
@@ -140,7 +140,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         std::string prefix;
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
         if (NI != functionIndex.end()) {
-            p = writeOperand(thisp, *AI, false);
+            p = printOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
             std::string pnew = p;
@@ -167,7 +167,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
                 vout += sep;
-                std::string p = writeOperand(thisp, *AI, false);
+                std::string p = printOperand(thisp, *AI, false);
                 if (prefix != "")
                     vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
                 else {

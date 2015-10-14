@@ -474,7 +474,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                        std::string sep = " ";
                        cbuffer += "{";
                        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-                           cbuffer += sep + writeOperand(thisp, CPA->getOperand(i), false);
+                           cbuffer += sep + printOperand(thisp, CPA->getOperand(i), false);
                            sep = ", ";
                        }
                        cbuffer += " }";
@@ -541,7 +541,7 @@ next:
             cbuffer += "[" + getOperand(thisp, I.getOperand(), false) + "]";
         else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
-                cbuffer += ")+(" + writeOperand(thisp, I.getOperand(), false);
+                cbuffer += ")+(" + printOperand(thisp, I.getOperand(), false);
             cbuffer += "))";
         }
     }
@@ -643,7 +643,7 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
         cbuffer += ")";
     return cbuffer;
 }
-std::string writeOperand(Function ***thisp, Value *Operand, bool Indirect)
+std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     std::string p = getOperand(thisp, Operand, Indirect);
     void *tval = mapLookup(p.c_str());
