@@ -194,14 +194,14 @@ static std::string lookupMember(const StructType *STy, uint64_t ind, int tag)
     if (classp->inherit) {
         DIType Ty(classp->inherit);
         if (!ind--)
-            return CBEMangle(Ty.getName().str()).c_str();
+            return CBEMangle(Ty.getName().str());
     }
     for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         DIType Ty(*MI);
         //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
         if (Ty.getTag() == tag) {
             if (!ind--)
-                return CBEMangle(Ty.getName().str()).c_str();
+                return CBEMangle(Ty.getName().str());
         }
     }
     }
