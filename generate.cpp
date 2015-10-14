@@ -128,44 +128,41 @@ static bool isAddressExposed(const Value *V)
 }
 static std::string printString(const char *cp, int len)
 {
-    char cbuffer[10000];
+    std::string cbuffer = "\"";
     char temp[100];
-    cbuffer[0] = 0;
     if (!cp[len-1])
         len--;
-    strcat(cbuffer, "\"");
     bool LastWasHex = false;
     for (unsigned i = 0, e = len; i != e; ++i) {
       unsigned char C = cp[i];
       if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
         LastWasHex = false;
         if (C == '"' || C == '\\')
-          strcat(cbuffer, "\\");
+          cbuffer += "\\";
         sprintf(temp, "%c", (char)C);
-        strcat(cbuffer, temp);
+        cbuffer += temp;
       } else {
         LastWasHex = false;
         switch (C) {
-        case '\n': strcat(cbuffer, "\\n"); break;
-        case '\t': strcat(cbuffer, "\\t"); break;
-        case '\r': strcat(cbuffer, "\\r"); break;
-        case '\v': strcat(cbuffer, "\\v"); break;
-        case '\a': strcat(cbuffer, "\\a"); break;
-        case '\"': strcat(cbuffer, "\\\""); break;
-        case '\'': strcat(cbuffer, "\\\'"); break;
+        case '\n': cbuffer += "\\n"; break;
+        case '\t': cbuffer += "\\t"; break;
+        case '\r': cbuffer += "\\r"; break;
+        case '\v': cbuffer += "\\v"; break;
+        case '\a': cbuffer += "\\a"; break;
+        case '\"': cbuffer += "\\\""; break;
+        case '\'': cbuffer += "\\\'"; break;
         default:
-          strcat(cbuffer, "\\x");
+          cbuffer += "\\x";
           sprintf(temp, "%c", (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A')));
-          strcat(cbuffer, temp);
+          cbuffer += temp;
           sprintf(temp, "%c", (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A')));
-          strcat(cbuffer, temp);
+          cbuffer += temp;
           LastWasHex = true;
           break;
         }
       }
     }
-    strcat(cbuffer, "\"");
-    return cbuffer;
+    return cbuffer + "\"";
 }
 
 /*
