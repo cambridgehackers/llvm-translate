@@ -319,9 +319,7 @@ int getClassName(const char *name, const char **className, const char **methodNa
  */
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
-    std::string sp = (isSigned?"signed":"unsigned");
-    std::string sep = "";
-    std::string cbuffer = prefix;
+    std::string sep = "", cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
 
     switch (Ty->getTypeID()) {
     case Type::VoidTyID:
@@ -384,9 +382,6 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
     return cbuffer;
 }
 
-/*
- * Output expressions
- */
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -502,8 +497,7 @@ next:
                  goto tvallab;
              }
              if (!strncmp(p.c_str(), "(0x", 3) && p[p.length()-1] == ')') {
-                 p = p.substr(1,p.length()-2);
-                 tval = mapLookup(p.c_str());
+                 tval = mapLookup(p.substr(1,p.length()-2).c_str());
                  goto tvallab;
              }
              if (!strncmp(p.c_str(), "(&", 2) && p[p.length()-1] == ')') {
@@ -645,22 +639,19 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 }
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
 {
-    std::string tstr;
-    raw_string_ostream FunctionInnards(tstr);
-    std::string sep = "";
-    std::string statstr = "";
+    std::string sep = "", statstr = "", tstr;
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
     ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
     if (altname != "")
-        FunctionInnards << altname;
+        tstr += altname;
     else
-        FunctionInnards << GetValueName(F);
-    FunctionInnards << '(';
+        tstr += GetValueName(F);
+    tstr += '(';
     if (F->isDeclaration()) {
         for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
             if (!skip) {
-                FunctionInnards << printType(*I, /*isSigned=*/false, "", sep, "");
+                tstr += printType(*I, /*isSigned=*/false, "", sep, "");
                 sep = ", ";
             }
             skip = 0;
@@ -669,16 +660,15 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
         for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
             if (!skip) {
                 std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-                FunctionInnards << printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
+                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
                 sep = ", ";
             }
             skip = 0;
         }
     }
     if (sep == "")
-        FunctionInnards << "void"; // ret() -> ret(void) in C.
-    FunctionInnards << ')';
-    return printType(F->getReturnType(), /*isSigned=*/false, FunctionInnards.str(), statstr, postfix);
+        tstr += "void"; // ret() -> ret(void) in C.
+    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
 }
 /*
  * Pass control functions
