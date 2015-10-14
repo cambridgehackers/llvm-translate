@@ -117,7 +117,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        std::string p = getOperand(thisp, I.getOperand(0), false);
+        std::string p = fetchOperand(thisp, I.getOperand(0), false);
         if (p == "Vthis" && thisp) {
             char ptemp[1000];
             sprintf(ptemp, "0x%lx", (unsigned long)thisp);
@@ -145,7 +145,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        std::string cthisp = getOperand(thisp, *AI, false);
+        std::string cthisp = fetchOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
@@ -194,6 +194,31 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         break;
     }
     return vout;
+}
+
+static int processVar(const GlobalVariable *GV)
+{
+    if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
+     || (GV->hasAppendingLinkage() && GV->use_empty()
+      && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
+        return 0;
+    return 1;
+}
+
+static int checkIfRule(Type *aTy)
+{
+    Type *Ty;
+    FunctionType *FTy;
+    PointerType  *PTy;
+    if ((PTy = dyn_cast<PointerType>(aTy))
+     && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
+     && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
+     && (Ty = PTy->getElementType())
+     && (Ty->getNumContainedTypes() > 1)
+     && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
+     && (Ty->getStructName() == "class.Rule"))
+       return 1;
+    return 0;
 }
 
 void generateClassDef(const StructType *STy, FILE *OStr)

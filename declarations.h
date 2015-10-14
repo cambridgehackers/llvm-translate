@@ -137,6 +137,10 @@ extern unsigned NextTypeID;
 extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
 
+int validateAddress(int arg, void *p);
+const char *mapAddress(void *arg, std::string name, const MDNode *type);
+void constructAddressMap(NamedMDNode *CU_Nodes);
+
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 const MDNode *getNode(const Value *val);
 void dumpType(DIType litem, CLASS_META *classp);
@@ -146,36 +150,32 @@ void process_metadata(NamedMDNode *CU_Nodes);
 CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
+std::string methodName(const StructType *STy, uint64_t ind);
+int getClassName(const char *name, const char **className, const char **methodName);
+std::string fieldName(const StructType *STy, uint64_t ind);
+void *mapLookup(std::string name);
 
 std::string calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 std::string generateVerilog(Function ***thisp, Instruction &I);
-bool callProcess_runOnInstruction(Module *Mod, Instruction *II);
-
-int validateAddress(int arg, void *p);
-const char *mapAddress(void *arg, std::string name, const MDNode *type);
-void constructAddressMap(NamedMDNode *CU_Nodes);
-bool endswith(const char *str, const char *suffix);
+void generateModuleDef(const StructType *STy, FILE *OStr);
+void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
+std::string processCInstruction(Function ***thisp, Instruction &I);
+void generateClassDef(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
 void generateCppHeader(Module &Mod, FILE *OStr);
-std::string processCInstruction(Function ***thisp, Instruction &I);
-std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
-std::string GetValueName(const Value *Operand);
+
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
-std::string getOperand(Function ***thisp, Value *Operand, bool Indirect);
-std::string processInstruction(Function ***thisp, Instruction *ins);
-void *mapLookup(std::string name);
-void pushWork(Function *func, Function ***thisp);
+std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
+std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
+
+bool endswith(const char *str, const char *suffix);
+std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
-CLASS_META *lookup_class_mangle(const char *cp);
-void processFunction(VTABLE_WORK &work, FILE *outputFile);
-int checkIfRule(Type *aTy);
-std::string fieldName(const StructType *STy, uint64_t ind);
-int processVar(const GlobalVariable *GV);
-void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
-void generateModuleDef(const StructType *STy, FILE *OStr);
-void generateClassDef(const StructType *STy, FILE *OStr);
 const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(Function *func);
-int getClassName(const char *name, const char **className, const char **methodName);
+
+std::string processInstruction(Function ***thisp, Instruction *ins);
+void processFunction(VTABLE_WORK &work, FILE *outputFile);
+void pushWork(Function *func, Function ***thisp);

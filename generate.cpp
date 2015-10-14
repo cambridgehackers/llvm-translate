@@ -168,36 +168,6 @@ std::string CBEMangle(const std::string &S)
         }
     return Result;
 }
-static std::string lookupMember(const StructType *STy, uint64_t ind, int tag)
-{
-    static char temp[MAX_CHAR_BUFFER];
-    if (!STy->isLiteral()) { // unnamed items
-    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
-    ERRORIF (!classp);
-    if (classp->inherit) {
-        DIType Ty(classp->inherit);
-        if (!ind--)
-            return CBEMangle(Ty.getName().str());
-    }
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
-        if (Ty.getTag() == tag)
-            if (!ind--)
-                return CBEMangle(Ty.getName().str());
-    }
-    }
-    sprintf(temp, "field%d", (int)ind);
-    return temp;
-}
-std::string fieldName(const StructType *STy, uint64_t ind)
-{
-    return lookupMember(STy, ind, dwarf::DW_TAG_member);
-}
-static std::string methodName(const StructType *STy, uint64_t ind)
-{
-    return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
-}
 std::string getStructName(const StructType *STy)
 {
     assert(STy);
@@ -267,39 +237,6 @@ std::string GetValueName(const Value *Operand)
     return "V" + VarName;
 }
 
-int getClassName(const char *name, const char **className, const char **methodName)
-{
-    int status;
-    static char temp[1000];
-    char *pmethod = temp;
-    temp[0] = 0;
-    *className = NULL;
-    *methodName = NULL;
-    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
-    if (demang) {
-        strcpy(temp, demang);
-        while (*pmethod && pmethod[0] != '(')
-            pmethod++;
-        *pmethod = 0;
-        while (pmethod > temp && pmethod[0] != ':')
-            pmethod--;
-        char *p = pmethod++;
-        while (p[0] == ':')
-            *p-- = 0;
-        int len = 0;
-        const char *p1 = demang;
-        while (*p1 && *p1 != '(')
-            p1++;
-        while (p1 != demang && *p1 != ':') {
-            len++;
-            p1--;
-        }
-        *className = temp;
-        *methodName = pmethod;
-        return 1;
-    }
-    return 0;
-}
 /*
  * Output types
  */
@@ -368,6 +305,40 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
     return cbuffer;
 }
 
+std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
+{
+    std::string sep = "", statstr = "", tstr;
+    FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+    ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
+    if (F->hasLocalLinkage()) statstr = "static ";
+    if (altname != "")
+        tstr += altname;
+    else
+        tstr += GetValueName(F);
+    tstr += '(';
+    if (F->isDeclaration()) {
+        for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
+            if (!skip) {
+                tstr += printType(*I, /*isSigned=*/false, "", sep, "");
+                sep = ", ";
+            }
+            skip = 0;
+        }
+    } else if (!F->arg_empty()) {
+        for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+            if (!skip) {
+                std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
+                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
+                sep = ", ";
+            }
+            skip = 0;
+        }
+    }
+    if (sep == "")
+        tstr += "void"; // ret() -> ret(void) in C.
+    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
+}
+
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -380,7 +351,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     uint64_t Total = 0;
     const DataLayout *TD = EE->getDataLayout();
     if (I == E)
-        return getOperand(thisp, Ptr, false);
+        return fetchOperand(thisp, Ptr, false);
     VectorType *LastIndexIsVector = 0;
     for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
@@ -402,7 +373,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-        std::string p = getOperand(thisp, Ptr, false);
+        std::string p = fetchOperand(thisp, Ptr, false);
         if (p == "(*(this))") {
             PointerType *PTy;
             const StructType *STy;
@@ -452,7 +423,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                    goto next;
                }
            }
-           cbuffer += getOperand(thisp, Ptr, true);
+           cbuffer += fetchOperand(thisp, Ptr, true);
 next:
            if (val) {
                char temp[100];
@@ -462,9 +433,9 @@ next:
        }
        else {
            if (expose)
-               cbuffer += "&" + getOperand(thisp, Ptr, true);
+               cbuffer += "&" + fetchOperand(thisp, Ptr, true);
            else if (I != E && (*I)->isStructTy()) {
-             std::string p = getOperand(thisp, Ptr, false);
+             std::string p = fetchOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
 //printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
@@ -499,7 +470,7 @@ next:
              cbuffer += fieldp;
              ++I;  // eat the struct index as well.
            } else
-             cbuffer += "&(" + getOperand(thisp, Ptr, true) + ")";
+             cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
         }
     }
     for (; I != E; ++I) {
@@ -507,7 +478,7 @@ next:
             StructType *STy = dyn_cast<StructType>(*I);
             cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
         } else if ((*I)->isArrayTy() || !(*I)->isVectorTy())
-            cbuffer += "[" + getOperand(thisp, I.getOperand(), false) + "]";
+            cbuffer += "[" + fetchOperand(thisp, I.getOperand(), false) + "]";
         else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
                 cbuffer += ")+(" + printOperand(thisp, I.getOperand(), false);
@@ -534,7 +505,7 @@ exitlab:
 #endif
     return cbuffer;
 }
-std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
+std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     std::string cbuffer;
     Instruction *I = dyn_cast<Instruction>(Operand);
@@ -613,7 +584,7 @@ std::string getOperand(Function ***thisp, Value *Operand, bool Indirect)
 }
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
-    std::string p = getOperand(thisp, Operand, Indirect);
+    std::string p = fetchOperand(thisp, Operand, Indirect);
     void *tval = mapLookup(p.c_str());
     if (tval) {
         char temp[1000];
@@ -622,66 +593,9 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
     }
     return p;
 }
-std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
-{
-    std::string sep = "", statstr = "", tstr;
-    FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-    ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
-    if (F->hasLocalLinkage()) statstr = "static ";
-    if (altname != "")
-        tstr += altname;
-    else
-        tstr += GetValueName(F);
-    tstr += '(';
-    if (F->isDeclaration()) {
-        for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-            if (!skip) {
-                tstr += printType(*I, /*isSigned=*/false, "", sep, "");
-                sep = ", ";
-            }
-            skip = 0;
-        }
-    } else if (!F->arg_empty()) {
-        for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-            if (!skip) {
-                std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
-                sep = ", ";
-            }
-            skip = 0;
-        }
-    }
-    if (sep == "")
-        tstr += "void"; // ret() -> ret(void) in C.
-    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
-}
 /*
  * Pass control functions
  */
-int processVar(const GlobalVariable *GV)
-{
-    if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
-     || (GV->hasAppendingLinkage() && GV->use_empty()
-      && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
-        return 0;
-    return 1;
-}
-int checkIfRule(Type *aTy)
-{
-    Type *Ty;
-    FunctionType *FTy;
-    PointerType  *PTy;
-    if ((PTy = dyn_cast<PointerType>(aTy))
-     && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
-     && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
-     && (Ty = PTy->getElementType())
-     && (Ty->getNumContainedTypes() > 1)
-     && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
-     && (Ty->getStructName() == "class.Rule"))
-       return 1;
-    return 0;
-}
-
 std::string processInstruction(Function ***thisp, Instruction *ins)
 {
     switch (ins->getOpcode()) {
@@ -692,7 +606,7 @@ std::string processInstruction(Function ***thisp, Instruction *ins)
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(*ins);
         ERRORIF (IL.isVolatile());
-        return getOperand(thisp, ins->getOperand(0), true);
+        return fetchOperand(thisp, ins->getOperand(0), true);
         }
     case Instruction::Alloca: // ignore
         if (generateRegion == 2) {

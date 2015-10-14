@@ -22,6 +22,7 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
+#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/DebugInfo.h"
 
 using namespace llvm;
@@ -287,4 +288,68 @@ int lookup_field(const char *classname, std::string methodname)
             return Ty.getOffsetInBits()/8;
     }
     return -1;
+}
+static std::string lookupMember(const StructType *STy, uint64_t ind, int tag)
+{
+    static char temp[MAX_CHAR_BUFFER];
+    if (!STy->isLiteral()) { // unnamed items
+    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
+    ERRORIF (!classp);
+    if (classp->inherit) {
+        DIType Ty(classp->inherit);
+        if (!ind--)
+            return CBEMangle(Ty.getName().str());
+    }
+    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        DIType Ty(*MI);
+        //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
+        if (Ty.getTag() == tag)
+            if (!ind--)
+                return CBEMangle(Ty.getName().str());
+    }
+    }
+    sprintf(temp, "field%d", (int)ind);
+    return temp;
+}
+std::string fieldName(const StructType *STy, uint64_t ind)
+{
+    return lookupMember(STy, ind, dwarf::DW_TAG_member);
+}
+std::string methodName(const StructType *STy, uint64_t ind)
+{
+    return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
+}
+
+int getClassName(const char *name, const char **className, const char **methodName)
+{
+    int status;
+    static char temp[1000];
+    char *pmethod = temp;
+    temp[0] = 0;
+    *className = NULL;
+    *methodName = NULL;
+    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
+    if (demang) {
+        strcpy(temp, demang);
+        while (*pmethod && pmethod[0] != '(')
+            pmethod++;
+        *pmethod = 0;
+        while (pmethod > temp && pmethod[0] != ':')
+            pmethod--;
+        char *p = pmethod++;
+        while (p[0] == ':')
+            *p-- = 0;
+        int len = 0;
+        const char *p1 = demang;
+        while (*p1 && *p1 != '(')
+            p1++;
+        while (p1 != demang && *p1 != ':') {
+            len++;
+            p1--;
+        }
+        *className = temp;
+        *methodName = pmethod;
+        return 1;
+    }
+    return 0;
 }

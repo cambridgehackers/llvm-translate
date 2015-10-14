@@ -170,7 +170,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
-        std::string p = getOperand(thisp, Callee, false);
+        std::string p = fetchOperand(thisp, Callee, false);
         int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         std::string fname;

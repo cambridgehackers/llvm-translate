@@ -117,7 +117,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         Value *Callee = ICL.getCalledValue();
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        std::string cthisp = getOperand(thisp, *AI, false);
+        std::string cthisp = fetchOperand(thisp, *AI, false);
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
