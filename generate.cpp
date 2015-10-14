@@ -449,12 +449,10 @@ next:
                  cbuffer += temp;
                  goto exitlab;
              }
+             if (!strncmp(p.c_str(), "(0x", 3) && p[p.length()-1] == ')')
+                 p = p.substr(1,p.length()-2);
              if (!strncmp(p.c_str(), "0x", 2)) {
                  tval = mapLookup(p.c_str());
-                 goto tvallab;
-             }
-             if (!strncmp(p.c_str(), "(0x", 3) && p[p.length()-1] == ')') {
-                 tval = mapLookup(p.substr(1,p.length()-2).c_str());
                  goto tvallab;
              }
              if (!strncmp(p.c_str(), "(&", 2) && p[p.length()-1] == ')') {
