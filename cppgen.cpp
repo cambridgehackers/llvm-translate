@@ -33,17 +33,16 @@ using namespace llvm;
  */
 std::string processCInstruction(Function ***thisp, Instruction &I)
 {
-    char vout[MAX_CHAR_BUFFER];
+    std::string vout;
     int opcode = I.getOpcode();
-    vout[0] = 0;
     switch(opcode) {
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            strcat(vout, "  return ");
+            vout += "  return ";
             if (I.getNumOperands())
-                strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
-            strcat(vout, ";\n");
+                vout += writeOperand(thisp, I.getOperand(0), false);
+            vout += ";\n";
         }
         break;
     case Instruction::Unreachable:
@@ -60,30 +59,19 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::And: case Instruction::Or: case Instruction::Xor: {
         assert(!I.getType()->isPointerTy());
         if (BinaryOperator::isNeg(&I)) {
-            strcat(vout, "-(");
-            strcat(vout, writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false).c_str());
-            strcat(vout, ")");
+            vout += "-(" + writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         } else if (BinaryOperator::isFNeg(&I)) {
-            strcat(vout, "-(");
-            strcat(vout, writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false).c_str());
-            strcat(vout, ")");
+            vout += "-(" + writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         } else if (I.getOpcode() == Instruction::FRem) {
             if (I.getType() == Type::getFloatTy(I.getContext()))
-                strcat(vout, "fmodf(");
+                vout += "fmodf(";
             else if (I.getType() == Type::getDoubleTy(I.getContext()))
-                strcat(vout, "fmod(");
+                vout += "fmod(";
             else  // all 3 flavors of long double
-                strcat(vout, "fmodl(");
-            strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
-            strcat(vout, ", ");
-            strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
-            strcat(vout, ")");
+                vout += "fmodl(";
+            vout += writeOperand(thisp, I.getOperand(0), false) + ", " + writeOperand(thisp, I.getOperand(1), false) + ")";
         } else {
-            strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
-            strcat(vout, " ");
-            strcat(vout, intmapLookup(opcodeMap, I.getOpcode()));
-            strcat(vout, " ");
-            strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
+            vout += writeOperand(thisp, I.getOperand(0), false) + " " + intmapLookup(opcodeMap, I.getOpcode()) + " " + writeOperand(thisp, I.getOperand(1), false);
         }
         break;
         }
@@ -106,19 +94,16 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
-        strcat(vout, pdest.c_str());
-        strcat(vout, " = ");
+        vout += pdest + " = ";
         if (BitMask)
-          strcat(vout, "((");
+          vout += "((";
         std::map<std::string, void *>::iterator NI = nameMap.find(sval.c_str());
 //printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval.c_str(), (NI != nameMap.end()));
         if (NI != nameMap.end() && NI->second)
             sval = mapAddress(NI->second, "", NULL);
-        strcat(vout, sval.c_str());
+        vout += sval;
         if (BitMask) {
-          strcat(vout, ") & ");
-          strcat(vout, writeOperand(thisp, BitMask, false).c_str());
-          strcat(vout, ")");
+          vout += ") & " + writeOperand(thisp, BitMask, false) + ")";
         }
         break;
         }
@@ -142,34 +127,30 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (p[0] == '&') {
             void *tval = mapLookup(p.c_str()+1);
             if (tval) {
-                strcat(vout, p.c_str());
+                vout += p;
                 break;
             }
         }
         if (!strncmp(p.c_str(), "0x", 2)) {
-            strcat(vout, p.c_str());
+            vout += p;
             break;
         }
-        strcat(vout, "(");
+        vout += "(";
         //if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
-            //strcat(vout, "0-");
-        strcat(vout, p.c_str());
+            //vout += "0-";
+        vout += p;
         //if (DstTy == Type::getInt1Ty(I.getContext())
          //&& (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
            //|| opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
-            //strcat(vout, "&1u");
-        strcat(vout, ")");
+            //vout += "&1u";
+        vout += ")";
         break;
         }
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        strcat(vout, writeOperand(thisp, I.getOperand(0), false).c_str());
-        strcat(vout, " ");
-        strcat(vout, intmapLookup(predText, CI.getPredicate()));
-        strcat(vout, " ");
-        strcat(vout, writeOperand(thisp, I.getOperand(1), false).c_str());
+        vout += writeOperand(thisp, I.getOperand(0), false) + " " + intmapLookup(predText, CI.getPredicate()) + " " + writeOperand(thisp, I.getOperand(1), false);
         break;
         }
     case Instruction::Call: {
@@ -204,26 +185,25 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
-            strcat(vout, (p + ("." + NI->second->method[func])).c_str());
+            vout += (p + ("." + NI->second->method[func]));
             skip = 1;
         }
         else
-            strcat(vout, p.c_str());
+            vout += p;
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
-        strcat(vout, "(");
+        vout += "(";
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
                 ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
-                strcat(vout, sep);
-                strcat(vout, writeOperand(thisp, *AI, false).c_str());
+                vout += sep + writeOperand(thisp, *AI, false);
                 sep = ", ";
             }
             skip = 0;
         }
-        strcat(vout, ")");
+        vout += ")";
         break;
         }
     default:
@@ -231,7 +211,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         exit(1);
         break;
     }
-    return std::string(vout);
+    return vout;
 }
 
 void generateClassDef(const StructType *STy, FILE *OStr)
