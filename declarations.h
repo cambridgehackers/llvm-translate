@@ -75,7 +75,7 @@ public:
 };
 
 typedef struct {
-    const char   *name;
+    std::string name;
     const MDNode *node;
     const MDNode *inherit;
     int           member_count;

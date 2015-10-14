@@ -56,10 +56,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
           prepareOperand(BI.getCondition());
           int cond_item = getLocalSlot(BI.getCondition());
           sprintf(temp, "%s" SEPARATOR "%s_cond", globalName, I.getParent()->getName().str().c_str());
-          if (slotarray[cond_item].name) {
-              sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
-              slotarray[cond_item].name = strdup(temp);
-          }
+          sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
           prepareOperand(BI.getSuccessor(0));
           prepareOperand(BI.getSuccessor(1));
         } else if (isa<IndirectBrInst>(I)) {
@@ -199,7 +196,6 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         I.getType()->dump();
         sprintf(temp, "%s" SEPARATOR "%s_phival", globalName, I.getParent()->getName().str().c_str());
         vout += temp + " = ";
-        slotarray[operand_list[0].value].name = strdup(temp);
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
             int valuein = getLocalSlot(PN->getIncomingValue(op));
             prepareOperand(PN->getIncomingValue(op));

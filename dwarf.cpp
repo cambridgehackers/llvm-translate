@@ -70,13 +70,13 @@ void dumpTref(const MDNode *Node, CLASS_META *classp)
         if (tag == dwarf::DW_TAG_class_type) {
             classp = &class_data[class_data_index++];
             classp->node = Node;
-            classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
+            classp->name = "class." + getScope(nextitem.getContext()) + name;
             int ind = name.find("<");
             if (ind >= 0) { /* also insert the class w/o template parameters */
                 classp = &class_data[class_data_index++];
                 *classp = *(classp-1);
                 name = name.substr(0, ind);
-                classp->name = strdup(("class." + getScope(nextitem.getContext()) + name).c_str());
+                classp->name = "class." + getScope(nextitem.getContext()) + name;
             }
         }
         dumpType(nextitem, classp);
@@ -215,7 +215,7 @@ void dump_class_data()
 {
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
-      printf("class %s node %p inherit %p; ", classp->name, classp->node, classp->inherit);
+      printf("class %s node %p inherit %p; ", classp->name.c_str(), classp->node, classp->inherit);
       for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
           DIType Ty(*MI);
           DISubprogram CTy(*MI);
@@ -233,7 +233,7 @@ CLASS_META *lookup_class(const char *cp)
 {
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
-      if (!strcmp(cp, classp->name))
+      if (cp == classp->name)
           return classp;
       classp++;
     }

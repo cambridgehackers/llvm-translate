@@ -795,7 +795,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName);
     for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
         ERRORIF (AI->hasByValAttr());
-        slotarray[slotindex].name = strdup(AI->getName().str().c_str());
+        (AI->getName().str().c_str());
     }
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
