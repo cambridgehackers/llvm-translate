@@ -56,25 +56,26 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
     case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
     // Logical operators...
-    case Instruction::And: case Instruction::Or: case Instruction::Xor: {
+    case Instruction::And: case Instruction::Or: case Instruction::Xor:
         assert(!I.getType()->isPointerTy());
-        if (BinaryOperator::isNeg(&I)) {
+        if (BinaryOperator::isNeg(&I))
             vout += "-(" + writeOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
-        } else if (BinaryOperator::isFNeg(&I)) {
+        else if (BinaryOperator::isFNeg(&I))
             vout += "-(" + writeOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
-        } else if (I.getOpcode() == Instruction::FRem) {
+        else if (I.getOpcode() == Instruction::FRem) {
             if (I.getType() == Type::getFloatTy(I.getContext()))
                 vout += "fmodf(";
             else if (I.getType() == Type::getDoubleTy(I.getContext()))
                 vout += "fmod(";
             else  // all 3 flavors of long double
                 vout += "fmodl(";
-            vout += writeOperand(thisp, I.getOperand(0), false) + ", " + writeOperand(thisp, I.getOperand(1), false) + ")";
-        } else {
-            vout += writeOperand(thisp, I.getOperand(0), false) + " " + intmapLookup(opcodeMap, I.getOpcode()) + " " + writeOperand(thisp, I.getOperand(1), false);
-        }
+            vout += writeOperand(thisp, I.getOperand(0), false) + ", "
+                 + writeOperand(thisp, I.getOperand(1), false) + ")";
+        } else
+            vout += writeOperand(thisp, I.getOperand(0), false)
+                 + " " + intmapLookup(opcodeMap, I.getOpcode()) + " "
+                 + writeOperand(thisp, I.getOperand(1), false);
         break;
-        }
 
     // Memory instructions...
     case Instruction::Store: {
@@ -116,41 +117,22 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        //Type *DstTy = I.getType();
-        //Type *SrcTy = I.getOperand(0)->getType();
         std::string p = getOperand(thisp, I.getOperand(0), false);
-        char ptemp[1000];
-        if (!strcmp(p.c_str(), "Vthis") && thisp) {
+        if (p == "Vthis" && thisp) {
+            char ptemp[1000];
             sprintf(ptemp, "0x%lx", (unsigned long)thisp);
             p = ptemp;
         }
-        if (p[0] == '&') {
-            void *tval = mapLookup(p.c_str()+1);
-            if (tval) {
-                vout += p;
-                break;
-            }
-        }
-        if (!strncmp(p.c_str(), "0x", 2)) {
-            vout += p;
-            break;
-        }
-        vout += "(";
-        //if (SrcTy == Type::getInt1Ty(I.getContext()) && opcode == Instruction::SExt)
-            //vout += "0-";
         vout += p;
-        //if (DstTy == Type::getInt1Ty(I.getContext())
-         //&& (opcode == Instruction::Trunc || opcode == Instruction::FPToUI
-           //|| opcode == Instruction::FPToSI || opcode == Instruction::PtrToInt))
-            //vout += "&1u";
-        vout += ")";
         break;
         }
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        vout += writeOperand(thisp, I.getOperand(0), false) + " " + intmapLookup(predText, CI.getPredicate()) + " " + writeOperand(thisp, I.getOperand(1), false);
+        vout += writeOperand(thisp, I.getOperand(0), false)
+             + " " + intmapLookup(predText, CI.getPredicate()) + " "
+             + writeOperand(thisp, I.getOperand(1), false);
         break;
         }
     case Instruction::Call: {
@@ -185,7 +167,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             p = writeOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
-            vout += (p + ("." + NI->second->method[func]));
+            vout += p + ("." + NI->second->method[func]);
             skip = 1;
         }
         else
