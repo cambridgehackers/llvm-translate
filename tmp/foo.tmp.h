@@ -19,7 +19,7 @@ class l_class_OC_Fifo1 {
 public:
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
-  unsigned char full;
+  bool full;
 bool enq__guard(void) {
     bool call =     (notFull)();
           return call;

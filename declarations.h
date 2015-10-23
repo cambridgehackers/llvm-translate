@@ -183,3 +183,4 @@ const StructType *findThisArgument(Function *func);
 std::string processInstruction(Function ***thisp, Instruction *ins);
 void processFunction(VTABLE_WORK &work, FILE *OStr);
 void pushWork(Function *func, Function ***thisp);
+std::string verilogArrRange(const Type *Ty);

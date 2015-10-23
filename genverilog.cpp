@@ -23,6 +23,7 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include "llvm/IR/Instructions.h"
+#include "llvm/ADT/StringExtras.h"
 
 using namespace llvm;
 
@@ -93,7 +94,9 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
             if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
-        vout += pdest + " = ";
+        if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
+            pdest = pdest.substr(1, pdest.length() -2);
+        vout += pdest + " <= ";
         if (BitMask)
           vout += "((";
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
@@ -228,10 +231,19 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
     }
     return vout;
 }
+
+std::string verilogArrRange(const Type *Ty)
+{
+unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+    if (NumBits > 8)
+        return "[" + utostr(NumBits - 1) + ":0]";
+    return "";
+}
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
 {
-    const char *inp = "input ";
-    const char *outp = "output ";
+    std::list<std::string> paramList;
+    std::string inp = "input ";
+    std::string outp = "output ";
     if (instance) {
         inp = instance;
         outp = instance;
@@ -239,24 +251,36 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     }
     else
         fprintf(OStr, "module %s (\n", name.c_str());
-    fprintf(OStr, "    %sCLK,\n", inp);
-    fprintf(OStr, "    %sRST,\n", inp);
+    paramList.push_back(inp + "CLK");
+    paramList.push_back(inp + "RST");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        const Type *retTy = func->getReturnType();
+        int hasRet = (retTy != Type::getVoidTy(func->getContext()));
         if (hasRet)
-            fprintf(OStr, "    %s%s,\n", outp, mname.c_str());
+            paramList.push_back(outp + verilogArrRange(retTy) + mname);
         else
-            fprintf(OStr, "    %s%s_ENA,\n", inp, mname.c_str());
+            paramList.push_back(inp + mname + "_ENA");
         int skip = 1;
         for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip)
-                fprintf(OStr, "    %s%s_%s,\n", inp, mname.c_str(), AI->getName().str().c_str());
+            if (!skip) {
+                const Type *Ty = AI->getType();
+                paramList.push_back(inp + verilogArrRange(Ty) + mname + "_" + AI->getName().str());
+            }
             skip = 0;
         }
     }
-    fprintf(OStr, ")\n\n");
+    for (std::list<std::string>::iterator PI = paramList.begin(); PI != paramList.end();) {
+        fprintf(OStr, "    %s", PI->c_str());
+        PI++;
+        if (PI != paramList.end())
+            fprintf(OStr, ",");
+        else
+            fprintf(OStr, ");");
+        fprintf(OStr, "\n");
+    }
+    fprintf(OStr, "\n");
 }
 
 void generateModuleDef(const StructType *STy, FILE *OStr)
@@ -271,7 +295,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     generateModuleSignature(name, OStr, table, NULL);
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
         fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
-    fprintf(OStr, "  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
+    fprintf(OStr, "  always @( posedge CLK) begin\n    if (RST) begin\n    end\n    else begin\n");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
@@ -287,7 +311,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
-    fprintf(OStr, "  end // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "    end; // !RST\n");
+    fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {

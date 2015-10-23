@@ -240,7 +240,7 @@ std::string GetValueName(const Value *Operand)
 /*
  * Output types
  */
-std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
+static std::string printTypeCpp(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
     std::string sep = "", cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
 
@@ -253,8 +253,12 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
         if (NumBits == 1)
             cbuffer += "bool";
-        else if (NumBits <= 8)
-            cbuffer += sp + " char";
+        else if (NumBits <= 8) {
+            if (ptr)
+                cbuffer += sp + " char";
+            else
+                cbuffer += "bool";
+        }
         else if (NumBits <= 16)
             cbuffer += sp + " short";
         else if (NumBits <= 32)
@@ -268,7 +272,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            tstr += printType(*I, /*isSigned=*/false, "", sep, "");
+            tstr += printTypeCpp(*I, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
         if (FTy->isVarArg()) {
@@ -277,7 +281,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
             tstr += ", ...";
         } else if (!FTy->getNumParams())
             tstr += "void";
-        cbuffer += printType(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "");
+        cbuffer += printTypeCpp(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
         break;
         }
     case Type::StructTyID:
@@ -287,7 +291,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
-        cbuffer += printType(ATy->getElementType(), false, "", "", "") + NameSoFar + "[" + utostr(len) + "]";
+        cbuffer += printTypeCpp(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
         break;
         }
     case Type::PointerTyID: {
@@ -295,14 +299,92 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
-        cbuffer += printType(PTy->getElementType(), false, ptrName, "", "");
+        cbuffer += printTypeCpp(PTy->getElementType(), false, ptrName, "", "", true);
         break;
         }
     default:
-        llvm_unreachable("Unhandled case in getTypeProps!");
+        llvm_unreachable("Unhandled case in printTypeCpp!");
     }
     cbuffer += postfix;
     return cbuffer;
+}
+
+static std::string printTypeVerilog(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
+{
+    std::string sep = "", cbuffer = prefix, sp = (isSigned?"VERILOGsigned":"VERILOGunsigned");
+
+    switch (Ty->getTypeID()) {
+    case Type::VoidTyID:
+        cbuffer += "VERILOG_void " + NameSoFar;
+        break;
+    case Type::IntegerTyID: {
+        unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+        assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
+        if (NumBits == 1)
+            cbuffer += "VERILOG_bool";
+        else if (NumBits <= 8) {
+            if (ptr)
+                cbuffer += sp + " VERILOG_char";
+            else
+                cbuffer += " reg";
+        }
+        else if (NumBits <= 16)
+            cbuffer += sp + " VERILOG_short";
+        else if (NumBits <= 32)
+            //cbuffer += sp + " VERILOG_int";
+            cbuffer += " reg" + verilogArrRange(Ty);
+        else if (NumBits <= 64)
+            cbuffer += sp + " VERILOG_long long";
+        cbuffer += " " + NameSoFar;
+        }
+        break;
+    case Type::FunctionTyID: {
+        FunctionType *FTy = cast<FunctionType>(Ty);
+        std::string tstr = " (" + NameSoFar + ") (";
+        for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
+            tstr += printTypeVerilog(*I, /*isSigned=*/false, "", sep, "", false);
+            sep = ", ";
+        }
+        if (FTy->isVarArg()) {
+            if (!FTy->getNumParams())
+                tstr += " VERILOG_int"; //dummy argument for empty vaarg functs
+            tstr += ", ...";
+        } else if (!FTy->getNumParams())
+            tstr += "VERILOG_void";
+        cbuffer += printTypeVerilog(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
+        break;
+        }
+    case Type::StructTyID:
+        //cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+        return "";
+        break;
+    case Type::ArrayTyID: {
+        ArrayType *ATy = cast<ArrayType>(Ty);
+        unsigned len = ATy->getNumElements();
+        if (len == 0) len = 1;
+        cbuffer += printTypeVerilog(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
+        break;
+        }
+    case Type::PointerTyID: {
+        PointerType *PTy = cast<PointerType>(Ty);
+        std::string ptrName = "*" + NameSoFar;
+        if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
+            ptrName = "(" + ptrName + ")";
+        cbuffer += printTypeVerilog(PTy->getElementType(), false, ptrName, "", "", true);
+        break;
+        }
+    default:
+        llvm_unreachable("Unhandled case in printTypeVerilog!");
+    }
+    cbuffer += postfix;
+    return cbuffer;
+}
+std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
+{
+    if (generateRegion == 1)
+        return printTypeVerilog(Ty, isSigned, NameSoFar, prefix, postfix, false);
+    else
+        return printTypeCpp(Ty, isSigned, NameSoFar, prefix, postfix, false);
 }
 
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
@@ -868,7 +950,8 @@ bool GeneratePass::runOnModule(Module &Mod)
     generateRegion = 1;
     fprintf(OutVMain, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
     processRules(*modfirst, OutVMain, OutNull);
-    fprintf(OutVMain, "  end // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OutVMain, "    end; // !RST\n");
+    fprintf(OutVMain, "  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(OutVHeader);
     generateVerilogHeader(Mod, OutVInstance, OutNull);
 
