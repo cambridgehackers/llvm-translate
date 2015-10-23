@@ -50,7 +50,6 @@ cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target speci
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 static int output_stdout;// = 1;
-FILE *outputFile;
 ExecutionEngine *EE;
 
 bool endswith(const char *str, const char *suffix)
@@ -81,9 +80,6 @@ int main(int argc, char **argv, char * const *envp)
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     //DebugFlag = dump_interpret != 0;
-    outputFile = fopen("output.tmp", "w");
-    if (output_stdout)
-        outputFile = stdout;
 
     cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
 
@@ -104,14 +100,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         }
     }
 
-    FILE *Outc_fd = fopen("foo.tmp.xc", "w");
-    FILE *Outch_fd = fopen("foo.tmp.h", "w");
-    FILE *OutNull = fopen("/dev/null", "w");
-
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());
     Passes.add(new CallProcessPass());
-    Passes.add(new GeneratePass(Outc_fd, Outch_fd, OutNull));
+    Passes.add(new GeneratePass(fopen("foo.tmp.xc", "w"), fopen("foo.tmp.h", "w"),
+       fopen("/dev/null", "w"), fopen("foo.tmp.vh", "w"),
+       fopen("foo.tmp.vinst", "w"), fopen("foo.tmp.vmain", "w")));
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);

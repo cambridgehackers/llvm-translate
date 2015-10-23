@@ -105,9 +105,14 @@ class GeneratePass : public ModulePass {
     FILE *Out;
     FILE *OutHeader;
     FILE *OutNull;
+    FILE *OutVHeader;
+    FILE *OutVInstance;
+    FILE *OutVMain;
   public:
     static char ID;
-    GeneratePass(FILE *o, FILE *oh, FILE *on) : ModulePass(ID), Out(o), OutHeader(oh), OutNull(on) { }
+    GeneratePass(FILE *o, FILE *oh, FILE *on, FILE *vh, FILE *vi, FILE *vm) :
+       ModulePass(ID), Out(o), OutHeader(oh), OutNull(on),
+       OutVHeader(vh), OutVInstance(vi), OutVMain(vm) { }
     bool runOnModule(Module &M);
 };
 class ClassMethodTable {
@@ -125,7 +130,6 @@ extern std::string globalName;
 
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
-extern FILE *outputFile;
 extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
@@ -177,5 +181,5 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction *ins);
-void processFunction(VTABLE_WORK &work, FILE *outputFile);
+void processFunction(VTABLE_WORK &work, FILE *OStr);
 void pushWork(Function *func, Function ***thisp);

@@ -866,11 +866,11 @@ bool GeneratePass::runOnModule(Module &Mod)
 
     // Generating code for all rules
     generateRegion = 1;
-    fprintf(outputFile, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
-    processRules(*modfirst, outputFile, OutNull);
-    fprintf(outputFile, "  end // always @ (posedge CLK)\nendmodule \n\n");
-    generateStructs(outputFile);
-    generateVerilogHeader(Mod, outputFile, OutNull);
+    fprintf(OutVMain, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
+    processRules(*modfirst, OutVMain, OutNull);
+    fprintf(OutVMain, "  end // always @ (posedge CLK)\nendmodule \n\n");
+    generateStructs(OutVHeader);
+    generateVerilogHeader(Mod, OutVInstance, OutNull);
 
     // Generate cpp code
     generateRegion = 2;
