@@ -723,6 +723,8 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
         globalName = fname;
         fprintf(outputFile, "\n//processing %s\n", globalName.c_str());
     }
+if (generateRegion == 0)
+        fprintf(stderr, "// %p processing %s\n", func, globalName.c_str());
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 9], "6updateEv", 9)) {
         hasGuard = 1;

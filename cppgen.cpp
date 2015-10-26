@@ -35,6 +35,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
 {
     std::string vout;
     int opcode = I.getOpcode();
+//printf("[%s:%d] op %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), thisp);
     switch(opcode) {
     // Terminators
     case Instruction::Ret:
