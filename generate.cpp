@@ -709,7 +709,7 @@ static std::map<const Function *, int> funcSeen;
 void processFunction(VTABLE_WORK &work, FILE *outputFile)
 {
     Function *func = work.f;
-    std::string guardName;
+    int hasGuard = 0;
     const char *className, *methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
@@ -725,9 +725,8 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
     }
 printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 9], "6updateEv", 9)) {
-        guardName = globalName;
-        guardName = guardName.substr(1, globalName.length() - 10);
-        fprintf(outputFile, "    if (%s5guardEv && %s__ENA) begin\n", guardName.c_str(), globalName.c_str());
+        hasGuard = 1;
+        fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
@@ -797,8 +796,8 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
             ins = next_ins;
         }
     }
-    if (guardName != "")
-        fprintf(outputFile, "    end; // if (%s5guardEv && %s__ENA) \n", guardName.c_str(), globalName.c_str());
+    if (hasGuard)
+        fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
     if (generateRegion == 2)
         fprintf(outputFile, "}\n\n");
     else if (!regenItem)

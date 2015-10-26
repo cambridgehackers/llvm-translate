@@ -116,6 +116,23 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
     int opcode = I.getOpcode();
     switch (opcode) {
     // Terminators
+    case Instruction::Ret:
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+            //vout += globalName + " = ";
+            if (I.getNumOperands()) {
+                //vout += printOperand(thisp, I.getOperand(0), false);
+                Instruction *retVal = dyn_cast<Instruction>(I.getOperand(0));
+printf("[%s:%d] RETOP %s\n", __FUNCTION__, __LINE__, retVal ? retVal->getOpcodeName(): "NORETVAL");
+                if (retVal && retVal->getOpcode() == Instruction::Store) {
+                    Instruction *storeVal = dyn_cast<Instruction>(retVal->getOperand(0));
+                    if (storeVal) {
+printf("[%s:%d] sRETOP %s\n", __FUNCTION__, __LINE__, storeVal->getOpcodeName());
+                    I.setOperand(0, storeVal);
+                    }
+                }
+            }
+        }
+        break;
 #if 0
     case Instruction::Br:
         if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
@@ -222,7 +239,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             std::string tname = STy->getName();
             char tempname[1000];
             strcpy(tempname, methodName);
-            strcat(tempname, "__guard");
+            strcat(tempname, "__RDY");
             guardName = lookup_method(tname.c_str(), tempname);
         }
         if (thisp)
@@ -271,7 +288,8 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
         return processCInstruction(thisp, I);
         printf("HOther opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
-    case Instruction::Store: case Instruction::Ret:
+    case Instruction::Store:
+printf("[%s:%d]STORE\n", __FUNCTION__, __LINE__);
         break;
     }
     return "";

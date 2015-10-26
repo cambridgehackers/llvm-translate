@@ -149,7 +149,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
             prefix = p + NI->second->method[func];
             vout += prefix;
             if (!hasRet)
-                vout += "_ENA = 1";
+                vout += "__ENA = 1";
             skip = 1;
         }
         else {
@@ -261,7 +261,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
         if (hasRet)
             paramList.push_back(outp + verilogArrRange(retTy) + mname);
         else
-            paramList.push_back(inp + mname + "_ENA");
+            paramList.push_back(inp + mname + "__ENA");
         int skip = 1;
         for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
@@ -302,7 +302,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
         fprintf(OStr, "        // Start of %s\n", mname.c_str());
         if (!hasRet)
-            fprintf(OStr, "        if (%s_ENA) begin\n", mname.c_str());
+            fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         regen_methods = 1;
         VTABLE_WORK foo(func, NULL);
         processFunction(foo, OStr);
