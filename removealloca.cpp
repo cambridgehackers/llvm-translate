@@ -41,65 +41,65 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
 {
     bool changed = false;
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        //Function::iterator BN = llvm::next(Function::iterator(BB));
-    BasicBlock::iterator Start = BB->getFirstInsertionPt();
-    BasicBlock::iterator E = BB->end();
-    if (Start == E) return false;
-    BasicBlock::iterator I = Start++;
-    while(1) {
-        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
-        int opcode = I->getOpcode();
-        Value *retv = (Value *)I;
-        switch (opcode) {
-        case Instruction::Alloca:
-            if (I->hasName() && endswith(I->getName().str().c_str(), ".addr")) {
-                Value *newt = NULL;
-                BasicBlock::iterator PN = PI;
-                while (PN != E) {
-                    BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
-                    if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
-                        newt = PN->getOperand(0); // Remember value we were storing in temp
-                        if (PI == PN)
-                            PI = PNN;
-                        PN->eraseFromParent(); // delete Store instruction
+        Function::iterator BN = llvm::next(Function::iterator(BB));
+        BasicBlock::iterator Start = BB->getFirstInsertionPt();
+        BasicBlock::iterator E = BB->end();
+        if (Start == E) return false;
+        BasicBlock::iterator I = Start++;
+        while(1) {
+            BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
+            int opcode = I->getOpcode();
+            Value *retv = (Value *)I;
+            switch (opcode) {
+            case Instruction::Alloca:
+                if (I->hasName() && endswith(I->getName().str().c_str(), ".addr")) {
+                    Value *newt = NULL;
+                    BasicBlock::iterator PN = PI;
+                    while (PN != E) {
+                        BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
+                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
+                            newt = PN->getOperand(0); // Remember value we were storing in temp
+                            if (PI == PN)
+                                PI = PNN;
+                            PN->eraseFromParent(); // delete Store instruction
+                        }
+                        else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
+                            PN->replaceAllUsesWith(newt); // replace with stored value
+                            PN->eraseFromParent(); // delete Load instruction
+                        }
+                        PN = PNN;
                     }
-                    else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
-                        PN->replaceAllUsesWith(newt); // replace with stored value
-                        PN->eraseFromParent(); // delete Load instruction
+                    I->eraseFromParent(); // delete Alloca instruction
+                    changed = true;
+                }
+                break;
+            case Instruction::Call:
+                if (CallInst *CI = dyn_cast<CallInst>(I)) {
+                    Value *Operand = CI->getCalledValue();
+                    if (Operand->hasName() && isa<Constant>(Operand)) {
+                      const char *cp = Operand->getName().str().c_str();
+                      if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
+                          I->eraseFromParent(); // delete this instruction
+                          changed = true;
+                          break;
+                      }
                     }
-                    PN = PNN;
-                }
-                I->eraseFromParent(); // delete Alloca instruction
-                changed = true;
-            }
-            break;
-        case Instruction::Call:
-            if (CallInst *CI = dyn_cast<CallInst>(I)) {
-                Value *Operand = CI->getCalledValue();
-                if (Operand->hasName() && isa<Constant>(Operand)) {
-                  const char *cp = Operand->getName().str().c_str();
-                  if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
-                      I->eraseFromParent(); // delete this instruction
-                      changed = true;
-                      break;
-                  }
-                }
+    // we inlined a function that still had llvm.dbg.declare
+                    Instruction *nexti = PI;
+                    if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
 #if 0
-// we inlined a function that still had llvm.dbg.declare
-                Instruction *nexti = PI;
-                if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
-                    printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
-                    InlineFunctionInfo IFI;
-                    InlineFunction(CI, IFI, false);
-                }
+                        printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
+                        InlineFunctionInfo IFI;
+                        InlineFunction(CI, IFI, false);
 #endif
-            }
-            break;
-        };
-        if (PI == E)
-            break;
-        I = PI;
-    }
+                    }
+                }
+                break;
+            };
+            if (PI == E)
+                break;
+            I = PI;
+        }
     }
     return changed;
 }
