@@ -25,7 +25,6 @@
 #include "llvm/Linker.h"
 #include "llvm/PassManager.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -78,19 +77,12 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                 if (CallInst *CI = dyn_cast<CallInst>(I)) {
                     Value *Operand = CI->getCalledValue();
                       std::string cp = Operand->getName();
-        //std::string p = fetchOperand(NULL, Operand, false);
                     if (Operand->hasName() && isa<Constant>(Operand)) {
                       if (cp == "llvm.dbg.declare" || cp == "atexit") {
                           I->eraseFromParent(); // delete this instruction
                           changed = true;
                           break;
                       }
-        std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
-        if (cthisp == "Vthis") {
-fprintf(stdout,"[%s:%d] %s single!!!! %s cthisp %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str(), cp.c_str(), cthisp.c_str());
-            InlineFunctionInfo IFI;
-            InlineFunction(CI, IFI, false);
-        }
                     }
     // we inlined a function that still had llvm.dbg.declare
                     Instruction *nexti = PI;
