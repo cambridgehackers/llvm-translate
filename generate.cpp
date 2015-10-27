@@ -939,9 +939,9 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
 
     // Generate verilog for all rules
     generateRegion = 1;
-    fprintf(OutVMain, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
+    fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
     processRules(*modfirst, OutVMain, OutNull);
-    fprintf(OutVMain, "    end; // !RST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(OutVHeader);
     generateVerilogHeader(Mod, OutVInstance, OutNull);
 

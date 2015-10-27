@@ -252,7 +252,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     else
         fprintf(OStr, "module %s (\n", name.c_str());
     paramList.push_back(inp + "CLK");
-    paramList.push_back(inp + "RST");
+    paramList.push_back(inp + "nRST");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
@@ -295,7 +295,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     generateModuleSignature(name, OStr, table, NULL);
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
         fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
-    fprintf(OStr, "  always @( posedge CLK) begin\n    if (RST) begin\n    end\n    else begin\n");
+    fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
@@ -311,7 +311,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
-    fprintf(OStr, "    end; // !RST\n");
+    fprintf(OStr, "    end; // nRST\n");
     fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
