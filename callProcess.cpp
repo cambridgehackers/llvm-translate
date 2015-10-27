@@ -68,6 +68,8 @@ static bool callProcess_runOnInstruction(Instruction *I)
         if (val && cthisp == "Vthis") {
             fprintf(stdout,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
 #if 0
+fprintf(stderr,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
+val->dump();
             I->setOperand(I->getNumOperands()-1, val);
             InlineFunctionInfo IFI;
             InlineFunction(CI, IFI, false);
@@ -79,14 +81,17 @@ static bool callProcess_runOnInstruction(Instruction *I)
 }
 
 char CallProcessPass::ID = 0;
-bool CallProcessPass::runOnBasicBlock(BasicBlock &BB)
+bool CallProcessPass::runOnFunction(Function &F)
 {
     bool changed = false;
-    for (BasicBlock::iterator II = BB.begin(), IE = BB.end(); II != IE; ) {
-        BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
-        if (II->getOpcode() == Instruction::Call)
-            changed |= callProcess_runOnInstruction(II);
-        II = PI;
+//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
+    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+            BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+            if (II->getOpcode() == Instruction::Call)
+                changed |= callProcess_runOnInstruction(II);
+            II = PI;
+        }
     }
     return changed;
 }

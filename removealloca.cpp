@@ -52,6 +52,7 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
             Value *retv = (Value *)I;
             switch (opcode) {
             case Instruction::Alloca:
+//printf("       ALLOCA %s", I->getName().str().c_str());
                 if (I->hasName() && endswith(I->getName().str().c_str(), ".addr")) {
                     Value *newt = NULL;
                     BasicBlock::iterator PN = PI;
@@ -69,9 +70,11 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                         }
                         PN = PNN;
                     }
+//printf("del1");
                     I->eraseFromParent(); // delete Alloca instruction
                     changed = true;
                 }
+//printf("\n");
                 break;
             case Instruction::Call:
                 if (CallInst *CI = dyn_cast<CallInst>(I)) {

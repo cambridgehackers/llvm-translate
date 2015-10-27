@@ -94,11 +94,11 @@ class RemoveAllocaPass : public FunctionPass {
     bool runOnFunction(Function &F);
 };
 
-class CallProcessPass : public BasicBlockPass {
+class CallProcessPass : public FunctionPass {
   public:
     static char ID;
-    CallProcessPass() : BasicBlockPass(ID) {}
-    bool runOnBasicBlock(BasicBlock &BB);
+    CallProcessPass() : FunctionPass(ID) {}
+    bool runOnFunction(Function &F);
 };
 
 class GeneratePass : public ModulePass {
