@@ -84,10 +84,9 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
                           break;
                       }
                     }
-    // we inlined a function that still had llvm.dbg.declare
                     Instruction *nexti = PI;
                     if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
-#if 0
+#if 0 // we inlined a function that still had llvm.dbg.declare
                         printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
                         InlineFunctionInfo IFI;
                         InlineFunction(CI, IFI, false);

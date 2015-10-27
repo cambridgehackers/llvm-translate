@@ -141,6 +141,7 @@ extern unsigned NextTypeID;
 extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
 extern NamedMDNode *dwarfCU_Nodes;
+extern Module *globalMod;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const MDNode *type);

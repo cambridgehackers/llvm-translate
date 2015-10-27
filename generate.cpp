@@ -46,7 +46,6 @@ DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
-static Module *globalMod;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -457,7 +456,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         std::string p = fetchOperand(thisp, Ptr, false);
-printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
+        //printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
         if (p == "(*(this))" || p == "(*(Vthis))") {
             PointerType *PTy;
             const StructType *STy;
@@ -469,12 +468,8 @@ printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
                     DISubprogram Ty(tptr);
                     std::string name = CBEMangle(Ty.getName().str());
                     std::string lname = CBEMangle(Ty.getLinkageName().str());
-                    printf("[%s:%d] name %s lname %s\n", __FUNCTION__, __LINE__, name.c_str(), lname.c_str());
-                    Value *val = globalMod->getNamedValue(lname);
-fprintf(stderr, "[%s:%d]\n", __FUNCTION__, __LINE__);
-if (val)
-    val->dump();
-                    cbuffer += "&" + name;
+                    //printf("[%s:%d] name %s lname %s\n", __FUNCTION__, __LINE__, name.c_str(), lname.c_str());
+                    cbuffer += "&" + (generateRegion == 0 ? lname : name);
                     goto exitlab;
                 }
             }
@@ -923,7 +918,7 @@ void generateStructs(FILE *OStr)
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
-    globalMod = &Mod;
+printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod.getFunction("main");
     if (!EntryFn || !modfirst) {

@@ -52,6 +52,7 @@ static int dump_interpret;// = 1;
 //static int output_stdout;// = 1;
 ExecutionEngine *EE;
 NamedMDNode *dwarfCU_Nodes;
+Module *globalMod;
 
 bool endswith(const char *str, const char *suffix)
 {
@@ -117,6 +118,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     dwarfCU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
     if (dwarfCU_Nodes)
         process_metadata(dwarfCU_Nodes);
+    globalMod = Mod;
 
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());

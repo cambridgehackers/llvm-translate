@@ -23,6 +23,7 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -33,15 +34,15 @@ using namespace llvm;
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
  */
-static bool callProcess_runOnInstruction(Instruction *II)
+static bool callProcess_runOnInstruction(Instruction *I)
 {
-    Module *Mod = II->getParent()->getParent()->getParent();
-    Value *called = II->getOperand(II->getNumOperands()-1);
-    const char *cp = called->getName().str().c_str();
+    Module *Mod = I->getParent()->getParent()->getParent();
+    Value *called = I->getOperand(I->getNumOperands()-1);
+    std::string cp = called->getName().str().c_str();
     const Function *CF = dyn_cast<Function>(called);
-    if (!CF || !CF->isDeclaration())
-        return false;
-    if (!strcmp(cp, "_Znwm") || !strcmp(cp, "malloc")) {
+    if (cp == "_Znwm" || cp == "malloc") {
+        if (!CF || !CF->isDeclaration())
+            return false;
         //printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
         Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
         FunctionType *fty = FunctionType::get(
@@ -55,6 +56,24 @@ static bool callProcess_runOnInstruction(Instruction *II)
         F->setAttributes(cc->getAttributes());
         called->replaceAllUsesWith(newmalloc);
         return true;
+    }
+    else if (cp == "printf") {}
+    else if (CallInst *CI = dyn_cast<CallInst>(I)) {
+        Value *Operand = CI->getCalledValue();
+        std::string lname = fetchOperand(NULL, Operand, false);
+        if (lname[0] == '(' && lname[lname.length()-1] == ')')
+            lname = lname.substr(1, lname.length() - 2);
+        Value *val = globalMod->getNamedValue(lname);
+        std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
+        if (val && cthisp == "Vthis") {
+            fprintf(stdout,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
+#if 0
+            I->setOperand(I->getNumOperands()-1, val);
+            InlineFunctionInfo IFI;
+            InlineFunction(CI, IFI, false);
+            return true;
+#endif
+        }
     }
     return false;
 }
