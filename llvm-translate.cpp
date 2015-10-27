@@ -121,7 +121,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     globalMod = Mod;
 
     PassManager Passes;
-    Passes.add(new RemoveAllocaPass());
     Passes.add(new CallProcessPass());
     Passes.add(new GeneratePass(fopen("foo.tmp.xc", "w"), fopen("foo.tmp.h", "w"),
        fopen("/dev/null", "w"), fopen("foo.tmp.vh", "w"),

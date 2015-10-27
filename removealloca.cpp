@@ -30,16 +30,14 @@ using namespace llvm;
 
 #include "declarations.h"
 
-char RemoveAllocaPass::ID = 0;
-
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
  */
-bool RemoveAllocaPass::runOnFunction(Function &F)
+bool RemoveAllocaPass_runOnFunction(Function &F)
 {
     bool changed = false;
-//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
+//printf("RemoveAllocaPass: %s\n", F.getName().str().c_str());
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         Function::iterator BN = llvm::next(Function::iterator(BB));
         BasicBlock::iterator Start = BB->getFirstInsertionPt();

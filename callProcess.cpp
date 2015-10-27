@@ -67,14 +67,11 @@ static bool callProcess_runOnInstruction(Instruction *I)
         std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
         if (val && cthisp == "Vthis") {
             fprintf(stdout,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
-#if 0
-fprintf(stderr,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
-val->dump();
+            RemoveAllocaPass_runOnFunction(*dyn_cast<Function>(val));
             I->setOperand(I->getNumOperands()-1, val);
             InlineFunctionInfo IFI;
             InlineFunction(CI, IFI, false);
             return true;
-#endif
         }
     }
     return false;
@@ -84,7 +81,9 @@ char CallProcessPass::ID = 0;
 bool CallProcessPass::runOnFunction(Function &F)
 {
     bool changed = false;
-//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
+    std::string fname = F.getName();
+//printf("CallProcessPass: %s\n", fname.c_str());
+    changed = RemoveAllocaPass_runOnFunction(F);
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));

@@ -21,8 +21,7 @@ public:
   unsigned int element;
   bool full;
 bool enq__RDY(void) {
-    bool call =     (notFull)();
-          return call;
+          return ((full) ^ 1);
 ;
 }
 
@@ -32,8 +31,7 @@ void enq(unsigned int v) {
 }
 
 bool deq__RDY(void) {
-    bool call =     (notEmpty)();
-          return call;
+          return (full);
 ;
 }
 
@@ -42,23 +40,12 @@ void deq(void) {
 }
 
 bool first__RDY(void) {
-    bool call =     (notEmpty)();
-          return call;
+          return (full);
 ;
 }
 
 unsigned int first(void) {
           return (element);
-;
-}
-
-bool notEmpty(void) {
-          return (full);
-;
-}
-
-bool notFull(void) {
-          return ((full) ^ 1);
 ;
 }
 

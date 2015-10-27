@@ -87,13 +87,6 @@ typedef struct {
     const char *name;
 } INTMAP_TYPE;
 
-class RemoveAllocaPass : public FunctionPass {
-  public:
-    static char ID;
-    RemoveAllocaPass() : FunctionPass(ID) {}
-    bool runOnFunction(Function &F);
-};
-
 class CallProcessPass : public FunctionPass {
   public:
     static char ID;
@@ -186,3 +179,4 @@ std::string processInstruction(Function ***thisp, Instruction *ins);
 void processFunction(VTABLE_WORK &work, FILE *OStr);
 void pushWork(Function *func, Function ***thisp);
 std::string verilogArrRange(const Type *Ty);
+bool RemoveAllocaPass_runOnFunction(Function &F);
