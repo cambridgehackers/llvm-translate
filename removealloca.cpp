@@ -40,6 +40,7 @@ char RemoveAllocaPass::ID = 0;
 bool RemoveAllocaPass::runOnFunction(Function &F)
 {
     bool changed = false;
+//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         Function::iterator BN = llvm::next(Function::iterator(BB));
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
@@ -76,13 +77,20 @@ bool RemoveAllocaPass::runOnFunction(Function &F)
             case Instruction::Call:
                 if (CallInst *CI = dyn_cast<CallInst>(I)) {
                     Value *Operand = CI->getCalledValue();
+                      std::string cp = Operand->getName();
+        //std::string p = fetchOperand(NULL, Operand, false);
                     if (Operand->hasName() && isa<Constant>(Operand)) {
-                      const char *cp = Operand->getName().str().c_str();
-                      if (!strcmp(cp, "llvm.dbg.declare") || !strcmp(cp, "atexit")) {
+                      if (cp == "llvm.dbg.declare" || cp == "atexit") {
                           I->eraseFromParent(); // delete this instruction
                           changed = true;
                           break;
                       }
+        std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
+        if (cthisp == "Vthis") {
+fprintf(stdout,"[%s:%d] %s single!!!! %s cthisp %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str(), cp.c_str(), cthisp.c_str());
+            InlineFunctionInfo IFI;
+            InlineFunction(CI, IFI, false);
+        }
                     }
     // we inlined a function that still had llvm.dbg.declare
                     Instruction *nexti = PI;

@@ -49,8 +49,9 @@ cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target speci
 
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
-static int output_stdout;// = 1;
+//static int output_stdout;// = 1;
 ExecutionEngine *EE;
+NamedMDNode *dwarfCU_Nodes;
 
 bool endswith(const char *str, const char *suffix)
 {
@@ -99,6 +100,23 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
             return 1;
         }
     }
+
+    EngineBuilder builder(Mod);
+    builder.setMArch(MArch);
+    builder.setMCPU("");
+    builder.setMAttrs(MAttrs);
+    builder.setErrorStr(&ErrorMsg);
+    builder.setEngineKind(EngineKind::Interpreter);
+    builder.setOptLevel(CodeGenOpt::None);
+
+    // Create the execution environment and allocate memory for static items
+    EE = builder.create();
+    assert(EE);
+
+    // preprocessing dwarf debuf info before running anything
+    dwarfCU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
+    if (dwarfCU_Nodes)
+        process_metadata(dwarfCU_Nodes);
 
     PassManager Passes;
     Passes.add(new RemoveAllocaPass());

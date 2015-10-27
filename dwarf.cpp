@@ -289,33 +289,42 @@ int lookup_field(const char *classname, std::string methodname)
     }
     return -1;
 }
-static std::string lookupMember(const StructType *STy, uint64_t ind, int tag)
+static const MDNode *lookupMember(const StructType *STy, uint64_t ind, int tag)
 {
-    static char temp[MAX_CHAR_BUFFER];
     if (!STy->isLiteral()) { // unnamed items
-    CLASS_META *classp = lookup_class(STy->getName().str().c_str());
-    ERRORIF (!classp);
+    std::string cname = STy->getName();
+    CLASS_META *classp = lookup_class(cname.c_str());
+    //printf("%s: lookup class '%s' = %p\n", __FUNCTION__, cname.c_str(), classp);
+    if (!classp) {
+        printf("%s: can't find class '%s'\n", __FUNCTION__, cname.c_str());
+        return NULL;
+    }
     if (classp->inherit) {
-        DIType Ty(classp->inherit);
         if (!ind--)
-            return CBEMangle(Ty.getName().str());
+            return classp->inherit;
     }
     for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         DIType Ty(*MI);
         //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
         if (Ty.getTag() == tag)
             if (!ind--)
-                return CBEMangle(Ty.getName().str());
+                return *MI;
     }
+    }
+    return NULL;
+}
+std::string fieldName(const StructType *STy, uint64_t ind)
+{
+    char temp[MAX_CHAR_BUFFER];
+    const MDNode *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member);
+    if (tptr) {
+        DIType Ty(tptr);
+        return CBEMangle(Ty.getName().str());
     }
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
-std::string fieldName(const StructType *STy, uint64_t ind)
-{
-    return lookupMember(STy, ind, dwarf::DW_TAG_member);
-}
-std::string methodName(const StructType *STy, uint64_t ind)
+const MDNode *lookupMethod(const StructType *STy, uint64_t ind)
 {
     return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
 }

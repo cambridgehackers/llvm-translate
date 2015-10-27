@@ -25,6 +25,7 @@
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -114,24 +115,10 @@ void recursiveDelete(Value *V)
 std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
 {
     int opcode = I.getOpcode();
+//printf("[%s:%d] op %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), thisp);
     switch (opcode) {
     // Terminators
     case Instruction::Ret:
-        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            //vout += globalName + " = ";
-            if (I.getNumOperands()) {
-                //vout += printOperand(thisp, I.getOperand(0), false);
-                Instruction *retVal = dyn_cast<Instruction>(I.getOperand(0));
-printf("[%s:%d] RETOP %s\n", __FUNCTION__, __LINE__, retVal ? retVal->getOpcodeName(): "NORETVAL");
-                if (retVal && retVal->getOpcode() == Instruction::Store) {
-                    Instruction *storeVal = dyn_cast<Instruction>(retVal->getOperand(0));
-                    if (storeVal) {
-printf("[%s:%d] sRETOP %s\n", __FUNCTION__, __LINE__, storeVal->getOpcodeName());
-                    I.setOperand(0, storeVal);
-                    }
-                }
-            }
-        }
         break;
 #if 0
     case Instruction::Br:
@@ -199,13 +186,17 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             void *pact = mapLookup(p.c_str());
             func = static_cast<Function *>(pact);
         }
-        printf("[%s:%d] CallPTR %p thisp %p\n", __FUNCTION__, __LINE__, func, thisp);
-        pushWork(func, NULL);
         if (!func) {
             printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
             break;
         }
+        std::string cthisp = fetchOperand(thisp, I.getOperand(0), false);
+        Function ***called_thisp = NULL;
+        if (!strncmp(cthisp.c_str(), "0x", 2))
+            called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
+        printf("[%s:%d] CallPTR %p %s thisp %p\n", __FUNCTION__, __LINE__, func, fname.c_str(), thisp);
+        pushWork(func, called_thisp);
         printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, fname.c_str());
         if (trace_translate)
             printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);
@@ -282,6 +273,17 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
+        if (cthisp == "Vthis") {
+            printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, func->getName().str().c_str());
+fprintf(stderr, "[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
+ICL.dump();
+I.dump();
+I.getOperand(0)->dump();
+#if 1
+            InlineFunctionInfo IFI;
+            InlineFunction(&ICL, IFI, false);
+#endif
+        }
         break;
         }
     default:
@@ -289,7 +291,6 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
         printf("HOther opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
     case Instruction::Store:
-printf("[%s:%d]STORE\n", __FUNCTION__, __LINE__);
         break;
     }
     return "";

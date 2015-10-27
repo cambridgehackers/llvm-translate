@@ -20,7 +20,7 @@ public:
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   bool full;
-bool enq__guard(void) {
+bool enq__RDY(void) {
     bool call =     (notFull)();
           return call;
 ;
@@ -31,7 +31,7 @@ void enq(unsigned int v) {
         (full) = 1;
 }
 
-bool deq__guard(void) {
+bool deq__RDY(void) {
     bool call =     (notEmpty)();
           return call;
 ;
@@ -41,7 +41,7 @@ void deq(void) {
         (full) = 0;
 }
 
-bool first__guard(void) {
+bool first__RDY(void) {
     bool call =     (notEmpty)();
           return call;
 ;
@@ -145,11 +145,11 @@ void _ZN5Fifo1IiEC2Ev(class l_class_OC_Fifo1 *Vthis);
 void _ZN4FifoIiEC2Em(class l_class_OC_Fifo *Vthis, unsigned long long Vsize);
 void _ZN5Fifo1IiED1Ev(class l_class_OC_Fifo1 *Vthis);
 void _ZN5Fifo1IiED0Ev(class l_class_OC_Fifo1 *Vthis);
-bool _ZN5Fifo1IiE10enq__guardEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZN5Fifo1IiE8enq__RDYEv(class l_class_OC_Fifo1 *Vthis);
 void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv);
-bool _ZN5Fifo1IiE10deq__guardEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZN5Fifo1IiE8deq__RDYEv(class l_class_OC_Fifo1 *Vthis);
 void _ZN5Fifo1IiE3deqEv(class l_class_OC_Fifo1 *Vthis);
-bool _ZN5Fifo1IiE12first__guardEv(class l_class_OC_Fifo1 *Vthis);
+bool _ZN5Fifo1IiE10first__RDYEv(class l_class_OC_Fifo1 *Vthis);
 unsigned int _ZN5Fifo1IiE5firstEv(class l_class_OC_Fifo1 *Vthis);
 bool _ZNK5Fifo1IiE8notEmptyEv(class l_class_OC_Fifo1 *Vthis);
 bool _ZNK5Fifo1IiE7notFullEv(class l_class_OC_Fifo1 *Vthis);
@@ -158,9 +158,9 @@ void _ZN5Fifo1IiED2Ev(class l_class_OC_Fifo1 *Vthis);
 void _ZN4FifoIiED2Ev(class l_class_OC_Fifo *Vthis);
 void _ZN4FifoIiED1Ev(class l_class_OC_Fifo *Vthis);
 void _ZN4FifoIiED0Ev(class l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE10enq__guardEv(class l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE10deq__guardEv(class l_class_OC_Fifo *Vthis);
-bool _ZN4FifoIiE12first__guardEv(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE8enq__RDYEv(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE8deq__RDYEv(class l_class_OC_Fifo *Vthis);
+bool _ZN4FifoIiE10first__RDYEv(class l_class_OC_Fifo *Vthis);
 unsigned char *malloc(unsigned long long );
 static void _GLOBAL__I_a(void);
 void _Z16run_main_programv(void);

@@ -140,6 +140,7 @@ extern int regen_methods;
 extern unsigned NextTypeID;
 extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
+extern NamedMDNode *dwarfCU_Nodes;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const MDNode *type);
@@ -154,7 +155,7 @@ void process_metadata(NamedMDNode *CU_Nodes);
 CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
-std::string methodName(const StructType *STy, uint64_t ind);
+const MDNode *lookupMethod(const StructType *STy, uint64_t ind);
 int getClassName(const char *name, const char **className, const char **methodName);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);

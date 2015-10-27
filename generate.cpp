@@ -456,16 +456,21 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         std::string p = fetchOperand(thisp, Ptr, false);
-        if (p == "(*(this))") {
+printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
+        if (p == "(*(this))" || p == "(*(Vthis))") {
             PointerType *PTy;
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
              && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))) {
-                std::string name = methodName(STy, 1+        //// WHY????????????????
+                const MDNode *tptr = lookupMethod(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
-                printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
-                cbuffer += "&" + name;
-                goto exitlab;
+                if (tptr) {
+                    DIType Ty(tptr);
+                    std::string name = CBEMangle(Ty.getName().str());
+                    printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
+                    cbuffer += "&" + name;
+                    goto exitlab;
+                }
             }
         }
         if ((p[0] == '(' && p[p.length()-1] == ')'
@@ -506,6 +511,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                }
            }
            cbuffer += fetchOperand(thisp, Ptr, true);
+//printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
 next:
            if (val) {
                char temp[100];
@@ -520,8 +526,8 @@ next:
              std::string p = fetchOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
-//printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p, (NI != nameMap.end()));
-             if (p == "Vthis" && fieldp == "module") {
+//printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p.c_str(), (NI != nameMap.end()));
+             if (thisp && p == "Vthis" && fieldp == "module") {
                  tval = thisp;
                  goto tvallab;
              }
@@ -911,24 +917,6 @@ void generateStructs(FILE *OStr)
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
-    std::string ErrorMsg;
-    // preprocessing dwarf debuf info before running anything
-    NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu");
-    if (CU_Nodes)
-        process_metadata(CU_Nodes);
-
-    EngineBuilder builder(&Mod);
-    builder.setMArch(MArch);
-    builder.setMCPU("");
-    builder.setMAttrs(MAttrs);
-    builder.setErrorStr(&ErrorMsg);
-    builder.setEngineKind(EngineKind::Interpreter);
-    builder.setOptLevel(CodeGenOpt::None);
-
-    // Create the execution environment and allocate memory for static items
-    EE = builder.create();
-    assert(EE);
-
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod.getFunction("main");
     if (!EntryFn || !modfirst) {
@@ -941,28 +929,24 @@ bool GeneratePass::runOnModule(Module &Mod)
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using dwarf debug info
-    constructAddressMap(CU_Nodes);
+    constructAddressMap(dwarfCU_Nodes);
 
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
     generateRegion = 0;
     processRules(*modfirst, OutNull, OutNull);
 
-    // Generating code for all rules
+    // Generate verilog for all rules
     generateRegion = 1;
     fprintf(OutVMain, "module top(input CLK, input RST);\n  always @( posedge CLK) begin\n    if RST then begin\n    end\n    else begin\n");
     processRules(*modfirst, OutVMain, OutNull);
-    fprintf(OutVMain, "    end; // !RST\n");
-    fprintf(OutVMain, "  end; // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OutVMain, "    end; // !RST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(OutVHeader);
     generateVerilogHeader(Mod, OutVInstance, OutNull);
 
-    // Generate cpp code
+    // Generate cpp code for all rules
     generateRegion = 2;
     generateCppData(Out, Mod);
-
-    // Generating code for all rules
     processRules(*modfirst, Out, OutNull);
-
     generateStructs(OutHeader);
     generateCppHeader(Mod, OutHeader);
     return false;
