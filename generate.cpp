@@ -953,3 +953,13 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateCppHeader(Mod, OutHeader);
     return false;
 }
+
+GeneratePass::GeneratePass(std::string outDirectory) : ModulePass(ID)
+{
+    Out = fopen((outDirectory + "/output.cpp").c_str(), "w");
+    OutHeader = fopen((outDirectory + "/output.h").c_str(), "w");
+    OutNull = fopen("/dev/null", "w");
+    OutVHeader = fopen((outDirectory + "/class.v").c_str(), "w");
+    OutVInstance = fopen((outDirectory + "/vinst.v").c_str(), "w");
+    OutVMain = fopen((outDirectory + "/main.v").c_str(), "w");
+}

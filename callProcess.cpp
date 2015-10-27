@@ -66,7 +66,7 @@ static bool callProcess_runOnInstruction(Instruction *I)
         Value *val = globalMod->getNamedValue(lname);
         std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
         if (val && cthisp == "Vthis") {
-            fprintf(stdout,"[%s:%d] lname %s single!!!! cthisp %s\n", __FUNCTION__, __LINE__, lname.c_str(), cthisp.c_str());
+            //fprintf(stdout,"callProcess: lname %s single!!!! cthisp %s\n", lname.c_str(), cthisp.c_str());
             RemoveAllocaPass_runOnFunction(*dyn_cast<Function>(val));
             I->setOperand(I->getNumOperands()-1, val);
             InlineFunctionInfo IFI;

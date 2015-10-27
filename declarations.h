@@ -103,9 +103,7 @@ class GeneratePass : public ModulePass {
     FILE *OutVMain;
   public:
     static char ID;
-    GeneratePass(FILE *o, FILE *oh, FILE *on, FILE *vh, FILE *vi, FILE *vm) :
-       ModulePass(ID), Out(o), OutHeader(oh), OutNull(on),
-       OutVHeader(vh), OutVInstance(vi), OutVMain(vm) { }
+    GeneratePass(std::string outDirectory);
     bool runOnModule(Module &M);
 };
 class ClassMethodTable {

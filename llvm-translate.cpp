@@ -46,6 +46,7 @@ using namespace llvm;
 cl::list<std::string> InputFile(cl::Positional, cl::OneOrMore, cl::desc("<input bitcode>"));
 cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly for (see --version)"));
 cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
+cl::opt<std::string> OutputDir("odir", cl::init(""), cl::desc("<output directory>"));
 
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
@@ -119,12 +120,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     if (dwarfCU_Nodes)
         process_metadata(dwarfCU_Nodes);
     globalMod = Mod;
+    if (OutputDir == "") {
+        printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
+        exit(-1);
+    }
 
     PassManager Passes;
     Passes.add(new CallProcessPass());
-    Passes.add(new GeneratePass(fopen("foo.tmp.xc", "w"), fopen("foo.tmp.h", "w"),
-       fopen("/dev/null", "w"), fopen("foo.tmp.vh", "w"),
-       fopen("foo.tmp.vinst", "w"), fopen("foo.tmp.vmain", "w")));
+    Passes.add(new GeneratePass(OutputDir));
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
