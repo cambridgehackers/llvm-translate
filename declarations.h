@@ -95,15 +95,15 @@ class CallProcessPass : public FunctionPass {
 };
 
 class GeneratePass : public ModulePass {
+    std::string OutDirectory;
     FILE *Out;
     FILE *OutHeader;
     FILE *OutNull;
-    FILE *OutVHeader;
     FILE *OutVInstance;
     FILE *OutVMain;
   public:
     static char ID;
-    GeneratePass(std::string outDirectory);
+    GeneratePass(std::string outDirectory): ModulePass(ID), OutDirectory(outDirectory) { }
     bool runOnModule(Module &M);
 };
 class ClassMethodTable {
@@ -154,7 +154,7 @@ void *mapLookup(std::string name);
 
 std::string calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 std::string generateVerilog(Function ***thisp, Instruction &I);
-void generateModuleDef(const StructType *STy, FILE *OStr);
+void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 std::string processCInstruction(Function ***thisp, Instruction &I);
 void generateClassDef(const StructType *STy, FILE *OStr);

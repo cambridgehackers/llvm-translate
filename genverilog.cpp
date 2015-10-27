@@ -283,7 +283,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     fprintf(OStr, "\n");
 }
 
-void generateModuleDef(const StructType *STy, FILE *OStr)
+void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
     unsigned Idx = 0;
@@ -292,6 +292,7 @@ void generateModuleDef(const StructType *STy, FILE *OStr)
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
     if (!table)
         return;
+    FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(name, OStr, table, NULL);
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
         fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
@@ -313,6 +314,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     }
     fprintf(OStr, "    end; // nRST\n");
     fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
+    fclose(OStr);
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {

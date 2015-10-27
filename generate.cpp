@@ -871,7 +871,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
 }
 
 static std::map<const Type *, int> structMap;
-static void printContainedStructs(const Type *Ty, FILE *OStr)
+static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
 {
     std::map<const Type *, int>::iterator FI = structMap.find(Ty);
     const PointerType *PTy = dyn_cast<PointerType>(Ty);
@@ -893,23 +893,23 @@ static void printContainedStructs(const Type *Ty, FILE *OStr)
                 fprintf(OStr, "class %s;\n", name.c_str());
         }
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I, OStr);
+            printContainedStructs(*I, OStr, ODir);
         if (STy) {
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-                printContainedStructs(*I, OStr);
+                printContainedStructs(*I, OStr, ODir);
             if (generateRegion == 1)
-                generateModuleDef(STy, OStr);
+                generateModuleDef(STy, ODir);
             else
                 generateClassDef(STy, OStr);
         }
     }
 }
-void generateStructs(FILE *OStr)
+static void generateStructs(FILE *OStr, std::string oDir)
 {
     structWork_run = 1;
     structMap.clear();
     while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin(), OStr);
+        printContainedStructs(*structWork.begin(), OStr, oDir);
         structWork.pop_front();
     }
     structWork_run = 0;
@@ -933,6 +933,12 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // Construct the address -> symbolic name map using dwarf debug info
     constructAddressMap(dwarfCU_Nodes);
 
+    Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
+    OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
+    OutNull = fopen("/dev/null", "w");
+    OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
+    OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
+
     // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
     generateRegion = 0;
     processRules(*modfirst, OutNull, OutNull);
@@ -942,24 +948,14 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
     processRules(*modfirst, OutVMain, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
-    generateStructs(OutVHeader);
+    generateStructs(NULL, OutDirectory);
     generateVerilogHeader(Mod, OutVInstance, OutNull);
 
     // Generate cpp code for all rules
     generateRegion = 2;
     generateCppData(Out, Mod);
     processRules(*modfirst, Out, OutNull);
-    generateStructs(OutHeader);
+    generateStructs(OutHeader, "");
     generateCppHeader(Mod, OutHeader);
     return false;
-}
-
-GeneratePass::GeneratePass(std::string outDirectory) : ModulePass(ID)
-{
-    Out = fopen((outDirectory + "/output.cpp").c_str(), "w");
-    OutHeader = fopen((outDirectory + "/output.h").c_str(), "w");
-    OutNull = fopen("/dev/null", "w");
-    OutVHeader = fopen((outDirectory + "/class.v").c_str(), "w");
-    OutVInstance = fopen((outDirectory + "/vinst.v").c_str(), "w");
-    OutVMain = fopen((outDirectory + "/main.v").c_str(), "w");
 }
