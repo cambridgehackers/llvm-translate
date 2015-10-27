@@ -46,6 +46,7 @@ DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
+static Module *globalMod;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -465,9 +466,14 @@ printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
                 const MDNode *tptr = lookupMethod(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
                 if (tptr) {
-                    DIType Ty(tptr);
+                    DISubprogram Ty(tptr);
                     std::string name = CBEMangle(Ty.getName().str());
-                    printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
+                    std::string lname = CBEMangle(Ty.getLinkageName().str());
+                    printf("[%s:%d] name %s lname %s\n", __FUNCTION__, __LINE__, name.c_str(), lname.c_str());
+                    Value *val = globalMod->getNamedValue(lname);
+fprintf(stderr, "[%s:%d]\n", __FUNCTION__, __LINE__);
+if (val)
+    val->dump();
                     cbuffer += "&" + name;
                     goto exitlab;
                 }
@@ -917,6 +923,7 @@ void generateStructs(FILE *OStr)
 char GeneratePass::ID = 0;
 bool GeneratePass::runOnModule(Module &Mod)
 {
+    globalMod = &Mod;
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod.getFunction("main");
     if (!EntryFn || !modfirst) {
