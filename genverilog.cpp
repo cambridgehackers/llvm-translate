@@ -315,6 +315,76 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(OStr, "    end; // nRST\n");
     fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
+    FILE *BStr = fopen((oDir + "/" + name + ".bsv").c_str(), "w");
+#if 0
+interface Clai;
+    method Action      deq();
+    method Action      enq(Bit#(32) v);
+    method Bit#(32)    first();
+endinterface
+
+import "BVI" l_class_OC_Fifo1 =
+module mkClai(Clai);
+    default_reset rst(nRST);
+    default_clock clk(CLK);
+    method deq() enable(deq__ENA) ready(deq__RDY);
+    method enq(enq_v) enable(enq__ENA) ready(enq__RDY);
+    method first first() ready(first__RDY);
+    schedule(first, deq, enq) CF(first, deq, enq);
+endmodule
+#endif
+    fprintf(BStr, "interface %s;\n", name.c_str());
+    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+        Function *func = FI->first;
+        std::string mname = FI->second;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (mname.length() > 5 && mname.substr(mname.length() - 5, 5) == "__RDY")
+            continue;
+        fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
+        int skip = 1;
+        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip) {
+                //const Type *Ty = AI->getType();
+                //paramList.push_back(inp + verilogArrRange(Ty) + 
+                fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
+            }
+            skip = 0;
+        }
+        fprintf(BStr, ");\n");
+    }
+    fprintf(BStr, "endinterface\n");
+    fprintf(BStr, "import \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), name.c_str(), name.c_str());
+    fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
+    std::string sched = "";
+    std::string sep = "";
+    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+        Function *func = FI->first;
+        std::string mname = FI->second;
+        if (mname.length() > 5 && mname.substr(mname.length() - 5, 5) == "__RDY")
+            continue;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (hasRet)
+            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
+        else
+            fprintf(BStr, "    method %s(", mname.c_str());
+        int skip = 1;
+        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip) {
+                //const Type *Ty = AI->getType();
+                //paramList.push_back(inp + verilogArrRange(Ty) + 
+                fprintf(BStr, "%s", (mname + "_" + AI->getName().str()).c_str());
+            }
+            skip = 0;
+        }
+        if (!hasRet)
+            fprintf(BStr, ") enable(%s__ENA", mname.c_str());
+        fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
+        sched += sep + mname;
+        sep = ", ";
+    }
+    fprintf(BStr, "schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
+    fprintf(BStr, "endmodule\n");
+    fclose(BStr);
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
