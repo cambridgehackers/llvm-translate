@@ -728,15 +728,15 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
         globalName = methodName;
     else {
         globalName = fname;
-        fprintf(outputFile, "\n//processing %s\n", globalName.c_str());
+        fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
-if (generateRegion == 0)
+    if (generateRegion == 0)
         fprintf(stderr, "// %p processing %s\n", func, globalName.c_str());
-printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 9], "6updateEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
+printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
         func->dump();
@@ -759,6 +759,8 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
          || globalName == "__dtor_echoTest" || funcSeen[func]))
             return;
         funcSeen[func] = 1;
+        if (regenItem)
+            fprintf(outputFile, "  ");
         fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem).c_str());
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
@@ -766,11 +768,8 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
         for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
-            char instruction_label[MAX_CHAR_BUFFER];
 
             BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
-            if (trace_translate)
-            printf("%s    XLAT:%14s", instruction_label, ins->getOpcodeName());
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
@@ -807,8 +806,11 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
     }
     if (hasGuard)
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
-    if (generateRegion == 2)
-        fprintf(outputFile, "}\n\n");
+    if (generateRegion == 2) {
+        if (regenItem)
+            fprintf(outputFile, "  ");
+        fprintf(outputFile, "}\n");
+    }
     else if (!regenItem)
         fprintf(outputFile, "\n");
 }

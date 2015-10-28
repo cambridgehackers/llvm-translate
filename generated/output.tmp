@@ -16,55 +16,37 @@ unsigned char *vtable for Fifo<int>[12] = {0 };
 typedef unsigned char **RuleVTab;//Rules:
 const RuleVTab ruleList[] = {
     vtable for EchoTest::drive, vtable for Echo::respond::respond2, vtable for Echo::respond::respond1, NULL};
-
 //processing Echo::respond::respond2::update()
 void Echo::respond::respond2::update()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis) {
 }
-
-
 //processing Echo::respond::respond2::guard()
 bool Echo::respond::respond2::guard()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis) {
-          return 1;
-;
+        return 1;
 }
-
-
 //processing Echo::respond::respond1::update()
 void Echo::respond::respond1::update()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
     unsigned int Vcall =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
         EchoIndication::echo(int)(Vcall);
 }
-
-
 //processing Echo::respond::respond1::guard()
 bool Echo::respond::respond1::guard()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
     bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__RDY();
     bool Vtmp__2 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__RDY();
-          return (Vtmp__1 & Vtmp__2);
-;
+        return (Vtmp__1 & Vtmp__2);
 }
-
-
 //processing EchoTest::drive::update()
 void EchoTest::drive::update()(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
         echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22);
 }
-
-
 //processing EchoTest::drive::guard()
 bool EchoTest::drive::guard()(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
     bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__RDY();
-          return Vtmp__1;
-;
+        return Vtmp__1;
 }
-
-
 //processing EchoIndication::echo(int)
 void EchoIndication::echo(int)(unsigned int Vv) {
         printf((("Heard an echo: %d\n")), Vv);
         stop_main_program = 1;
 }
-
-
 //processing printf

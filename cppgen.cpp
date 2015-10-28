@@ -40,10 +40,9 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            vout += "  return ";
+            vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(thisp, I.getOperand(0), false);
-            vout += ";\n";
         }
         break;
     case Instruction::Unreachable:
@@ -232,9 +231,9 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-            VTABLE_WORK foo(FI->first, NULL);
+            VTABLE_WORK workItem(FI->first, NULL);
             regen_methods = 2;
-            processFunction(foo, OStr);
+            processFunction(workItem, OStr);
             regen_methods = 0;
         }
     fprintf(OStr, "};\n\n");
@@ -311,7 +310,6 @@ void generateCppData(FILE *OStr, Module &Mod)
 }
 void generateCppHeader(Module &Mod, FILE *OStr)
 {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     fprintf(OStr, "\n/* External Global Variable Declarations */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (I->hasExternalLinkage() || I->hasCommonLinkage())

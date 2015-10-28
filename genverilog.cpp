@@ -42,7 +42,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            vout += globalName + " = ";
+            vout += "    " + globalName + " = ";
             if (I.getNumOperands())
                 vout += printOperand(thisp, I.getOperand(0), false);
         }
@@ -308,7 +308,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         Function *func = FI->first;
         std::string mname = FI->second;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        fprintf(OStr, "        // Start of %s\n", mname.c_str());
+        fprintf(OStr, "        // Method: %s\n", mname.c_str());
         if (!hasRet)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         regen_methods = 1;

@@ -20,35 +20,25 @@ public:
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   bool full;
-bool enq__RDY(void) {
-          return ((full) ^ 1);
-;
-}
-
-void enq(unsigned int v) {
+  bool enq__RDY(void) {
+        return ((full) ^ 1);
+  }
+  void enq(unsigned int v) {
         (element) = v;
         (full) = 1;
-}
-
-bool deq__RDY(void) {
-          return (full);
-;
-}
-
-void deq(void) {
+  }
+  bool deq__RDY(void) {
+        return (full);
+  }
+  void deq(void) {
         (full) = 0;
-}
-
-bool first__RDY(void) {
-          return (full);
-;
-}
-
-unsigned int first(void) {
-          return (element);
-;
-}
-
+  }
+  bool first__RDY(void) {
+        return (full);
+  }
+  unsigned int first(void) {
+        return (element);
+  }
 };
 
 class l_class_OC_EchoTest;
