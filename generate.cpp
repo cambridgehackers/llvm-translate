@@ -732,7 +732,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
     }
     if (generateRegion == 0)
         fprintf(stderr, "// %p processing %s\n", func, globalName.c_str());
-    if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 9], "6updateEv", 9)) {
+    if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
@@ -854,7 +854,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
         Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
         while (rulep) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-            static std::string method[] = { "update", "guard", ""};
+            static std::string method[] = { "ENA", "RDY", ""};
             std::string *p = method;
             do {
                 pushWork(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep);
@@ -941,7 +941,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
     OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
-    // Preprocess the body rules, creating shadow variables and moving items to guard() and update()
+    // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = 0;
     processRules(*modfirst, OutNull, OutNull);
 

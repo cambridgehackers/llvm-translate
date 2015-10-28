@@ -103,8 +103,8 @@ void _ZN8EchoTest5driveC1EPS_(class l_class_OC_EchoTest_KD__KD_drive *Vthis, cla
 void _ZN8EchoTest5driveC2EPS_(class l_class_OC_EchoTest_KD__KD_drive *Vthis, class l_class_OC_EchoTest *Vmodule);
 void _ZN4RuleC2Ev(class l_class_OC_Rule *Vthis);
 void _ZN6Module7addRuleEP4Rule(class l_class_OC_Module *Vthis, class l_class_OC_Rule *Vrule);
-bool _ZN8EchoTest5drive5guardEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
-void _ZN8EchoTest5drive6updateEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
+bool _ZN8EchoTest5drive3RDYEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
+void _ZN8EchoTest5drive3ENAEv(class l_class_OC_EchoTest_KD__KD_drive *Vthis);
 void _ZN14EchoIndicationC2Ev(class l_class_OC_EchoIndication *Vthis);
 void _ZN4EchoC2EP14EchoIndication(class l_class_OC_Echo *Vthis, class l_class_OC_EchoIndication *Vind);
 void _ZN5Fifo1IiEC1Ev(class l_class_OC_Fifo1 *Vthis);
@@ -113,11 +113,11 @@ void _ZN4Echo7respondC2EPS_(class l_class_OC_Echo_KD__KD_respond *Vthis, class l
 void _ZN4Echo7respond8respond1C1EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, class l_class_OC_Echo *Vmodule);
 void _ZN4Echo7respond8respond2C1EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, class l_class_OC_Echo *Vmodule);
 void _ZN4Echo7respond8respond2C2EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis, class l_class_OC_Echo *Vmodule);
-bool _ZN4Echo7respond8respond25guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
-void _ZN4Echo7respond8respond26updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
+bool _ZN4Echo7respond8respond23RDYEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
+void _ZN4Echo7respond8respond23ENAEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis);
 void _ZN4Echo7respond8respond1C2EPS_(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis, class l_class_OC_Echo *Vmodule);
-bool _ZN4Echo7respond8respond15guardEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
-void _ZN4Echo7respond8respond16updateEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
+bool _ZN4Echo7respond8respond13RDYEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
+void _ZN4Echo7respond8respond13ENAEv(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis);
 void _ZN5Fifo1IiEC2Ev(class l_class_OC_Fifo1 *Vthis);
 void _ZN4FifoIiEC2Em(class l_class_OC_Fifo *Vthis, unsigned long long Vsize);
 void _ZN5Fifo1IiED1Ev(class l_class_OC_Fifo1 *Vthis);

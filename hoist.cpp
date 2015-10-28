@@ -110,7 +110,7 @@ void recursiveDelete(Value *V)
 }
 
 /*
- * Perform guard(), update() hoisting.  Insert shadow variable access for store.
+ * Perform RDY(), ENA() hoisting.  Insert shadow variable access for store.
  */
 std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
 {
@@ -175,7 +175,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         std::string p = fetchOperand(thisp, Callee, false);
-        int guardName = -1, updateName = -1, parentGuardName = -1, parentUpdateName = -1;
+        int RDYName = -1, ENAName = -1, parentRDYName = -1, parentENAName = -1;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         std::string fname;
         const StructType *STy;
@@ -206,7 +206,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             Function *F = I.getParent()->getParent();
             Module *Mod = F->getParent();
             std::string Fname = F->getName().str();
-            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "6updateEv";
+            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
             Function *otherBody = Mod->getFunction(otherName);
             TerminatorInst *TI = otherBody->begin()->getTerminator();
             prepareClone(TI, &I);
@@ -231,24 +231,24 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             char tempname[1000];
             strcpy(tempname, methodName);
             strcat(tempname, "__RDY");
-            guardName = lookup_method(tname.c_str(), tempname);
+            RDYName = lookup_method(tname.c_str(), tempname);
         }
         if (thisp)
             g = EE->getGlobalValueAtAddress(thisp[0] - 2);
-        printf("[%s:%d] guard %d update %d thisp %p g %p\n", __FUNCTION__, __LINE__, guardName, updateName, thisp, g);
+        printf("[%s:%d] RDY %d ENA %d thisp %p g %p\n", __FUNCTION__, __LINE__, RDYName, ENAName, thisp, g);
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
             const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
             sprintf(temp, "class.%s", ret+11);
-            parentGuardName = lookup_method(temp, "guard");
-            //parentUpdateName = lookup_method(temp, "update");
+            parentRDYName = lookup_method(temp, "RDY");
+            //parentENAName = lookup_method(temp, "ENA");
         }
-        printf("[%s:%d] pguard %d pupdate %d\n", __FUNCTION__, __LINE__, parentGuardName, parentUpdateName);
-        if (guardName >= 0 && parentGuardName >= 0) {
-            Function *peer_guard = thisp[0][parentGuardName];
-            TerminatorInst *TI = peer_guard->begin()->getTerminator();
-            Instruction *newI = copyFunction(TI, &I, guardName, Type::getInt1Ty(TI->getContext()));
+        printf("[%s:%d] pRDY %d pENA %d\n", __FUNCTION__, __LINE__, parentRDYName, parentENAName);
+        if (RDYName >= 0 && parentRDYName >= 0) {
+            Function *peer_RDY = thisp[0][parentRDYName];
+            TerminatorInst *TI = peer_RDY->begin()->getTerminator();
+            Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
             if (CallInst *nc = dyn_cast<CallInst>(newI))
                 nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
             Value *cond = TI->getOperand(0);
@@ -263,13 +263,13 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
                 newBool->setOperand(0, cond);
             }
         }
-        if (parentUpdateName >= 0) {
-            Function *peer_update = thisp[0][parentUpdateName];
-            TerminatorInst *TI = peer_update->begin()->getTerminator();
-            if (updateName >= 0)
-                copyFunction(TI, &I, updateName, Type::getVoidTy(TI->getContext()));
+        if (parentENAName >= 0) {
+            Function *peer_ENA = thisp[0][parentENAName];
+            TerminatorInst *TI = peer_ENA->begin()->getTerminator();
+            if (ENAName >= 0)
+                copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
             else if (I.use_empty()) {
-                copyFunction(TI, &I, 0, NULL); // Move this call to the 'update()' method
+                copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
                 I.eraseFromParent(); // delete "Call" instruction
             }
         }
