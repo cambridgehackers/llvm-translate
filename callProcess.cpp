@@ -37,8 +37,9 @@ using namespace llvm;
 static bool callProcess_runOnInstruction(Instruction *I)
 {
     Module *Mod = I->getParent()->getParent()->getParent();
+    CallInst *CI = dyn_cast<CallInst>(I);
     Value *called = I->getOperand(I->getNumOperands()-1);
-    std::string cp = called->getName().str().c_str();
+    std::string cp = called->getName();
     const Function *CF = dyn_cast<Function>(called);
     if (cp == "_Znwm" || cp == "malloc") {
         if (!CF || !CF->isDeclaration())
@@ -57,13 +58,11 @@ static bool callProcess_runOnInstruction(Instruction *I)
         called->replaceAllUsesWith(newmalloc);
         return true;
     }
-    else if (cp == "printf") {}
-    else if (CallInst *CI = dyn_cast<CallInst>(I)) {
-        Value *Operand = CI->getCalledValue();
-        std::string lname = fetchOperand(NULL, Operand, false);
+    else if (cp != "printf" && CI) {
+        std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
         if (lname[0] == '(' && lname[lname.length()-1] == ')')
             lname = lname.substr(1, lname.length() - 2);
-        Value *val = globalMod->getNamedValue(lname);
+        Value *val = Mod->getNamedValue(lname);
         std::string cthisp = fetchOperand(NULL, I->getOperand(0), false);
         if (val && cthisp == "Vthis") {
             //fprintf(stdout,"callProcess: lname %s single!!!! cthisp %s\n", lname.c_str(), cthisp.c_str());

@@ -283,6 +283,13 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     fprintf(OStr, "\n");
 }
 
+std::string ucName(std::string inname)
+{
+    if (inname.length() && inname[0] >= 'a' && inname[0] <= 'z')
+        return ((char)(inname[0] - 'a' + 'A')) + inname.substr(1, inname.length() - 1);
+    return inname;
+}
+
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
@@ -315,25 +322,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(OStr, "    end; // nRST\n");
     fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
-    FILE *BStr = fopen((oDir + "/" + name + ".bsv").c_str(), "w");
-#if 0
-interface Clai;
-    method Action      deq();
-    method Action      enq(Bit#(32) v);
-    method Bit#(32)    first();
-endinterface
-
-import "BVI" l_class_OC_Fifo1 =
-module mkClai(Clai);
-    default_reset rst(nRST);
-    default_clock clk(CLK);
-    method deq() enable(deq__ENA) ready(deq__RDY);
-    method enq(enq_v) enable(enq__ENA) ready(enq__RDY);
-    method first first() ready(first__RDY);
-    schedule(first, deq, enq) CF(first, deq, enq);
-endmodule
-#endif
-    fprintf(BStr, "interface %s;\n", name.c_str());
+    FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
+    fprintf(BStr, "interface %s;\n", ucName(name).c_str());
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
@@ -353,7 +343,7 @@ endmodule
         fprintf(BStr, ");\n");
     }
     fprintf(BStr, "endinterface\n");
-    fprintf(BStr, "import \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), name.c_str(), name.c_str());
+    fprintf(BStr, "import \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
     fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
     std::string sched = "";
     std::string sep = "";
@@ -382,7 +372,7 @@ endmodule
         sched += sep + mname;
         sep = ", ";
     }
-    fprintf(BStr, "schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
+    fprintf(BStr, "    schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
     fprintf(BStr, "endmodule\n");
     fclose(BStr);
 }
