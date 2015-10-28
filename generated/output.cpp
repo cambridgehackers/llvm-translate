@@ -1,6 +1,9 @@
 
 
 /* Global Variable Definitions and Initialization */
+class l_class_OC_EchoTest echoTest;
+unsigned int stop_main_program;
+class l_class_OC_Module *_ZN6Module5firstE;
 //processing _ZN4Echo7respond8respond23RDYEv
 bool _ZN4Echo7respond8respond23RDYEv(void) {
         return 1;
@@ -41,6 +44,6 @@ typedef struct {
     } RuleVTab;//Rules:
 const RuleVTab ruleList[] = {
     {_ZN4Echo7respond8respond23RDYEv, _ZN4Echo7respond8respond23ENAEv},
-{_ZN4Echo7respond8respond13RDYEv, _ZN4Echo7respond8respond13ENAEv},
-{_ZN8EchoTest5drive3RDYEv, _ZN8EchoTest5drive3ENAEv},
-{} };
+    {_ZN4Echo7respond8respond13RDYEv, _ZN4Echo7respond8respond13ENAEv},
+    {_ZN8EchoTest5drive3RDYEv, _ZN8EchoTest5drive3ENAEv},
+    {} };

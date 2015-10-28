@@ -205,22 +205,6 @@ static int processVar(const GlobalVariable *GV)
     return 1;
 }
 
-static int checkIfRule(Type *aTy)
-{
-    Type *Ty;
-    FunctionType *FTy;
-    PointerType  *PTy;
-    if ((PTy = dyn_cast<PointerType>(aTy))
-     && (FTy = dyn_cast<FunctionType>(PTy->getElementType()))
-     && (PTy = dyn_cast<PointerType>(FTy->getParamType(0)))
-     && (Ty = PTy->getElementType())
-     && (Ty->getNumContainedTypes() > 1)
-     && (Ty = dyn_cast<StructType>(Ty->getContainedType(0)))
-     && (Ty->getStructName() == "class.Rule"))
-       return 1;
-    return 0;
-}
-
 void generateClassDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
@@ -241,16 +225,13 @@ void generateClassDef(const StructType *STy, FILE *OStr)
 
 void generateCppData(FILE *OStr, Module &Mod)
 {
-    ArrayType *ATy;
-    const ConstantExpr *CE;
-    //std::list<std::string> ruleList;
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
-#if 0
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (processVar(I)) {
+          ArrayType *ATy;
           Type *Ty = I->getType()->getElementType();
           if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
               && ATy->getElementType()->getTypeID() == Type::PointerTyID)
@@ -264,56 +245,15 @@ void generateCppData(FILE *OStr, Module &Mod)
           }
         }
     }
-#endif
-#if 0
-    fprintf(OStr, "\n\n//******************** vtables for Classes *******************\n");
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
-        if (processVar(I)) {
-          Type *Ty = I->getType()->getElementType();
-          if (Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
-           && ATy->getElementType()->getTypeID() == Type::PointerTyID) {
-              if (I->hasLocalLinkage())
-                fprintf(OStr, "static ");
-              std::string strName = GetValueName(I);
-              fprintf(OStr, "%s", printType(Ty, false, strName, "", "").c_str());
-              if (!I->getInitializer()->isNullValue()) {
-                fprintf(OStr, " = " );
-                Constant* CPV = dyn_cast<Constant>(I->getInitializer());
-                if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                    Type *ETy = CA->getType()->getElementType();
-                    ERRORIF (ETy == Type::getInt8Ty(CA->getContext()) || ETy == Type::getInt8Ty(CA->getContext()));
-                    fprintf(OStr, "{");
-                    const char *sep = "";
-                    if ((CE = dyn_cast<ConstantExpr>(CA->getOperand(3))) && CE->getOpcode() == Instruction::BitCast
-                     && checkIfRule(CE->getOperand(0)->getType())) {
-                        ruleList.push_back(strName);
-                        for (unsigned i = 2, e = CA->getNumOperands(); i != e; ++i) {
-                            Constant* V = dyn_cast<Constant>(CA->getOperand(i));
-                            //char *p = printOperand(NULL, V, false);
-                            assert (dyn_cast<PointerType>(V->getType()));
-                            std::string p = printOperand(NULL, V->getOperand(0), false);
-                            fprintf(OStr, "%s (unsigned char *)%s", sep, p.c_str());
-                            sep = ",";
-                        }
-                    }
-                    else
-                        fprintf(OStr, "0");
-                    fprintf(OStr, " }");
-                }
-              }
-              fprintf(OStr, ";\n");
-          }
-    }
-#endif
 }
 void generateRuleList(FILE *OStr)
 {
-    fprintf(OStr, "typedef struct {\n    bool (*RDY)(void);\n    void (*ENA)(void);\n    } RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n    ");
+    fprintf(OStr, "typedef struct {\n    bool (*RDY)(void);\n    void (*ENA)(void);\n    } RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n");
     while (ruleList.begin() != ruleList.end()) {
-        fprintf(OStr, "{%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
+        fprintf(OStr, "    {%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
         ruleList.pop_front();
     }
-    fprintf(OStr, "{} };\n");
+    fprintf(OStr, "    {} };\n");
 }
 void generateCppHeader(Module &Mod, FILE *OStr)
 {

@@ -1,6 +1,9 @@
 
 
 /* Global Variable Definitions and Initialization */
+class l_class_OC_EchoTest echoTest;
+unsigned int stop_main_program;
+class l_class_OC_Module *Module::first;
 //processing Echo::respond::respond2::RDY()
 bool Echo::respond::respond2::RDY()(void) {
         return 1;
@@ -41,6 +44,6 @@ typedef struct {
     } RuleVTab;//Rules:
 const RuleVTab ruleList[] = {
     {Echo::respond::respond2::RDY(), Echo::respond::respond2::ENA()},
-{Echo::respond::respond1::RDY(), Echo::respond::respond1::ENA()},
-{EchoTest::drive::RDY(), EchoTest::drive::ENA()},
-{} };
+    {Echo::respond::respond1::RDY(), Echo::respond::respond1::ENA()},
+    {EchoTest::drive::RDY(), EchoTest::drive::ENA()},
+    {} };

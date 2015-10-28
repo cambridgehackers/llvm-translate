@@ -41,7 +41,8 @@ public:
   }
 };
 
-class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
+class l_class_OC_EchoTest;
+class l_class_OC_EchoTest_KD__KD_drive;
 class l_class_OC_Rule;
 class l_class_OC_Rule {
 public:
@@ -49,6 +50,21 @@ public:
   class l_class_OC_Rule *next;
 };
 
+class l_class_OC_EchoTest_KD__KD_drive {
+public:
+  class l_class_OC_Rule Rule;
+  class l_class_OC_EchoTest *module;
+};
+
+class l_class_OC_EchoTest {
+public:
+  class l_class_OC_Module Module;
+  class l_class_OC_Echo *echo;
+  unsigned int x;
+  class l_class_OC_EchoTest_KD__KD_drive driveRule;
+};
+
+class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2;
 class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
 public:
   class l_class_OC_Rule Rule;
@@ -60,13 +76,6 @@ class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 {
 public:
   class l_class_OC_Rule Rule;
   class l_class_OC_Echo *module;
-};
-
-class l_class_OC_EchoTest_KD__KD_drive;
-class l_class_OC_EchoTest_KD__KD_drive {
-public:
-  class l_class_OC_Rule Rule;
-  class l_class_OC_EchoTest *module;
 };
 
 
