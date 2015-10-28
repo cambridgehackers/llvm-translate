@@ -20,6 +20,7 @@ void __cxa_pure_virtual(void)
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 #include "../generated/output.h"
+unsigned int stop_main_program;
 struct l_class_OC_Fifo1 echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_;
 #include "../generated/output.cpp"
 
@@ -46,10 +47,9 @@ int main(int argc, const char *argv[])
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     while (!stop_main_program) {
         const RuleVTab *currule = ruleList;
-        while (*currule) {
-            if (((int (*)(void))currule[0][0])()) {
-                ((void (*)(void))currule[0][1])();
-            }
+        while (currule->RDY) {
+            if (currule->RDY())
+                currule->ENA();
             currule++;
         }
     }

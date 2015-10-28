@@ -196,7 +196,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
         printf("[%s:%d] CallPTR %p %s thisp %p\n", __FUNCTION__, __LINE__, func, fname.c_str(), thisp);
-        pushWork(func, called_thisp);
+        pushWork(func, called_thisp, 0);
         printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, fname.c_str());
         if (trace_translate)
             printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);

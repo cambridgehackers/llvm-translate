@@ -1,48 +1,33 @@
 
 
 /* Global Variable Definitions and Initialization */
-class l_class_OC_EchoTest echoTest;
-unsigned int stop_main_program;
-class l_class_OC_Module *Module::first;
-
-
-//******************** vtables for Classes *******************
-unsigned char *vtable for EchoTest::drive[4] = { (unsigned char *)EchoTest::drive::RDY(), (unsigned char *)EchoTest::drive::ENA() };
-unsigned char *vtable for Rule[4] = {0 };
-unsigned char *vtable for Echo::respond::respond2[4] = { (unsigned char *)Echo::respond::respond2::RDY(), (unsigned char *)Echo::respond::respond2::ENA() };
-unsigned char *vtable for Echo::respond::respond1[4] = { (unsigned char *)Echo::respond::respond1::RDY(), (unsigned char *)Echo::respond::respond1::ENA() };
-unsigned char *vtable for Fifo1<int>[12] = {0 };
-unsigned char *vtable for Fifo<int>[12] = {0 };
-typedef unsigned char **RuleVTab;//Rules:
-const RuleVTab ruleList[] = {
-    vtable for EchoTest::drive, vtable for Echo::respond::respond2, vtable for Echo::respond::respond1, NULL};
-//processing Echo::respond::respond2::ENA()
-void Echo::respond::respond2::ENA()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis) {
-}
 //processing Echo::respond::respond2::RDY()
-bool Echo::respond::respond2::RDY()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 *Vthis) {
+bool Echo::respond::respond2::RDY()(void) {
         return 1;
 }
-//processing Echo::respond::respond1::ENA()
-void Echo::respond::respond1::ENA()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
-    unsigned int Vcall =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
-        EchoIndication::echo(int)(Vcall);
+//processing Echo::respond::respond2::ENA()
+void Echo::respond::respond2::ENA()(void) {
 }
 //processing Echo::respond::respond1::RDY()
-bool Echo::respond::respond1::RDY()(class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 *Vthis) {
+bool Echo::respond::respond1::RDY()(void) {
     bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__RDY();
     bool Vtmp__2 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__RDY();
         return (Vtmp__1 & Vtmp__2);
 }
-//processing EchoTest::drive::ENA()
-void EchoTest::drive::ENA()(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22);
+//processing Echo::respond::respond1::ENA()
+void Echo::respond::respond1::ENA()(void) {
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
+    unsigned int Vcall =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
+        EchoIndication::echo(int)(Vcall);
 }
 //processing EchoTest::drive::RDY()
-bool EchoTest::drive::RDY()(class l_class_OC_EchoTest_KD__KD_drive *Vthis) {
+bool EchoTest::drive::RDY()(void) {
     bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__RDY();
         return Vtmp__1;
+}
+//processing EchoTest::drive::ENA()
+void EchoTest::drive::ENA()(void) {
+        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22);
 }
 //processing EchoIndication::echo(int)
 void EchoIndication::echo(int)(unsigned int Vv) {
@@ -50,3 +35,12 @@ void EchoIndication::echo(int)(unsigned int Vv) {
         stop_main_program = 1;
 }
 //processing printf
+typedef struct {
+    bool (*RDY)(void);
+    void (*ENA)(void);
+    } RuleVTab;//Rules:
+const RuleVTab ruleList[] = {
+    {Echo::respond::respond2::RDY(), Echo::respond::respond2::ENA()},
+{Echo::respond::respond1::RDY(), Echo::respond::respond1::ENA()},
+{EchoTest::drive::RDY(), EchoTest::drive::ENA()},
+{} };

@@ -135,7 +135,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
             }
         }
-        pushWork(func, called_thisp);
+        pushWork(func, called_thisp, 0);
         int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         int skip = regen_methods;
         std::string prefix;
@@ -312,7 +312,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         if (!hasRet)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         regen_methods = 1;
-        VTABLE_WORK foo(func, NULL);
+        VTABLE_WORK foo(func, NULL, 1);
         processFunction(foo, OStr);
         regen_methods = 0;
         if (!hasRet)

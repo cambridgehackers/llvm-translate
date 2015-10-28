@@ -68,9 +68,11 @@ class VTABLE_WORK {
 public:
     Function *f;      // Since passes modify instructions, this cannot be 'const'
     Function ***thisp;
-    VTABLE_WORK(Function *a, Function ***b) {
+    int skip;
+    VTABLE_WORK(Function *a, Function ***b, int c) {
        f = a;
        thisp = b;
+       skip = c;
     }
 };
 
@@ -86,6 +88,11 @@ typedef struct {
     int value;
     const char *name;
 } INTMAP_TYPE;
+
+typedef struct {
+    Function *RDY;
+    Function *ENA;
+} RULE_PAIR;
 
 class CallProcessPass : public FunctionPass {
   public:
@@ -133,6 +140,7 @@ extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
 extern NamedMDNode *dwarfCU_Nodes;
 extern Module *globalMod;
+extern std::list<RULE_PAIR> ruleList;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const MDNode *type);
@@ -175,6 +183,7 @@ const StructType *findThisArgument(Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction *ins);
 void processFunction(VTABLE_WORK &work, FILE *OStr);
-void pushWork(Function *func, Function ***thisp);
+void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);
+void generateRuleList(FILE *OStr);

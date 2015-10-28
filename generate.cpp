@@ -38,6 +38,7 @@ std::string globalName;
 std::map<std::string,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
+std::list<RULE_PAIR> ruleList;
 static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
@@ -761,7 +762,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
         funcSeen[func] = 1;
         if (regenItem)
             fprintf(outputFile, "  ");
-        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", regenItem).c_str());
+        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", work.skip || regenItem).c_str());
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -815,7 +816,7 @@ printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_
         fprintf(outputFile, "\n");
 }
 
-void pushWork(Function *func, Function ***thisp)
+void pushWork(Function *func, Function ***thisp, int skip)
 {
     const char *className, *methodName;
     const StructType *STy;
@@ -835,7 +836,7 @@ void pushWork(Function *func, Function ***thisp)
             functionIndex[func] = classCreate[sname];
         }
     }
-    vtablework.push_back(VTABLE_WORK(func, thisp));
+    vtablework.push_back(VTABLE_WORK(func, thisp, skip));
 }
 
 /*
@@ -848,17 +849,17 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
     int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
 
+    ruleList.clear();
     // Walk the rule lists for all modules, generating work items
     while (modp) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
         Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
         while (rulep) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-            static std::string method[] = { "ENA", "RDY", ""};
-            std::string *p = method;
-            do {
-                pushWork(rulep[0][lookup_method("class.Rule", *p)], (Function ***)rulep);
-            } while (*++p != "");
+            RULE_PAIR p = {rulep[0][lookup_method("class.Rule", "RDY")], rulep[0][lookup_method("class.Rule", "ENA")]};
+            pushWork(p.RDY, (Function ***)rulep, 1);
+            pushWork(p.ENA, (Function ***)rulep, 1);
+            ruleList.push_back(p);
             rulep = (Function ***)rulep[RuleNext];           // Rule.next
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next
@@ -957,6 +958,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateRegion = 2;
     generateCppData(Out, Mod);
     processRules(*modfirst, Out, OutNull);
+    generateRuleList(Out);
     generateStructs(OutHeader, "");
     generateCppHeader(Mod, OutHeader);
     return false;

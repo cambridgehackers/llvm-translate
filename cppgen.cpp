@@ -160,7 +160,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
             }
         }
-        pushWork(func, called_thisp);
+        pushWork(func, called_thisp, 0);
         int skip = regen_methods;
         std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
         if (NI != functionIndex.end()) {
@@ -231,7 +231,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-            VTABLE_WORK workItem(FI->first, NULL);
+            VTABLE_WORK workItem(FI->first, NULL, 1);
             regen_methods = 2;
             processFunction(workItem, OStr);
             regen_methods = 0;
@@ -243,9 +243,10 @@ void generateCppData(FILE *OStr, Module &Mod)
 {
     ArrayType *ATy;
     const ConstantExpr *CE;
-    std::list<std::string> ruleList;
+    //std::list<std::string> ruleList;
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
+#if 0
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
@@ -263,6 +264,8 @@ void generateCppData(FILE *OStr, Module &Mod)
           }
         }
     }
+#endif
+#if 0
     fprintf(OStr, "\n\n//******************** vtables for Classes *******************\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
         if (processVar(I)) {
@@ -301,12 +304,16 @@ void generateCppData(FILE *OStr, Module &Mod)
               fprintf(OStr, ";\n");
           }
     }
-    fprintf(OStr, "typedef unsigned char **RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n    ");
+#endif
+}
+void generateRuleList(FILE *OStr)
+{
+    fprintf(OStr, "typedef struct {\n    bool (*RDY)(void);\n    void (*ENA)(void);\n    } RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n    ");
     while (ruleList.begin() != ruleList.end()) {
-        fprintf(OStr, "%s, ", ruleList.begin()->c_str());
+        fprintf(OStr, "{%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
         ruleList.pop_front();
     }
-    fprintf(OStr, "NULL};\n");
+    fprintf(OStr, "{} };\n");
 }
 void generateCppHeader(Module &Mod, FILE *OStr)
 {
