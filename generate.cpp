@@ -737,7 +737,6 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
-printf("[%s:%d] %p processing %s\n", __FUNCTION__, __LINE__, func, globalName.c_str());
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
         func->dump();
@@ -843,7 +842,7 @@ void pushWork(Function *func, Function ***thisp, int skip)
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
+static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
@@ -867,7 +866,11 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull)
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
-        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(vtablework.begin()->f);
+        Function *F = vtablework.begin()->f;
+        FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+        if (!FT->isVarArg() && !vtablework.begin()->skip)
+            fprintf(headerFile, "%s", printFunctionSignature(F, "", true, ";\n", 0).c_str());
+        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(F);
         processFunction(*vtablework.begin(), ((NI != functionIndex.end()) ? outputNull : outputFile));
         vtablework.pop_front();
     }
@@ -944,12 +947,12 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = 0;
-    processRules(*modfirst, OutNull, OutNull);
+    processRules(*modfirst, OutNull, OutNull, OutNull);
 
     // Generate verilog for all rules
     generateRegion = 1;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    processRules(*modfirst, OutVMain, OutNull);
+    processRules(*modfirst, OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory);
     generateVerilogHeader(Mod, OutVInstance, OutNull);
@@ -957,9 +960,8 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // Generate cpp code for all rules
     generateRegion = 2;
     generateCppData(Out, Mod);
-    processRules(*modfirst, Out, OutNull);
+    processRules(*modfirst, Out, OutNull, OutHeader);
     generateRuleList(Out);
     generateStructs(OutHeader, "");
-    generateCppHeader(Mod, OutHeader);
     return false;
 }

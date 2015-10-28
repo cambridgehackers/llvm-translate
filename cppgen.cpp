@@ -254,21 +254,5 @@ void generateRuleList(FILE *OStr)
         ruleList.pop_front();
     }
     fprintf(OStr, "    {} };\n");
-}
-void generateCppHeader(Module &Mod, FILE *OStr)
-{
-    fprintf(OStr, "\n/* External Global Variable Declarations */\n");
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I)
-        if (I->hasExternalLinkage() || I->hasCommonLinkage())
-          fprintf(OStr, "%s", printType(I->getType()->getElementType(), false, GetValueName(I), "extern ", ";\n").c_str());
-    fprintf(OStr, "\n/* Function Declarations */\n");
-    for (Module::iterator I = Mod.begin(), E = Mod.end(); I != E; ++I) {
-        ERRORIF(I->hasExternalWeakLinkage() || I->hasHiddenVisibility() || (I->hasName() && I->getName()[0] == 1));
-        std::string name = I->getName().str();
-        if (!(I->isIntrinsic() || name == "main" || name == "atexit"
-         || name == "printf" || name == "__cxa_pure_virtual"
-         || name == "setjmp" || name == "longjmp" || name == "_setjmp"))
-            fprintf(OStr, "%s", printFunctionSignature(I, "", true, ";\n", 0).c_str());
-    }
     UnnamedStructIDs.clear();
 }

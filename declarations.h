@@ -167,7 +167,6 @@ void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 std::string processCInstruction(Function ***thisp, Instruction &I);
 void generateClassDef(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
-void generateCppHeader(Module &Mod, FILE *OStr);
 
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
