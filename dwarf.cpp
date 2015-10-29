@@ -291,6 +291,8 @@ int lookup_field(const char *classname, std::string methodname)
 }
 static const MDNode *lookupMember(const StructType *STy, uint64_t ind, int tag)
 {
+    if (!STy)
+        return NULL;
     if (!STy->isLiteral()) { // unnamed items
     std::string cname = STy->getName();
     CLASS_META *classp = lookup_class(cname.c_str());
