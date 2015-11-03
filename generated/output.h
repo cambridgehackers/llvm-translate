@@ -5,11 +5,13 @@ unsigned int _ZN5Fifo1IiE5firstEv(class l_class_OC_Fifo1 *Vthis);
 void _ZN14EchoIndication4echoEi(unsigned int Vv);
 bool _ZN5Fifo1IiE8enq__RDYEv(class l_class_OC_Fifo1 *Vthis);
 void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv);
+bool _ZNK5Fifo1IiE7notFullEv(class l_class_OC_Fifo1 *Vthis);
 class l_class_OC_Fifo1;
 class l_class_OC_Fifo;
 class l_class_OC_Module;
 class l_class_OC_Module {
 public:
+  unsigned int  (**_vptr_EC_Module) ( int, ...);
   class l_class_OC_Rule *rfirst;
   class l_class_OC_Module *next;
   class l_class_OC_Module *shadow;
@@ -18,8 +20,7 @@ public:
 
 class l_class_OC_Fifo {
 public:
-  unsigned int  (**Module) ( int, ...);
-  class l_class_OC_Module _vptr_EC_Fifo;
+  class l_class_OC_Module Module;
 };
 
 class l_class_OC_Fifo1 {
@@ -27,24 +28,28 @@ public:
   class l_class_OC_Fifo Fifo_MD_int_OD_;
   unsigned int element;
   bool full;
-  bool enq__RDY(void) {
+  bool first__RDY(void) {
         return ((full) ^ 1);
+  }
+  bool enq__RDY(void) {
+    bool call =     ((*(this))[10])();
+        return call;
   }
   void enq(unsigned int v) {
         (element) = v;
         (full) = 1;
   }
   bool deq__RDY(void) {
-        return (full);
+        return ((full) ^ 1);
   }
   void deq(void) {
         (full) = 0;
   }
-  bool first__RDY(void) {
-        return (full);
-  }
   unsigned int first(void) {
         return (element);
+  }
+  bool notFull(void) {
+        return ((full) ^ 1);
   }
 };
 
