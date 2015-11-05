@@ -20,8 +20,9 @@
  */
 #include <list>
 #include <set>
-#include "llvm/DebugInfo.h"
-#include "llvm/InstVisitor.h"
+#include "llvm/Pass.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
@@ -41,29 +42,6 @@
           exit(1); \
       }}
 
-class MAPTYPE_WORK {
-public:
-    int derived;
-    const MDNode *CTy;
-    char *addr;
-    std::string aname;
-    MAPTYPE_WORK(int a, const MDNode *b, char *c, std::string d) {
-       derived = a;
-       CTy = b;
-       addr = c;
-       aname = d;
-    }
-};
-class ADDRESSMAP_TYPE {
-public:
-    const MDNode *type;
-    std::string name;
-    ADDRESSMAP_TYPE(std::string aname, const MDNode *atype) {
-       name = aname;
-       type = atype;
-    }
-};
-
 class VTABLE_WORK {
 public:
     Function *f;      // Since passes modify instructions, this cannot be 'const'
@@ -78,10 +56,10 @@ public:
 
 typedef struct {
     std::string name;
-    const MDNode *node;
-    const MDNode *inherit;
+    const Metadata *node;
+    const Metadata *inherit;
     int           member_count;
-    std::list<const MDNode *> memberl;
+    std::list<const Metadata *> memberl;
 } CLASS_META;
 
 typedef struct {
@@ -143,19 +121,15 @@ extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
 
 int validateAddress(int arg, void *p);
-const char *mapAddress(void *arg, std::string name, const MDNode *type);
+const char *mapAddress(void *arg, std::string name, const Metadata *type);
 void constructAddressMap(NamedMDNode *CU_Nodes);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
-const MDNode *getNode(const Value *val);
-void dumpType(DIType litem, CLASS_META *classp);
-void dumpTref(const MDNode *Node, CLASS_META *classp);
-void dumpType(DIType litem, CLASS_META *classp);
-void process_metadata(NamedMDNode *CU_Nodes);
+void process_metadata(Module *Mod);
 CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
-const MDNode *lookupMethod(const StructType *STy, uint64_t ind);
+const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind);
 int getClassName(const char *name, const char **className, const char **methodName);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
@@ -186,3 +160,4 @@ void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);
 void generateRuleList(FILE *OStr);
+void dump_class_data(void);

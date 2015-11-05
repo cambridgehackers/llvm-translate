@@ -126,6 +126,8 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string p = printOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        if (p == "printf")
+            break;
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(p.c_str()+1);
             if (tval) {
@@ -164,6 +166,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         unsigned len = FTy->getNumParams();
         if (prefix == "")
             vout += "(";
+        if (func) {
         Function::const_arg_iterator FAI = func->arg_begin();
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
@@ -172,12 +175,16 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 if (prefix != "")
                     vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
                 else {
-                    ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+printf("[%s:%d] ArgNo %d len %d\n", __FUNCTION__, __LINE__, ArgNo, len);
+(*AI)->getType()->dump();
+FTy->getParamType(ArgNo)->dump();
+                    //ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
                 vout += p;
             }
             skip = 0;
+        }
         }
         if (prefix == "")
             vout += ")";

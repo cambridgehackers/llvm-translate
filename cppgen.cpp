@@ -151,6 +151,8 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string p = printOperand(thisp, Callee, false);
 printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        if (p == "printf")
+            break;
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(p.c_str()+1);
             if (tval) {
@@ -179,7 +181,10 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         vout += "(";
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
-                ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+printf("[%s:%d] ArgNo %d len %d\n", __FUNCTION__, __LINE__, ArgNo, len);
+(*AI)->getType()->dump();
+FTy->getParamType(ArgNo)->dump();
+                //ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                 vout += sep + printOperand(thisp, *AI, false);
                 sep = ", ";
             }
@@ -198,7 +203,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
 
 static int processVar(const GlobalVariable *GV)
 {
-    if (GV->isDeclaration() || GV->getSection() == "llvm.metadata"
+    if (GV->isDeclaration() || GV->getSection() == std::string("llvm.metadata")
      || (GV->hasAppendingLinkage() && GV->use_empty()
       && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
         return 0;
@@ -228,7 +233,7 @@ void generateCppData(FILE *OStr, Module &Mod)
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
     for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
-        ERRORIF (I->hasWeakLinkage() || I->hasDLLImportLinkage() || I->hasDLLExportLinkage()
+        ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (processVar(I)) {
           ArrayType *ATy;

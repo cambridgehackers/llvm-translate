@@ -23,7 +23,9 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include <cxxabi.h> // abi::__cxa_demangle
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/DebugInfo.h"
 
 using namespace llvm;
 
@@ -31,184 +33,36 @@ using namespace llvm;
 
 static int trace_meta;// = 1;
 
-static std::map<const MDNode *, int> metamap;
+static std::map<const Metadata *, int> metamap;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
+static DITypeIdentifierMap TypeIdentifierMap;
+static DebugInfoFinder Finder;
 
 /*
  * Read in dwarf metadata
  */
-const MDNode *getNode(const Value *val)
+static std::string getScope(Metadata *Node)
 {
-    if (val)
-        return dyn_cast<MDNode>(val);
-    return NULL;
-}
-
-static std::string getScope(const Value *val)
-{
-    const MDNode *Node = getNode(val);
-    if (!Node)
-        return "";
-    DIType nextitem(Node);
-    std::string name = getScope(nextitem.getContext()) + nextitem.getName().str();
+    std::string name = "";
+    if (const DINamespace *nextitem = dyn_cast_or_null<DINamespace>(Node))
+        name = getScope(nextitem->getRawScope()) + nextitem->getName().str() + "::";
+    else if (const MDString *MDS = dyn_cast_or_null<MDString>(Node)) {
+        int status;
+        const char *demang = abi::__cxa_demangle(MDS->getString().str().c_str(), 0, 0, &status);
+        if (demang) {
+            const char *p;
+            while((p = strstr(demang, " "))) {
+                demang = p+1;
+            }
+            name = std::string(demang) + "::";
+        }
+    }
     //int ind = name.find("<");
     //if (ind >= 0)
         //name = name.substr(0, ind);
-    return name + "::";
+    return name;
 }
-void dumpType(DIType litem, CLASS_META *classp);
-void dumpTref(const MDNode *Node, CLASS_META *classp)
-{
-    if (!Node)
-        return;
-    DIType nextitem(Node);
-    int tag = nextitem.getTag();
-    std::string name = nextitem.getName().str();
-    std::map<const MDNode *, int>::iterator FI = metamap.find(Node);
-    if (FI == metamap.end()) {
-        metamap[Node] = 1;
-        if (tag == dwarf::DW_TAG_class_type) {
-            classp = &class_data[class_data_index++];
-            classp->node = Node;
-            classp->name = "class." + getScope(nextitem.getContext()) + name;
-            int ind = name.find("<");
-            if (ind >= 0) { /* also insert the class w/o template parameters */
-                classp = &class_data[class_data_index++];
-                *classp = *(classp-1);
-                name = name.substr(0, ind);
-                classp->name = "class." + getScope(nextitem.getContext()) + name;
-            }
-        }
-        dumpType(nextitem, classp);
-    }
-}
-
-void dumpType(DIType litem, CLASS_META *classp)
-{
-    int tag = litem.getTag();
-    if (!tag)     // Ignore elements with tag of 0
-        return;
-    if (tag == dwarf::DW_TAG_pointer_type || tag == dwarf::DW_TAG_inheritance) {
-        DICompositeType CTy(litem);
-        const MDNode *Node = getNode(CTy.getTypeDerivedFrom());
-        if (tag == dwarf::DW_TAG_inheritance && Node && classp) {
-            if(classp->inherit) {
-                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                exit(1);
-            }
-            classp->inherit = Node;
-        }
-        dumpTref(Node, classp);
-        return;
-    }
-    if (trace_meta)
-        printf("tag %s name %s off %3ld size %3ld",
-            dwarf::TagString(tag), litem.getName().str().c_str(),
-            (long)litem.getOffsetInBits()/8, (long)litem.getSizeInBits()/8);
-    if (litem.getTag() == dwarf::DW_TAG_subprogram) {
-        DISubprogram sub(litem);
-        if (trace_meta)
-            printf(" link %s", sub.getLinkageName().str().c_str());
-    }
-    if (trace_meta)
-        printf("\n");
-    if (litem.isCompositeType()) {
-        DICompositeType CTy(litem);
-        DIArray Elements = CTy.getTypeArray();
-        if (tag != dwarf::DW_TAG_subroutine_type) {
-            dumpTref(getNode(CTy.getTypeDerivedFrom()), classp);
-            dumpTref(getNode(CTy.getContainingType()), classp);
-        }
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k) {
-            DIType Ty(Elements.getElement(k));
-            int tag = Ty.getTag();
-            if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_subprogram) {
-                const MDNode *Node = Ty;
-                if (classp)
-                    classp->memberl.push_back(Node);
-            }
-            dumpType(Ty, classp);
-        }
-    }
-}
-
-void process_metadata(NamedMDNode *CU_Nodes)
-{
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      DICompileUnit CU(CU_Nodes->getOperand(i));
-      printf("\n%s: compileunit %d:%s %s\n", __FUNCTION__, CU.getLanguage(),
-           // from DIScope:
-           CU.getDirectory().str().c_str(), CU.getFilename().str().c_str());
-      DIArray SPs = CU.getSubprograms();
-      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-        DISubprogram sub(SPs.getElement(i));
-            if (trace_meta)
-            printf("Subprogram: %s %s %d %d %d %d\n", sub.getName().str().c_str(),
-                sub.getLinkageName().str().c_str(), sub.getVirtuality(),
-                sub.getVirtualIndex(), sub.getFlags(), sub.getScopeLineNumber());
-            dumpTref(getNode(sub.getContainingType()), NULL);
-        DIArray tparam(sub.getTemplateParams());
-        if (tparam.getNumElements() > 0) {
-            if (trace_meta) {
-                printf("tparam: ");
-                for (unsigned j = 0, je = tparam.getNumElements(); j != je; j++) {
-                   DIDescriptor ee(tparam.getElement(j));
-                   printf("[%s:%d] %d/%d\n", __FUNCTION__, __LINE__, j, je);
-                   ee.dump();
-                }
-            }
-        }
-        dumpType(DICompositeType(sub.getType()), NULL);
-      }
-      DIArray EnumTypes = CU.getEnumTypes();
-      for (unsigned i = 0, e = EnumTypes.getNumElements(); i != e; ++i) {
-        if (trace_meta)
-        printf("[%s:%d]enumtypes\n", __FUNCTION__, __LINE__);
-        dumpType(DIType(EnumTypes.getElement(i)), NULL);
-      }
-      DIArray RetainedTypes = CU.getRetainedTypes();
-      for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i) {
-        if (trace_meta)
-        printf("[%s:%d]retainedtypes\n", __FUNCTION__, __LINE__);
-        dumpType(DIType(RetainedTypes.getElement(i)), NULL);
-      }
-      DIArray Imports = CU.getImportedEntities();
-      for (unsigned i = 0, e = Imports.getNumElements(); i != e; ++i) {
-        DIImportedEntity Import = DIImportedEntity(Imports.getElement(i));
-        DIDescriptor Entity = Import.getEntity();
-        if (Entity.isType()) {
-          if (trace_meta)
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          dumpType(DIType(Entity), NULL);
-        }
-        else if (Entity.isSubprogram()) {
-          if (trace_meta) {
-          printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-          DISubprogram(Entity)->dump();
-          }
-        }
-        else if (Entity.isNameSpace()) {
-          //DINameSpace(Entity).getContext()->dump();
-        }
-        else
-          printf("[%s:%d] entity not type/subprog/namespace\n", __FUNCTION__, __LINE__);
-      }
-      DIArray GVs = CU.getGlobalVariables();
-      for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-        DIGlobalVariable DIG(GVs.getElement(i));
-        const GlobalVariable *gv = DIG.getGlobal();
-        //const Constant *con = DIG.getConstant();
-        const Value *val = dyn_cast<Value>(gv);
-        std::string cp = DIG.getLinkageName().str();
-        if (!cp.length())
-            cp = DIG.getName().str();
-        if (trace_meta)
-            printf("%s: globalvar: %s GlobalVariable %p type %d\n", __FUNCTION__, cp.c_str(), gv, val->getType()->getTypeID());
-      }
-    }
-}
-
 /*
  * Lookup/usage of dwarf metadata
  */
@@ -217,14 +71,19 @@ void dump_class_data()
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
       printf("class %s node %p inherit %p; ", classp->name.c_str(), classp->node, classp->inherit);
-      for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-          DIType Ty(*MI);
-          DISubprogram CTy(*MI);
-          uint64_t off = Ty.getOffsetInBits()/8;
-          const char *cp = CTy.getLinkageName().str().c_str();
-          if (Ty.getTag() != dwarf::DW_TAG_subprogram || !strlen(cp))
-              cp = Ty.getName().str().c_str();
-          printf(" %s/%lld", cp, (long long)off);
+      for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+          if (const DIType *Ty = dyn_cast<DIType>(*MI)) {
+              uint64_t off = Ty->getOffsetInBits()/8;
+              const char *cp = Ty->getName().str().c_str();
+              printf(" M[%s/%lld]", cp, (long long)off);
+          }
+          else if (const DISubprogram *SP = dyn_cast<DISubprogram>(*MI)) {
+              uint64_t off = SP->getVirtualIndex();
+              const char *cp = SP->getLinkageName().str().c_str();
+              if (!strlen(cp))
+                  cp = SP->getName().str().c_str();
+              printf(" S[%s/%lld]", cp, (long long)off);
+          }
       }
       printf("\n");
       classp++;
@@ -251,14 +110,14 @@ CLASS_META *lookup_class_mangle(const char *cp)
     }
     return NULL;
 }
-const MDNode *lookup_class_member(const char *cp, uint64_t Total)
+const Metadata *lookup_class_member(const char *cp, uint64_t Total)
 {
     CLASS_META *classp = lookup_class(cp);
     if (!classp)
         return NULL;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getOffsetInBits()/8 == Total)
+    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DIType *Ty = dyn_cast<DIType>(*MI);
+        if (Ty->getOffsetInBits()/8 == Total)
             return *MI;
     }
     return NULL;
@@ -270,45 +129,61 @@ int lookup_method(const char *classname, std::string methodname)
     CLASS_META *classp = lookup_class(classname);
     if (!classp)
         return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DISubprogram Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_subprogram && Ty.getName().str() == methodname)
-            return Ty.getVirtualIndex();
+    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DISubprogram *SP = dyn_cast<DISubprogram>(*MI);
+        if (SP && SP->getName().str() == methodname)
+            return SP->getVirtualIndex();
     }
     return -1;
 }
 int lookup_field(const char *classname, std::string methodname)
 {
+    if (trace_meta)
+        printf("[%s:%d] class %s field %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
     CLASS_META *classp = lookup_class(classname);
     if (!classp)
         return -1;
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        if (Ty.getTag() == dwarf::DW_TAG_member && Ty.getName().str() == methodname)
-            return Ty.getOffsetInBits()/8;
+    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DIType *Ty = dyn_cast<DIType>(*MI);
+        if (Ty->getTag() == dwarf::DW_TAG_member && Ty->getName().str() == methodname)
+            return Ty->getOffsetInBits()/8;
     }
     return -1;
 }
-static const MDNode *lookupMember(const StructType *STy, uint64_t ind, int tag)
+static const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
 {
+static int errorCount;
     if (!STy)
         return NULL;
     if (!STy->isLiteral()) { // unnamed items
     std::string cname = STy->getName();
     CLASS_META *classp = lookup_class(cname.c_str());
-    //printf("%s: lookup class '%s' = %p\n", __FUNCTION__, cname.c_str(), classp);
+    if (trace_meta)
+        printf("%s: lookup class '%s' = %p\n", __FUNCTION__, cname.c_str(), classp);
     if (!classp) {
-        printf("%s: can't find class '%s'\n", __FUNCTION__, cname.c_str());
+        printf("%s: can't find class '%s', will exit\n", __FUNCTION__, cname.c_str());
+        if (errorCount++ > 20)
+            exit(-1);
         return NULL;
     }
     if (classp->inherit) {
+        //const DISubprogram *SP = dyn_cast<DISubprogram>(classp->inherit);
         if (!ind--)
             return classp->inherit;
     }
-    for (std::list<const MDNode *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        DIType Ty(*MI);
-        //printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, Ty.getTag(), CBEMangle(Ty.getName().str()).c_str());
-        if (Ty.getTag() == tag)
+    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        unsigned int itemTag = -1;
+        if (const DIType *Ty = dyn_cast<DIType>(*MI)) {
+            itemTag = Ty->getTag();
+            if (trace_meta)
+                printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(Ty->getName().str()).c_str());
+        }
+        else if (const DISubprogram *SP = dyn_cast<DISubprogram>(*MI)) {
+            itemTag = SP->getTag();
+            if (trace_meta)
+                printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(SP->getName().str()).c_str());
+        }
+        if (itemTag == tag)
             if (!ind--)
                 return *MI;
     }
@@ -318,17 +193,17 @@ static const MDNode *lookupMember(const StructType *STy, uint64_t ind, int tag)
 std::string fieldName(const StructType *STy, uint64_t ind)
 {
     char temp[MAX_CHAR_BUFFER];
-    const MDNode *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member);
+    const Metadata *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member);
     if (tptr) {
-        DIType Ty(tptr);
-        return CBEMangle(Ty.getName().str());
+        const DIType *Ty = dyn_cast<DIType>(tptr);
+        return CBEMangle(Ty->getName().str());
     }
     sprintf(temp, "field%d", (int)ind);
     return temp;
 }
-const MDNode *lookupMethod(const StructType *STy, uint64_t ind)
+const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
 {
-    return lookupMember(STy, ind, dwarf::DW_TAG_subprogram);
+    return dyn_cast_or_null<DISubprogram>(lookupMember(STy, ind, dwarf::DW_TAG_subprogram));
 }
 
 int getClassName(const char *name, const char **className, const char **methodName)
@@ -363,4 +238,108 @@ int getClassName(const char *name, const char **className, const char **methodNa
         return 1;
     }
     return 0;
+}
+
+extern "C" void jcajca(){}
+void process_metadata(Module *Mod)
+{
+    Finder.processModule(*Mod);
+    printf("[%s:%d]compile_unit_count %d global_variable_count %d subprogram_count %d type_count %d scope_count %d\n", __FUNCTION__, __LINE__,
+    Finder.compile_unit_count(), Finder.global_variable_count(), Finder.subprogram_count(), Finder.type_count(), Finder.scope_count());
+#if 0
+    for (DICompileUnit *CU : Finder.compile_units()) {
+        printf("Compile unit: (%d)\n", CU->getSourceLanguage());
+    }
+
+    for (DISubprogram *S : Finder.subprograms()) {
+        printf("Subprogram: %s", S->getName().str().c_str());
+        if (!S->getLinkageName().empty())
+            printf(" ('%s')", S->getLinkageName().str().c_str());
+        printf("\n");
+    }
+#endif
+    for (const DIGlobalVariable *GV : Finder.global_variables()) {
+        printf("Global variable: %s", GV->getName().str().c_str());
+        if (!GV->getLinkageName().empty())
+            printf(" ('%s')", GV->getLinkageName().str().c_str());
+        printf("\n");
+    }
+
+    for (const DIType *T : Finder.types()) {
+        int tag = T->getTag();
+        if (tag != dwarf::DW_TAG_class_type)
+            continue;
+        if (!T->getName().empty())
+            printf("Type: Name %s", T->getName().str().c_str());
+        else {
+            //printf("Type:");
+            continue;
+        }
+        if (auto *BT = dyn_cast<DIBasicType>(T)) {
+            printf(" Basic %s", dwarf::AttributeEncodingString(BT->getEncoding()));
+        } else {
+            printf(" Tag %s", dwarf::TagString(tag));
+        }
+        if (auto *CT = dyn_cast<DICompositeType>(T)) {
+            printf(" (identifier: '%s)", CT->getRawIdentifier()->getString().str().c_str());
+printf("[%s:%d] JJJJJJJJJJJJJJJJJJJJJJJ \n", __FUNCTION__, __LINE__);
+                MDString *sc = dyn_cast_or_null<MDString>(T->getRawScope());
+if (sc)
+printf("KK %s", sc->getString().str().c_str());
+        }
+        printf("\n");
+        std::string name = T->getName().str();
+        const Metadata *Node = dyn_cast<Metadata>(T);
+        std::map<const Metadata *, int>::iterator FI = metamap.find(Node);
+        if (FI == metamap.end()) {
+            metamap[Node] = 1;
+            if (tag == dwarf::DW_TAG_class_type) {
+                CLASS_META *classp = &class_data[class_data_index++];
+                classp->node = Node;
+                Metadata *sc = T->getRawScope();
+                classp->name = "class." + getScope(sc) + name;
+printf("[%s:%d] ADDCLASS name %s tag %s Node %p cname %s scope %p\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag), Node, classp->name.c_str(), sc);
+if (sc)
+   sc->dump();
+if (name == "respond1") {
+jcajca();
+Node->dump();
+}
+                int ind = name.find("<");
+                if (ind >= 0) { /* also insert the class w/o template parameters */
+                    classp = &class_data[class_data_index++];
+                    *classp = *(classp-1);
+                    name = name.substr(0, ind);
+                    classp->name = "class." + getScope(T->getRawScope()) + name;
+                }
+                if (const DICompositeType *CTy = dyn_cast<DICompositeType>(T)) {
+                    DINodeArray Elements = CTy->getElements();
+                    for (unsigned k = 0, N = Elements.size(); k < N; ++k) {
+                        if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
+                            int tag = Ty->getTag();
+                            const Metadata *Node = Ty;
+//printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
+                            if (tag == dwarf::DW_TAG_member)
+                                classp->memberl.push_back(Node);
+                            else if (tag == dwarf::DW_TAG_inheritance) {
+                                classp->inherit = Node;
+                            }
+else
+printf("[%s:%d] NOTMEMBER tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), name.c_str());
+                        }
+                        else if (DISubprogram *SP = dyn_cast<DISubprogram>(Elements[k])) {
+                            const Metadata *Node = SP;
+//printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
+                            if (classp)
+                                classp->memberl.push_back(Node);
+                        }
+                        //dumpType(Ty, classp);
+                    }
+                    //auto *DT = dyn_cast<DIDerivedTypeBase>(CTy);
+                    //dumpTref(getNode(DT->getBaseType()), classp);
+                }
+            }
+        }
+
+    }
 }

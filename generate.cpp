@@ -26,6 +26,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 
 using namespace llvm;
 
@@ -94,11 +95,11 @@ static bool isInlinableInst(const Instruction &I)
       || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
         return false;
     if (I.hasOneUse()) {
-        const Instruction &User = cast<Instruction>(*I.use_back());
+        const Instruction &User = cast<Instruction>(*I.user_back());
         if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
             return false;
     }
-    ERRORIF ( I.getParent() != cast<Instruction>(I.use_back())->getParent());
+    ERRORIF ( I.getParent() != cast<Instruction>(I.user_back())->getParent());
     return true;
 }
 static const AllocaInst *isDirectAlloca(const Value *V)
@@ -208,7 +209,7 @@ std::string GetValueName(const Value *Operand)
 {
     const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
     const Value *V;
-    if (GA && (V = GA->resolveAliasedGlobal(false)))
+    if (GA && (V = GA->getAliasee()))
         Operand = V;
     if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
         return CBEMangle(GV->getName().str());
@@ -392,7 +393,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
 {
     std::string sep = "", statstr = "", tstr;
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-    ERRORIF (F->hasDLLImportLinkage() || F->hasDLLExportLinkage() || F->hasStructRetAttr() || FT->isVarArg());
+    ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
     if (altname != "")
         tstr += altname;
@@ -463,12 +464,12 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             const StructType *STy;
             if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
              && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))) {
-                const MDNode *tptr = lookupMethod(STy, 1+        //// WHY????????????????
+                const DISubprogram *tptr = lookupMethod(STy, 1+        //// WHY????????????????
                        Total/sizeof(void *));
                 if (tptr) {
-                    DISubprogram Ty(tptr);
-                    std::string name = CBEMangle(Ty.getName().str());
-                    std::string lname = CBEMangle(Ty.getLinkageName().str());
+                    //DISubprogram Ty(tptr);
+                    std::string name = CBEMangle(tptr->getName().str());
+                    std::string lname = CBEMangle(tptr->getLinkageName().str());
                     //printf("[%s:%d] name %s lname %s\n", __FUNCTION__, __LINE__, name.c_str(), lname.c_str());
                     cbuffer += "&" + (generateRegion == 0 ? lname : name);
                     goto exitlab;
@@ -725,6 +726,10 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
 
     NextAnonValueNumber = 0;
     nameMap.clear();
+    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
+        printf("SKIPPING %s\n", fname.c_str());
+        return;
+    }
     if (regenItem)
         globalName = methodName;
     else {
@@ -769,9 +774,9 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
             printf("LLLLL: %s\n", BB->getName().str().c_str());
         for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
 
-            BasicBlock::iterator next_ins = llvm::next(BasicBlock::iterator(ins));
+            BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
             if (!isInlinableInst(*ins)) {
-                if (trace_translate && generateRegion == 2)
+                //if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
                 std::string vout = processInstruction(work.thisp, ins);
                 if (vout != "") {
@@ -827,8 +832,9 @@ void pushWork(Function *func, Function ***thisp, int skip)
         std::string sname = getStructName(STy);
         std::string tname = STy->getName();
         CLASS_META *mptr = lookup_class(tname.c_str());
-        if (mptr->node->getNumOperands() > 3
-         && mptr->node->getOperand(3)->getName() == className) {
+        if (mptr// && mptr->node->getNumOperands() > 3
+         //&& mptr->node->getOperand(3)->getName() == className
+) {
             if (!classCreate[sname])
                 classCreate[sname] = new ClassMethodTable(sname, className);
             classCreate[sname]->method[func] = methodName;
@@ -847,7 +853,11 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
     int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
     int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
     int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
+    int RuleRDY = lookup_method("class.Rule", "RDY");
+    int RuleENA = lookup_method("class.Rule", "ENA");
 
+    printf("[%s:%d] offsets ModuleFirst %d next %d, RuleNext %d RDY %d ENA %d\n", __FUNCTION__, __LINE__,
+        ModuleRfirst, ModuleNext, RuleNext, RuleRDY, RuleENA);
     ruleList.clear();
     // Walk the rule lists for all modules, generating work items
     while (modp) {                   // loop through all modules
@@ -855,7 +865,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
         Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
         while (rulep) {                      // loop through all rules for module
             printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-            RULE_PAIR p = {rulep[0][lookup_method("class.Rule", "RDY")], rulep[0][lookup_method("class.Rule", "ENA")]};
+            RULE_PAIR p = {rulep[0][RuleRDY], rulep[0][RuleENA]};
             pushWork(p.RDY, (Function ***)rulep, 1);
             pushWork(p.ENA, (Function ***)rulep, 1);
             ruleList.push_back(p);
@@ -889,7 +899,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
                 structWork.push_back(subSTy);
         }
     }
-    else if (FI == structMap.end() && !Ty->isPrimitiveType() && !Ty->isIntegerTy()) {
+    else if (FI == structMap.end()// && !Ty->isPrimitiveType() && !Ty->isIntegerTy()
+) {
         const StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;

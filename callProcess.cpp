@@ -82,10 +82,14 @@ bool CallProcessPass::runOnFunction(Function &F)
     bool changed = false;
     std::string fname = F.getName();
 //printf("CallProcessPass: %s\n", fname.c_str());
+    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
+        printf("SKIPPING %s\n", fname.c_str());
+        return changed;
+    }
     changed = RemoveAllocaPass_runOnFunction(F);
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
-            BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(II));
+            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             if (II->getOpcode() == Instruction::Call)
                 changed |= callProcess_runOnInstruction(II);
             II = PI;

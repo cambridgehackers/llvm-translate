@@ -22,8 +22,6 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
-#include "llvm/Linker.h"
-#include "llvm/PassManager.h"
 #include "llvm/ADT/STLExtras.h"
 
 using namespace llvm;
@@ -39,13 +37,13 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
     bool changed = false;
 //printf("RemoveAllocaPass: %s\n", F.getName().str().c_str());
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        Function::iterator BN = llvm::next(Function::iterator(BB));
+        Function::iterator BN = std::next(Function::iterator(BB));
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
         BasicBlock::iterator E = BB->end();
         if (Start == E) return false;
         BasicBlock::iterator I = Start++;
         while(1) {
-            BasicBlock::iterator PI = llvm::next(BasicBlock::iterator(I));
+            BasicBlock::iterator PI = std::next(BasicBlock::iterator(I));
             int opcode = I->getOpcode();
             Value *retv = (Value *)I;
             switch (opcode) {
@@ -55,7 +53,7 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
                     Value *newt = NULL;
                     BasicBlock::iterator PN = PI;
                     while (PN != E) {
-                        BasicBlock::iterator PNN = llvm::next(BasicBlock::iterator(PN));
+                        BasicBlock::iterator PNN = std::next(BasicBlock::iterator(PN));
                         if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
                             newt = PN->getOperand(0); // Remember value we were storing in temp
                             if (PI == PN)

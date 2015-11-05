@@ -4,4 +4,4 @@
 #mkdir build
 #cd build
 #../../llvm-translate/configure_llvm
-../configure --enable-debug-runtime --enable-debug-symbols --enable-targets=x86,cpp --disable-jit --disable-docs --enable-libffi
+../configure --enable-debug-runtime --enable-debug-symbols --enable-targets=x86,cpp --disable-jit --disable-docs --enable-libffi --with-clang-srcdir=../../clang

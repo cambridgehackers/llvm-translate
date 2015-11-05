@@ -90,7 +90,7 @@ static Instruction *copyFunction(Instruction *TI, const Instruction *I, int meth
              builder.CreateBitCast(new_thisp, castType));
     Value *newCall = builder.CreateCall(
              builder.CreateLoad(
-                 builder.CreateConstInBoundsGEP1_32(
+                 builder.CreateConstInBoundsGEP1_32(nullptr,
                      vtabbase, methodIndex)), new_thisp);
     return dyn_cast<Instruction>(newCall);
 }

@@ -22,10 +22,12 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
-#include "llvm/Linker.h"
-#include "llvm/PassManager.h"
+#include "llvm/Linker/Linker.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Assembly/Parser.h"
+#include "llvm/AsmParser/Parser.h"
+#include "llvm/AsmParser/SlotMapping.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Constants.h"
@@ -64,15 +66,16 @@ bool endswith(const char *str, const char *suffix)
 /*
  * Read/load llvm input files
  */
-static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Context)
+static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Context, SlotMapping *Slots)
 {
     SMDiagnostic Err;
-    OwningPtr<MemoryBuffer> File;
+printf("[%s:%d] file %s\n", __FUNCTION__, __LINE__, Filename.c_str());
     Module *M = new Module(Filename, Context);
-    M->addModuleFlag(llvm::Module::Error, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-    if (MemoryBuffer::getFileOrSTDIN(Filename, File)
-     || !ParseAssembly(File.take(), M, Err, Context))
-        return 0;
+    M->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+    ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr = MemoryBuffer::getFileOrSTDIN(Filename);
+    if (parseAssemblyInto(FileOrErr.get()->getMemBufferRef(), *M, Err, Slots)) {
+        printf("llvm-translate: load error in %s\n", Filename.c_str());
+    }
     return M;
 }
 
@@ -89,21 +92,21 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     LLVMContext &Context = getGlobalContext();
 
     // Load/link the input bitcode
-    Module *Mod = llvm_ParseIRFile(InputFile[0], Context);
+    SlotMapping slots;
+    Module *Mod = llvm_ParseIRFile(InputFile[0], Context, &slots);
     if (!Mod) {
         printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
         return 1;
     }
     Linker L(Mod);
     for (i = 1; i < InputFile.size(); ++i) {
-        Module *M = llvm_ParseIRFile(InputFile[i], Context);
+        Module *M = llvm_ParseIRFile(InputFile[i], Context, &slots);
         if (!M || L.linkInModule(M, &ErrorMsg)) {
             printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
-            return 1;
         }
     }
 
-    EngineBuilder builder(Mod);
+    EngineBuilder builder((std::unique_ptr<Module>(Mod)));
     builder.setMArch(MArch);
     builder.setMCPU("");
     builder.setMAttrs(MAttrs);
@@ -115,17 +118,17 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     EE = builder.create();
     assert(EE);
 
-    // preprocessing dwarf debuf info before running anything
-    dwarfCU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu");
-    if (dwarfCU_Nodes)
-        process_metadata(dwarfCU_Nodes);
+    process_metadata(Mod);
     globalMod = Mod;
     if (OutputDir == "") {
         printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
         exit(-1);
     }
 
-    PassManager Passes;
+    dump_class_data();
+
+printf("[%s:%d] before passes\n", __FUNCTION__, __LINE__);
+    legacy::PassManager Passes;
     Passes.add(new CallProcessPass());
     Passes.add(new GeneratePass(OutputDir));
     Passes.run(*Mod);
@@ -142,11 +145,9 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     //int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 //printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
 
-    //dump_class_data();
-
     // write copy of optimized bitcode
     //raw_fd_ostream OutBit("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
     //WriteBitcodeToFile(Mod, OutBit);
-printf("[%s:%d] end\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] end processing\n", __FUNCTION__, __LINE__);
     return 0;
 }

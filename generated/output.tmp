@@ -4,40 +4,11 @@
 class l_class_OC_EchoTest echoTest;
 unsigned int stop_main_program;
 class l_class_OC_Module *Module::first;
-//processing Echo::respond::respond2::RDY()
-bool Echo::respond::respond2::RDY()(void) {
-        return 1;
-}
-//processing Echo::respond::respond2::ENA()
-void Echo::respond::respond2::ENA()(void) {
-}
-//processing Echo::respond::respond1::RDY()
-bool Echo::respond::respond1::RDY()(void) {
-    bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq__RDY();
-    bool Vtmp__2 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first__RDY();
-        return (Vtmp__1 & Vtmp__2);
-}
-//processing Echo::respond::respond1::ENA()
-void Echo::respond::respond1::ENA()(void) {
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.deq();
-    unsigned int Vcall =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.first();
-        EchoIndication::echo(int)(Vcall);
-}
-//processing EchoTest::drive::RDY()
-bool EchoTest::drive::RDY()(void) {
-    bool Vtmp__1 =     echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq__RDY();
-        return Vtmp__1;
-}
-//processing EchoTest::drive::ENA()
-void EchoTest::drive::ENA()(void) {
-        echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_.enq(22);
-}
 //processing EchoIndication::echo(int)
 void EchoIndication::echo(int)(unsigned int Vv) {
-        printf((("Heard an echo: %d\n")), Vv);
         stop_main_program = 1;
 }
-//processing printf
+//processing EchoIndication::echo(int)
 typedef struct {
     bool (*RDY)(void);
     void (*ENA)(void);

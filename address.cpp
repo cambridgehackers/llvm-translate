@@ -31,6 +31,29 @@ using namespace llvm;
 
 #include "declarations.h"
 
+class MAPTYPE_WORK {
+public:
+    int derived;
+    const Metadata *CTy;
+    char *addr;
+    std::string aname;
+    MAPTYPE_WORK(int a, const Metadata *b, char *c, std::string d) {
+       derived = a;
+       CTy = b;
+       addr = c;
+       aname = d;
+    }
+};
+class ADDRESSMAP_TYPE {
+public:
+    const Metadata *type;
+    std::string name;
+    ADDRESSMAP_TYPE(std::string aname, const Metadata *atype) {
+       name = aname;
+       type = atype;
+    }
+};
+
 #define GIANT_SIZE 1024
 static int trace_map;// = 1;
 static int trace_mapa;// = 1;
@@ -126,7 +149,7 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-const char *mapAddress(void *arg, std::string name, const MDNode *type)
+const char *mapAddress(void *arg, std::string name, const Metadata *type)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     std::map<void *, ADDRESSMAP_TYPE *>::iterator MI = mapitem.find(arg);
@@ -148,8 +171,8 @@ const char *mapAddress(void *arg, std::string name, const MDNode *type)
             if (type) {
 //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 //type->dump();
-               DICompositeType CTy(type);
-               t = CTy.getName().str().c_str();
+               const DICompositeType *CTy = dyn_cast<DICompositeType>(type);
+               t = CTy->getName().str().c_str();
             }
             printf("%s: %p = %s [%s] new\n", __FUNCTION__, arg, name.c_str(), t);
         }
@@ -174,18 +197,18 @@ void *mapLookup(std::string name)
     return NULL;
 }
 
-static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string aname)
+static void mapType(int derived, const Metadata *aCTy, char *aaddr, std::string aname)
 {
-    DICompositeType CTy(aCTy);
-    int tag = CTy.getTag();
-    long offset = (long)CTy.getOffsetInBits()/8;
+    const DICompositeType *CTy = dyn_cast<DICompositeType>(aCTy);
+    int tag = CTy->getTag();
+    long offset = (long)CTy->getOffsetInBits()/8;
     char *addr = aaddr + offset;
     char *addr_target = *(char **)addr;
     if (validateAddress(5000, aaddr) || validateAddress(5001, addr))
         exit(1);
-    std::string name = CTy.getName().str();
+    std::string name = CTy->getName().str();
     if (!name.length())
-        name = CTy.getName().str();
+        name = CTy->getName().str();
     std::string fname = name;
     const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
     if (tag == dwarf::DW_TAG_class_type && g) {
@@ -201,7 +224,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
                 exit(1);
             }
             if (!derived)
-                CTy = DICompositeType(classp->node);
+                CTy = dyn_cast<DICompositeType>(classp->node);
             std::replace(name.begin(), name.end(), ':', '_');
             std::replace(name.begin(), name.end(), '<', '_');
             std::replace(name.begin(), name.end(), '>', '_');
@@ -211,12 +234,16 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
         fname = aname + "_ZZ_" + name;
     if (tag == dwarf::DW_TAG_pointer_type) {
         if (addr_target && mapitem.find(addr_target) == mapitem.end()) { // process item, if not seen before
-            const MDNode *node = getNode(CTy.getTypeDerivedFrom());
-            DICompositeType pderiv(node);
-            int ptag = pderiv.getTag();
+            auto *DT = dyn_cast<DIDerivedTypeBase>(CTy);
+            const Metadata *node = /*getNode*/(DT->getBaseType());
+            //const DICompositeType *pderiv = dyn_cast<DICompositeType>(node);
+            //int ptag = pderiv->getTag();
             int pptag = 0;
-            if (ptag == dwarf::DW_TAG_pointer_type)
-                pptag = DICompositeType(getNode(pderiv.getTypeDerivedFrom())).getTag();
+            //if (ptag == dwarf::DW_TAG_pointer_type) {
+            if (auto *DT = dyn_cast<DIDerivedTypeBase>(node)) {
+                const DIType *T = dyn_cast<DIType>(/*getNode*/(DT->getBaseType()));
+                pptag = T->getTag();
+            }
             if (pptag != dwarf::DW_TAG_subroutine_type) {
                 if (validateAddress(5010, addr_target))
                     exit(1);
@@ -231,7 +258,7 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
      && tag != dwarf::DW_TAG_base_type) {
         if (trace_map)
             printf(" SSSStag %20s name %30s ", dwarf::TagString(tag), fname.c_str());
-        if (CTy.isStaticMember()) {
+        if (CTy->isStaticMember()) {
             if (trace_map)
                 printf("STATIC\n");
             return;
@@ -239,13 +266,14 @@ static void mapType(int derived, const MDNode *aCTy, char *aaddr, std::string an
         if (trace_map)
             printf("addr [%s]=val %s derived %d\n", mapAddress(addr, fname, aCTy), mapAddress(addr_target, "", NULL), derived);
     }
-    if (CTy.isDerivedType() || CTy.isCompositeType()) {
-        const MDNode *derivedNode = getNode(CTy.getTypeDerivedFrom());
-        DICompositeType foo(derivedNode);
-        DIArray Elements = CTy.getTypeArray();
+    if (auto *DT = dyn_cast<DIDerivedTypeBase>(CTy)) {
+        const Metadata *derivedNode = /*getNode*/(DT->getBaseType());
+        //const DICompositeType *foo = dyn_cast<DICompositeType>(derivedNode);
+        auto *SP = dyn_cast<DISubroutineType>(CTy);
+        DITypeRefArray Elements = SP->getTypeArray();
         mapwork.push_back(MAPTYPE_WORK(1, derivedNode, addr, fname));
-        for (unsigned k = 0, N = Elements.getNumElements(); k < N; ++k)
-            mapwork.push_back(MAPTYPE_WORK(0, Elements.getElement(k), addr, fname));
+        for (unsigned k = 0, N = Elements.size(); k < N; ++k)
+            mapwork.push_back(MAPTYPE_WORK(0, /*getNode*/(Elements[k]), addr, fname));
     }
 }
 
@@ -256,22 +284,23 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
     mapitem.clear();
     if (CU_Nodes) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
-            DIArray GVs = DICompileUnit(CU_Nodes->getOperand(j)).getGlobalVariables();
-            for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-                DIGlobalVariable DIG(GVs.getElement(i));
-                const GlobalVariable *gv = DIG.getGlobal();
-                std::string cp = DIG.getLinkageName().str();
+            const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));
+            DIGlobalVariableArray GVs = CUP->getGlobalVariables();
+            for (unsigned i = 0, e = GVs.size(); i != e; ++i) {
+                DIGlobalVariable *DIG = GVs[i];
+                const GlobalValue *gv = dyn_cast<GlobalValue>(DIG->getVariable());
+                std::string cp = DIG->getLinkageName().str();
                 if (!cp.length())
-                    cp = DIG.getName().str();
+                    cp = DIG->getName().str();
                 void *addr = EE->getPointerToGlobal(gv);
                 //mapitem[addr] = new ADDRESSMAP_TYPE(cp, DIG.getType());
-                mapAddress(addr, cp, DIG.getType());
-                DICompositeType CTy(DIG.getType());
-                int tag = CTy.getTag();
-                Value *contextp = DIG.getContext();
+                const Metadata *node = /*getNode*/(DIG->getType());
+                mapAddress(addr, cp, node);
+                const DICompositeType *CTy = dyn_cast<DICompositeType>(node);
+                int tag = CTy->getTag();
+                DIScope *contextp = DIG->getScope();
                 if (trace_map)
                     printf("%s: globalvar %s tag %s context %p addr %p\n", __FUNCTION__, cp.c_str(), dwarf::TagString(tag), contextp, addr);
-                const MDNode *node = CTy;
                 addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
                 if (!contextp)
                     mapwork.push_back(MAPTYPE_WORK(1, node, (char *)addr, cp));
