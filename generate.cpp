@@ -776,7 +776,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
 
             BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
             if (!isInlinableInst(*ins)) {
-                //if (trace_translate && generateRegion == 2)
+                if (trace_translate && generateRegion == 2)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
                 std::string vout = processInstruction(work.thisp, ins);
                 if (vout != "") {

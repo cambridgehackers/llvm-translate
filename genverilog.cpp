@@ -175,10 +175,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 if (prefix != "")
                     vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
                 else {
-printf("[%s:%d] ArgNo %d len %d\n", __FUNCTION__, __LINE__, ArgNo, len);
-(*AI)->getType()->dump();
-FTy->getParamType(ArgNo)->dump();
-                    //ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+                    ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
                 vout += p;

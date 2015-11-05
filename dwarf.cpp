@@ -244,9 +244,9 @@ extern "C" void jcajca(){}
 void process_metadata(Module *Mod)
 {
     Finder.processModule(*Mod);
+    if (trace_meta) {
     printf("[%s:%d]compile_unit_count %d global_variable_count %d subprogram_count %d type_count %d scope_count %d\n", __FUNCTION__, __LINE__,
     Finder.compile_unit_count(), Finder.global_variable_count(), Finder.subprogram_count(), Finder.type_count(), Finder.scope_count());
-#if 0
     for (DICompileUnit *CU : Finder.compile_units()) {
         printf("Compile unit: (%d)\n", CU->getSourceLanguage());
     }
@@ -257,7 +257,7 @@ void process_metadata(Module *Mod)
             printf(" ('%s')", S->getLinkageName().str().c_str());
         printf("\n");
     }
-#endif
+    }
     for (const DIGlobalVariable *GV : Finder.global_variables()) {
         printf("Global variable: %s", GV->getName().str().c_str());
         if (!GV->getLinkageName().empty())
@@ -269,6 +269,7 @@ void process_metadata(Module *Mod)
         int tag = T->getTag();
         if (tag != dwarf::DW_TAG_class_type)
             continue;
+        if (trace_meta) {
         if (!T->getName().empty())
             printf("Type: Name %s", T->getName().str().c_str());
         else {
@@ -282,12 +283,9 @@ void process_metadata(Module *Mod)
         }
         if (auto *CT = dyn_cast<DICompositeType>(T)) {
             printf(" (identifier: '%s)", CT->getRawIdentifier()->getString().str().c_str());
-printf("[%s:%d] JJJJJJJJJJJJJJJJJJJJJJJ \n", __FUNCTION__, __LINE__);
-                MDString *sc = dyn_cast_or_null<MDString>(T->getRawScope());
-if (sc)
-printf("KK %s", sc->getString().str().c_str());
         }
         printf("\n");
+        }
         std::string name = T->getName().str();
         const Metadata *Node = dyn_cast<Metadata>(T);
         std::map<const Metadata *, int>::iterator FI = metamap.find(Node);
@@ -298,13 +296,8 @@ printf("KK %s", sc->getString().str().c_str());
                 classp->node = Node;
                 Metadata *sc = T->getRawScope();
                 classp->name = "class." + getScope(sc) + name;
+                if (trace_meta)
 printf("[%s:%d] ADDCLASS name %s tag %s Node %p cname %s scope %p\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag), Node, classp->name.c_str(), sc);
-if (sc)
-   sc->dump();
-if (name == "respond1") {
-jcajca();
-Node->dump();
-}
                 int ind = name.find("<");
                 if (ind >= 0) { /* also insert the class w/o template parameters */
                     classp = &class_data[class_data_index++];

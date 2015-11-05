@@ -125,7 +125,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         exit(-1);
     }
 
-    dump_class_data();
+    //dump_class_data();
 
 printf("[%s:%d] before passes\n", __FUNCTION__, __LINE__);
     legacy::PassManager Passes;

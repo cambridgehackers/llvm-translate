@@ -158,8 +158,12 @@ const char *mapAddress(void *arg, std::string name, const Metadata *type)
         //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second->name.c_str());
         return MI->second->name.c_str();
     }
-    if (g)
+    if (g) {
         name = g->getName().str();
+printf("[%s:%d] OK %p = %s\n", __FUNCTION__, __LINE__, arg, name.c_str());
+    }
+    else
+printf("[%s:%d] FAIL %p = %s\n", __FUNCTION__, __LINE__, arg, name.c_str());
     if (name.length() != 0) {
         mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
         if (name != "") {
@@ -210,6 +214,7 @@ static void mapType(int derived, const Metadata *aCTy, char *aaddr, std::string 
     if (!name.length())
         name = CTy->getName().str();
     std::string fname = name;
+printf("[%s:%d] AEEEEEEEEEE %s\n", __FUNCTION__, __LINE__, name.c_str());
     const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
     if (tag == dwarf::DW_TAG_class_type && g) {
         int status;
@@ -252,6 +257,7 @@ static void mapType(int derived, const Metadata *aCTy, char *aaddr, std::string 
         }
         return;
     }
+printf("[%s:%d] AAAAAAAAAAAAAAAAAAAAAAAAAAaddr %p fname %s aname %s name %s\n", __FUNCTION__, __LINE__, addr, fname.c_str(), aname.c_str(), name.c_str());
     mapAddress(addr, fname, aCTy);
     if (tag != dwarf::DW_TAG_subprogram && tag != dwarf::DW_TAG_subroutine_type
      && tag != dwarf::DW_TAG_class_type && tag != dwarf::DW_TAG_inheritance
