@@ -38,6 +38,7 @@ static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 static DITypeIdentifierMap TypeIdentifierMap;
 static DebugInfoFinder Finder;
+SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 
 /*
  * Read in dwarf metadata
@@ -244,25 +245,38 @@ extern "C" void jcajca(){}
 void process_metadata(Module *Mod)
 {
     Finder.processModule(*Mod);
-    if (trace_meta) {
+    if (trace_meta)
     printf("[%s:%d]compile_unit_count %d global_variable_count %d subprogram_count %d type_count %d scope_count %d\n", __FUNCTION__, __LINE__,
     Finder.compile_unit_count(), Finder.global_variable_count(), Finder.subprogram_count(), Finder.type_count(), Finder.scope_count());
+
     for (DICompileUnit *CU : Finder.compile_units()) {
-        printf("Compile unit: (%d)\n", CU->getSourceLanguage());
+        if (trace_meta)
+            printf("Compile unit: (%d)\n", CU->getSourceLanguage());
+        // Visit all the compile units again to map the type references.
+        if (auto Ts = cast<DICompileUnit>(CU)->getRetainedTypes())
+            for (DIType *Op : Ts)
+              if (auto *T = dyn_cast<DICompositeType>(Op))
+                if (auto *S = T->getRawIdentifier()) {
+                  //UnresolvedTypeRefs.erase(S);
+                  if (trace_meta)
+                      printf("[%s:%d] insertTypeRef S %p %s T %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), T);
+                  TypeRefs.insert(std::make_pair(S, T));
+                }
     }
 
+    if (trace_meta) {
     for (DISubprogram *S : Finder.subprograms()) {
         printf("Subprogram: %s", S->getName().str().c_str());
         if (!S->getLinkageName().empty())
             printf(" ('%s')", S->getLinkageName().str().c_str());
         printf("\n");
     }
-    }
     for (const DIGlobalVariable *GV : Finder.global_variables()) {
         printf("Global variable: %s", GV->getName().str().c_str());
         if (!GV->getLinkageName().empty())
             printf(" ('%s')", GV->getLinkageName().str().c_str());
         printf("\n");
+    }
     }
 
     for (const DIType *T : Finder.types()) {

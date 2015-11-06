@@ -118,6 +118,7 @@ extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
 extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
+extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const Metadata *type);

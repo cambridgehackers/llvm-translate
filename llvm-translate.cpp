@@ -68,7 +68,7 @@ bool endswith(const char *str, const char *suffix)
 static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Context, SlotMapping *Slots)
 {
     SMDiagnostic Err;
-printf("[%s:%d] file %s\n", __FUNCTION__, __LINE__, Filename.c_str());
+//printf("[%s:%d] file %s\n", __FUNCTION__, __LINE__, Filename.c_str());
     Module *M = new Module(Filename, Context);
     M->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
     ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr = MemoryBuffer::getFileOrSTDIN(Filename);
