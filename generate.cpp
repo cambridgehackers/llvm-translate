@@ -948,7 +948,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using dwarf debug info
-    constructAddressMap(dwarfCU_Nodes);
+    constructAddressMap(Mod.getNamedMetadata("llvm.dbg.cu"));
 
     Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");

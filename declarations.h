@@ -116,7 +116,6 @@ extern int regen_methods;
 extern unsigned NextTypeID;
 extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
-extern NamedMDNode *dwarfCU_Nodes;
 extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
 

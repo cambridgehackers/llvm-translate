@@ -54,7 +54,6 @@ int trace_full;// = 1;
 static int dump_interpret;// = 1;
 //static int output_stdout;// = 1;
 ExecutionEngine *EE;
-NamedMDNode *dwarfCU_Nodes;
 Module *globalMod;
 
 bool endswith(const char *str, const char *suffix)
@@ -127,7 +126,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
 
     //dump_class_data();
 
-printf("[%s:%d] before passes\n", __FUNCTION__, __LINE__);
     legacy::PassManager Passes;
     Passes.add(new CallProcessPass());
     Passes.add(new GeneratePass(OutputDir));
