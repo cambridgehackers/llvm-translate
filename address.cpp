@@ -201,20 +201,26 @@ void *mapLookup(std::string name)
     return NULL;
 }
 
-static void mapType(int derived, const Metadata *aMeta, char *aaddr, std::string aname)
+static const Metadata *fetchType(const Metadata *arg)
 {
-    char *addr = aaddr;
-    std::string name = "";
-    if (auto *S = dyn_cast<MDString>(aMeta)) {
+    if (auto *S = dyn_cast_or_null<MDString>(arg)) {
       // Don't error on missing types (checked elsewhere).
       const DIType *DT = TypeRefs.lookup(S);
       if (!DT) {
           printf("[%s:%d] lookup named type failed\n", __FUNCTION__, __LINE__);
           exit(-1);
       }
-      aMeta = DT;
-printf("[%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), aMeta);
+      arg = DT;
+printf("        [%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), arg);
     }
+    return arg;
+}
+
+static void mapType(int derived, const Metadata *aMeta, char *aaddr, std::string aname)
+{
+    char *addr = aaddr;
+    std::string name = "";
+    aMeta = fetchType(aMeta);
     if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
         name = CTy->getName();
     }
@@ -225,7 +231,7 @@ printf("[%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getS
     }
     char *addr_target = *(char **)addr;
 printf("DDderived %d aa %p aMeta %p addr %p addr_target %p aname %s name %s\n", derived, aaddr, aMeta, addr, addr_target, aname.c_str(), name.c_str());
-aMeta->dump();
+//aMeta->dump();
     if (validateAddress(5000, aaddr) || validateAddress(5001, addr))
         exit(1);
     std::string fname = name;
@@ -253,11 +259,18 @@ aMeta->dump();
     if (aname.length() > 0 && name.length() > 0)
         fname = aname + "_ZZ_" + name;
     if (auto *DT = dyn_cast<DIDerivedTypeBase>(aMeta)) {
+printf("[%s:%d]DERIV\n", __FUNCTION__, __LINE__);
+DT->dump();
+        const Metadata *node = fetchType(DT->getRawBaseType());
+        int tag = DT->getTag();
+        if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_inheritance)
+            if (const DIType *DI = dyn_cast_or_null<DIType>(node))
+                tag = DI->getTag();
         /* Handle pointer types */
         if (addr_target && mapitem.find(addr_target) == mapitem.end()) { // process item, if not seen before
-            const Metadata *node = DT->getBaseType();
-            if (DT->getTag() == dwarf::DW_TAG_pointer_type) {
-printf("push %s pointer %p node %p\n", fname.c_str(), addr_target, node);
+printf("[%s:%d] DERIV tag %s node %p\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), node);
+            if (tag == dwarf::DW_TAG_pointer_type) {
+printf("        push %s pointer %p node %p\n", fname.c_str(), addr_target, node);
                 if (validateAddress(5010, addr_target))
                     exit(1);
                 mapwork.push_back(MAPTYPE_WORK(0, node, addr_target, fname));
@@ -268,21 +281,24 @@ printf("push %s pointer %p node %p\n", fname.c_str(), addr_target, node);
     mapAddress(addr, fname, aMeta);
     if (trace_map)
         printf("mapType: aa %p @[%s]=val %s derived %d\n", aaddr, mapAddress(addr, fname, aMeta), mapAddress(addr_target, "", NULL), derived);
+#if 0
     if (auto *DT = dyn_cast<DIDerivedType>(aMeta)) {
-        const Metadata *node = DT->getBaseType();
-printf("[%s:%d] DERIVED aa %p node %p\n", __FUNCTION__, __LINE__, aaddr, node);
-        mapwork.push_back(MAPTYPE_WORK(1, node, aaddr, fname));
-        return;
+        const Metadata *node = DT->getRawBaseType();
+printf("        [%s:%d] DERIVED addr %p node %p IGNOREEEE\n", __FUNCTION__, __LINE__, addr, node);
+DT->dump();
+        //mapwork.push_back(MAPTYPE_WORK(1, node, addr, fname));
+        //return;
     }
+#endif
     if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
         /* Handle class types */
-printf("[%s:%d] CLASSSSS\n", __FUNCTION__, __LINE__);
+printf("   [%s:%d] CLASSSSS\n", __FUNCTION__, __LINE__);
         DINodeArray Elements = CTy->getElements();
         for (unsigned k = 0, N = Elements.size(); k < N; ++k)
             if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
                 int tag = Ty->getTag();
-                const Metadata *node = Ty;
-printf("[%s:%d] member %p fname %s addr %p, name %s\n", __FUNCTION__, __LINE__, node, fname.c_str(), addr, Ty->getName().str().c_str());
+                const Metadata *node = fetchType(Ty);
+printf("   [%s:%d] member %p fname %s addr %p, name %s\n", __FUNCTION__, __LINE__, node, fname.c_str(), addr, Ty->getName().str().c_str());
                 if (tag == dwarf::DW_TAG_member)
                     mapwork.push_back(MAPTYPE_WORK(0, node, addr, fname));
                 else if (tag == dwarf::DW_TAG_inheritance) {
