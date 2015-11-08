@@ -90,7 +90,7 @@ int i;
 
     i = 0;
     while (len > 0) {
-        if (!(i & 0x1f)) {
+        if (!(i & 0x3f)) {
             if (i > 0)
                 printf("\n");
             printf("%s: ",title);
@@ -238,15 +238,16 @@ printf("        [%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S,
 static void mapType(int derived, const Metadata *aMeta, char *aaddr, std::string aname)
 {
     char *addr = aaddr;
-    std::string name = "";
+    std::string name = "unk";
     aMeta = fetchType(aMeta);
     if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
         name = CTy->getName();
     }
     else if (const DIType *Ty = dyn_cast<DIType>(aMeta)) {
-        addr += Ty->getOffsetInBits()/8;
+        int offset = Ty->getOffsetInBits()/8;
+        addr += offset;
         name = Ty->getName();
-        //printf(" M[%s/%lld]", cp, (long long)off);
+        printf(" M[%s/%lld]", name.c_str(), (long long)offset);
     }
     char *addr_target = *(char **)addr;
 printf("DDderived %d aa %p aMeta %p addr %p addr_target %p aname %s name %s\n", derived, aaddr, aMeta, addr, addr_target, aname.c_str(), name.c_str());
@@ -278,16 +279,15 @@ printf("DDderived %d aa %p aMeta %p addr %p addr_target %p aname %s name %s\n", 
     if (aname.length() > 0 && name.length() > 0)
         fname = aname + "_ZZ_" + name;
     if (auto *DT = dyn_cast<DIDerivedTypeBase>(aMeta)) {
-printf("[%s:%d]DERIV\n", __FUNCTION__, __LINE__);
-DT->dump();
         const Metadata *node = fetchType(DT->getRawBaseType());
         int tag = DT->getTag();
         if (tag == dwarf::DW_TAG_member || tag == dwarf::DW_TAG_inheritance)
             if (const DIType *DI = dyn_cast_or_null<DIType>(node))
                 tag = DI->getTag();
         /* Handle pointer types */
+printf("[%s:%d] DERIV tag %s node %p addr_target %p map %p\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), node, addr_target, mapitem[addr_target]);
+//DT->dump();
         if (addr_target && mapitem[addr_target]) { // process item, if not seen before
-printf("[%s:%d] DERIV tag %s node %p\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), node);
             if (tag == dwarf::DW_TAG_pointer_type) {
 printf("        push %s pointer %p node %p\n", fname.c_str(), addr_target, node);
                 if (validateAddress(5010, addr_target))
