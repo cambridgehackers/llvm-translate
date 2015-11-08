@@ -84,6 +84,25 @@ int i;
     printf("\n");
 }
 
+void memdumpl(unsigned char *p, int len, const char *title)
+{
+int i;
+
+    i = 0;
+    while (len > 0) {
+        if (!(i & 0x1f)) {
+            if (i > 0)
+                printf("\n");
+            printf("%s: ",title);
+        }
+        printf("0x%lx ", *(uint64_t *)p);
+        p += sizeof(uint64_t);
+        i += sizeof(uint64_t);
+        len -= sizeof(uint64_t);
+    }
+    printf("\n");
+}
+
 /*
  * Allocated memory region management
  */
@@ -152,11 +171,11 @@ int validateAddress(int arg, void *p)
 const char *mapAddress(void *arg, std::string name, const Metadata *type)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    std::map<void *, ADDRESSMAP_TYPE *>::iterator MI = mapitem.find(arg);
-    if (MI != mapitem.end()) {
+    ADDRESSMAP_TYPE *mptr = mapitem[arg];
+    if (mptr) {
         //if (trace_mapa)
         //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second->name.c_str());
-        return MI->second->name.c_str();
+        return mptr->name.c_str();
     }
     if (g) {
         name = g->getName().str();
@@ -267,7 +286,7 @@ DT->dump();
             if (const DIType *DI = dyn_cast_or_null<DIType>(node))
                 tag = DI->getTag();
         /* Handle pointer types */
-        if (addr_target && mapitem.find(addr_target) == mapitem.end()) { // process item, if not seen before
+        if (addr_target && mapitem[addr_target]) { // process item, if not seen before
 printf("[%s:%d] DERIV tag %s node %p\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), node);
             if (tag == dwarf::DW_TAG_pointer_type) {
 printf("        push %s pointer %p node %p\n", fname.c_str(), addr_target, node);
@@ -281,15 +300,9 @@ printf("        push %s pointer %p node %p\n", fname.c_str(), addr_target, node)
     mapAddress(addr, fname, aMeta);
     if (trace_map)
         printf("mapType: aa %p @[%s]=val %s derived %d\n", aaddr, mapAddress(addr, fname, aMeta), mapAddress(addr_target, "", NULL), derived);
-#if 0
-    if (auto *DT = dyn_cast<DIDerivedType>(aMeta)) {
-        const Metadata *node = DT->getRawBaseType();
-printf("        [%s:%d] DERIVED addr %p node %p IGNOREEEE\n", __FUNCTION__, __LINE__, addr, node);
-DT->dump();
-        //mapwork.push_back(MAPTYPE_WORK(1, node, addr, fname));
-        //return;
-    }
-#endif
+char title[20];
+sprintf(title, "0x%lx", (long)addr);
+memdumpl((unsigned char *)addr, 64, title);
     if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
         /* Handle class types */
 printf("   [%s:%d] CLASSSSS\n", __FUNCTION__, __LINE__);
@@ -298,7 +311,8 @@ printf("   [%s:%d] CLASSSSS\n", __FUNCTION__, __LINE__);
             if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
                 int tag = Ty->getTag();
                 const Metadata *node = fetchType(Ty);
-printf("   [%s:%d] member %p fname %s addr %p, name %s\n", __FUNCTION__, __LINE__, node, fname.c_str(), addr, Ty->getName().str().c_str());
+                int offset = Ty->getOffsetInBits()/8;
+printf("   [%s:%d] %s %p fname %s addr %p, name %s offset 0x%x\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), node, fname.c_str(), addr, Ty->getName().str().c_str(), offset);
                 if (tag == dwarf::DW_TAG_member)
                     mapwork.push_back(MAPTYPE_WORK(0, node, addr, fname));
                 else if (tag == dwarf::DW_TAG_inheritance) {
