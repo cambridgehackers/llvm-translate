@@ -13,7 +13,6 @@ class l_class_OC_Module {
 public:
   class l_class_OC_Rule *rfirst;
   class l_class_OC_Module *next;
-  class l_class_OC_Module *shadow;
   unsigned long long size;
 };
 
