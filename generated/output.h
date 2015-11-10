@@ -60,11 +60,11 @@ public:
   class l_class_OC_Rule *next;
   class l_class_OC_EchoTest *module;
   bool RDY(void) {
-    bool tmp__1 =     ((*(((module)->echo)->fifo))[2])();
+    bool tmp__1 =     ((*(((module)->echo)->fifo)).enq__RDY)();
         return tmp__1;
   }
   void ENA(void) {
-        ((*(((module)->echo)->fifo))[3])(22);
+        ((*(((module)->echo)->fifo)).enq)(22);
   }
 };
 
@@ -96,13 +96,13 @@ public:
   class l_class_OC_Rule *next;
   class l_class_OC_Echo *module;
   bool RDY(void) {
-    bool tmp__1 =     ((*((module)->fifo))[4])();
-    bool tmp__2 =     ((*((module)->fifo))[6])();
+    bool tmp__1 =     ((*((module)->fifo)).deq__RDY)();
+    bool tmp__2 =     ((*((module)->fifo)).first__RDY)();
         return (tmp__1 & tmp__2);
   }
   void ENA(void) {
-        ((*((module)->fifo))[5])();
-    unsigned int call =     ((*((module)->fifo))[7])();
+        ((*((module)->fifo)).deq)();
+    unsigned int call =     ((*((module)->fifo)).first)();
         _ZN14EchoIndication4echoEi();
   }
 };

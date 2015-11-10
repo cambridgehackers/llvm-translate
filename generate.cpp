@@ -476,12 +476,12 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 goto exitlab;
             }
             else {
-#if 0
-                cbuffer += "&" + printOperand(thisp, Ptr, false) + "." + name;
-                if (trace_gep)
-                    printf("%s: notthis %s\n", __FUNCTION__, cbuffer.c_str());
-                goto exitlab;
-#endif
+                //if (trace_gep)
+                    printf("%s: notthis %s name %s\n", __FUNCTION__, p.c_str(), name.c_str());
+                if (p.length() < 2 || p.substr(0,2) != "0x") {
+                    cbuffer += "&" + p + "." + name;
+                    goto exitlab;
+                }
             }
         }
         else
