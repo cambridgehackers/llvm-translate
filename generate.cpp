@@ -188,7 +188,7 @@ const StructType *findThisArgument(Function *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
-    if (func->arg_begin() != func->arg_end()
+    if (func && func->arg_begin() != func->arg_end()
      && func->arg_begin()->getName() == "this"
      && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType())))
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
@@ -199,7 +199,7 @@ const StructType *findThisArgumentType(const PointerType *PTy)
 {
     const StructType *STy = NULL;
     const FunctionType *func;
-    if ((func = dyn_cast<FunctionType>(PTy->getElementType()))
+    if (PTy && (func = dyn_cast<FunctionType>(PTy->getElementType()))
      && func->getNumParams() > 0
      && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
@@ -423,6 +423,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
 }
 
+static int trace_gep = 1;
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -458,7 +459,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     Value *FirstOp = I.getOperand();
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         std::string p = fetchOperand(thisp, Ptr, false);
-        //printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
+        if (trace_gep)
+            printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
         if (p == "(*(this))" || p == "(*(Vthis))") {
             PointerType *PTy;
             const StructType *STy;
@@ -470,11 +472,23 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                     //DISubprogram Ty(tptr);
                     std::string name = CBEMangle(tptr->getName().str());
                     std::string lname = CBEMangle(tptr->getLinkageName().str());
-                    //printf("[%s:%d] name %s lname %s\n", __FUNCTION__, __LINE__, name.c_str(), lname.c_str());
-                    cbuffer += "&" + (generateRegion == 0 ? lname : name);
+                    if (trace_gep)
+                        printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());
+                    cbuffer += "&";
+                    if (p != "(*(this))" && p != "(*(Vthis))") 
+                        cbuffer += p + ".";
+                    cbuffer += (generateRegion == 0 ? lname : name);
                     goto exitlab;
                 }
+                else {
+                    if (trace_gep) {
+                        printf("%s: couldnt find method %d\n", __FUNCTION__, (int)(1+Total/sizeof(void *)));
+                        STy->dump();
+                    }
+                }
             }
+            else
+                printf("%s: couldnt find this pointer\n", __FUNCTION__);
         }
         if ((p[0] == '(' && p[p.length()-1] == ')'
            && (tval = mapLookup(p.substr(1, p.length() - 2).c_str())))
@@ -514,7 +528,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                }
            }
            cbuffer += fetchOperand(thisp, Ptr, true);
-//printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
+           if (trace_gep)
+               printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
 next:
            if (val) {
                char temp[100];
@@ -529,7 +544,8 @@ next:
              std::string p = fetchOperand(thisp, Ptr, false);
              std::map<std::string, void *>::iterator NI = nameMap.find(p);
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
-//printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p.c_str(), (NI != nameMap.end()));
+             if (trace_gep)
+                 printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p.c_str(), (NI != nameMap.end()));
              if (thisp && p == "Vthis" && fieldp == "module") {
                  tval = thisp;
                  goto tvallab;
@@ -583,7 +599,7 @@ exitlab:
     cbuffer += ")";
     if (!strncmp(cbuffer.c_str(), "(0x", 3))
         cbuffer = cbuffer.substr(1, cbuffer.length()-2);
-#if 0
+    if (trace_gep) {
     printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
     if (!strncmp(cbuffer.c_str(), "0x", 2)) {
         char *endptr;
@@ -591,7 +607,7 @@ exitlab:
         printf(" [%p]= %p", pint, *pint);
     }
     printf("\n");
-#endif
+    }
     return cbuffer;
 }
 std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
