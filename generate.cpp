@@ -423,7 +423,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
 }
 
-static int trace_gep = 1;
+static int trace_gep;// = 1;
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -461,35 +461,31 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         std::string p = fetchOperand(thisp, Ptr, false);
         if (trace_gep)
             printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
-        if (p == "(*(this))" || p == "(*(Vthis))") {
-            PointerType *PTy;
-            const StructType *STy;
-            if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
-             && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))) {
-                const DISubprogram *tptr = lookupMethod(STy, 1+        //// WHY????????????????
-                       Total/sizeof(void *));
-                if (tptr) {
-                    //DISubprogram Ty(tptr);
-                    std::string name = CBEMangle(tptr->getName().str());
-                    std::string lname = CBEMangle(tptr->getLinkageName().str());
-                    if (trace_gep)
-                        printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());
-                    cbuffer += "&";
-                    if (p != "(*(this))" && p != "(*(Vthis))") 
-                        cbuffer += p + ".";
-                    cbuffer += (generateRegion == 0 ? lname : name);
-                    goto exitlab;
-                }
-                else {
-                    if (trace_gep) {
-                        printf("%s: couldnt find method %d\n", __FUNCTION__, (int)(1+Total/sizeof(void *)));
-                        STy->dump();
-                    }
-                }
+        PointerType *PTy;
+        const StructType *STy;
+        const DISubprogram *tptr;
+        if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
+         && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))
+         && (tptr = lookupMethod(STy, 1+ /* WHY????????????????*/ Total/sizeof(void *)))) {
+            std::string name = CBEMangle(tptr->getName().str());
+            std::string lname = CBEMangle(tptr->getLinkageName().str());
+            if (p == "(*(this))" || p == "(*(Vthis))") {
+                if (trace_gep)
+                    printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());
+                cbuffer += "&" + (generateRegion == 0 ? lname : name);
+                goto exitlab;
             }
-            else
-                printf("%s: couldnt find this pointer\n", __FUNCTION__);
+            else {
+#if 0
+                cbuffer += "&" + printOperand(thisp, Ptr, false) + "." + name;
+                if (trace_gep)
+                    printf("%s: notthis %s\n", __FUNCTION__, cbuffer.c_str());
+                goto exitlab;
+#endif
+            }
         }
+        else
+            printf("%s: couldnt find this pointer\n", __FUNCTION__);
         if ((p[0] == '(' && p[p.length()-1] == ')'
            && (tval = mapLookup(p.substr(1, p.length() - 2).c_str())))
          || (tval = mapLookup(p.c_str())))

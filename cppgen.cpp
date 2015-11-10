@@ -219,7 +219,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         fname = CBEMangle(Ty->getName().str());
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
             const StructType *inherit = dyn_cast<StructType>(*I);
-            printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
+            //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
             if (inherit)
                 generateClassElements(inherit, OStr);
             else
