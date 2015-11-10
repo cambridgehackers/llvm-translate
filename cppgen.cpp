@@ -207,13 +207,36 @@ static int processVar(const GlobalVariable *GV)
     return 1;
 }
 
+static void generateClassElements(const StructType *STy, FILE *OStr)
+{
+    unsigned Idx = 0;
+    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        std::string fname;
+        const Metadata *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+        if (!tptr)
+            continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+        const DIType *Ty = dyn_cast<DIType>(tptr);
+        fname = CBEMangle(Ty->getName().str());
+        if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
+            const StructType *inherit = dyn_cast<StructType>(*I);
+            printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
+            if (inherit)
+                generateClassElements(inherit, OStr);
+            else
+                fprintf(OStr, "// %s: inherit failed\n", __FUNCTION__);
+            continue;
+        }
+        if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
+            continue;    /* do not include vtab pointers */
+        fprintf(OStr, "%s", printType(*I, false, fname, "  ", ";\n").c_str());
+    }
+}
+
 void generateClassDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
-    unsigned Idx = 0;
-    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
+    generateClassElements(STy, OStr);
     ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {

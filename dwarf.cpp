@@ -151,7 +151,7 @@ int lookup_field(const char *classname, std::string methodname)
     }
     return -1;
 }
-static const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
+const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
 {
 static int errorCount;
     if (!STy)
