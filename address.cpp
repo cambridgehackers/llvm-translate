@@ -72,10 +72,9 @@ struct seencomp {
 };
 
 #define GIANT_SIZE 1024
-static int trace_map = 1;
+static int trace_mapt;// = 1;
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
-static int trace_mapt;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, seencomp> mapseen;
 static std::map<std::string, void *> maplookup;
@@ -253,7 +252,7 @@ static const Metadata *fetchType(const Metadata *arg)
       }
       arg = DT;
       if (trace_mapt)
-printf("        [%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), arg);
+          printf("        [%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), arg);
     }
     return arg;
 }
@@ -279,8 +278,8 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
         name = Ty->getName();
     }
     char *addr_target = *(char **)(addr + offset + off);
-      if (trace_mapt)
-printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL), offset, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
+    if (trace_mapt)
+        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL), offset, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
     offset += off;
     if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
         exit(1);
@@ -313,11 +312,11 @@ printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, 
     if (aname.length() > 0)
         fname = aname + "_ZZ_" + name;
     std::string mstr = mapAddress(addr + offset, fname, aMeta);
-    if (trace_map) {
+    if (trace_mapt) {
         printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, "", NULL), derived);
     }
-      if (trace_mapt)
-memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
+    if (trace_mapt)
+        memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
     if (auto *DT = dyn_cast<DIDerivedTypeBase>(aMeta)) {
         const Metadata *node = fetchType(DT->getRawBaseType());
         if (DT->getTag() == dwarf::DW_TAG_member || DT->getTag() == dwarf::DW_TAG_inheritance) {
@@ -337,7 +336,7 @@ memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
       if (trace_mapt)
             printf("    pointer ;");
             const GlobalValue *g = EE->getGlobalValueAtAddress(addr_target);
-      if (trace_mapt)
+            if (trace_mapt)
             if (g) {
                 printf("GLOB %s; ", g->getName().str().c_str());
             }
@@ -350,8 +349,8 @@ memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
     }
     if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
         /* Handle class types */
-      if (trace_mapt)
-printf("   CLASSSSS name %s id %s N %p A %p\n", CTy->getName().str().c_str(), CTy->getIdentifier().str().c_str(), aMeta, addr+offset);
+        if (trace_mapt)
+            printf("   CLASSSSS name %s id %s N %p A %p\n", CTy->getName().str().c_str(), CTy->getIdentifier().str().c_str(), aMeta, addr+offset);
         DINodeArray Elements = CTy->getElements();
         for (unsigned k = 0, N = Elements.size(); k < N; ++k)
             if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
@@ -360,12 +359,13 @@ printf("   CLASSSSS name %s id %s N %p A %p\n", CTy->getName().str().c_str(), CT
                 int off = Ty->getOffsetInBits()/8;
                 if (Ty->isStaticMember())  // don't recurse on static member elements
                     continue;
-      if (trace_mapt)
-printf("   %p+%d+%d %s ", addr, offset, off, Ty->getName().str().c_str());
+                if (trace_mapt)
+                    printf("   %p+%d+%d %s ", addr, offset, off, Ty->getName().str().c_str());
                 if (tag == dwarf::DW_TAG_member)
                     pushwork(0, node, addr, offset, fname);
                 else if (tag == dwarf::DW_TAG_inheritance) {
-                    printf("INHERIT ");
+                    if (trace_mapt)
+                        printf("INHERIT ");
                     pushwork(1, node, addr, aoffset, fname);
                 }
             }
@@ -393,7 +393,7 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
                     cp = GVs[i]->getName().str();
                 mapAddress(addr, cp, node);
                 const DIType *DT = dyn_cast<DIType>(node);
-                //if (trace_map)
+                if (trace_mapt)
                     printf("CAM: %s tag %s: ", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
                 addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
                 pushwork(1, node, (char *)addr, 0, cp);
@@ -408,5 +408,6 @@ printf("***** POP: D %d N %p A %p O %d M %s\n", p->derived, p->CTy, p->addr, p->
         mapType(p->derived, p->CTy, p->addr, p->offset, p->name);
         mapwork.pop_front();
     }
-    dumpMemoryRegions(4010);
+    if (trace_mapt)
+        dumpMemoryRegions(4010);
 }

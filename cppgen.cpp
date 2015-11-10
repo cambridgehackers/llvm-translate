@@ -150,7 +150,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string p = printOperand(thisp, Callee, false);
-printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
         if (p == "printf")
             break;
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
