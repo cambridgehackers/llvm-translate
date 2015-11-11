@@ -8,6 +8,7 @@ class l_class_OC_Module *Module::first;
 void EchoIndication::echo(int)(unsigned int Vv) {
         stop_main_program = 1;
 }
+//processing EchoIndication::echo(int)
 typedef struct {
     bool (*RDY)(void);
     void (*ENA)(void);

@@ -538,17 +538,17 @@ next:
                cbuffer += "&" + fetchOperand(thisp, Ptr, true);
            else if (I != E && (*I)->isStructTy()) {
              std::string p = fetchOperand(thisp, Ptr, false);
-             std::map<std::string, void *>::iterator NI = nameMap.find(p);
+             void *valp = nameMap[p];
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
              if (trace_gep)
-                 printf("[%s:%d] writeop %s found %d\n", __FUNCTION__, __LINE__, p.c_str(), (NI != nameMap.end()));
+                 printf("[%s:%d] writeop %s found %p\n", __FUNCTION__, __LINE__, p.c_str(), valp);
              if (thisp && p == "Vthis" && fieldp == "module") {
                  tval = thisp;
                  goto tvallab;
              }
-             if (NI != nameMap.end() && NI->second) {
+             if (valp) {
                  char temp[1000];
-                 sprintf(temp, "0x%llx", (long long)Total + (long)NI->second);
+                 sprintf(temp, "0x%llx", (long long)Total + (long)valp);
                  cbuffer += temp;
                  goto exitlab;
              }
@@ -892,8 +892,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
         FunctionType *FT = cast<FunctionType>(F->getFunctionType());
         if (!FT->isVarArg() && !vtablework.begin()->skip)
             fprintf(headerFile, "%s", printFunctionSignature(F, "", true, ";\n", 0).c_str());
-        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(F);
-        processFunction(*vtablework.begin(), ((NI != functionIndex.end()) ? outputNull : outputFile));
+        processFunction(*vtablework.begin(), (functionIndex[F] ? outputNull : outputFile));
         vtablework.pop_front();
     }
 }

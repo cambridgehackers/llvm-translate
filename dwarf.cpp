@@ -302,8 +302,7 @@ void process_metadata(Module *Mod)
         }
         std::string name = T->getName().str();
         const Metadata *Node = dyn_cast<Metadata>(T);
-        std::map<const Metadata *, int>::iterator FI = metamap.find(Node);
-        if (FI == metamap.end()) {
+        if (!metamap[Node]) {
             metamap[Node] = 1;
             if (tag == dwarf::DW_TAG_class_type) {
                 CLASS_META *classp = &class_data[class_data_index++];

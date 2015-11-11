@@ -141,14 +141,13 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
         int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         int skip = regen_methods;
         std::string prefix;
-        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
-        if (NI != functionIndex.end()) {
+        if (ClassMethodTable *CMT = functionIndex[func]) {
             p = printOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
             std::string pnew = p;
             referencedItems[pnew] = func->getType();
-            prefix = p + NI->second->method[func];
+            prefix = p + CMT->method[func];
             vout += prefix;
             if (!hasRet)
                 vout += "__ENA = 1";
