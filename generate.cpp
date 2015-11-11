@@ -901,18 +901,12 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
 static std::map<const Type *, int> structMap;
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
 {
-    std::map<const Type *, int>::iterator FI = structMap.find(Ty);
-    const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    if (PTy) {
+    if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
         const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
-        if (subSTy) { /* Not recursion!  These are generated afterword, if we didn't generate before */
-            std::map<const Type *, int>::iterator FI = structMap.find(subSTy);
-            if (FI != structMap.end())
-                structWork.push_back(subSTy);
-        }
+        if (subSTy && structMap[subSTy]) /* Not recursion!  These are generated afterword, if we didn't generate before */
+            structWork.push_back(subSTy);
     }
-    else if (FI == structMap.end()// && !Ty->isPrimitiveType() && !Ty->isIntegerTy()
-) {
+    else if (!structMap[Ty]) {
         const StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;
