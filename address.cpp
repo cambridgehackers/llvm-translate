@@ -231,14 +231,10 @@ const char *mapAddress(void *arg, std::string name, const Metadata *type)
 }
 void *mapLookup(std::string name)
 {
-    if (!strncmp(name.c_str(), "0x", 2)) {
-        char *endptr = NULL;
+    char *endptr = NULL;
+    if (!strncmp(name.c_str(), "0x", 2))
         return (void *)strtol(name.c_str()+2, &endptr, 16);
-    }
-    std::map<std::string, void *>::iterator MI = maplookup.find(name);
-    if (MI != maplookup.end())
-        return MI->second;
-    return NULL;
+    return maplookup[name];
 }
 
 static const Metadata *fetchType(const Metadata *arg)

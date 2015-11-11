@@ -98,10 +98,10 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         vout += pdest + " = ";
         if (BitMask)
           vout += "((";
-        std::map<std::string, void *>::iterator NI = nameMap.find(sval.c_str());
-//printf("[%s:%d] storeval %s found %d\n", __FUNCTION__, __LINE__, sval.c_str(), (NI != nameMap.end()));
-        if (NI != nameMap.end() && NI->second)
-            sval = mapAddress(NI->second, "", NULL);
+        void *valp = nameMap[sval.c_str()];
+//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
+        if (valp)
+            sval = mapAddress(valp, "", NULL);
         vout += sval;
         if (BitMask) {
           vout += ") & " + printOperand(thisp, BitMask, false) + ")";
@@ -164,12 +164,12 @@ printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __
         }
         pushWork(func, called_thisp, 0);
         int skip = regen_methods;
-        std::map<Function *,ClassMethodTable *>::iterator NI = functionIndex.find(func);
-        if (NI != functionIndex.end()) {
+        ClassMethodTable *CMT = functionIndex[func];
+        if (CMT) {
             p = printOperand(thisp, *AI, false);
             if (p[0] == '&')
                 p = p.substr(1);
-            vout += p + ("." + NI->second->method[func]);
+            vout += p + ("." + CMT->method[func]);
             skip = 1;
         }
         else

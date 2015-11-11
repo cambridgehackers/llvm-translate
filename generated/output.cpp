@@ -8,7 +8,6 @@ class l_class_OC_Module *_ZN6Module5firstE;
 void _ZN14EchoIndication4echoEi(unsigned int Vv) {
         stop_main_program = 1;
 }
-//processing _ZN14EchoIndication4echoEi
 typedef struct {
     bool (*RDY)(void);
     void (*ENA)(void);
