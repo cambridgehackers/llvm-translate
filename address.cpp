@@ -119,7 +119,8 @@ int i;
         if (temp == 0x5a5a5a5a5a5a5a5a)
             printf("_ ");
         else
-            printf("0x%lx ", temp);
+            //printf("0x%lx ", temp);
+            printf("%s ", mapAddress((void *)temp, "", NULL));
         p += sizeof(uint64_t);
         i += sizeof(uint64_t);
         len -= sizeof(uint64_t);
@@ -157,7 +158,11 @@ static void dumpMemoryRegions(int arg)
 
     printf("%s: %d\n", __FUNCTION__, arg);
     while(callfunhack[i].p) {
-        printf("[%d] = %p %s\n", i, callfunhack[i].p, mapAddress(callfunhack[i].p, "", NULL));
+        const GlobalValue *g = EE->getGlobalValueAtAddress(callfunhack[i].p);
+        std::string gname;
+        if (g)
+            gname = g->getName();
+        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p, "", NULL));
         long size = callfunhack[i].size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
@@ -165,7 +170,7 @@ static void dumpMemoryRegions(int arg)
            size = size/2;
         }
         size += 16;
-        memdump((unsigned char *)callfunhack[i].p, size, "data");
+        memdumpl((unsigned char *)callfunhack[i].p, size, "data");
         i++;
     }
 }
