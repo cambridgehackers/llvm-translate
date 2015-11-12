@@ -238,47 +238,15 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
-#if 0
-    DICompositeType *mapp = retainedTypes[name];
-    const char *origName = STy->getName().str().c_str();
-    const char *p = origName + strlen(origName) - 1;
-    while (*(p-1) != ':' && *(p-1) != '.' && p > origName)
-        p--;
-    std::string primitiveName = p;
-    //printf("[%s:%d] %s %p %s prim %s\n", __FUNCTION__, __LINE__, name.c_str(), mapp, origName, primitiveName.c_str());
-    assert(mapp);
-    for (DINode *Op : mapp->getElements()) {
-        const DISubprogram *mptr = dyn_cast<DISubprogram>(Op);
-        if (!mptr)
-            continue;
-        DISubroutineType *stype = mptr->getType();
-        const DIType *mp = dyn_cast_or_null<DIType>(stype->getTypeArray()[0]);
-        std::string name = mptr->getName().str();
-        if (name[0] == '~' || name == primitiveName)
-            continue;
-        std::string lname = mptr->getLinkageName();
-        std::string tname = "void ";
-        if (mp)
-            tname = mp->getName().str() + " ";
-        //fprintf(stderr, "[%s:%d] class %s method %s full %s name %s lname %s primitiveName %s\n", __FUNCTION__, __LINE__, className, methodName, methodFull, name.c_str(), lname.c_str(), primitiveName.c_str());
-        if (methodFull)
-            name = methodFull;
-        else
-            name += "()";
-        fprintf(OStr, "  %s%s;\n", tname.c_str(), name.c_str());
-#endif
-#if 1
     ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
             Function *func = FI->first;
             std::string fname = func->getName();
-            const char *className, *methodName, *methodFull;
-            getClassName(fname.c_str(), &className, &methodName, &methodFull);
+            const char *className, *methodName;
+            getClassName(fname.c_str(), &className, &methodName);
             fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
         }
-#endif
-    //}
     fprintf(OStr, "};\n\n");
 }
 
@@ -326,8 +294,8 @@ void generateRuleList(FILE *OStr)
     while (ruleList.begin() != ruleList.end()) {
         //fprintf(OStr, "    {%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
         std::string rdyname = ruleList.begin()->RDY->getName();
-        const char *className, *methodName, *methodFull;
-        getClassName(rdyname.c_str(), &className, &methodName, &methodFull);
+        const char *className, *methodName;
+        getClassName(rdyname.c_str(), &className, &methodName);
         std::string newName = CBEMangle("l_class." + std::string(className));
 printf("[%s:%d] %s %s\n", __FUNCTION__, __LINE__, rdyname.c_str(), newName.c_str());
         fprintf(OStr, "    {%s::RDY, %s::ENA},\n", newName.c_str(), newName.c_str());

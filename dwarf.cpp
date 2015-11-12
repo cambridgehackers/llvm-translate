@@ -208,23 +208,20 @@ const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
     return dyn_cast_or_null<DISubprogram>(lookupMember(STy, ind, dwarf::DW_TAG_subprogram));
 }
 
-int getClassName(const char *name, const char **className, const char **methodName, const char **methodFull)
+int getClassName(const char *name, const char **className, const char **methodName)
 {
     int status;
     static char temp[1000];
-    static char tempMethod[1000];
     char *pmethod = temp;
-    char *pmethodZero;
     temp[0] = 0;
     *className = NULL;
     *methodName = NULL;
-    *methodFull = NULL;
     const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
     if (demang) {
         strcpy(temp, demang);
         while (*pmethod && pmethod[0] != '(')
             pmethod++;
-        pmethodZero = pmethod;
+        *pmethod = 0;
         while (pmethod > temp && pmethod[0] != ':')
             pmethod--;
         char *p = pmethod++;
@@ -240,9 +237,6 @@ int getClassName(const char *name, const char **className, const char **methodNa
         }
         *className = temp;
         *methodName = pmethod;
-        strcpy(tempMethod, pmethod);
-        *pmethodZero = 0;
-        *methodFull = tempMethod;
         return 1;
     }
     return 0;

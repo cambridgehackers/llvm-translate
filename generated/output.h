@@ -81,7 +81,7 @@ public:
   class l_class_OC_Rule *rfirst;
   class l_class_OC_Module *next;
   unsigned long long size;
-  class l_class_OC_Fifo1 *fifo;
+  class l_class_OC_Fifo *fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
   class l_class_OC_Echo_KD__KD_respond respondRule;

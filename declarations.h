@@ -131,7 +131,7 @@ CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind);
-int getClassName(const char *name, const char **className, const char **methodName, const char **methodFull);
+int getClassName(const char *name, const char **className, const char **methodName);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 

@@ -733,10 +733,10 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 {
     Function *func = work.f;
     int hasGuard = 0;
-    const char *className, *methodName, *methodFull;
+    const char *className, *methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName, &methodFull));
+    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName));
 
     NextAnonValueNumber = 0;
     nameMap.clear();
@@ -834,12 +834,12 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 
 void pushWork(Function *func, Function ***thisp, int skip)
 {
-    const char *className, *methodName, *methodFull;
+    const char *className, *methodName;
     const StructType *STy;
 
     if (!func)
         return;
-    if (getClassName(func->getName().str().c_str(), &className, &methodName, &methodFull)
+    if (getClassName(func->getName().str().c_str(), &className, &methodName)
      && (STy = findThisArgument(func))) {
         std::string sname = getStructName(STy);
         std::string tname = STy->getName();
