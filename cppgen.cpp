@@ -318,7 +318,13 @@ void generateRuleList(FILE *OStr)
 {
     fprintf(OStr, "typedef struct {\n    bool (*RDY)(void);\n    void (*ENA)(void);\n    } RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n");
     while (ruleList.begin() != ruleList.end()) {
-        fprintf(OStr, "    {%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
+        //fprintf(OStr, "    {%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
+        std::string rdyname = ruleList.begin()->RDY->getName();
+        const char *className, *methodName, *methodFull;
+        getClassName(rdyname.c_str(), &className, &methodName, &methodFull);
+        std::string newName = CBEMangle("l_class." + std::string(className));
+printf("[%s:%d] %s %s\n", __FUNCTION__, __LINE__, rdyname.c_str(), newName.c_str());
+        fprintf(OStr, "    {%s::RDY, %s::ENA},\n", newName.c_str(), newName.c_str());
         ruleList.pop_front();
     }
     fprintf(OStr, "    {} };\n");

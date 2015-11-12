@@ -14,9 +14,9 @@ typedef struct {
     void (*ENA)(void);
     } RuleVTab;//Rules:
 const RuleVTab ruleList[] = {
-    {_ZN4Echo7respond8respond23RDYEv, _ZN4Echo7respond8respond23ENAEv},
-    {_ZN4Echo7respond8respond13RDYEv, _ZN4Echo7respond8respond13ENAEv},
-    {_ZN8EchoTest5drive3RDYEv, _ZN8EchoTest5drive3ENAEv},
+    {l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::RDY, l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::ENA},
+    {l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::RDY, l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::ENA},
+    {l_class_OC_EchoTest_KD__KD_drive::RDY, l_class_OC_EchoTest_KD__KD_drive::ENA},
     {} };
 bool l_class_OC_Fifo1::enq__RDY(void) {
         return ((full) ^ 1);
