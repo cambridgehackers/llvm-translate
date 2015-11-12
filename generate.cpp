@@ -471,7 +471,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
          && (tptr = lookupMethod(STy, 1+ /* WHY????????????????*/ Total/sizeof(void *)))) {
             std::string name = CBEMangle(tptr->getName().str());
             std::string lname = CBEMangle(tptr->getLinkageName().str());
-            std::string structName = getStructName(STy); // use to get typedef generated
             if (p == "(*(this))" || p == "(*(Vthis))") {
                 if (trace_gep)
                     printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());

@@ -238,6 +238,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
+#if 0
     DICompositeType *mapp = retainedTypes[name];
     const char *origName = STy->getName().str().c_str();
     const char *p = origName + strlen(origName) - 1;
@@ -256,8 +257,6 @@ void generateClassDef(const StructType *STy, FILE *OStr)
         if (name[0] == '~' || name == primitiveName)
             continue;
         std::string lname = mptr->getLinkageName();
-        const char *className, *methodName, *methodFull;
-        getClassName(lname.c_str(), &className, &methodName, &methodFull);
         std::string tname = "void ";
         if (mp)
             tname = mp->getName().str() + " ";
@@ -267,12 +266,19 @@ void generateClassDef(const StructType *STy, FILE *OStr)
         else
             name += "()";
         fprintf(OStr, "  %s%s;\n", tname.c_str(), name.c_str());
-#if 0
+#endif
+#if 1
+    ClassMethodTable *table = classCreate[name];
+    if (table)
+        for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
             Function *func = FI->first;
             std::string fname = func->getName();
+            const char *className, *methodName, *methodFull;
+            getClassName(fname.c_str(), &className, &methodName, &methodFull);
             fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
+        }
 #endif
-    }
+    //}
     fprintf(OStr, "};\n\n");
 }
 
