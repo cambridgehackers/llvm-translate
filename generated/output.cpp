@@ -6,8 +6,10 @@ unsigned int stop_main_program;
 class l_class_OC_Module *_ZN6Module5firstE;
 //processing _ZN14EchoIndication4echoEi
 void _ZN14EchoIndication4echoEi(unsigned int Vv) {
+        printf((("Heard an echo: %d\n")), Vv);
         stop_main_program = 1;
 }
+//processing printf
 //processing _ZN14EchoIndication4echoEi
 typedef struct {
     bool (*RDY)(void);
@@ -31,7 +33,7 @@ bool l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::RDY(void) {
 void l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::ENA(void) {
         ((*((module)->fifo)).deq)();
     unsigned int call =     ((*((module)->fifo)).first)();
-        _ZN14EchoIndication4echoEi();
+        _ZN14EchoIndication4echoEi(call);
 }
 bool l_class_OC_EchoTest_KD__KD_drive::RDY(void) {
     bool tmp__1 =     ((*(((module)->echo)->fifo)).enq__RDY)();

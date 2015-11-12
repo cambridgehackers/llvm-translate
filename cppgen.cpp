@@ -150,36 +150,46 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         Function ***called_thisp = NULL;
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
-        std::string p = printOperand(thisp, Callee, false);
-printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
-        if (p == "printf")
-            break;
-        if (!strncmp(p.c_str(), "&0x", 3) && !func) {
-            void *tval = mapLookup(p.c_str()+1);
+        std::string pcalledFunction = printOperand(thisp, Callee, false);
+printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
+        if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
+            void *tval = mapLookup(pcalledFunction.c_str()+1);
             if (tval) {
                 func = static_cast<Function *>(tval);
                 if (func)
-                    p = func->getName();
-                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
+                    pcalledFunction = func->getName();
+                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
             }
         }
         pushWork(func, called_thisp, 0);
         int skip = regen_methods;
-        ClassMethodTable *CMT = functionIndex[func];
-        if (CMT) {
-            p = printOperand(thisp, *AI, false);
-            if (p[0] == '&')
-                p = p.substr(1);
-            vout += p + ("." + CMT->method[func]);
+        if (ClassMethodTable *CMT = functionIndex[func]) {
+            std::string pfirst = printOperand(thisp, *AI, false);
+            if (pfirst[0] == '&')
+                pfirst = pfirst.substr(1);
+            vout += pfirst + ("." + CMT->method[func]);
             skip = 1;
         }
         else
-            vout += p;
+            vout += pcalledFunction;
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
+#if 0
+if (1
+//pcalledFunction == "_ZN14EchoIndication4echoEi"
+) {
+printf("[%s:%d]DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD %d\n", __FUNCTION__, __LINE__, FTy->getParamType(0)->getTypeID());
+(*AI)->dump();
+FTy->getParamType(0)->dump();
+}
+#endif
+        ERRORIF(FTy->isVarArg() && !len);
         vout += "(";
+        if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
+printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
+            skip = 0;
+        }
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
                 ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
