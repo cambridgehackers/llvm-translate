@@ -259,11 +259,10 @@ static void pushwork(int deriv, const Metadata *node, char *aaddr, int off, std:
 printf("PUSH: D %d N %p A %p O %d M %s *******\n", deriv, node, aaddr, off, aname.c_str());
     mapwork.push_back(MAPTYPE_WORK(deriv, node, aaddr, off, aname));
 }
-std::string getVtableName(void *addr_target)
+static std::string getVtableName(void *addr_target)
 {
     std::string name;
-    const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
-    if (g) {
+    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2)) {
         int status;
         const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
         if (!strncmp(ret, "vtable for ", 11)) {
@@ -275,13 +274,6 @@ std::string getVtableName(void *addr_target)
                 printf("[%s:%d] ret %s\n", __FUNCTION__, __LINE__, ret);
                 exit(1);
             }
-#if 0
-            if (!derived) {
-                //CTy = dyn_cast<DICompositeType>(classp->node);
-printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, aMeta, classp->node);
-                aMeta = classp->node;
-            }
-#endif
             std::replace(name.begin(), name.end(), ':', '_');
             std::replace(name.begin(), name.end(), '<', '_');
             std::replace(name.begin(), name.end(), '>', '_');
@@ -291,7 +283,6 @@ printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, 
 }
 static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
 {
-    int offset = aoffset;
     int off = 0;
     std::string name = "";
     aMeta = fetchType(aMeta);
@@ -307,10 +298,11 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
         printf("[%s:%d] mapType cast failed\n", __FUNCTION__, __LINE__);
         exit(-1);
     }
-    char *addr_target = *(char **)(addr + offset + off);
+    int offset = aoffset + off;
+    char *addr_target = *(char **)(addr + offset);
     if (trace_mapt)
-        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL), offset, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
-    offset += off;
+        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL),
+            offset - off, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
     if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
         exit(1);
     std::string vname = getVtableName(addr_target);
@@ -319,12 +311,11 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
     std::string fname = name;
     if (aname.length() > 0)
         fname = aname + "_ZZ_" + name;
-    std::string mstr = mapAddress(addr + offset, fname, aMeta);
+    std::string mstr = mapAddress(addr + offset, fname, aMeta); // setup mapping!
     if (trace_mapt) {
         printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, "", NULL), derived);
-    }
-    if (trace_mapt)
         memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
+    }
     if (auto *DT = dyn_cast<DIDerivedTypeBase>(aMeta)) {
         const Metadata *node = fetchType(DT->getRawBaseType());
         if (DT->getTag() == dwarf::DW_TAG_member || DT->getTag() == dwarf::DW_TAG_inheritance) {
@@ -364,11 +355,8 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
                     printf("   %p+%d+%d %s ", addr, offset, off, Ty->getName().str().c_str());
                 if (tag == dwarf::DW_TAG_member)
                     pushwork(0, node, addr, offset, fname);
-                else if (tag == dwarf::DW_TAG_inheritance) {
-                    if (trace_mapt)
-                        printf("INHERIT ");
+                else if (tag == dwarf::DW_TAG_inheritance)
                     pushwork(1, node, addr, aoffset, fname);
-                }
             }
     }
 }
