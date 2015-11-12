@@ -273,11 +273,11 @@ static std::string getVtableName(void *addr_target)
 static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
 {
     int off = 0;
-    std::string name = "";
+    std::string name;
     aMeta = fetchType(aMeta);
     if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
         off = CTy->getOffsetInBits()/8;
-        name = CTy->getName();
+        //name = CTy->getName();
     }
     else if (const DIType *Ty = dyn_cast<DIType>(aMeta)) {
         off = Ty->getOffsetInBits()/8;
@@ -298,8 +298,12 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
     if (vname != "")
         name = vname;
     std::string fname = name;
-    if (aname.length() > 0)
-        fname = aname + "_ZZ_" + name;
+    if (aname != "") {
+        if (name != "")
+            fname = aname + "_ZZ_" + name;
+        else
+            fname = aname;
+    }
     std::string mstr = mapAddress(addr + offset, fname, aMeta); // setup mapping!
     if (trace_mapt) {
         printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, "", NULL), derived);
