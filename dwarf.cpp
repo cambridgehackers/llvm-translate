@@ -34,6 +34,7 @@ using namespace llvm;
 static int trace_meta;// = 1;
 
 static std::map<const Metadata *, int> metamap;
+std::map<std::string, DICompositeType *> retainedTypes;
 static CLASS_META class_data[MAX_CLASS_DEFS];
 static int class_data_index;
 static DITypeIdentifierMap TypeIdentifierMap;
@@ -207,20 +208,23 @@ const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
     return dyn_cast_or_null<DISubprogram>(lookupMember(STy, ind, dwarf::DW_TAG_subprogram));
 }
 
-int getClassName(const char *name, const char **className, const char **methodName)
+int getClassName(const char *name, const char **className, const char **methodName, const char **methodFull)
 {
     int status;
     static char temp[1000];
+    static char tempMethod[1000];
     char *pmethod = temp;
+    char *pmethodZero;
     temp[0] = 0;
     *className = NULL;
     *methodName = NULL;
+    *methodFull = NULL;
     const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
     if (demang) {
         strcpy(temp, demang);
         while (*pmethod && pmethod[0] != '(')
             pmethod++;
-        *pmethod = 0;
+        pmethodZero = pmethod;
         while (pmethod > temp && pmethod[0] != ':')
             pmethod--;
         char *p = pmethod++;
@@ -236,6 +240,9 @@ int getClassName(const char *name, const char **className, const char **methodNa
         }
         *className = temp;
         *methodName = pmethod;
+        strcpy(tempMethod, pmethod);
+        *pmethodZero = 0;
+        *methodFull = tempMethod;
         return 1;
     }
     return 0;
@@ -257,10 +264,24 @@ void process_metadata(Module *Mod)
             for (DIType *Op : Ts)
               if (auto *T = dyn_cast<DICompositeType>(Op))
                 if (auto *S = T->getRawIdentifier()) {
-                  //UnresolvedTypeRefs.erase(S);
-                  if (trace_meta)
-                      printf("[%s:%d] insertTypeRef S %p %s T %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), T);
-                  TypeRefs.insert(std::make_pair(S, T));
+                    TypeRefs.insert(std::make_pair(S, T));
+                    if (trace_meta)
+                        printf("[%s:%d] insertTypeRef S %p %s T %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), T);
+                    int status;
+                    const char *demang = abi::__cxa_demangle(S->getString().str().c_str(), 0, 0, &status);
+                    if (strncmp(demang, "typeinfo name for ", 18)) {
+                        printf("[%s:%d] NOT TYPEINFO '%s'\n", __FUNCTION__, __LINE__, demang);
+                        exit(-1);
+                    }
+                    std::string name = "l_class." + std::string(demang+18);
+printf("[%s:%d] RETAIN %s\n", __FUNCTION__, __LINE__, name.c_str());
+                    retainedTypes[CBEMangle(name)] = T;
+                    int ind = name.find("<");
+                    if (ind >= 0) { /* also insert the class w/o template parameters */
+                        name = name.substr(0, ind);
+printf("[%s:%d] RETAIN %s\n", __FUNCTION__, __LINE__, name.c_str());
+                        retainedTypes[CBEMangle(name)] = T;
+                    }
                 }
     }
 

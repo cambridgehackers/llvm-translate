@@ -39,6 +39,7 @@ std::string globalName;
 std::map<std::string,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
+static std::map<const Type *, int> structMap;
 std::list<RULE_PAIR> ruleList;
 static int structWork_run;
 std::map<std::string, void *> nameMap;
@@ -173,7 +174,8 @@ std::string CBEMangle(const std::string &S)
 std::string getStructName(const StructType *STy)
 {
     assert(STy);
-    if (!structWork_run)
+    //if (!structWork_run)
+    if (!structMap[STy])
         structWork.push_back(STy);
     if (!STy->isLiteral() && !STy->getName().empty())
         return CBEMangle("l_"+STy->getName().str());
@@ -469,6 +471,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
          && (tptr = lookupMethod(STy, 1+ /* WHY????????????????*/ Total/sizeof(void *)))) {
             std::string name = CBEMangle(tptr->getName().str());
             std::string lname = CBEMangle(tptr->getLinkageName().str());
+            std::string structName = getStructName(STy); // use to get typedef generated
             if (p == "(*(this))" || p == "(*(Vthis))") {
                 if (trace_gep)
                     printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());
@@ -727,14 +730,14 @@ std::string processInstruction(Function ***thisp, Instruction *ins)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-void processFunction(VTABLE_WORK &work, FILE *outputFile)
+void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName)
 {
     Function *func = work.f;
     int hasGuard = 0;
-    const char *className, *methodName;
+    const char *className, *methodName, *methodFull;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName));
+    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName, &methodFull));
 
     NextAnonValueNumber = 0;
     nameMap.clear();
@@ -776,9 +779,10 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
          || globalName == "__dtor_echoTest" || funcSeen[func]))
             return;
         funcSeen[func] = 1;
+        std::string mname = globalName;
         if (regenItem)
-            fprintf(outputFile, "  ");
-        fprintf(outputFile, "%s", printFunctionSignature(func, globalName, false, " {\n", work.skip || regenItem).c_str());
+            mname = std::string(aclassName) + "::" + mname;
+        fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", work.skip || regenItem).c_str());
     }
     //manually done (only for methods) nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -823,23 +827,20 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile)
     }
     if (hasGuard)
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
-    if (generateRegion == 2) {
-        if (regenItem)
-            fprintf(outputFile, "  ");
+    if (generateRegion == 2)
         fprintf(outputFile, "}\n");
-    }
     else if (!regenItem)
         fprintf(outputFile, "\n");
 }
 
 void pushWork(Function *func, Function ***thisp, int skip)
 {
-    const char *className, *methodName;
+    const char *className, *methodName, *methodFull;
     const StructType *STy;
 
     if (!func)
         return;
-    if (getClassName(func->getName().str().c_str(), &className, &methodName)
+    if (getClassName(func->getName().str().c_str(), &className, &methodName, &methodFull)
      && (STy = findThisArgument(func))) {
         std::string sname = getStructName(STy);
         std::string tname = STy->getName();
@@ -871,6 +872,7 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
     printf("[%s:%d] offsets ModuleFirst %d next %d, RuleNext %d RDY %d ENA %d\n", __FUNCTION__, __LINE__,
         ModuleRfirst, ModuleNext, RuleNext, RuleRDY, RuleENA);
     ruleList.clear();
+    //structWork.clear();
     // Walk the rule lists for all modules, generating work items
     while (modp) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
@@ -892,12 +894,11 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
         FunctionType *FT = cast<FunctionType>(F->getFunctionType());
         if (!FT->isVarArg() && !vtablework.begin()->skip)
             fprintf(headerFile, "%s", printFunctionSignature(F, "", true, ";\n", 0).c_str());
-        processFunction(*vtablework.begin(), (functionIndex[F] ? outputNull : outputFile));
+        processFunction(*vtablework.begin(), (functionIndex[F] ? outputNull : outputFile), "");
         vtablework.pop_front();
     }
 }
 
-static std::map<const Type *, int> structMap;
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
 {
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
@@ -909,11 +910,6 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
         const StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;
-        if (STy) {
-            name = getStructName(STy);
-            if (generateRegion == 2)
-                fprintf(OStr, "class %s;\n", name.c_str());
-        }
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir);
         if (STy) {
@@ -921,6 +917,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
                 printContainedStructs(*I, OStr, ODir);
             if (generateRegion == 1)
                 generateModuleDef(STy, ODir);
+            else if (generateRegion == 2)
+                generateClassBody(STy, OStr);
             else
                 generateClassDef(STy, OStr);
         }
@@ -930,9 +928,10 @@ static void generateStructs(FILE *OStr, std::string oDir)
 {
     structWork_run = 1;
     structMap.clear();
-    while (structWork.begin() != structWork.end()) {
-        printContainedStructs(*structWork.begin(), OStr, oDir);
-        structWork.pop_front();
+    auto current = structWork.begin();
+    while (current != structWork.end()) {
+        printContainedStructs(*current, OStr, oDir);
+        current = std::next(current);
     }
     structWork_run = 0;
 }
@@ -978,6 +977,8 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateCppData(Out, Mod);
     processRules(*modfirst, Out, OutNull, OutHeader);
     generateRuleList(Out);
-    generateStructs(OutHeader, "");
+    generateStructs(Out, ""); // generate class method bodies
+    generateRegion = 3;
+    generateStructs(OutHeader, ""); // generate class definitions
     return false;
 }

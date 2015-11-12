@@ -22,6 +22,7 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
+#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
@@ -237,15 +238,57 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
+    DICompositeType *mapp = retainedTypes[name];
+    const char *origName = STy->getName().str().c_str();
+    const char *p = origName + strlen(origName) - 1;
+    while (*(p-1) != ':' && *(p-1) != '.' && p > origName)
+        p--;
+    std::string primitiveName = p;
+    //printf("[%s:%d] %s %p %s prim %s\n", __FUNCTION__, __LINE__, name.c_str(), mapp, origName, primitiveName.c_str());
+    assert(mapp);
+    for (DINode *Op : mapp->getElements()) {
+        const DISubprogram *mptr = dyn_cast<DISubprogram>(Op);
+        if (!mptr)
+            continue;
+        DISubroutineType *stype = mptr->getType();
+        const DIType *mp = dyn_cast_or_null<DIType>(stype->getTypeArray()[0]);
+        std::string name = mptr->getName().str();
+        if (name[0] == '~' || name == primitiveName)
+            continue;
+        std::string lname = mptr->getLinkageName();
+        const char *className, *methodName, *methodFull;
+        getClassName(lname.c_str(), &className, &methodName, &methodFull);
+        std::string tname = "void ";
+        if (mp)
+            tname = mp->getName().str() + " ";
+        //fprintf(stderr, "[%s:%d] class %s method %s full %s name %s lname %s primitiveName %s\n", __FUNCTION__, __LINE__, className, methodName, methodFull, name.c_str(), lname.c_str(), primitiveName.c_str());
+        if (methodFull)
+            name = methodFull;
+        else
+            name += "()";
+        fprintf(OStr, "  %s%s;\n", tname.c_str(), name.c_str());
+#if 0
+            Function *func = FI->first;
+            std::string fname = func->getName();
+            fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
+#endif
+    }
+    fprintf(OStr, "};\n\n");
+}
+
+void generateClassBody(const StructType *STy, FILE *OStr)
+{
+    std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[name];
     if (table)
         for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, FI->first->getName().str().c_str());
             VTABLE_WORK workItem(FI->first, NULL, 1);
-            regen_methods = 2;
-            processFunction(workItem, OStr);
+            regen_methods = 3;
+            processFunction(workItem, OStr, name);
             regen_methods = 0;
         }
-    fprintf(OStr, "};\n\n");
+    //fprintf(OStr, "};\n\n");
 }
 
 void generateCppData(FILE *OStr, Module &Mod)

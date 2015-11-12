@@ -119,6 +119,7 @@ extern int generateRegion;
 extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
+extern std::map<std::string, DICompositeType *> retainedTypes;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const Metadata *type);
@@ -130,7 +131,7 @@ CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
 int lookup_field(const char *classname, std::string methodname);
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind);
-int getClassName(const char *name, const char **className, const char **methodName);
+int getClassName(const char *name, const char **className, const char **methodName, const char **methodFull);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
@@ -140,6 +141,7 @@ void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 std::string processCInstruction(Function ***thisp, Instruction &I);
 void generateClassDef(const StructType *STy, FILE *OStr);
+void generateClassBody(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
 
 std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
@@ -155,7 +157,7 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction *ins);
-void processFunction(VTABLE_WORK &work, FILE *OStr);
+void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName);
 void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);

@@ -179,7 +179,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         std::string fname;
         const StructType *STy;
-        const char *className, *methodName;
+        const char *className, *methodName, *methodFull;
         const GlobalValue *g = NULL;
 printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
         if (!func) {
@@ -226,7 +226,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             break;
         }
         if ((STy = findThisArgument(func))
-         && getClassName(fname.c_str(), &className, &methodName)) {
+         && getClassName(fname.c_str(), &className, &methodName, &methodFull)) {
             std::string tname = STy->getName();
             char tempname[1000];
             strcpy(tempname, methodName);
