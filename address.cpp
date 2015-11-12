@@ -153,10 +153,9 @@ static void dumpMemoryRegions(int arg)
 {
     int i = 0;
 
-//return;
     printf("%s: %d\n", __FUNCTION__, arg);
     while(callfunhack[i].p) {
-        printf("[%d] = %p\n", i, callfunhack[i].p);
+        printf("[%d] = %p %s\n", i, callfunhack[i].p, mapAddress(callfunhack[i].p, "", NULL));
         long size = callfunhack[i].size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
@@ -187,7 +186,6 @@ int validateAddress(int arg, void *p)
         printf("%p %s size 0x%lx\n", callfunhack[i].p, cp, callfunhack[i].size);
         i++;
     }
-    //exit(1);
     return 1;
 }
 
@@ -198,14 +196,10 @@ const char *mapAddress(void *arg, std::string name, const Metadata *type)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     ADDRESSMAP_TYPE *mptr = mapitem[arg];
-    if (mptr) {
-        //if (trace_mapa)
-        //    printf("%s: %p = %s found\n", __FUNCTION__, arg, MI->second->name.c_str());
+    if (mptr)
         return mptr->name.c_str();
-    }
-    if (g) {
+    if (g)
         name = g->getName().str();
-    }
     if (name.length() != 0) {
         mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
         if (name != "") {
@@ -255,8 +249,8 @@ static const Metadata *fetchType(const Metadata *arg)
 
 static void pushwork(int deriv, const Metadata *node, char *aaddr, int off, std::string aname)
 {
-      if (trace_mapt)
-printf("PUSH: D %d N %p A %p O %d M %s *******\n", deriv, node, aaddr, off, aname.c_str());
+    if (trace_mapt)
+        printf("PUSH: D %d N %p A %p O %d M %s *******\n", deriv, node, aaddr, off, aname.c_str());
     mapwork.push_back(MAPTYPE_WORK(deriv, node, aaddr, off, aname));
 }
 static std::string getVtableName(void *addr_target)
@@ -391,11 +385,11 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
     // process top level classes
     while (mapwork.begin() != mapwork.end()) {
         const MAPTYPE_WORK *p = &*mapwork.begin();
-      if (trace_mapt)
-printf("***** POP: D %d N %p A %p O %d M %s\n", p->derived, p->CTy, p->addr, p->offset, p->name.c_str());
+        if (trace_mapt)
+            printf("***** POP: D %d N %p A %p O %d M %s\n", p->derived, p->CTy, p->addr, p->offset, p->name.c_str());
         mapType(p->derived, p->CTy, p->addr, p->offset, p->name);
         mapwork.pop_front();
     }
-    if (trace_mapt)
+    //if (trace_mapt)
         dumpMemoryRegions(4010);
 }
