@@ -259,27 +259,9 @@ static void pushwork(int deriv, const Metadata *node, char *aaddr, int off, std:
 printf("PUSH: D %d N %p A %p O %d M %s *******\n", deriv, node, aaddr, off, aname.c_str());
     mapwork.push_back(MAPTYPE_WORK(deriv, node, aaddr, off, aname));
 }
-static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
+std::string getVtableName(void *addr_target)
 {
-    int offset = aoffset;
-    int off = 0;
-    std::string name = "unk";
-    aMeta = fetchType(aMeta);
-    if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
-        off = CTy->getOffsetInBits()/8;
-        name = CTy->getName();
-    }
-    else if (const DIType *Ty = dyn_cast<DIType>(aMeta)) {
-        off = Ty->getOffsetInBits()/8;
-        name = Ty->getName();
-    }
-    char *addr_target = *(char **)(addr + offset + off);
-    if (trace_mapt)
-        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL), offset, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
-    offset += off;
-    if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
-        exit(1);
-    std::string fname = name;
+    std::string name;
     const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2);
     if (g) {
         int status;
@@ -305,6 +287,36 @@ printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, 
             std::replace(name.begin(), name.end(), '>', '_');
         }
     }
+    return name;
+}
+static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
+{
+    int offset = aoffset;
+    int off = 0;
+    std::string name = "";
+    aMeta = fetchType(aMeta);
+    if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
+        off = CTy->getOffsetInBits()/8;
+        name = CTy->getName();
+    }
+    else if (const DIType *Ty = dyn_cast<DIType>(aMeta)) {
+        off = Ty->getOffsetInBits()/8;
+        name = Ty->getName();
+    }
+    else {
+        printf("[%s:%d] mapType cast failed\n", __FUNCTION__, __LINE__);
+        exit(-1);
+    }
+    char *addr_target = *(char **)(addr + offset + off);
+    if (trace_mapt)
+        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL), offset, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
+    offset += off;
+    if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
+        exit(1);
+    std::string vname = getVtableName(addr_target);
+    if (vname != "")
+        name = vname;
+    std::string fname = name;
     if (aname.length() > 0)
         fname = aname + "_ZZ_" + name;
     std::string mstr = mapAddress(addr + offset, fname, aMeta);
@@ -317,8 +329,6 @@ printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, 
         const Metadata *node = fetchType(DT->getRawBaseType());
         if (DT->getTag() == dwarf::DW_TAG_member || DT->getTag() == dwarf::DW_TAG_inheritance) {
             if (const DIDerivedTypeBase *DI = dyn_cast_or_null<DIDerivedTypeBase>(node)) {
-                //const DIType *Ty = dyn_cast<DIType>(aMeta);
-                //printf("[%s:%d]replace %ld new %ld\n", __FUNCTION__, __LINE__, Ty->getOffsetInBits()/8, DI->getOffsetInBits()/8);
                 DT = DI;
                 node = fetchType(DT->getRawBaseType());
             }
@@ -329,13 +339,8 @@ printf("[%s:%d] ret %s set ameta old %p new %p\n", __FUNCTION__, __LINE__, ret, 
         /* Handle pointer types */
         if (DT->getTag() == dwarf::DW_TAG_pointer_type && tname != "__vtbl_ptr_type"
          && addr_target && !mapseen[MAPSEEN_TYPE{addr_target, node}]) {  // process item, if not seen before
-      if (trace_mapt)
-            printf("    pointer ;");
-            const GlobalValue *g = EE->getGlobalValueAtAddress(addr_target);
             if (trace_mapt)
-            if (g) {
-                printf("GLOB %s; ", g->getName().str().c_str());
-            }
+                printf("    pointer ;");
             mapseen[MAPSEEN_TYPE{addr_target, node}] = 1;
             pushwork(0, node, addr_target, 0, fname);
             if (validateAddress(5010, addr_target))
