@@ -27,6 +27,8 @@
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 
+#define MAGIC_VTABLE_OFFSET 2
+
 using namespace llvm;
 
 #include "declarations.h"
@@ -255,25 +257,13 @@ static void pushwork(int deriv, const Metadata *node, char *aaddr, int off, std:
 }
 static std::string getVtableName(void *addr_target)
 {
-    std::string name;
-    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-2)) {
+    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
         int status;
         const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-        if (!strncmp(ret, "vtable for ", 11)) {
-            name = ret+11;
-            char temp[MAX_CHAR_BUFFER];
-            sprintf(temp, "class.%s", name.c_str());
-            CLASS_META *classp = lookup_class(temp);
-            if (!classp) {
-                printf("[%s:%d] ret %s\n", __FUNCTION__, __LINE__, ret);
-                exit(1);
-            }
-            std::replace(name.begin(), name.end(), ':', '_');
-            std::replace(name.begin(), name.end(), '<', '_');
-            std::replace(name.begin(), name.end(), '>', '_');
-        }
+        if (!strncmp(ret, "vtable for ", 11))
+            return CBEMangle("l_class." + std::string(ret+11));
     }
-    return name;
+    return "";
 }
 static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
 {
