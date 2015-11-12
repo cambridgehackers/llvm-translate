@@ -101,29 +101,6 @@ CLASS_META *lookup_class(const char *cp)
     }
     return NULL;
 }
-CLASS_META *lookup_class_mangle(const char *cp)
-{
-    CLASS_META *classp = class_data;
-    for (int i = 0; i < class_data_index; i++) {
-      std::string mang = "l_" + CBEMangle(classp->name);
-      if (cp == mang)
-          return classp;
-      classp++;
-    }
-    return NULL;
-}
-const Metadata *lookup_class_member(const char *cp, uint64_t Total)
-{
-    CLASS_META *classp = lookup_class(cp);
-    if (!classp)
-        return NULL;
-    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        const DIType *Ty = dyn_cast<DIType>(*MI);
-        if (Ty->getOffsetInBits()/8 == Total)
-            return *MI;
-    }
-    return NULL;
-}
 int lookup_method(const char *classname, std::string methodname)
 {
     if (trace_meta)
@@ -242,7 +219,6 @@ int getClassName(const char *name, const char **className, const char **methodNa
     return 0;
 }
 
-extern "C" void jcajca(){}
 void process_metadata(Module *Mod)
 {
     Finder.processModule(*Mod);
