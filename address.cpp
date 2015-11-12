@@ -346,13 +346,12 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
         DINodeArray Elements = CTy->getElements();
         for (unsigned k = 0, N = Elements.size(); k < N; ++k)
             if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
-                int tag = Ty->getTag();
-                const Metadata *node = fetchType(Ty);
-                int off = Ty->getOffsetInBits()/8;
                 if (Ty->isStaticMember())  // don't recurse on static member elements
                     continue;
                 if (trace_mapt)
-                    printf("   %p+%d+%d %s ", addr, offset, off, Ty->getName().str().c_str());
+                    printf("   %p+%d+%ld %s ", addr, offset, Ty->getOffsetInBits()/8, Ty->getName().str().c_str());
+                int tag = Ty->getTag();
+                const Metadata *node = fetchType(Ty);
                 if (tag == dwarf::DW_TAG_member)
                     pushwork(0, node, addr, offset, fname);
                 else if (tag == dwarf::DW_TAG_inheritance)
