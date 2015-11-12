@@ -289,9 +289,12 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
     }
     int offset = aoffset + off;
     char *addr_target = *(char **)(addr + offset);
+    std::string incomingAddr = mapAddress(addr, "", NULL);
     if (trace_mapt)
-        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", mapAddress(addr,"",NULL),
+        printf("%s+%d+%d N %p A %p aname %s name %s D %d\n", incomingAddr.c_str(),
             offset - off, off, aMeta, addr_target, aname.c_str(), name.c_str(), derived);
+    if (incomingAddr.length() < 2 || incomingAddr.substr(0,2) != "0x")
+        aname = incomingAddr;
     if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
         exit(1);
     std::string vname = getVtableName(addr_target);
@@ -333,6 +336,7 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
         }
     }
     if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
+        mapseen[MAPSEEN_TYPE{addr_target, aMeta}] = 1;
         /* Handle class types */
         if (trace_mapt)
             printf("   CLASSSSS name %s id %s N %p A %p\n", CTy->getName().str().c_str(), CTy->getIdentifier().str().c_str(), aMeta, addr+offset);
@@ -346,9 +350,9 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
                 int tag = Ty->getTag();
                 const Metadata *node = fetchType(Ty);
                 if (tag == dwarf::DW_TAG_member)
-                    pushwork(0, node, addr, offset, fname);
+                    mapType(0, node, addr, offset, fname);
                 else if (tag == dwarf::DW_TAG_inheritance)
-                    pushwork(1, node, addr, aoffset, fname);
+                    mapType(1, node, addr, aoffset, fname);
             }
     }
 }
