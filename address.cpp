@@ -198,21 +198,13 @@ static const Metadata *fetchType(const Metadata *arg)
 
 static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
 {
-    int off = 0;
-    //std::string name;
     aMeta = fetchType(aMeta);
-    if (const DICompositeType *CTy = dyn_cast<DICompositeType>(aMeta)) {
-        off = CTy->getOffsetInBits()/8;
-        //name = CTy->getName();
-    }
-    else if (const DIType *Ty = dyn_cast<DIType>(aMeta)) {
-        off = Ty->getOffsetInBits()/8;
-        //name = Ty->getName();
-    }
-    else {
+    const DIType *Ty = dyn_cast<DIType>(aMeta);
+    if (!Ty) {
         printf("[%s:%d] mapType cast failed\n", __FUNCTION__, __LINE__);
         exit(-1);
     }
+    int off = Ty->getOffsetInBits()/8;
     int offset = aoffset + off;
     char *addr_target = *(char **)(addr + offset);
     std::string incomingAddr = mapAddress(addr, "", NULL);
@@ -294,8 +286,10 @@ void constructAddressMap(Module *Mod)
                     cp = GVs[i]->getName().str();
                 mapAddress(addr, cp, node);
                 const DIType *DT = dyn_cast<DIType>(node);
-                if (trace_mapt)
-                    printf("CAM: %s tag %s: ", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
+                //if (trace_mapt)
+                    printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
+node->dump();
+gv->getType()->dump();
                 addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
                 mapType(1, node, (char *)addr, 0, cp);
             }
