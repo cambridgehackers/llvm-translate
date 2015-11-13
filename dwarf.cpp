@@ -31,11 +31,28 @@ using namespace llvm;
 
 #include "declarations.h"
 
+typedef struct {
+    const void     *addr;
+    const Metadata *type;
+} MAPSEEN_TYPE;
+
+struct seencomp {
+    bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
+        if (lhs.addr < rhs.addr)
+            return true;
+        if (lhs.addr > rhs.addr)
+            return false;
+        return lhs.type < rhs.type;
+    }
+};
+
 static int trace_meta;// = 1;
+static int trace_mapt;// = 1;
 
 static std::map<const Metadata *, int> metamap;
 std::map<std::string, DICompositeType *> retainedTypes;
 static CLASS_META class_data[MAX_CLASS_DEFS];
+static std::map<MAPSEEN_TYPE, int, seencomp> mapseen;
 static int class_data_index;
 static DITypeIdentifierMap TypeIdentifierMap;
 static DebugInfoFinder Finder;
@@ -217,6 +234,91 @@ int getClassName(const char *name, const char **className, const char **methodNa
         return 1;
     }
     return 0;
+}
+
+const Metadata *fetchType(const Metadata *arg)
+{
+    if (auto *S = dyn_cast_or_null<MDString>(arg)) {
+      // Don't error on missing types (checked elsewhere).
+      const DIType *DT = TypeRefs.lookup(S);
+      if (!DT) {
+          printf("[%s:%d] lookup named type failed\n", __FUNCTION__, __LINE__);
+          exit(-1);
+      }
+      arg = DT;
+      if (trace_mapt)
+          printf("        [%s:%d] replacedmeta S %p %s = %p\n", __FUNCTION__, __LINE__, S, S->getString().str().c_str(), arg);
+    }
+    return arg;
+}
+
+void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
+{
+    aMeta = fetchType(aMeta);
+    const DIType *Ty = dyn_cast<DIType>(aMeta);
+    if (!Ty) {
+        printf("[%s:%d] mapDwarfType cast failed\n", __FUNCTION__, __LINE__);
+        exit(-1);
+    }
+    int off = Ty->getOffsetInBits()/8;
+    int offset = aoffset + off;
+    char *addr_target = *(char **)(addr + offset);
+    std::string incomingAddr = mapAddress(addr, "", NULL);
+    if (trace_mapt)
+        printf("%s+%d+%d N %p A %p aname %s D %d\n", incomingAddr.c_str(),
+            offset - off, off, aMeta, addr_target, aname.c_str(), derived);
+    if (validateAddress(5000, addr) || validateAddress(5001, (addr + offset)))
+        exit(1);
+    //std::string vname = getVtableName(addr_target);
+    std::string fname = aname;
+    if (auto *DT = dyn_cast<DIDerivedTypeBase>(aMeta)) {
+        const Metadata *node = fetchType(DT->getRawBaseType());
+        if (DT->getTag() == dwarf::DW_TAG_member || DT->getTag() == dwarf::DW_TAG_inheritance) {
+            if (const DIDerivedTypeBase *DI = dyn_cast_or_null<DIDerivedTypeBase>(node)) {
+                DT = DI;
+                node = fetchType(DT->getRawBaseType());
+            }
+        }
+        std::string tname;
+        if (auto *DR = dyn_cast_or_null<DIDerivedType>(node))
+            tname = DR->getName();
+        /* Handle pointer types */
+        if (DT->getTag() == dwarf::DW_TAG_pointer_type && tname != "__vtbl_ptr_type"
+         && addr_target && !mapseen[MAPSEEN_TYPE{addr_target, node}]) {  // process item, if not seen before
+            if (trace_mapt)
+                printf("    pointer ;");
+            mapseen[MAPSEEN_TYPE{addr_target, node}] = 1;
+            mapDwarfType(100+derived, node, addr_target, 0, fname);
+            if (validateAddress(5010, addr_target))
+                exit(1);
+            return;
+        }
+    }
+    std::string mstr = mapAddress(addr + offset, fname, aMeta); // setup mapping!
+    if (trace_mapt) {
+        printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, "", NULL), derived);
+        memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
+    }
+    if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
+        /* Handle class types */
+        if (trace_mapt)
+            printf("   CLASSSSS name %s id %s N %p A %p\n", CTy->getName().str().c_str(), CTy->getIdentifier().str().c_str(), aMeta, addr+offset);
+        DINodeArray Elements = CTy->getElements();
+        for (unsigned k = 0, N = Elements.size(); k < N; ++k)
+            if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
+                if (Ty->isStaticMember())  // don't recurse on static member elements
+                    continue;
+                std::string mname = Ty->getName();
+                if (trace_mapt)
+                    printf("   %p+%d+%ld %s ", addr, offset, Ty->getOffsetInBits()/8, mname.c_str());
+                int tag = Ty->getTag();
+                const Metadata *node = fetchType(Ty);
+                if (tag == dwarf::DW_TAG_member)
+                    mapDwarfType(1000+derived, node, addr, offset, fname + "$$" + mname);
+                else if (tag == dwarf::DW_TAG_inheritance)
+                    mapDwarfType(10000+derived, node, addr, aoffset, fname);
+            }
+    }
 }
 
 void process_metadata(Module *Mod)
