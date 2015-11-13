@@ -90,8 +90,8 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
             void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
-            const char *pname = mapAddress(pint, "");
-            if (strncmp(pname, "0x", 2) && !strcmp(endptr, "))"))
+            std::string pname = mapAddress(pint);
+            if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
@@ -101,7 +101,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
           vout += "((";
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
         if (void *temp = nameMap[sval]) {
-            sval = mapAddress(temp, "");
+            sval = mapAddress(temp);
 //printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, temp, sval);
         }
         vout += sval;

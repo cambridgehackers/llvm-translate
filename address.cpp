@@ -85,7 +85,7 @@ static void dumpMemoryRegions(int arg)
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p, ""));
+        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p).c_str());
         long size = callfunhack[i].size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
@@ -122,7 +122,7 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-const char *mapAddress(void *arg, std::string name)
+std::string setMapAddress(void *arg, std::string name)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     ADDRESSMAP_TYPE *mptr = mapitem[arg];
@@ -137,13 +137,17 @@ const char *mapAddress(void *arg, std::string name)
             //printf("%s: setname %s = %p\n", __FUNCTION__, name.c_str(), arg);
         }
         if (name[0] != '(')
-            return name.c_str();
+            return name;
     }
     static char temp[MAX_CHAR_BUFFER];
     sprintf(temp, "%p", arg);
     if (trace_mapa)
         printf("%s: %p\n", __FUNCTION__, arg);
     return temp;
+}
+std::string mapAddress(void *arg)
+{
+    return setMapAddress(arg, "");
 }
 void *mapLookup(std::string name)
 {
@@ -172,7 +176,7 @@ void constructAddressMap(Module *Mod)
                 std::string cp = GVs[i]->getLinkageName().str();
                 if (!cp.length())
                     cp = GVs[i]->getName().str();
-                mapAddress(addr, cp);
+                setMapAddress(addr, cp);
                 const DIType *DT = dyn_cast<DIType>(node);
                 //if (trace_mapt)
                     printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");

@@ -102,7 +102,8 @@ extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 
 int validateAddress(int arg, void *p);
-const char *mapAddress(void *arg, std::string name);
+std::string setMapAddress(void *arg, std::string name);
+std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);

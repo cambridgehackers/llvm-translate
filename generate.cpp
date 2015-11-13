@@ -691,7 +691,7 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
     void *tval = mapLookup(p.c_str());
     if (tval) {
         char temp[1000];
-        sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval, ""));
+        sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval).c_str());
         return std::string(temp);
     }
     return p;

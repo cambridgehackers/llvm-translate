@@ -67,7 +67,7 @@ int i;
             printf("_ ");
         else
             //printf("0x%lx ", temp);
-            printf("%s ", mapAddress((void *)temp, ""));
+            printf("%s ", mapAddress((void *)temp).c_str());
         p += sizeof(uint64_t);
         i += sizeof(uint64_t);
         len -= sizeof(uint64_t);
