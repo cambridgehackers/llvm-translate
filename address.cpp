@@ -35,11 +35,9 @@ using namespace llvm;
 
 class ADDRESSMAP_TYPE {
 public:
-    const Metadata *type;
     std::string name;
-    ADDRESSMAP_TYPE(std::string aname, const Metadata *atype) {
+    ADDRESSMAP_TYPE(std::string aname) {
        name = aname;
-       type = atype;
     }
 };
 
@@ -87,7 +85,7 @@ static void dumpMemoryRegions(int arg)
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p, "", NULL));
+        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p, ""));
         long size = callfunhack[i].size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
@@ -124,7 +122,7 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-const char *mapAddress(void *arg, std::string name, const Metadata *type)
+const char *mapAddress(void *arg, std::string name)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
     ADDRESSMAP_TYPE *mptr = mapitem[arg];
@@ -133,18 +131,10 @@ const char *mapAddress(void *arg, std::string name, const Metadata *type)
     if (g)
         name = g->getName().str();
     if (name.length() != 0) {
-        mapitem[arg] = new ADDRESSMAP_TYPE(name, type);
+        mapitem[arg] = new ADDRESSMAP_TYPE(name);
         if (name != "") {
             maplookup[name] = arg;
             //printf("%s: setname %s = %p\n", __FUNCTION__, name.c_str(), arg);
-        }
-        if (trace_mapa) {
-            const char *t = "";
-            if (type) {
-               const DICompositeType *CTy = dyn_cast<DICompositeType>(type);
-               t = CTy->getName().str().c_str();
-            }
-            printf("%s: %p = %s [%s] new\n", __FUNCTION__, arg, name.c_str(), t);
         }
         if (name[0] != '(')
             return name.c_str();
@@ -182,7 +172,7 @@ void constructAddressMap(Module *Mod)
                 std::string cp = GVs[i]->getLinkageName().str();
                 if (!cp.length())
                     cp = GVs[i]->getName().str();
-                mapAddress(addr, cp, node);
+                mapAddress(addr, cp);
                 const DIType *DT = dyn_cast<DIType>(node);
                 //if (trace_mapt)
                     printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");

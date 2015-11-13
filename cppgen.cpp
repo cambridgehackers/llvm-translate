@@ -92,7 +92,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (!strncmp(pdest.c_str(), "*((0x", 5)) {
             char *endptr = NULL;
             void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
-            std::string pname = mapAddress(pint, "", NULL);
+            std::string pname = mapAddress(pint, "");
             if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
                 pdest = pname;
         }
@@ -102,7 +102,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         void *valp = nameMap[sval.c_str()];
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
         if (valp)
-            sval = mapAddress(valp, "", NULL);
+            sval = mapAddress(valp, "");
         vout += sval;
         if (BitMask) {
           vout += ") & " + printOperand(thisp, BitMask, false) + ")";

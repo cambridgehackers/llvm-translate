@@ -263,7 +263,7 @@ void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, s
     int off = Ty->getOffsetInBits()/8;
     int offset = aoffset + off;
     char *addr_target = *(char **)(addr + offset);
-    std::string incomingAddr = mapAddress(addr, "", NULL);
+    std::string incomingAddr = mapAddress(addr, "");
     if (trace_mapt)
         printf("%s+%d+%d N %p A %p aname %s D %d\n", incomingAddr.c_str(),
             offset - off, off, aMeta, addr_target, aname.c_str(), derived);
@@ -294,10 +294,10 @@ void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, s
             return;
         }
     }
-    std::string mstr = mapAddress(addr + offset, fname, aMeta); // setup mapping!
+    std::string mstr = mapAddress(addr + offset, fname); // setup mapping!
     if (trace_mapt) {
-        printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, "", NULL), derived);
-        memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, "", NULL));
+        printf("%p @[%s]=val %s der %d\n", addr, mstr.c_str(), mapAddress(addr_target, ""), derived);
+        memdumpl((unsigned char *)addr + offset, 64, mapAddress(addr+offset, ""));
     }
     if (auto *CTy = dyn_cast<DICompositeType>(aMeta)) {
         /* Handle class types */
