@@ -277,11 +277,11 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
  * Starting from all toplevel global, construct symbolic names for
  * all reachable addresses
  */
-void constructAddressMap(Module &Mod)
+void constructAddressMap(Module *Mod)
 {
-    process_metadata(&Mod);
+    process_metadata(Mod);
     mapitem.clear();
-    if (NamedMDNode *CU_Nodes = Mod.getNamedMetadata("llvm.dbg.cu")) {
+    if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
             const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));
             DIGlobalVariableArray GVs = CUP->getGlobalVariables();

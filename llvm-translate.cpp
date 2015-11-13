@@ -23,7 +23,6 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include "llvm/Linker/Linker.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/AsmParser/SlotMapping.h"
 #include "llvm/IR/LLVMContext.h"
@@ -105,11 +104,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         exit(-1);
     }
 
-    //dump_class_data();
-
-    legacy::PassManager Passes;
-    Passes.add(new GeneratePass(OutputDir));
-    Passes.run(*Mod);
+    GenerateRunOnModule(Mod, OutputDir);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
 

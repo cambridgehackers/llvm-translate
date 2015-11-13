@@ -933,17 +933,21 @@ static void generateStructs(FILE *OStr, std::string oDir)
     structWork_run = 0;
 }
 
-char GeneratePass::ID = 0;
-bool GeneratePass::runOnModule(Module &Mod)
+bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
+    FILE *Out;
+    FILE *OutHeader;
+    FILE *OutNull;
+    FILE *OutVInstance;
+    FILE *OutVMain;
 printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
-    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod.getNamedValue("_ZN6Module5firstE"));
-    EntryFn = Mod.getFunction("main");
+    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
+    EntryFn = Mod->getFunction("main");
     if (!EntryFn || !modfirst) {
         printf("'main' function not found in module.\n");
         exit(1);
     }
-    for (Module::iterator FB = Mod.begin(), FE = Mod.end(); FB != FE; ++FB)
+    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
     *modfirst = NULL;       // init the Module list before calling constructors
@@ -952,13 +956,14 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
 
     // Construct the address -> symbolic name map using dwarf debug info
     constructAddressMap(Mod);
+    //dump_class_data();
 
     Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
     OutNull = fopen("/dev/null", "w");
     OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
     OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
-    for (Module::iterator FB = Mod.begin(), FE = Mod.end(); FB != FE; ++FB)
+    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
@@ -971,11 +976,11 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     processRules(*modfirst, OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory);
-    generateVerilogHeader(Mod, OutVInstance, OutNull);
+    generateVerilogHeader(*Mod, OutVInstance, OutNull);
 
     // Generate cpp code for all rules
     generateRegion = 2;
-    generateCppData(Out, Mod);
+    generateCppData(Out, *Mod);
     processRules(*modfirst, Out, OutNull, OutHeader);
     generateRuleList(Out);
     generateStructs(Out, ""); // generate class method bodies

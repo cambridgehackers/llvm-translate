@@ -20,7 +20,6 @@
  */
 #include <list>
 #include <set>
-#include "llvm/Pass.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
@@ -72,18 +71,6 @@ typedef struct {
     Function *ENA;
 } RULE_PAIR;
 
-class GeneratePass : public ModulePass {
-    std::string OutDirectory;
-    FILE *Out;
-    FILE *OutHeader;
-    FILE *OutNull;
-    FILE *OutVInstance;
-    FILE *OutVMain;
-  public:
-    static char ID;
-    GeneratePass(std::string outDirectory): ModulePass(ID), OutDirectory(outDirectory) { }
-    bool runOnModule(Module &M);
-};
 class ClassMethodTable {
 public:
     std::string classOrig;
@@ -116,7 +103,7 @@ extern std::map<std::string, DICompositeType *> retainedTypes;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const Metadata *type);
-void constructAddressMap(Module &Mod);
+void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 void process_metadata(Module *Mod);
@@ -161,3 +148,4 @@ void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
 bool call2runOnFunction(Function &F);
 bool callMemrunOnFunction(Function &F);
+bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
