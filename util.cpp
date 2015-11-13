@@ -75,3 +75,9 @@ int i;
     printf("\n");
 }
 
+bool endswith(const char *str, const char *suffix)
+{
+    int skipl = strlen(str) - strlen(suffix);
+    return skipl >= 0 && !strcmp(str + skipl, suffix);
+}
+

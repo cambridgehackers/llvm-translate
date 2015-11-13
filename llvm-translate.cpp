@@ -23,23 +23,12 @@
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
 #include "llvm/Linker/Linker.h"
-#include "llvm/IR/PassManager.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/AsmParser/SlotMapping.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -52,15 +41,8 @@ cl::opt<std::string> OutputDir("odir", cl::init(""), cl::desc("<output directory
 
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
-//static int output_stdout;// = 1;
 ExecutionEngine *EE;
 Module *globalMod;
-
-bool endswith(const char *str, const char *suffix)
-{
-    int skipl = strlen(str) - strlen(suffix);
-    return skipl >= 0 && !strcmp(str + skipl, suffix);
-}
 
 /*
  * Read/load llvm input files
