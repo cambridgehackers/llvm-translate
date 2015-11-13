@@ -37,7 +37,6 @@ using namespace llvm;
 static bool callProcess_runOnInstruction(Instruction *I)
 {
     Module *Mod = I->getParent()->getParent()->getParent();
-    CallInst *CI = dyn_cast<CallInst>(I);
     Value *called = I->getOperand(I->getNumOperands()-1);
     std::string cp = called->getName();
     const Function *CF = dyn_cast<Function>(called);
@@ -58,7 +57,15 @@ static bool callProcess_runOnInstruction(Instruction *I)
         called->replaceAllUsesWith(newmalloc);
         return true;
     }
-    else if (cp != "printf" && CI) {
+    return false;
+}
+static bool call2Process_runOnInstruction(Instruction *I)
+{
+    Module *Mod = I->getParent()->getParent()->getParent();
+    CallInst *CI = dyn_cast<CallInst>(I);
+    Value *called = I->getOperand(I->getNumOperands()-1);
+    std::string cp = called->getName();
+    if (cp != "printf" && CI) {
         std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
         if (lname[0] == '(' && lname[lname.length()-1] == ')')
             lname = lname.substr(1, lname.length() - 2);
@@ -76,8 +83,7 @@ static bool callProcess_runOnInstruction(Instruction *I)
     return false;
 }
 
-char CallProcessPass::ID = 0;
-bool CallProcessPass::runOnFunction(Function &F)
+bool callMemrunOnFunction(Function &F)
 {
     bool changed = false;
     std::string fname = F.getName();
@@ -95,5 +101,28 @@ bool CallProcessPass::runOnFunction(Function &F)
             II = PI;
         }
     }
+//printf("CallProcessPass: end %s changed %d\n", fname.c_str(), changed);
+    return changed;
+}
+
+bool call2runOnFunction(Function &F)
+{
+    bool changed = false;
+    std::string fname = F.getName();
+//printf("CallProcessPass2: %s\n", fname.c_str());
+    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
+        printf("SKIPPING %s\n", fname.c_str());
+        return changed;
+    }
+    changed = RemoveAllocaPass_runOnFunction(F);
+    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
+            if (II->getOpcode() == Instruction::Call)
+                changed |= call2Process_runOnInstruction(II);
+            II = PI;
+        }
+    }
+//printf("CallProcessPass2: end %s changed %d\n", fname.c_str(), changed);
     return changed;
 }

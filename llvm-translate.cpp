@@ -99,7 +99,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     EE = builder.create();
     assert(EE);
 
-    process_metadata(Mod);
     globalMod = Mod;
     if (OutputDir == "") {
         printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
@@ -109,7 +108,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     //dump_class_data();
 
     legacy::PassManager Passes;
-    Passes.add(new CallProcessPass());
     Passes.add(new GeneratePass(OutputDir));
     Passes.run(*Mod);
     //ModulePass *DebugIRPass = createDebugIRPass();

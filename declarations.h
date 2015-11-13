@@ -72,13 +72,6 @@ typedef struct {
     Function *ENA;
 } RULE_PAIR;
 
-class CallProcessPass : public FunctionPass {
-  public:
-    static char ID;
-    CallProcessPass() : FunctionPass(ID) {}
-    bool runOnFunction(Function &F);
-};
-
 class GeneratePass : public ModulePass {
     std::string OutDirectory;
     FILE *Out;
@@ -123,7 +116,7 @@ extern std::map<std::string, DICompositeType *> retainedTypes;
 
 int validateAddress(int arg, void *p);
 const char *mapAddress(void *arg, std::string name, const Metadata *type);
-void constructAddressMap(NamedMDNode *CU_Nodes);
+void constructAddressMap(Module &Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 void process_metadata(Module *Mod);
@@ -166,3 +159,5 @@ void dump_class_data(void);
 const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
+bool call2runOnFunction(Function &F);
+bool callMemrunOnFunction(Function &F);

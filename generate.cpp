@@ -943,19 +943,23 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         printf("'main' function not found in module.\n");
         exit(1);
     }
+    for (Module::iterator FB = Mod.begin(), FE = Mod.end(); FB != FE; ++FB)
+        callMemrunOnFunction(*FB);
 
     *modfirst = NULL;       // init the Module list before calling constructors
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using dwarf debug info
-    constructAddressMap(Mod.getNamedMetadata("llvm.dbg.cu"));
+    constructAddressMap(Mod);
 
     Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
     OutNull = fopen("/dev/null", "w");
     OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
     OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
+    for (Module::iterator FB = Mod.begin(), FE = Mod.end(); FB != FE; ++FB)
+        call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = 0;
