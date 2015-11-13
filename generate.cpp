@@ -750,8 +750,6 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         globalName = fname;
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
-    if (generateRegion == 0)
-        fprintf(stderr, "// %p processing %s\n", func, globalName.c_str());
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());

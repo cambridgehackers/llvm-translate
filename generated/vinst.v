@@ -1,11 +1,11 @@
-l_class_OC_Fifo1 echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_ (
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_CLK,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_nRST,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_enq__RDY,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_enq__ENA,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_[31:0]enq_v,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_deq__RDY,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_deq__ENA,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_first__RDY,
-    echoTest_ZZ_echo_ZZ_fifo_ZZ_l_class_OC_Fifo1_MD_int_OD_[31:0]first);
+l_class_OC_Fifo1 echoTest$$echo$$fifo (
+    echoTest$$echo$$fifoCLK,
+    echoTest$$echo$$fifonRST,
+    echoTest$$echo$$fifoenq__RDY,
+    echoTest$$echo$$fifoenq__ENA,
+    echoTest$$echo$$fifo[31:0]enq_v,
+    echoTest$$echo$$fifodeq__RDY,
+    echoTest$$echo$$fifodeq__ENA,
+    echoTest$$echo$$fifofirst__RDY,
+    echoTest$$echo$$fifo[31:0]first);
 
