@@ -33,21 +33,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-class MAPTYPE_WORK {
-public:
-    int derived;
-    const Metadata *CTy;
-    char *addr;
-    int   offset;
-    std::string name;
-    MAPTYPE_WORK(int deriv, const Metadata *node, char *aaddr, int off, std::string aname) {
-       derived = deriv;
-       CTy = node;
-       addr = aaddr;
-       offset = off;
-       name = aname;
-    }
-};
 class ADDRESSMAP_TYPE {
 public:
     const Metadata *type;
@@ -80,53 +65,10 @@ static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, seencomp> mapseen;
 static std::map<std::string, void *> maplookup;
-static std::list<MAPTYPE_WORK> mapwork;
 static struct {
     void *p;
     long size;
 } callfunhack[100];
-
-void memdump(unsigned char *p, int len, const char *title)
-{
-int i;
-
-    i = 0;
-    while (len > 0) {
-        if (!(i & 0xf)) {
-            if (i > 0)
-                printf("\n");
-            printf("%s: ",title);
-        }
-        printf("%02x ", *p++);
-        i++;
-        len--;
-    }
-    printf("\n");
-}
-
-void memdumpl(unsigned char *p, int len, const char *title)
-{
-int i;
-
-    i = 0;
-    while (len > 0) {
-        if (!(i & 0x3f)) {
-            if (i > 0)
-                printf("\n");
-            printf("%s: ",title);
-        }
-        uint64_t temp = *(uint64_t *)p;
-        if (temp == 0x5a5a5a5a5a5a5a5a)
-            printf("_ ");
-        else
-            //printf("0x%lx ", temp);
-            printf("%s ", mapAddress((void *)temp, "", NULL));
-        p += sizeof(uint64_t);
-        i += sizeof(uint64_t);
-        len -= sizeof(uint64_t);
-    }
-    printf("\n");
-}
 
 /*
  * Allocated memory region management
@@ -254,22 +196,6 @@ static const Metadata *fetchType(const Metadata *arg)
     return arg;
 }
 
-static void pushwork(int deriv, const Metadata *node, char *aaddr, int off, std::string aname)
-{
-    if (trace_mapt)
-        printf("PUSH: D %d N %p A %p O %d M %s *******\n", deriv, node, aaddr, off, aname.c_str());
-    mapwork.push_back(MAPTYPE_WORK(deriv, node, aaddr, off, aname));
-}
-static std::string getVtableName(void *addr_target)
-{
-    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
-        int status;
-        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-        if (!strncmp(ret, "vtable for ", 11))
-            return CBEMangle("l_class." + std::string(ret+11));
-    }
-    return "";
-}
 static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname)
 {
     int off = 0;
@@ -353,7 +279,6 @@ static void mapType(int derived, const Metadata *aMeta, char *addr, int aoffset,
  */
 void constructAddressMap(NamedMDNode *CU_Nodes)
 {
-    mapwork.clear();
     mapitem.clear();
     if (CU_Nodes) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
@@ -375,14 +300,17 @@ void constructAddressMap(NamedMDNode *CU_Nodes)
             }
         }
     }
-    // process top level classes
-    while (mapwork.begin() != mapwork.end()) {
-        const MAPTYPE_WORK *p = &*mapwork.begin();
-        if (trace_mapt)
-            printf("***** POP: D %d N %p A %p O %d M %s\n", p->derived, p->CTy, p->addr, p->offset, p->name.c_str());
-        mapType(p->derived, p->CTy, p->addr, p->offset, p->name);
-        mapwork.pop_front();
-    }
     //if (trace_mapt)
         dumpMemoryRegions(4010);
+}
+
+std::string getVtableName(void *addr_target)
+{
+    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
+        int status;
+        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
+        if (!strncmp(ret, "vtable for ", 11))
+            return CBEMangle("l_class." + std::string(ret+11));
+    }
+    return "";
 }

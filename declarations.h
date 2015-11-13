@@ -164,3 +164,5 @@ bool RemoveAllocaPass_runOnFunction(Function &F);
 void generateRuleList(FILE *OStr);
 void dump_class_data(void);
 const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
+void memdump(unsigned char *p, int len, const char *title);
+void memdumpl(unsigned char *p, int len, const char *title);
