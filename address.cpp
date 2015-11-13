@@ -45,6 +45,7 @@ public:
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
+static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
 static struct {
     void *p;
@@ -157,6 +158,46 @@ void *mapLookup(std::string name)
     return maplookup[name];
 }
 
+static void mapType(char *addr, Type *Ty, std::string aname)
+{
+    const DataLayout *TD = EE->getDataLayout();
+    if (!addr || mapseen[MAPSEEN_TYPE{addr, Ty}])
+        return;
+    mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
+printf("[%s:%d] addr %p Ty %p = '%s' name %s\n", __FUNCTION__, __LINE__, addr, Ty, //printType(Ty, false, "", "", "").c_str()
+"", aname.c_str());
+    switch (Ty->getTypeID()) {
+    case Type::StructTyID: {
+        StructType *STy = cast<StructType>(Ty);
+        const StructLayout *SLO = TD->getStructLayout(STy);
+        int Idx = 0;
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(STy, Idx);
+            int off = SLO->getElementOffset(Idx);
+            const Metadata *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+            if (!tptr)
+                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+            const DIType *LTy = dyn_cast<DIType>(tptr);
+            if (fname.length() <= 6 || fname.substr(0, 6) != "_vptr_") {
+                if (LTy->getTag() == dwarf::DW_TAG_inheritance)
+                    mapType(addr, *I, aname);
+                else
+                    mapType(addr + off, *I, aname + "$$" + fname);
+            }
+        }
+        break;
+        }
+    case Type::PointerTyID: {
+        PointerType *PTy = cast<PointerType>(Ty);
+        Type *element = PTy->getElementType();
+        mapType(*(char **)addr, element, aname);
+        break;
+        }
+    default:
+        break;
+    }
+}
+
 /*
  * Starting from all toplevel global, construct symbolic names for
  * all reachable addresses
@@ -171,6 +212,7 @@ void constructAddressMap(Module *Mod)
             DIGlobalVariableArray GVs = CUP->getGlobalVariables();
             for (unsigned i = 0, e = GVs.size(); i != e; ++i) {
                 const GlobalValue *gv = dyn_cast<GlobalValue>(GVs[i]->getVariable());
+                Type *Ty = gv->getType()->getElementType();
                 void *addr = EE->getPointerToGlobal(gv);
                 const Metadata *node = fetchType(GVs[i]->getType());
                 std::string cp = GVs[i]->getLinkageName().str();
@@ -181,9 +223,9 @@ void constructAddressMap(Module *Mod)
                 //if (trace_mapt)
                     printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
 node->dump();
-gv->getType()->dump();
-                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(gv->getType()->getElementType()));
+                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty));
                 mapDwarfType(1, node, (char *)addr, 0, cp);
+                mapType((char *)addr, Ty, cp);
             }
         }
     }

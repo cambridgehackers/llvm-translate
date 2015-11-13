@@ -244,7 +244,7 @@ std::string GetValueName(const Value *Operand)
 /*
  * Output types
  */
-static std::string printTypeCpp(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
+static std::string printTypeCpp(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
     std::string sep = "", cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
 
@@ -273,7 +273,7 @@ static std::string printTypeCpp(Type *Ty, bool isSigned, std::string NameSoFar, 
         cbuffer += " " + NameSoFar;
         break;
     case Type::FunctionTyID: {
-        FunctionType *FTy = cast<FunctionType>(Ty);
+        const FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
             tstr += printTypeCpp(*I, /*isSigned=*/false, "", sep, "", false);
@@ -292,14 +292,14 @@ static std::string printTypeCpp(Type *Ty, bool isSigned, std::string NameSoFar, 
         cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
-        ArrayType *ATy = cast<ArrayType>(Ty);
+        const ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
         cbuffer += printTypeCpp(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
         break;
         }
     case Type::PointerTyID: {
-        PointerType *PTy = cast<PointerType>(Ty);
+        const PointerType *PTy = cast<PointerType>(Ty);
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
@@ -313,7 +313,7 @@ static std::string printTypeCpp(Type *Ty, bool isSigned, std::string NameSoFar, 
     return cbuffer;
 }
 
-static std::string printTypeVerilog(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
+static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
     std::string sep = "", cbuffer = prefix, sp = (isSigned?"VERILOGsigned":"VERILOGunsigned");
 
@@ -343,7 +343,7 @@ static std::string printTypeVerilog(Type *Ty, bool isSigned, std::string NameSoF
         }
         break;
     case Type::FunctionTyID: {
-        FunctionType *FTy = cast<FunctionType>(Ty);
+        const FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
             tstr += printTypeVerilog(*I, /*isSigned=*/false, "", sep, "", false);
@@ -363,14 +363,14 @@ static std::string printTypeVerilog(Type *Ty, bool isSigned, std::string NameSoF
         return "";
         break;
     case Type::ArrayTyID: {
-        ArrayType *ATy = cast<ArrayType>(Ty);
+        const ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
         cbuffer += printTypeVerilog(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
         break;
         }
     case Type::PointerTyID: {
-        PointerType *PTy = cast<PointerType>(Ty);
+        const PointerType *PTy = cast<PointerType>(Ty);
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
@@ -383,7 +383,7 @@ static std::string printTypeVerilog(Type *Ty, bool isSigned, std::string NameSoF
     cbuffer += postfix;
     return cbuffer;
 }
-std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
+std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
     if (generateRegion == 1)
         return printTypeVerilog(Ty, isSigned, NameSoFar, prefix, postfix, false);

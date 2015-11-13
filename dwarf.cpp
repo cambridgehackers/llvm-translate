@@ -31,28 +31,13 @@ using namespace llvm;
 
 #include "declarations.h"
 
-typedef struct {
-    const void     *addr;
-    const Metadata *type;
-} MAPSEEN_TYPE;
-
-struct seencomp {
-    bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
-        if (lhs.addr < rhs.addr)
-            return true;
-        if (lhs.addr > rhs.addr)
-            return false;
-        return lhs.type < rhs.type;
-    }
-};
-
 static int trace_meta;// = 1;
 static int trace_mapt;// = 1;
 
 static std::map<const Metadata *, int> metamap;
 std::map<std::string, DICompositeType *> retainedTypes;
 static CLASS_META class_data[MAX_CLASS_DEFS];
-static std::map<MAPSEEN_TYPE, int, seencomp> mapseen;
+static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static int class_data_index;
 static DITypeIdentifierMap TypeIdentifierMap;
 static DebugInfoFinder Finder;

@@ -71,6 +71,21 @@ typedef struct {
     Function *ENA;
 } RULE_PAIR;
 
+typedef struct {
+    const void *addr;
+    const void *type;
+} MAPSEEN_TYPE;
+
+struct MAPSEENcomp {
+    bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
+        if (lhs.addr < rhs.addr)
+            return true;
+        if (lhs.addr > rhs.addr)
+            return false;
+        return lhs.type < rhs.type;
+    }
+};
+
 class ClassMethodTable {
 public:
     std::string classOrig;
@@ -125,7 +140,7 @@ void generateClassDef(const StructType *STy, FILE *OStr);
 void generateClassBody(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
 
-std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
+std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
 std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
