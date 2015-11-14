@@ -75,13 +75,13 @@ void dump_class_data()
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
       printf("class %s node %p inherit %p; ", classp->name.c_str(), classp->node, classp->inherit);
-      for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-          if (const DIType *Ty = dyn_cast<DIType>(*MI)) {
+      for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+          if (const DIType *Ty = dyn_cast<DIType>((*MI)->meta)) {
               uint64_t off = Ty->getOffsetInBits()/8;
               const char *cp = Ty->getName().str().c_str();
               printf(" M[%s/%lld]", cp, (long long)off);
           }
-          else if (const DISubprogram *SP = dyn_cast<DISubprogram>(*MI)) {
+          else if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
               uint64_t off = SP->getVirtualIndex();
               const char *cp = SP->getLinkageName().str().c_str();
               if (!strlen(cp))
@@ -110,8 +110,8 @@ int lookup_method(const char *classname, std::string methodname)
     CLASS_META *classp = lookup_class(classname);
     if (!classp)
         return -1;
-    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        const DISubprogram *SP = dyn_cast<DISubprogram>(*MI);
+    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta);
         if (SP && SP->getName().str() == methodname)
             return SP->getVirtualIndex();
     }
@@ -124,8 +124,8 @@ int lookup_field(const char *classname, std::string methodname)
     CLASS_META *classp = lookup_class(classname);
     if (!classp)
         return -1;
-    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        const DIType *Ty = dyn_cast<DIType>(*MI);
+    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DIType *Ty = dyn_cast<DIType>((*MI)->meta);
         if (Ty->getTag() == dwarf::DW_TAG_member && Ty->getName().str() == methodname)
             return Ty->getOffsetInBits()/8;
     }
@@ -152,21 +152,21 @@ static int errorCount;
         if (!ind--)
             return classp->inherit;
     }
-    for (std::list<const Metadata *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         unsigned int itemTag = -1;
-        if (const DIType *Ty = dyn_cast<DIType>(*MI)) {
+        if (const DIType *Ty = dyn_cast<DIType>((*MI)->meta)) {
             itemTag = Ty->getTag();
             if (trace_meta)
                 printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(Ty->getName().str()).c_str());
         }
-        else if (const DISubprogram *SP = dyn_cast<DISubprogram>(*MI)) {
+        else if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
             itemTag = SP->getTag();
             if (trace_meta)
                 printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(SP->getName().str()).c_str());
         }
         if (itemTag == tag)
             if (!ind--)
-                return *MI;
+                return (*MI)->meta;
     }
     }
     return NULL;
@@ -404,7 +404,7 @@ printf("[%s:%d] ADDCLASS name %s tag %s Node %p cname %s scope %p\n", __FUNCTION
                             const Metadata *Node = Ty;
 //printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
                             if (tag == dwarf::DW_TAG_member)
-                                classp->memberl.push_back(Node);
+                                classp->memberl.push_back(new MEMBER_INFO{Node, NULL});
                             else if (tag == dwarf::DW_TAG_inheritance) {
                                 classp->inherit = Node;
                             }
@@ -415,7 +415,7 @@ printf("[%s:%d] NOTMEMBER tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagS
                             const Metadata *Node = SP;
 //printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
                             if (classp)
-                                classp->memberl.push_back(Node);
+                                classp->memberl.push_back(new MEMBER_INFO{Node, NULL});
                         }
                         //dumpType(Ty, classp);
                     }

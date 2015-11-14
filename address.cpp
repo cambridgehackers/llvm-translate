@@ -158,6 +158,18 @@ void *mapLookup(std::string name)
     return maplookup[name];
 }
 
+std::string getVtableName(void *addr_target)
+{
+    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
+        int status;
+        std::string name = g->getName();
+        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
+        if (ret && !strncmp(ret, "vtable for ", 11))
+            return "class." + std::string(ret+11);
+    }
+    return "";
+}
+
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -166,11 +178,17 @@ static void mapType(char *addr, Type *Ty, std::string aname)
     mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
 printf("[%s:%d] addr %p Ty %p = '%s' name %s\n", __FUNCTION__, __LINE__, addr, Ty, //printType(Ty, false, "", "", "").c_str()
 "", aname.c_str());
+    std::string nvname = getVtableName(addr);
+    if (nvname != "") {
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, nvname.c_str());
+    }
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
         const StructLayout *SLO = TD->getStructLayout(STy);
         int Idx = 0;
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+STy->dump();
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             int off = SLO->getElementOffset(Idx);
@@ -190,7 +208,13 @@ printf("[%s:%d] addr %p Ty %p = '%s' name %s\n", __FUNCTION__, __LINE__, addr, T
     case Type::PointerTyID: {
         PointerType *PTy = cast<PointerType>(Ty);
         Type *element = PTy->getElementType();
-        mapType(*(char **)addr, element, aname);
+        char *addr_target = *(char **)addr;
+        std::string vname = getVtableName(addr_target);
+        if (vname != "") {
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, vname.c_str());
+element->dump();
+        }
+        mapType(addr_target, element, aname);
         break;
         }
     default:
@@ -231,15 +255,4 @@ node->dump();
     }
     //if (trace_mapt)
         dumpMemoryRegions(4010);
-}
-
-std::string getVtableName(void *addr_target)
-{
-    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
-        int status;
-        const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-        if (!strncmp(ret, "vtable for ", 11))
-            return CBEMangle("l_class." + std::string(ret+11));
-    }
-    return "";
 }
