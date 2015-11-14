@@ -192,15 +192,16 @@ STy->dump();
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             int off = SLO->getElementOffset(Idx);
-            const Metadata *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+            Type *element = *I;
+            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
             if (!tptr)
                 continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-            const DIType *LTy = dyn_cast<DIType>(tptr);
+            const DIType *LTy = dyn_cast<DIType>(tptr->meta);
             if (fname.length() <= 6 || fname.substr(0, 6) != "_vptr_") {
                 if (LTy->getTag() == dwarf::DW_TAG_inheritance)
-                    mapType(addr, *I, aname);
+                    mapType(addr, element, aname);
                 else
-                    mapType(addr + off, *I, aname + "$$" + fname);
+                    mapType(addr + off, element, aname + "$$" + fname);
             }
         }
         break;

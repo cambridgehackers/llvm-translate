@@ -131,7 +131,7 @@ int lookup_field(const char *classname, std::string methodname)
     }
     return -1;
 }
-const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
+MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
 {
 static int errorCount;
     if (!STy)
@@ -166,7 +166,7 @@ static int errorCount;
         }
         if (itemTag == tag)
             if (!ind--)
-                return (*MI)->meta;
+                return *MI;
     }
     }
     return NULL;
@@ -174,9 +174,8 @@ static int errorCount;
 std::string fieldName(const StructType *STy, uint64_t ind)
 {
     char temp[MAX_CHAR_BUFFER];
-    const Metadata *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member);
-    if (tptr) {
-        const DIType *Ty = dyn_cast<DIType>(tptr);
+    if (MEMBER_INFO *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member)) {
+        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
         return CBEMangle(Ty->getName().str());
     }
     sprintf(temp, "field%d", (int)ind);
@@ -184,7 +183,9 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 }
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
 {
-    return dyn_cast_or_null<DISubprogram>(lookupMember(STy, ind, dwarf::DW_TAG_subprogram));
+    if (MEMBER_INFO *tptr = lookupMember(STy, ind, dwarf::DW_TAG_subprogram))
+        return dyn_cast_or_null<DISubprogram>(tptr->meta);
+    return NULL;
 }
 
 int getClassName(const char *name, const char **className, const char **methodName)
@@ -406,7 +407,7 @@ printf("[%s:%d] ADDCLASS name %s tag %s Node %p cname %s scope %p\n", __FUNCTION
                             if (tag == dwarf::DW_TAG_member)
                                 classp->memberl.push_back(new MEMBER_INFO{Node, NULL});
                             else if (tag == dwarf::DW_TAG_inheritance) {
-                                classp->inherit = Node;
+                                classp->inherit = new MEMBER_INFO{Node, NULL};
                             }
 else
 printf("[%s:%d] NOTMEMBER tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), name.c_str());

@@ -61,7 +61,7 @@ typedef struct {
 typedef struct {
     std::string name;
     const Metadata *node;
-    const Metadata *inherit;
+    MEMBER_INFO  *inherit;
     int           member_count;
     std::list<MEMBER_INFO *> memberl;
 } CLASS_META;
@@ -164,7 +164,7 @@ std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);
 void generateRuleList(FILE *OStr);
 void dump_class_data(void);
-const Metadata *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
+MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
 bool call2runOnFunction(Function &F);

@@ -223,13 +223,14 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     unsigned Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         std::string fname;
-        const Metadata *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
         if (!tptr)
             continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-        const DIType *Ty = dyn_cast<DIType>(tptr);
+        const Type *element = *I;
+        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
         fname = CBEMangle(Ty->getName().str());
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
-            const StructType *inherit = dyn_cast<StructType>(*I);
+            const StructType *inherit = dyn_cast<StructType>(element);
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
             if (inherit)
                 generateClassElements(inherit, OStr);
@@ -239,7 +240,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         }
         if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
             continue;    /* do not include vtab pointers */
-        fprintf(OStr, "%s", printType(*I, false, fname, "  ", ";\n").c_str());
+        fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
     }
 }
 
