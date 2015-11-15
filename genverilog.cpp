@@ -286,17 +286,9 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
     fprintf(OStr, "\n");
 }
 
-std::string ucName(std::string inname)
-{
-    if (inname.length() && inname[0] >= 'a' && inname[0] <= 'z')
-        return ((char)(inname[0] - 'a' + 'A')) + inname.substr(1, inname.length() - 1);
-    return inname;
-}
-
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
-    unsigned Idx = 0;
     ClassMethodTable *table = classCreate[name];
 
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
@@ -304,8 +296,13 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         return;
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(name, OStr, table, NULL);
-    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-        fprintf(OStr, "%s", printType(*I, false, fieldName(STy, Idx++), "  ", ";\n").c_str());
+    int Idx = 0;
+    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        if (MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member)) {
+            const DIType *Ty = dyn_cast<DIType>(tptr->meta);
+            fprintf(OStr, "%s", printType(*I, false, CBEMangle(Ty->getName().str()), "  ", ";\n").c_str());
+        }
+    }
     fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
@@ -325,6 +322,9 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(OStr, "    end; // nRST\n");
     fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
+    /*
+     * Now generate importBVI for use of module from Bluespec
+     */
     FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
     fprintf(BStr, "interface %s;\n", ucName(name).c_str());
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {

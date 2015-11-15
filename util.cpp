@@ -81,3 +81,9 @@ bool endswith(const char *str, const char *suffix)
     return skipl >= 0 && !strcmp(str + skipl, suffix);
 }
 
+std::string ucName(std::string inname)
+{
+    if (inname.length() && inname[0] >= 'a' && inname[0] <= 'z')
+        return ((char)(inname[0] - 'a' + 'A')) + inname.substr(1, inname.length() - 1);
+    return inname;
+}

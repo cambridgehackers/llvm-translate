@@ -186,9 +186,9 @@ printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, nvname.c_str());
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
         const StructLayout *SLO = TD->getStructLayout(STy);
-        int Idx = 0;
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 STy->dump();
+        int Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
             if (!tptr)

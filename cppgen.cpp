@@ -175,15 +175,6 @@ printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __
         PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         unsigned len = FTy->getNumParams();
-#if 0
-if (1
-//pcalledFunction == "_ZN14EchoIndication4echoEi"
-) {
-printf("[%s:%d]DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD %d\n", __FUNCTION__, __LINE__, FTy->getParamType(0)->getTypeID());
-(*AI)->dump();
-FTy->getParamType(0)->dump();
-}
-#endif
         ERRORIF(FTy->isVarArg() && !len);
         vout += "(";
         if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
@@ -220,15 +211,14 @@ static int processVar(const GlobalVariable *GV)
 
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
-    unsigned Idx = 0;
-    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        std::string fname;
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
         if (!tptr)
             continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
         const Type *element = *I;
         const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-        fname = CBEMangle(Ty->getName().str());
+        std::string fname = CBEMangle(Ty->getName().str());
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
             const StructType *inherit = dyn_cast<StructType>(element);
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
@@ -249,9 +239,8 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
-    ClassMethodTable *table = classCreate[name];
-    if (table)
-        for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+    if (ClassMethodTable *table = classCreate[name])
+        for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
             Function *func = FI->first;
             std::string fname = func->getName();
             const char *className, *methodName;
@@ -264,16 +253,13 @@ void generateClassDef(const StructType *STy, FILE *OStr)
 void generateClassBody(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
-    ClassMethodTable *table = classCreate[name];
-    if (table)
-        for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
-//printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, FI->first->getName().str().c_str());
+    if (ClassMethodTable *table = classCreate[name])
+        for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
             VTABLE_WORK workItem(FI->first, NULL, 1);
             regen_methods = 3;
             processFunction(workItem, OStr, name);
             regen_methods = 0;
         }
-    //fprintf(OStr, "};\n\n");
 }
 
 void generateCppData(FILE *OStr, Module &Mod)
