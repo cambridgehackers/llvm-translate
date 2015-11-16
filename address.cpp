@@ -194,6 +194,29 @@ newel->dump();
     return "";
 }
 
+static int checkDerived(const Type *A, const Type *B)
+{
+    if (const PointerType *PTyA = cast<PointerType>(A))
+    if (const PointerType *PTyB = cast<PointerType>(B))
+    if (const StructType *STyA = dyn_cast<StructType>(PTyA->getElementType()))
+    if (const StructType *STyB = dyn_cast<StructType>(PTyB->getElementType())) {
+        int Idx = 0;
+        for (StructType::element_iterator I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
+            MEMBER_INFO *tptr = lookupMember(STyA, Idx, dwarf::DW_TAG_member);
+            if (!tptr)
+                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+            const DIType *LTy = dyn_cast<DIType>(tptr->meta);
+            if (LTy->getTag() == dwarf::DW_TAG_inheritance && *I == STyB) {
+printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
+                STyA->dump();
+                STyB->dump();
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -220,12 +243,8 @@ printf("[%s:%d] addr %p Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty, anam
                 else {
                     if (PointerType *PTy = dyn_cast<PointerType>(element)) {
                         const Type *Ty = memoryType(*(char **)(addr + off));
-printf("[%s:%d] replaced type %p\n", __FUNCTION__, __LINE__, Ty);
-if (Ty) {
-Ty->dump();
-PTy->dump();
-}
-                        tptr->type = Ty;
+                        if (Ty && checkDerived(Ty, PTy))
+                            tptr->type = Ty;
                     }
                     mapType(addr + off, element, aname + "$$" + fname);
                 }

@@ -9,7 +9,7 @@ void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv);
 class l_class_OC_Module {
 public:
   class l_class_OC_Rule *rfirst;
-  class l_class_OC_Module *next;
+  class l_class_OC_Echo *next;
   unsigned long long size;
 };
 
@@ -29,7 +29,7 @@ public:
 class l_class_OC_EchoTest {
 public:
   class l_class_OC_Rule *rfirst;
-  class l_class_OC_Module *next;
+  class l_class_OC_Echo *next;
   unsigned long long size;
   class l_class_OC_Echo *echo;
   unsigned int x;
@@ -65,9 +65,9 @@ public:
 class l_class_OC_Echo {
 public:
   class l_class_OC_Rule *rfirst;
-  class l_class_OC_Module *next;
+  class l_class_OC_Echo *next;
   unsigned long long size;
-  class l_class_OC_Fifo *fifo;
+  class l_class_OC_Fifo1 *fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
   class l_class_OC_Echo_KD__KD_respond respondRule;

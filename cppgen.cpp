@@ -230,6 +230,8 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         }
         if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
             continue;    /* do not include vtab pointers */
+        if (tptr->type)
+            element = tptr->type;
         fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
     }
 }
