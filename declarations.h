@@ -55,7 +55,7 @@ public:
 
 typedef struct {
     const Metadata *meta;
-    Type *type;
+    const Type *type;
 } MEMBER_INFO;
 
 typedef struct {
@@ -175,3 +175,4 @@ void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, s
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
 void addressrunOnFunction(Function &F);
+const Type *memoryType(void *p);

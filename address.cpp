@@ -102,6 +102,17 @@ static void dumpMemoryRegions(int arg)
         i++;
     }
 }
+const Type *memoryType(void *p)
+{
+    int i = 0;
+
+    while(callfunhack[i].p) {
+        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
+            return callfunhack[i].type;
+        i++;
+    }
+    return NULL;
+}
 int validateAddress(int arg, void *p)
 {
     int i = 0;
@@ -206,8 +217,18 @@ printf("[%s:%d] addr %p Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty, anam
             if (fname.length() <= 6 || fname.substr(0, 6) != "_vptr_") {
                 if (LTy->getTag() == dwarf::DW_TAG_inheritance)
                     mapType(addr, element, aname);
-                else
+                else {
+                    if (PointerType *PTy = dyn_cast<PointerType>(element)) {
+                        const Type *Ty = memoryType(*(char **)(addr + off));
+printf("[%s:%d] replaced type %p\n", __FUNCTION__, __LINE__, Ty);
+if (Ty) {
+Ty->dump();
+PTy->dump();
+}
+                        tptr->type = Ty;
+                    }
                     mapType(addr + off, element, aname + "$$" + fname);
+                }
             }
         }
         break;
@@ -265,7 +286,7 @@ void constructAddressMap(Module *Mod)
                 //if (trace_mapt)
                     printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
 node->dump();
-                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), Ty);
+                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), gv->getType());
                 mapDwarfType(1, node, (char *)addr, 0, cp);
                 mapType((char *)addr, Ty, cp);
             }
