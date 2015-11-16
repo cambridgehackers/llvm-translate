@@ -935,11 +935,12 @@ static void generateStructs(FILE *OStr, std::string oDir)
 
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
-    FILE *Out;
-    FILE *OutHeader;
-    FILE *OutNull;
-    FILE *OutVInstance;
-    FILE *OutVMain;
+    FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
+    FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
+    FILE *OutNull = fopen("/dev/null", "w");
+    FILE *OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
+    FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
+
 printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod->getFunction("main");
@@ -955,14 +956,11 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using dwarf debug info
+    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+        addressrunOnFunction(*FB);
     constructAddressMap(Mod);
     //dump_class_data();
 
-    Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
-    OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
-    OutNull = fopen("/dev/null", "w");
-    OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
-    OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
     for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 

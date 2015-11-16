@@ -24,41 +24,12 @@
 #include <stdio.h>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
 #include "declarations.h"
 
-/*
- * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
- * This enables llvm-translate to easily maintain a list of valid memory regions
- * during processing.
- */
-static bool callProcess_runOnInstruction(Instruction *I)
-{
-    Module *Mod = I->getParent()->getParent()->getParent();
-    Value *called = I->getOperand(I->getNumOperands()-1);
-    std::string cp = called->getName();
-    const Function *CF = dyn_cast<Function>(called);
-    if (cp == "_Znwm" || cp == "malloc") {
-        if (!CF || !CF->isDeclaration())
-            return false;
-        //printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
-        Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
-        FunctionType *fty = FunctionType::get(
-            Type::getInt8PtrTy(Mod->getContext()),
-            ArrayRef<Type*>(Params, 1), false);
-        Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
-        Function *F = dyn_cast<Function>(newmalloc);
-        Function *cc = dyn_cast<Function>(called);
-        F->setCallingConv(cc->getCallingConv());
-        F->setDoesNotAlias(0);
-        F->setAttributes(cc->getAttributes());
-        called->replaceAllUsesWith(newmalloc);
-        return true;
-    }
-    return false;
-}
 static bool call2Process_runOnInstruction(Instruction *I)
 {
     Module *Mod = I->getParent()->getParent()->getParent();
@@ -93,11 +64,43 @@ bool callMemrunOnFunction(Function &F)
         return changed;
     }
     changed = RemoveAllocaPass_runOnFunction(F);
+    /*
+     * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
+     * This enables llvm-translate to easily maintain a list of valid memory regions
+     * during processing.
+     */
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Call)
-                changed |= callProcess_runOnInstruction(II);
+            if (II->getOpcode() == Instruction::Call) {
+                Module *Mod = II->getParent()->getParent()->getParent();
+                Value *called = II->getOperand(II->getNumOperands()-1);
+                std::string cp = called->getName();
+                const Function *CF = dyn_cast<Function>(called);
+                if ((cp == "_Znwm" || cp == "malloc")
+                    && CF && CF->isDeclaration()) {
+                    IRBuilder<> builder(II->getParent());
+                    builder.SetInsertPoint(II);
+                    unsigned long tparam = 0;
+                    printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
+                    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
+                        tparam = (unsigned long)PI->getType();
+                    Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
+                        Type::getInt64Ty(Mod->getContext())};
+                    FunctionType *fty = FunctionType::get(
+                        Type::getInt8PtrTy(Mod->getContext()),
+                        ArrayRef<Type*>(Params, 2), false);
+                    Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
+                    Function *F = dyn_cast<Function>(newmalloc);
+                    F->setCallingConv(CF->getCallingConv());
+                    F->setDoesNotAlias(0);
+                    F->setAttributes(CF->getAttributes());
+                    II->replaceAllUsesWith(builder.CreateCall(
+                        F, {II->getOperand(0), builder.getInt64(tparam)}, "llvm_translate_malloc"));
+                    II->eraseFromParent();
+                    changed = true;
+                }
+            }
             II = PI;
         }
     }

@@ -20,10 +20,12 @@ const RuleVTab ruleList[] = {
     {l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::RDY, l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::ENA},
     {l_class_OC_EchoTest_KD__KD_drive::RDY, l_class_OC_EchoTest_KD__KD_drive::ENA},
     {} };
-void l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::ENA(void) {
+bool l_class_OC_EchoTest_KD__KD_drive::RDY(void) {
+    bool tmp__1 =     ((*(((module)->echo)->fifo)).enq__RDY)();
+        return tmp__1;
 }
-bool l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::RDY(void) {
-        return 1;
+void l_class_OC_EchoTest_KD__KD_drive::ENA(void) {
+        ((*(((module)->echo)->fifo)).enq)(22);
 }
 bool l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::RDY(void) {
     bool tmp__1 =     ((*((module)->fifo)).deq__RDY)();
@@ -35,12 +37,10 @@ void l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::ENA(void) {
     unsigned int call =     ((*((module)->fifo)).first)();
         EchoIndication::echo(int)(call);
 }
-bool l_class_OC_EchoTest_KD__KD_drive::RDY(void) {
-    bool tmp__1 =     ((*(((module)->echo)->fifo)).enq__RDY)();
-        return tmp__1;
+void l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::ENA(void) {
 }
-void l_class_OC_EchoTest_KD__KD_drive::ENA(void) {
-        ((*(((module)->echo)->fifo)).enq)(22);
+bool l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::RDY(void) {
+        return 1;
 }
 bool l_class_OC_Fifo1::enq__RDY(void) {
         return ((full) ^ 1);

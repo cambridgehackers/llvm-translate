@@ -50,12 +50,13 @@ static std::map<std::string, void *> maplookup;
 static struct {
     void *p;
     long size;
+    const Type *type;
 } callfunhack[100];
 
 /*
  * Allocated memory region management
  */
-static void addItemToList(void *p, long size)
+static void addItemToList(void *p, long size, const Type *type)
 {
     int i = 0;
 
@@ -63,16 +64,17 @@ static void addItemToList(void *p, long size)
         i++;
     callfunhack[i].p = p;
     callfunhack[i].size = size;
+    callfunhack[i].type = type;
 }
 
-extern "C" void *llvm_translate_malloc(size_t size)
+extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
     memset(ptr, 0x5a, newsize);
     if (trace_malloc)
-        printf("[%s:%d] %ld = %p\n", __FUNCTION__, __LINE__, size, ptr);
-    addItemToList(ptr, newsize);
+        printf("[%s:%d] %ld = %p type %p\n", __FUNCTION__, __LINE__, size, ptr, type);
+    addItemToList(ptr, newsize, type);
     return ptr;
 }
 
@@ -87,6 +89,8 @@ static void dumpMemoryRegions(int arg)
         if (g)
             gname = g->getName();
         printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p).c_str());
+        if (callfunhack[i].type)
+            callfunhack[i].type->dump();
         long size = callfunhack[i].size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
@@ -164,8 +168,17 @@ std::string getVtableName(void *addr_target)
         int status;
         std::string name = g->getName();
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
-        if (ret && !strncmp(ret, "vtable for ", 11))
+        if (ret && !strncmp(ret, "vtable for ", 11)) {
+Type *Ty = g->getType();
+printf("[%s:%d] %d \n", __FUNCTION__, __LINE__, Ty->getTypeID());
+Ty->dump();
+            if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
+                Type *newel = PTy->getElementType();
+printf("[%s:%d] newel %d\n", __FUNCTION__, __LINE__, newel->getTypeID());
+newel->dump();
+            }
             return "class." + std::string(ret+11);
+        }
     }
     return "";
 }
@@ -176,18 +189,11 @@ static void mapType(char *addr, Type *Ty, std::string aname)
     if (!addr || mapseen[MAPSEEN_TYPE{addr, Ty}])
         return;
     mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
-printf("[%s:%d] addr %p Ty %p = '%s' name %s\n", __FUNCTION__, __LINE__, addr, Ty, //printType(Ty, false, "", "", "").c_str()
-"", aname.c_str());
-    std::string nvname = getVtableName(addr);
-    if (nvname != "") {
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, nvname.c_str());
-    }
+printf("[%s:%d] addr %p Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty, aname.c_str());
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
         const StructLayout *SLO = TD->getStructLayout(STy);
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-STy->dump();
         int Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
@@ -210,16 +216,27 @@ STy->dump();
         PointerType *PTy = cast<PointerType>(Ty);
         Type *element = PTy->getElementType();
         char *addr_target = *(char **)addr;
-        std::string vname = getVtableName(addr_target);
-        if (vname != "") {
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, vname.c_str());
-element->dump();
-        }
         mapType(addr_target, element, aname);
         break;
         }
     default:
         break;
+    }
+}
+
+void addressrunOnFunction(Function &F)
+{
+    const char *className, *methodName;
+    const StructType *STy = NULL;
+    std::string fname = F.getName();
+//printf("addressrunOnFunction: %s\n", fname.c_str());
+    if (getClassName(fname.c_str(), &className, &methodName)
+     && (STy = findThisArgument(&F))) {
+        std::string sname = getStructName(STy);
+        std::string tname = STy->getName();
+        if (!classCreate[sname])
+            classCreate[sname] = new ClassMethodTable(sname, className);
+        classCreate[sname]->type = STy;
     }
 }
 
@@ -248,7 +265,7 @@ void constructAddressMap(Module *Mod)
                 //if (trace_mapt)
                     printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
 node->dump();
-                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty));
+                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), Ty);
                 mapDwarfType(1, node, (char *)addr, 0, cp);
                 mapType((char *)addr, Ty, cp);
             }

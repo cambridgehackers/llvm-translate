@@ -11,7 +11,6 @@ module l_class_OC_Fifo1 (
 
    reg[31:0] element;
    reg full;
-   reg field3[3];
   always @( posedge CLK) begin
     if (!nRST) begin
     end

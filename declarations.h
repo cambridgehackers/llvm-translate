@@ -96,6 +96,7 @@ public:
     std::string classOrig;
     std::string className;
     std::map<Function *, std::string> method;
+    const StructType *type;
     ClassMethodTable(std::string corig, const char *name) : classOrig(corig), className(name) { }
 };
 
@@ -173,3 +174,4 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
 void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname);
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
+void addressrunOnFunction(Function &F);
