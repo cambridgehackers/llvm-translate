@@ -11,12 +11,6 @@ void _ZN14EchoIndication4echoEi(unsigned int Vv) {
 }
 //processing printf
 //processing _ZN14EchoIndication4echoEi
-typedef struct {
-    bool (*RDY)(void);
-    void (*ENA)(void);
-    } RuleVTab;//Rules:
-const RuleVTab ruleList[] = {
-    {} };
 bool l_class_OC_EchoTest_KD__KD_drive::RDY(void) {
     bool tmp__1 =     ((*(((module)->echo)->fifo)).enq__RDY)();
         return tmp__1;

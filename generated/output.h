@@ -81,12 +81,10 @@ public:
 
 class l_class_OC_Fifo {
 public:
-// generateClassElements: inherit not struct
 };
 
 class l_class_OC_Fifo1 {
 public:
-// generateClassElements: inherit not struct
   unsigned int element;
   bool full;
   bool enq__RDY(void);

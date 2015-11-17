@@ -240,17 +240,13 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const StructType *inherit = dyn_cast<StructType>(element);
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
-            if (inherit) {
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, inherit->getName().str().c_str());
+            if (inherit)
                 generateClassElements(inherit, OStr);
-            }
-            else
-                fprintf(OStr, "// %s: inherit not struct\n", __FUNCTION__);
             continue;
         }
         if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
             continue;    /* do not include vtab pointers */
-        if (tptr->type)
+        if (tptr->type)     // Substitute original type with actual instantiated type
             element = tptr->type;
         fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
     }
@@ -334,17 +330,5 @@ void generateCppData(FILE *OStr, Module &Mod)
 }
 void generateRuleList(FILE *OStr)
 {
-    fprintf(OStr, "typedef struct {\n    bool (*RDY)(void);\n    void (*ENA)(void);\n    } RuleVTab;//Rules:\nconst RuleVTab ruleList[] = {\n");
-    while (ruleList.begin() != ruleList.end()) {
-        //fprintf(OStr, "    {%s, %s},\n", ruleList.begin()->RDY->getName().str().c_str(), ruleList.begin()->ENA->getName().str().c_str());
-        std::string rdyname = ruleList.begin()->RDY->getName();
-        const char *className, *methodName;
-        getClassName(rdyname.c_str(), &className, &methodName);
-        std::string newName = CBEMangle("l_class." + std::string(className));
-//printf("[%s:%d] %s %s\n", __FUNCTION__, __LINE__, rdyname.c_str(), newName.c_str());
-        //fprintf(OStr, "    {%s::RDY, %s::ENA},\n", newName.c_str(), newName.c_str());
-        ruleList.pop_front();
-    }
-    fprintf(OStr, "    {} };\n");
     UnnamedStructIDs.clear();
 }
