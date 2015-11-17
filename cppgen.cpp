@@ -209,17 +209,22 @@ static int processVar(const GlobalVariable *GV)
     return 1;
 }
 
-static int hasRun(const StructType *STy)
+static int hasRun(const StructType *STy, int recurse)
 {
     int Idx = 0;
     int containsRule = 0;
     if (STy)
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+        if (!tptr)
+            continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
         const StructType *inherit = dyn_cast<StructType>(*I);
-        if (inherit && (inherit->getName() == "class.Rule" || hasRun(inherit)))
+        if (inherit && Ty->getTag() == dwarf::DW_TAG_inheritance && inherit->getName() == "class.Rule")
+            containsRule = 1;
+        if (recurse && hasRun(inherit, recurse))
             containsRule = 1;
     }
-//printf("[%s:%d] sty %p cont %d\n", __FUNCTION__, __LINE__, STy, containsRule);
     return containsRule;
 }
 static void generateClassElements(const StructType *STy, FILE *OStr)
@@ -264,7 +269,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
             getClassName(fname.c_str(), &className, &methodName);
             fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
         }
-    if (hasRun(STy))
+    if (hasRun(STy, 1))
         fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");
 }
@@ -279,9 +284,11 @@ void generateClassBody(const StructType *STy, FILE *OStr)
             processFunction(workItem, OStr, name);
             regen_methods = 0;
         }
-    if (hasRun(STy)) {
+    if (hasRun(STy, 1)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-        fprintf(OStr, "printf(\" %s::run()\\n\");\n", name.c_str());
+        //fprintf(OStr, "    printf(\" %s::run()\\n\");\n", name.c_str());
+        if (hasRun(STy, 0))
+             fprintf(OStr, "    if (RDY()) ENA();\n");
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
@@ -292,10 +299,10 @@ void generateClassBody(const StructType *STy, FILE *OStr)
             std::string fname = CBEMangle(Ty->getName().str());
             if (const PointerType *PTy = dyn_cast<PointerType>(*I)) {
                 STy = dyn_cast<StructType>(PTy->getElementType());
-                if (hasRun(STy))
+                if (fname != "module" && hasRun(STy, 1))
                     fprintf(OStr, "    %s->run();\n", fname.c_str());
             }
-            else if (hasRun(STy))
+            else if (hasRun(STy, 1))
                 fprintf(OStr, "    %s.run();\n", fname.c_str());
         }
         fprintf(OStr, "}\n");

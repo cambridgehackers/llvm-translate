@@ -26,12 +26,10 @@ void l_class_OC_EchoTest_KD__KD_drive::ENA(void) {
 }
 void l_class_OC_EchoTest_KD__KD_drive::run()
 {
-printf(" l_class_OC_EchoTest_KD__KD_drive::run()\n");
-    module->run();
+    if (RDY()) ENA();
 }
 void l_class_OC_EchoTest::run()
 {
-printf(" l_class_OC_EchoTest::run()\n");
     echo->run();
     driveRule.run();
 }
@@ -47,8 +45,7 @@ void l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::ENA(void) {
 }
 void l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::run()
 {
-printf(" l_class_OC_Echo_KD__KD_respond_KD__KD_respond1::run()\n");
-    module->run();
+    if (RDY()) ENA();
 }
 void l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::ENA(void) {
 }
@@ -57,18 +54,15 @@ bool l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::RDY(void) {
 }
 void l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::run()
 {
-printf(" l_class_OC_Echo_KD__KD_respond_KD__KD_respond2::run()\n");
-    module->run();
+    if (RDY()) ENA();
 }
 void l_class_OC_Echo_KD__KD_respond::run()
 {
-printf(" l_class_OC_Echo_KD__KD_respond::run()\n");
     respond1Rule.run();
     respond2Rule.run();
 }
 void l_class_OC_Echo::run()
 {
-printf(" l_class_OC_Echo::run()\n");
     respondRule.run();
 }
 bool l_class_OC_Fifo1::enq__RDY(void) {
