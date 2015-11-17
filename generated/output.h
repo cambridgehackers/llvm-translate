@@ -24,6 +24,7 @@ public:
   class l_class_OC_EchoTest *module;
   bool RDY(void);
   void ENA(void);
+  void run();
 };
 
 class l_class_OC_EchoTest {
@@ -34,6 +35,7 @@ public:
   class l_class_OC_Echo *echo;
   unsigned int x;
   class l_class_OC_EchoTest_KD__KD_drive driveRule;
+  void run();
 };
 
 class l_class_OC_EchoIndication {
@@ -46,6 +48,7 @@ public:
   class l_class_OC_Echo *module;
   bool RDY(void);
   void ENA(void);
+  void run();
 };
 
 class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
@@ -54,12 +57,14 @@ public:
   class l_class_OC_Echo *module;
   void ENA(void);
   bool RDY(void);
+  void run();
 };
 
 class l_class_OC_Echo_KD__KD_respond {
 public:
   class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 respond1Rule;
   class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 respond2Rule;
+  void run();
 };
 
 class l_class_OC_Echo {
@@ -71,16 +76,17 @@ public:
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
   class l_class_OC_Echo_KD__KD_respond respondRule;
+  void run();
 };
 
 class l_class_OC_Fifo {
 public:
-// generateClassElements: inherit failed
+// generateClassElements: inherit not struct
 };
 
 class l_class_OC_Fifo1 {
 public:
-// generateClassElements: inherit failed
+// generateClassElements: inherit not struct
   unsigned int element;
   bool full;
   bool enq__RDY(void);

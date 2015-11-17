@@ -209,6 +209,19 @@ static int processVar(const GlobalVariable *GV)
     return 1;
 }
 
+static int hasRun(const StructType *STy)
+{
+    int Idx = 0;
+    int containsRule = 0;
+    if (STy)
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const StructType *inherit = dyn_cast<StructType>(*I);
+        if (inherit && (inherit->getName() == "class.Rule" || hasRun(inherit)))
+            containsRule = 1;
+    }
+//printf("[%s:%d] sty %p cont %d\n", __FUNCTION__, __LINE__, STy, containsRule);
+    return containsRule;
+}
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
@@ -219,13 +232,15 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const Type *element = *I;
         const DIType *Ty = dyn_cast<DIType>(tptr->meta);
         std::string fname = CBEMangle(Ty->getName().str());
+        const StructType *inherit = dyn_cast<StructType>(element);
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
-            const StructType *inherit = dyn_cast<StructType>(element);
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
-            if (inherit)
+            if (inherit) {
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, inherit->getName().str().c_str());
                 generateClassElements(inherit, OStr);
+            }
             else
-                fprintf(OStr, "// %s: inherit failed\n", __FUNCTION__);
+                fprintf(OStr, "// %s: inherit not struct\n", __FUNCTION__);
             continue;
         }
         if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
@@ -249,6 +264,8 @@ void generateClassDef(const StructType *STy, FILE *OStr)
             getClassName(fname.c_str(), &className, &methodName);
             fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
         }
+    if (hasRun(STy))
+        fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");
 }
 
@@ -262,6 +279,27 @@ void generateClassBody(const StructType *STy, FILE *OStr)
             processFunction(workItem, OStr, name);
             regen_methods = 0;
         }
+    if (hasRun(STy)) {
+        fprintf(OStr, "void %s::run()\n{\n", name.c_str());
+        fprintf(OStr, "printf(\" %s::run()\\n\");\n", name.c_str());
+        int Idx = 0;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+            if (!tptr)
+                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+            const StructType *STy = dyn_cast<StructType>(*I);
+            const DIType *Ty = dyn_cast<DIType>(tptr->meta);
+            std::string fname = CBEMangle(Ty->getName().str());
+            if (const PointerType *PTy = dyn_cast<PointerType>(*I)) {
+                STy = dyn_cast<StructType>(PTy->getElementType());
+                if (hasRun(STy))
+                    fprintf(OStr, "    %s->run();\n", fname.c_str());
+            }
+            else if (hasRun(STy))
+                fprintf(OStr, "    %s.run();\n", fname.c_str());
+        }
+        fprintf(OStr, "}\n");
+    }
 }
 
 void generateCppData(FILE *OStr, Module &Mod)
@@ -296,8 +334,8 @@ void generateRuleList(FILE *OStr)
         const char *className, *methodName;
         getClassName(rdyname.c_str(), &className, &methodName);
         std::string newName = CBEMangle("l_class." + std::string(className));
-printf("[%s:%d] %s %s\n", __FUNCTION__, __LINE__, rdyname.c_str(), newName.c_str());
-        fprintf(OStr, "    {%s::RDY, %s::ENA},\n", newName.c_str(), newName.c_str());
+//printf("[%s:%d] %s %s\n", __FUNCTION__, __LINE__, rdyname.c_str(), newName.c_str());
+        //fprintf(OStr, "    {%s::RDY, %s::ENA},\n", newName.c_str(), newName.c_str());
         ruleList.pop_front();
     }
     fprintf(OStr, "    {} };\n");

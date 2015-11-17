@@ -20,8 +20,11 @@ void __cxa_pure_virtual(void)
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 #include "../generated/output.h"
-struct l_class_OC_Fifo1 echoTest_ZZ_EchoTest_ZZ_echo_ZZ__ZZ_Echo_ZZ_fifo_ZZ__ZZ_Fifo1_int_;
 #include "../generated/output.cpp"
+class l_class_OC_Fifo1 zFifo1;
+class l_class_OC_EchoIndication zEchoIndication;
+class l_class_OC_Echo zEcho;
+class l_class_OC_EchoTest zEchoTest;
 
 void memdump(unsigned char *p, int len, const char *title)
 {
@@ -44,13 +47,14 @@ int i;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
+    zEcho.fifo = &zFifo1;
+    zEcho.ind = &zEchoIndication;
+    zEchoTest.echo = &zEcho;
+    zEchoTest.driveRule.module = &zEchoTest;
+    zEcho.respondRule.respond1Rule.module = &zEcho;
+    zEcho.respondRule.respond2Rule.module = &zEcho;
     while (!stop_main_program) {
-        const RuleVTab *currule = ruleList;
-        while (currule->RDY) {
-            if (currule->RDY())
-                currule->ENA();
-            currule++;
-        }
+        zEchoTest.run();
     }
   printf("[%s:%d] ending\n", __FUNCTION__, __LINE__);
   return 0;
