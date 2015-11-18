@@ -40,6 +40,12 @@ public:
        name = aname;
     }
 };
+typedef struct {
+    const char *name;
+    void       *thisp;
+    Function   *RDY;
+    Function   *ENA;
+} RULE_INFO;
 
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
@@ -47,6 +53,7 @@ static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
+static std::list<RULE_INFO *> ruleInfo;
 static struct {
     void *p;
     long size;
@@ -76,6 +83,11 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
         printf("[%s:%d] %ld = %p type %p\n", __FUNCTION__, __LINE__, size, ptr, type);
     addItemToList(ptr, newsize, type);
     return ptr;
+}
+
+extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
+{
+    ruleInfo.push_back(new RULE_INFO{name, thisp, RDY[2], ENA[2]});
 }
 
 static void dumpMemoryRegions(int arg)
@@ -288,6 +300,12 @@ void constructAddressMap(Module *Mod)
 {
     process_metadata(Mod);
     mapitem.clear();
+    for (RULE_INFO *info : ruleInfo) {
+        printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
+        const GlobalValue *g = EE->getGlobalValueAtAddress(info->thisp);
+        if (g)
+            printf("[%s:%d] thisp %s\n", __FUNCTION__, __LINE__, g->getName().str().c_str());
+    }
     if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
             const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));

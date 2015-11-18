@@ -47,9 +47,11 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
             int opcode = I->getOpcode();
             Value *retv = (Value *)I;
             switch (opcode) {
-            case Instruction::Alloca:
-//printf("       ALLOCA %s", I->getName().str().c_str());
-                if (I->hasName() && endswith(I->getName().str().c_str(), ".addr")) {
+            case Instruction::Alloca: {
+               std::string name = I->getName();
+               int ind = name.find("block");
+//printf("       ALLOCA %s;", name.c_str());
+                if (I->hasName() && ind == -1 && endswith(name.c_str(), ".addr")) {
                     Value *newt = NULL;
                     BasicBlock::iterator PN = PI;
                     while (PN != E) {
@@ -72,6 +74,7 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
                 }
 //printf("\n");
                 break;
+                }
             case Instruction::Call:
                 if (CallInst *CI = dyn_cast<CallInst>(I)) {
                     Value *Operand = CI->getCalledValue();
