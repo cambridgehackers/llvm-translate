@@ -129,6 +129,7 @@ extern std::list<RULE_PAIR> ruleList;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::list<RULE_INFO *> ruleInfo;
+extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);

@@ -211,21 +211,15 @@ static int processVar(const GlobalVariable *GV)
 
 static int hasRun(const StructType *STy, int recurse)
 {
-    int Idx = 0;
-    int containsRule = 0;
-    if (STy)
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-        if (!tptr)
-            continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-        const StructType *inherit = dyn_cast<StructType>(*I);
-        if (inherit && Ty->getTag() == dwarf::DW_TAG_inheritance && inherit->getName() == "class.Rule")
-            containsRule = 1;
-        if (recurse && hasRun(inherit, recurse))
-            containsRule = 1;
+    if (STy) {
+        std::string sname = STy->getName();
+        if (ruleFunctionNames[sname].size())
+            return 1;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
+                return 1;
     }
-    return containsRule;
+    return 0;
 }
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
@@ -283,8 +277,10 @@ void generateClassBody(const StructType *STy, FILE *OStr)
     if (hasRun(STy, 1)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
         //fprintf(OStr, "    printf(\" %s::run()\\n\");\n", name.c_str());
-        if (hasRun(STy, 0))
-             fprintf(OStr, "    if (RDY()) ENA();\n");
+        if (hasRun(STy, 0)) {
+             for (auto item : ruleFunctionNames[STy->getName()])
+                 fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
+        }
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);

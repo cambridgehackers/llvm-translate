@@ -49,6 +49,8 @@ static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
 std::list<RULE_INFO *> ruleInfo;
+static std::map<std::string, Function *> ruleFunctionTable;
+std::map<std::string, std::list<std::string>> ruleFunctionNames;
 static struct {
     void *p;
     long size;
@@ -89,7 +91,6 @@ for (auto JJ = OpV->use_begin(); JJ != OpV->use_end(); JJ++)
 return ret;
 }
 #endif
-static std::map<std::string, Function *> ruleFunctionTable;
 Function *lookup_function(std::string className, std::string methodName)
 {
 printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
@@ -133,6 +134,8 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
 printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
+    if (!endswith(methodName.c_str(), "__RDY"))
+        ruleFunctionNames["class." + className].push_back(methodName);
     ruleFunctionTable["class." + className + "//" + methodName] = func;
 //printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
     //func->dump();

@@ -18,6 +18,7 @@ public:
   unsigned int x;
   bool rule_drive__RDY(void);
   void rule_drive(void);
+  void run();
 };
 
 class l_class_OC_EchoIndication {
@@ -32,6 +33,7 @@ public:
   unsigned int pipetemp;
   bool rule_respond__RDY(void);
   void rule_respond(void);
+  void run();
 };
 
 class l_class_OC_Fifo {

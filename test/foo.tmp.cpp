@@ -50,9 +50,6 @@ int main(int argc, const char *argv[])
     zEcho.fifo = &zFifo1;
     zEcho.ind = &zEchoIndication;
     zEchoTest.echo = &zEcho;
-    zEchoTest.driveRule.module = &zEchoTest;
-    zEcho.respondRule.respond1Rule.module = &zEcho;
-    zEcho.respondRule.respond2Rule.module = &zEcho;
     while (!stop_main_program) {
         zEchoTest.run();
     }

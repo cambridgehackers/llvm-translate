@@ -17,6 +17,11 @@ bool l_class_OC_EchoTest::rule_drive__RDY(void) {
 void l_class_OC_EchoTest::rule_drive(void) {
         ((*((echo)->fifo)).enq)(22);
 }
+void l_class_OC_EchoTest::run()
+{
+    if (rule_drive__RDY()) rule_drive();
+    echo->run();
+}
 bool l_class_OC_Echo::rule_respond__RDY(void) {
     bool tmp__1 =     ((*(fifo)).deq__RDY)();
     bool tmp__2 =     ((*(fifo)).first__RDY)();
@@ -26,6 +31,10 @@ void l_class_OC_Echo::rule_respond(void) {
         ((*(fifo)).deq)();
     unsigned int call =     ((*(fifo)).first)();
         EchoIndication::echo(int)(call);
+}
+void l_class_OC_Echo::run()
+{
+    if (rule_respond__RDY()) rule_respond();
 }
 void l_class_OC_Fifo1::deq(void) {
         (full) = 0;
