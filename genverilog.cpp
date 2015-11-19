@@ -292,7 +292,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     ClassMethodTable *table = classCreate[name];
 
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
-    if (!table || !inheritsModule(STy))
+    if (!table || !inheritsModule(STy)
+     || table->method.begin() == table->method.end())
         return;
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(name, OStr, table, NULL);
