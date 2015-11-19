@@ -861,26 +861,11 @@ void pushWork(Function *func, Function ***thisp, int skip)
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, FILE *headerFile)
+static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
     ruleList.clear();
     //structWork.clear();
     // Walk the rule lists for all modules, generating work items
-#if 0
-    while (modp) {                   // loop through all modules
-        printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
-        Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
-        while (rulep) {                      // loop through all rules for module
-            printf("Rule %p: next %p\n", rulep, rulep[RuleNext]);
-            RULE_PAIR p = {rulep[0][RuleRDY], rulep[0][RuleENA]};
-            pushWork(p.RDY, (Function ***)rulep, 1);
-            pushWork(p.ENA, (Function ***)rulep, 1);
-            ruleList.push_back(p);
-            rulep = (Function ***)rulep[RuleNext];           // Rule.next
-        }
-        modp = (Function ***)modp[ModuleNext]; // Module.next
-    }
-#else
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
         RULE_PAIR p = {info->RDY, info->ENA};
@@ -888,7 +873,6 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
         pushWork(p.ENA, (Function ***)info->thisp, 1);
         ruleList.push_back(p);
     }
-#endif
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
@@ -959,16 +943,14 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         }
         p++;
     }
-    Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod->getFunction("main");
-    if (!EntryFn || !modfirst) {
+    if (!EntryFn) {
         printf("'main' function not found in module.\n");
         exit(1);
     }
     for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
-    *modfirst = NULL;       // init the Module list before calling constructors
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
@@ -983,12 +965,12 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = 0;
-    processRules(*modfirst, OutNull, OutNull, OutNull);
+    processRules(OutNull, OutNull, OutNull);
 
     // Generate verilog for all rules
     generateRegion = 1;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    processRules(*modfirst, OutVMain, OutNull, OutNull);
+    processRules(OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory);
     generateVerilogHeader(*Mod, OutVInstance, OutNull);
@@ -996,7 +978,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // Generate cpp code for all rules
     generateRegion = 2;
     generateCppData(Out, *Mod);
-    processRules(*modfirst, Out, OutNull, OutHeader);
+    processRules(Out, OutNull, OutHeader);
     generateRuleList(Out);
     generateStructs(Out, ""); // generate class method bodies
     generateRegion = 3;

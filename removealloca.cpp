@@ -22,12 +22,27 @@
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
 #include <stdio.h>
+#include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 
 using namespace llvm;
 
 #include "declarations.h"
 
+//_ZN6ModuleC2Em
+int isConstructorDestructor(std::string name)
+{
+     char *endptr = NULL;
+     if (name.length() < 8 || name.substr(0,3) != "_ZN")
+         return 0;
+     int len = strtol(name.c_str()+3, &endptr, 10);
+     if (len <= 0)
+         return 0;
+     endptr += len;
+     if (!strncmp(endptr, "C2E", 3) || !strncmp(endptr, "D2E", 3))
+         return 1;
+     return 0;
+}
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
@@ -35,7 +50,12 @@ using namespace llvm;
 bool RemoveAllocaPass_runOnFunction(Function &F)
 {
     bool changed = false;
-//printf("RemoveAllocaPass: %s\n", F.getName().str().c_str());
+    int status;
+    std::string fname = F.getName();
+    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+//printf("RemoveAllocaPass: %s = %s\n", fname.c_str(), demang);
+    if (isConstructorDestructor(fname))
+        return changed;
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
         BasicBlock::iterator E = BB->end();
