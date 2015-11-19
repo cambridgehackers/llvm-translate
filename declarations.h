@@ -122,7 +122,6 @@ extern std::map<std::string,ClassMethodTable *> classCreate;
 extern std::map<Function *,ClassMethodTable *> functionIndex;
 extern int regen_methods;
 extern unsigned NextTypeID;
-extern DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 extern int generateRegion;
 extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
@@ -172,7 +171,6 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);
-void generateRuleList(FILE *OStr);
 void dump_class_data(void);
 MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
 void memdump(unsigned char *p, int len, const char *title);

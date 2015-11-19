@@ -336,7 +336,3 @@ void generateCppData(FILE *OStr, Module &Mod)
         }
     }
 }
-void generateRuleList(FILE *OStr)
-{
-    UnnamedStructIDs.clear();
-}

@@ -46,7 +46,7 @@ static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
-DenseMap<const StructType*, unsigned> UnnamedStructIDs;
+static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
@@ -877,9 +877,6 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
         Function *F = vtablework.begin()->f;
-        FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-        if (!FT->isVarArg() && !vtablework.begin()->skip)
-            fprintf(headerFile, "%s", printFunctionSignature(F, "", true, ";\n", 0).c_str());
         processFunction(*vtablework.begin(), (functionIndex[F] ? outputNull : outputFile), "");
         vtablework.pop_front();
     }
@@ -981,7 +978,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateRegion = 2;
     generateCppData(Out, *Mod);
     processRules(Out, OutNull, OutHeader);
-    generateRuleList(Out);
+    UnnamedStructIDs.clear();
     generateStructs(Out, ""); // generate class method bodies
     generateRegion = 3;
     generateStructs(OutHeader, ""); // generate class definitions

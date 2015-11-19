@@ -24,7 +24,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 class l_class_OC_Fifo1 zFifo1;
 class l_class_OC_EchoIndication zEchoIndication;
 class l_class_OC_Echo zEcho;
-class l_class_OC_EchoTest zEchoTest;
 
 void memdump(unsigned char *p, int len, const char *title)
 {
@@ -49,9 +48,9 @@ int main(int argc, const char *argv[])
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zEcho.fifo = &zFifo1;
     zEcho.ind = &zEchoIndication;
-    zEchoTest.echo = &zEcho;
+    echoTest.echo = &zEcho;
     while (!stop_main_program) {
-        zEchoTest.run();
+        echoTest.run();
     }
   printf("[%s:%d] ending\n", __FUNCTION__, __LINE__);
   return 0;

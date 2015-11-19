@@ -1,11 +1,3 @@
-void _ZN14EchoIndication4echoEi(unsigned int Vv);
-bool _ZN5Fifo1IiE8deq__RDYEv(class l_class_OC_Fifo1 *Vthis);
-bool _ZN5Fifo1IiE10first__RDYEv(class l_class_OC_Fifo1 *Vthis);
-void _ZN5Fifo1IiE3deqEv(class l_class_OC_Fifo1 *Vthis);
-unsigned int _ZN5Fifo1IiE5firstEv(class l_class_OC_Fifo1 *Vthis);
-void _ZN14EchoIndication4echoEi(unsigned int Vv);
-bool _ZN5Fifo1IiE8enq__RDYEv(class l_class_OC_Fifo1 *Vthis);
-void _ZN5Fifo1IiE3enqEi(class l_class_OC_Fifo1 *Vthis, unsigned int Vv);
 class l_class_OC_EchoTest {
 public:
   unsigned long long size;
