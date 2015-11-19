@@ -221,6 +221,18 @@ static int hasRun(const StructType *STy, int recurse)
     }
     return 0;
 }
+int inheritsModule(const StructType *STy)
+{
+    if (STy) {
+        std::string sname = STy->getName();
+        if (sname == "class.Module")
+            return 1;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            if (inheritsModule(dyn_cast<StructType>(*I)))
+                return 1;
+    }
+    return 0;
+}
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;

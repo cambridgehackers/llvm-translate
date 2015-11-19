@@ -899,6 +899,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
         for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir);
         if (STy) {
+            if (STy->getName() == "class.Module")
+                return;  // just a dummy class
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
                 printContainedStructs(*I, OStr, ODir);
             if (generateRegion == 1)

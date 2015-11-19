@@ -187,3 +187,4 @@ void addressrunOnFunction(Function &F);
 const Type *memoryType(void *p);
 void recursiveDelete(Value *V);
 Function *lookup_function(std::string className, std::string methodName);
+int inheritsModule(const StructType *STy);
