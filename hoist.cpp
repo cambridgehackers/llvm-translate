@@ -187,7 +187,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             func = static_cast<Function *>(pact);
         }
         if (!func) {
-            printf("[%s:%d] not an instantiable call!!!!\n", __FUNCTION__, __LINE__);
+            printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, p.c_str());
             break;
         }
         std::string cthisp = fetchOperand(thisp, I.getOperand(0), false);
@@ -195,9 +195,9 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
-        printf("[%s:%d] CallPTR %p %s thisp %p\n", __FUNCTION__, __LINE__, func, fname.c_str(), thisp);
+        printf("HOIST: CallPTR %p %s thisp %p\n", func, fname.c_str(), thisp);
         pushWork(func, called_thisp, 0);
-        printf("[%s:%d] Call %s\n", __FUNCTION__, __LINE__, fname.c_str());
+        printf("HOIST: Call %s\n", fname.c_str());
         if (trace_translate)
             printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);
         if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
@@ -231,11 +231,12 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             char tempname[1000];
             strcpy(tempname, methodName);
             strcat(tempname, "__RDY");
+printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, tempname, tname.c_str());
             RDYName = lookup_method(tname.c_str(), tempname);
         }
         if (thisp)
             g = EE->getGlobalValueAtAddress(thisp[0] - 2);
-        printf("[%s:%d] RDY %d ENA %d thisp %p g %p\n", __FUNCTION__, __LINE__, RDYName, ENAName, thisp, g);
+        printf("HOIST: RDY %d ENA %d thisp %p g %p\n", RDYName, ENAName, thisp, g);
         if (g) {
             char temp[MAX_CHAR_BUFFER];
             int status;
@@ -244,7 +245,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             parentRDYName = lookup_method(temp, "RDY");
             //parentENAName = lookup_method(temp, "ENA");
         }
-        printf("[%s:%d] pRDY %d pENA %d\n", __FUNCTION__, __LINE__, parentRDYName, parentENAName);
+        printf("HOIST: pRDY %d pENA %d\n", parentRDYName, parentENAName);
         if (RDYName >= 0 && parentRDYName >= 0) {
             Function *peer_RDY = thisp[0][parentRDYName];
             TerminatorInst *TI = peer_RDY->begin()->getTerminator();
@@ -274,7 +275,7 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             }
         }
         if (cthisp == "Vthis") {
-            printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, func->getName().str().c_str());
+            printf("HOIST: single!!!! %s\n", func->getName().str().c_str());
 fprintf(stderr, "[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
 ICL.dump();
 I.dump();

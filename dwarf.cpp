@@ -105,15 +105,20 @@ CLASS_META *lookup_class(const char *cp)
 }
 int lookup_method(const char *classname, std::string methodname)
 {
-    if (trace_meta)
+    //if (trace_meta)
         printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
     CLASS_META *classp = lookup_class(classname);
     if (!classp)
         return -1;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta);
-        if (SP && SP->getName().str() == methodname)
+        //if (trace_meta)
+        if (SP)
+            printf("[%s:%d] SPname %s\n", __FUNCTION__, __LINE__, SP->getName().str().c_str());
+        if (SP && SP->getName() == methodname) {
+printf("[%s:%d] Found,return %d\n", __FUNCTION__, __LINE__, SP->getVirtualIndex());
             return SP->getVirtualIndex();
+        }
     }
     return -1;
 }

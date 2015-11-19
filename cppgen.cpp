@@ -193,7 +193,7 @@ printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
         break;
         }
     default:
-        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        printf("COther opcode %d.=%s\n", opcode, I.getOpcodeName());
         exit(1);
         break;
     }

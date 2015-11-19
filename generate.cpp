@@ -33,6 +33,7 @@ using namespace llvm;
 #include "declarations.h"
 
 int trace_translate ;//= 1;
+static int trace_gep;// = 1;
 static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 std::string globalName;
@@ -425,7 +426,6 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
 }
 
-static int trace_gep;// = 1;
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -473,7 +473,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             std::string lname = CBEMangle(tptr->getLinkageName().str());
             if (p == "(*(this))" || p == "(*(Vthis))") {
                 if (trace_gep)
-                    printf("%s: name %s lname %s\n", __FUNCTION__, name.c_str(), lname.c_str());
+                    printf("%s: p %s name %s lname %s\n", __FUNCTION__, p.c_str(), name.c_str(), lname.c_str());
                 cbuffer += "&" + (generateRegion == 0 ? lname : name);
                 goto exitlab;
             }
@@ -543,8 +543,8 @@ next:
              void *valp = nameMap[p];
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
              if (trace_gep)
-                 printf("[%s:%d] writeop %s found %p\n", __FUNCTION__, __LINE__, p.c_str(), valp);
-             if (thisp && p == "Vthis" && fieldp == "module") {
+                 printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, p.c_str(), valp, thisp, fieldp.c_str());
+             if (thisp && p == "Vthis") {
                  tval = thisp;
                  goto tvallab;
              }
@@ -750,6 +750,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         globalName = fname;
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
+printf("[%s:%d] PROCESSING %s %d\n", __FUNCTION__, __LINE__, globalName.c_str(), regenItem);
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
@@ -797,6 +798,8 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
                      && ins->use_begin() != ins->use_end()) {
                         std::string name = GetValueName(&*ins);
                         void *tval = mapLookup(vout.c_str()+1);
+                        if (trace_translate)
+                            printf("%s: settingnameMap [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
                         if (tval)
                             nameMap[name] = tval;
                     }

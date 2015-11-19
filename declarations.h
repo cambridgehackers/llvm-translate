@@ -100,6 +100,13 @@ public:
     ClassMethodTable(std::string corig, const char *name) : classOrig(corig), className(name) { }
 };
 
+typedef struct {
+    const char *name;
+    void       *thisp;
+    Function   *RDY;
+    Function   *ENA;
+} RULE_INFO;
+
 extern ExecutionEngine *EE;
 extern int trace_translate;
 extern int trace_full;
@@ -121,6 +128,7 @@ extern Module *globalMod;
 extern std::list<RULE_PAIR> ruleList;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
+extern std::list<RULE_INFO *> ruleInfo;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);
@@ -176,3 +184,4 @@ const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
 void addressrunOnFunction(Function &F);
 const Type *memoryType(void *p);
+void recursiveDelete(Value *V);

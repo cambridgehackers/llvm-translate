@@ -26,6 +26,7 @@
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 
 #define MAGIC_VTABLE_OFFSET 2
 
@@ -88,8 +89,9 @@ for (auto JJ = OpV->use_begin(); JJ != OpV->use_end(); JJ++)
 return ret;
 }
 #endif
-static Function *fixupFunction(std::string fname, Function *func)
+static Function *fixupFunction(const char *name, const char *post, Function *func)
 {
+    std::string prefix;
     for (Function::iterator BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -98,7 +100,10 @@ static Function *fixupFunction(std::string fname, Function *func)
             switch (II->getOpcode()) {
             case Instruction::Load:
                 if (vname == "this") {
+                    const PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     newArg = new Argument(II->getType(), "this", func);
+                    if (StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
+                        prefix = STy->getName().substr(6);
                     II->replaceAllUsesWith(newArg);
                 }
                 if (II->use_empty())
@@ -118,7 +123,8 @@ static Function *fixupFunction(std::string fname, Function *func)
         }
     }
     func->getArgumentList().pop_front(); // remove original argument
-    func->setName(fname);
+    func->setName("_ZN" + utostr(prefix.length()) + prefix + utostr(strlen(name) + strlen(post)) + name + post + "Ev");
+    func->setLinkage(GlobalValue::LinkOnceODRLinkage);
 //printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
     //func->dump();
     return func;
@@ -126,7 +132,7 @@ static Function *fixupFunction(std::string fname, Function *func)
 
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    ruleInfo.push_back(new RULE_INFO{name, thisp, fixupFunction(std::string(name) + "__RDY", RDY[2]), fixupFunction(std::string(name) + "__ENA", ENA[2])});
+    ruleInfo.push_back(new RULE_INFO{name, thisp, fixupFunction(name, "__RDY", RDY[2]), fixupFunction(name, "__ENA", ENA[2])});
 }
 
 static void dumpMemoryRegions(int arg)
