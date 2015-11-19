@@ -142,7 +142,7 @@ printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str()
 extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
 {
     std::string name = aname;
-    ruleInfo.push_back(new RULE_INFO{aname, thisp, fixupFunction(name + "__RDY", RDY[2]), fixupFunction(name + "__ENA", ENA[2])});
+    ruleInfo.push_back(new RULE_INFO{aname, thisp, fixupFunction(name + "__RDY", RDY[2]), fixupFunction(name, ENA[2])});
 }
 
 static void dumpMemoryRegions(int arg)

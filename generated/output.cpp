@@ -11,19 +11,19 @@ void _ZN14EchoIndication4echoEi(unsigned int Vv) {
 }
 //processing printf
 //processing _ZN14EchoIndication4echoEi
-bool l_class_OC_EchoTest::drive__RDY(void) {
+bool l_class_OC_EchoTest::rule_drive__RDY(void) {
     bool tmp__1 =     ((*((echo)->fifo)).enq__RDY)();
         return tmp__1;
 }
-void l_class_OC_EchoTest::drive__ENA(void) {
+void l_class_OC_EchoTest::rule_drive(void) {
         ((*((echo)->fifo)).enq)(22);
 }
-bool l_class_OC_Echo::respond__RDY(void) {
+bool l_class_OC_Echo::rule_respond__RDY(void) {
     bool tmp__1 =     ((*(fifo)).deq__RDY)();
     bool tmp__2 =     ((*(fifo)).first__RDY)();
         return (tmp__1 & tmp__2);
 }
-void l_class_OC_Echo::respond__ENA(void) {
+void l_class_OC_Echo::rule_respond(void) {
         ((*(fifo)).deq)();
     unsigned int call =     ((*(fifo)).first)();
         _ZN14EchoIndication4echoEi(call);

@@ -238,7 +238,7 @@ printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, t
         printf("HOIST: gname %s RDY %d ENA %d thisp %p\n", globalName.c_str(), RDYName, ENAName, thisp);
         if (getClassName(globalName.c_str(), &className, &methodName)) {
 printf("[%s:%d] class %s metho %s\n", __FUNCTION__, __LINE__, className, methodName);
-            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName).substr(0, strlen(methodName)-3) + "RDY");
+            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
             //parentENAName = lookup_method(temp, "ENA");
         }
         printf("HOIST: pRDY %p pENA %p\n", parentRDYName, parentENAName);

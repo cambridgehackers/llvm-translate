@@ -20,8 +20,8 @@ public:
   unsigned long long size;
   class l_class_OC_Echo *echo;
   unsigned int x;
-  bool drive__RDY(void);
-  void drive__ENA(void);
+  bool rule_drive__RDY(void);
+  void rule_drive(void);
 };
 
 class l_class_OC_EchoIndication {
@@ -36,8 +36,8 @@ public:
   class l_class_OC_Fifo1 *fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
-  bool respond__RDY(void);
-  void respond__ENA(void);
+  bool rule_respond__RDY(void);
+  void rule_respond(void);
 };
 
 class l_class_OC_Fifo {
