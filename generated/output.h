@@ -13,20 +13,6 @@ public:
   unsigned long long size;
 };
 
-class l_class_OC_Rule {
-public:
-  class l_class_OC_Rule *next;
-};
-
-class l_class_OC_EchoTest_KD__KD_drive {
-public:
-  class l_class_OC_Rule *next;
-  class l_class_OC_EchoTest *module;
-  bool RDY(void);
-  void ENA(void);
-  void run();
-};
-
 class l_class_OC_EchoTest {
 public:
   class l_class_OC_Rule *rfirst;
@@ -34,37 +20,12 @@ public:
   unsigned long long size;
   class l_class_OC_Echo *echo;
   unsigned int x;
-  class l_class_OC_EchoTest_KD__KD_drive driveRule;
-  void run();
+  bool drive__RDY(void);
+  void drive__ENA(void);
 };
 
 class l_class_OC_EchoIndication {
 public:
-};
-
-class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 {
-public:
-  class l_class_OC_Rule *next;
-  class l_class_OC_Echo *module;
-  bool RDY(void);
-  void ENA(void);
-  void run();
-};
-
-class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 {
-public:
-  class l_class_OC_Rule *next;
-  class l_class_OC_Echo *module;
-  void ENA(void);
-  bool RDY(void);
-  void run();
-};
-
-class l_class_OC_Echo_KD__KD_respond {
-public:
-  class l_class_OC_Echo_KD__KD_respond_KD__KD_respond1 respond1Rule;
-  class l_class_OC_Echo_KD__KD_respond_KD__KD_respond2 respond2Rule;
-  void run();
 };
 
 class l_class_OC_Echo {
@@ -75,8 +36,8 @@ public:
   class l_class_OC_Fifo1 *fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
-  class l_class_OC_Echo_KD__KD_respond respondRule;
-  void run();
+  bool respond__RDY(void);
+  void respond__ENA(void);
 };
 
 class l_class_OC_Fifo {
@@ -87,11 +48,15 @@ class l_class_OC_Fifo1 {
 public:
   unsigned int element;
   bool full;
+  bool deq__RDY(void);
   bool enq__RDY(void);
   void enq(unsigned int Vv);
-  bool deq__RDY(void);
   void deq(void);
   bool first__RDY(void);
   unsigned int first(void);
+};
+
+class l_class_OC_Rule {
+public:
 };
 

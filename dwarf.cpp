@@ -93,6 +93,22 @@ void dump_class_data()
       classp++;
     }
 }
+CLASS_META *create_class(std::string name, const Metadata *Node)
+{
+    CLASS_META *classp = &class_data[class_data_index++];
+
+    classp->node = Node;
+    classp->name = "class." + name;
+    //if (trace_meta)
+        printf("%s: ADDCLASS name %s Node %p\n", __FUNCTION__, name.c_str(), Node);
+    int ind = name.find("<");
+    if (ind >= 0) { /* also insert the class w/o template parameters */
+        classp = &class_data[class_data_index++];
+        *classp = *(classp-1);
+        classp->name = "class." + name.substr(0, ind);
+    }
+    return classp;
+}
 CLASS_META *lookup_class(const char *cp)
 {
     CLASS_META *classp = class_data;
@@ -105,9 +121,9 @@ CLASS_META *lookup_class(const char *cp)
 }
 int lookup_method(const char *classname, std::string methodname)
 {
-    //if (trace_meta)
-        printf("[%s:%d] class %s meth %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
     CLASS_META *classp = lookup_class(classname);
+    //if (trace_meta)
+        printf("[%s:%d] class %s meth %s classp %p\n", __FUNCTION__, __LINE__, classname, methodname.c_str(), classp);
     if (!classp)
         return -1;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
@@ -389,19 +405,9 @@ printf("[%s:%d] RETAIN %s\n", __FUNCTION__, __LINE__, name.c_str());
         if (!metamap[Node]) {
             metamap[Node] = 1;
             if (tag == dwarf::DW_TAG_class_type) {
-                CLASS_META *classp = &class_data[class_data_index++];
-                classp->node = Node;
-                Metadata *sc = T->getRawScope();
-                classp->name = "class." + getScope(sc) + name;
+                CLASS_META *classp = create_class(getScope(T->getRawScope()) + name, Node);
                 if (trace_meta)
-printf("[%s:%d] ADDCLASS name %s tag %s Node %p cname %s scope %p\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag), Node, classp->name.c_str(), sc);
-                int ind = name.find("<");
-                if (ind >= 0) { /* also insert the class w/o template parameters */
-                    classp = &class_data[class_data_index++];
-                    *classp = *(classp-1);
-                    name = name.substr(0, ind);
-                    classp->name = "class." + getScope(T->getRawScope()) + name;
-                }
+printf("[%s:%d] ADDCLASS name %s tag %s\n", __FUNCTION__, __LINE__, name.c_str(), dwarf::TagString(tag));
                 if (const DICompositeType *CTy = dyn_cast<DICompositeType>(T)) {
                     DINodeArray Elements = CTy->getElements();
                     for (unsigned k = 0, N = Elements.size(); k < N; ++k) {

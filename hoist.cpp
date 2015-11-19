@@ -175,12 +175,13 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         std::string p = fetchOperand(thisp, Callee, false);
-        int RDYName = -1, ENAName = -1, parentRDYName = -1, parentENAName = -1;
+        int RDYName = -1, ENAName = -1;
+        Function *parentRDYName = NULL, *parentENAName = NULL;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
         std::string fname;
         const StructType *STy;
         const char *className, *methodName;
-        const GlobalValue *g = NULL;
+        //const GlobalValue *g = NULL;
 printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
         if (!func) {
             void *pact = mapLookup(p.c_str());
@@ -234,21 +235,15 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
 printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, tempname, tname.c_str());
             RDYName = lookup_method(tname.c_str(), tempname);
         }
-        if (thisp)
-            g = EE->getGlobalValueAtAddress(thisp[0] - 2);
-        printf("HOIST: RDY %d ENA %d thisp %p g %p\n", RDYName, ENAName, thisp, g);
-        if (g) {
-            char temp[MAX_CHAR_BUFFER];
-            int status;
-            const char *ret = abi::__cxa_demangle(g->getName().str().c_str(), 0, 0, &status);
-            sprintf(temp, "class.%s", ret+11);
-            parentRDYName = lookup_method(temp, "RDY");
+        printf("HOIST: gname %s RDY %d ENA %d thisp %p\n", globalName.c_str(), RDYName, ENAName, thisp);
+        if (getClassName(globalName.c_str(), &className, &methodName)) {
+printf("[%s:%d] class %s metho %s\n", __FUNCTION__, __LINE__, className, methodName);
+            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName).substr(0, strlen(methodName)-3) + "RDY");
             //parentENAName = lookup_method(temp, "ENA");
         }
-        printf("HOIST: pRDY %d pENA %d\n", parentRDYName, parentENAName);
-        if (RDYName >= 0 && parentRDYName >= 0) {
-            Function *peer_RDY = thisp[0][parentRDYName];
-            TerminatorInst *TI = peer_RDY->begin()->getTerminator();
+        printf("HOIST: pRDY %p pENA %p\n", parentRDYName, parentENAName);
+        if (RDYName >= 0 && parentRDYName) {
+            TerminatorInst *TI = parentRDYName->begin()->getTerminator();
             Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
             if (CallInst *nc = dyn_cast<CallInst>(newI))
                 nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
@@ -264,9 +259,8 @@ printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, t
                 newBool->setOperand(0, cond);
             }
         }
-        if (parentENAName >= 0) {
-            Function *peer_ENA = thisp[0][parentENAName];
-            TerminatorInst *TI = peer_ENA->begin()->getTerminator();
+        if (parentENAName) {
+            TerminatorInst *TI = parentENAName->begin()->getTerminator();
             if (ENAName >= 0)
                 copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
             else if (I.use_empty()) {
