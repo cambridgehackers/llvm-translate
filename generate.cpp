@@ -942,6 +942,18 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
 printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
+    const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
+    const char **p = delete_names;
+    while(*p) {
+        if (Function *Declare = Mod->getFunction(*p)) {
+            while (!Declare->use_empty()) {
+                CallInst *CI = cast<CallInst>(Declare->user_back());
+                CI->eraseFromParent();
+            }
+            Declare->eraseFromParent();
+        }
+        p++;
+    }
     Function **** modfirst = (Function ****)EE->getPointerToGlobal(Mod->getNamedValue("_ZN6Module5firstE"));
     EntryFn = Mod->getFunction("main");
     if (!EntryFn || !modfirst) {

@@ -56,7 +56,7 @@ static Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
     }
     NewInst->insertBefore(insertPoint);
     if (trace_clone)
-printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, NewInst->getOpcodeName(), NewInst->getNumOperands());
+        printf("[%s:%d] %s %d\n", __FUNCTION__, __LINE__, NewInst->getOpcodeName(), NewInst->getNumOperands());
     return NewInst;
 }
 
@@ -102,7 +102,7 @@ void recursiveDelete(Value *V)
         return;
     for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
         Value *OpV = I->getOperand(i);
-        I->setOperand(i, 0);
+        I->setOperand(i, nullptr);
         if (OpV->use_empty())
             recursiveDelete(OpV);
     }

@@ -85,9 +85,53 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
     return ptr;
 }
 
+#if 0
+int refCou(Value *OpV)
+{
+int ret = 0;
+for (auto JJ = OpV->use_begin(); JJ != OpV->use_end(); JJ++)
+    ret++;
+return ret;
+}
+#endif
+static Function *fixupFunction(Function *func)
+{
+    for (Function::iterator BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
+        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
+            std::string vname = II->getName();
+            Argument *newArg = NULL;
+            switch (II->getOpcode()) {
+            case Instruction::Load:
+                if (vname == "this") {
+                    newArg = new Argument(II->getType(), "this", func);
+                    II->replaceAllUsesWith(newArg);
+                }
+                if (II->use_empty())
+                    recursiveDelete(II);
+                if (newArg)
+                    newArg->setName("this");
+                break;
+            case Instruction::Store: {
+                std::string name = II->getOperand(0)->getName();
+                //printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
+                if (name == ".block_descriptor" || name == "block")
+                    recursiveDelete(II);
+                break;
+                }
+            }
+            II = PI;
+        }
+    }
+    func->getArgumentList().pop_front(); // remove original argument
+//printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
+    //func->dump();
+    return func;
+}
+
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    ruleInfo.push_back(new RULE_INFO{name, thisp, RDY[2], ENA[2]});
+    ruleInfo.push_back(new RULE_INFO{name, thisp, fixupFunction(RDY[2]), fixupFunction(ENA[2])});
 }
 
 static void dumpMemoryRegions(int arg)
@@ -306,6 +350,8 @@ void constructAddressMap(Module *Mod)
         if (g)
             printf("[%s:%d] thisp %s\n", __FUNCTION__, __LINE__, g->getName().str().c_str());
     }
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(-1);
     if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
             const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));

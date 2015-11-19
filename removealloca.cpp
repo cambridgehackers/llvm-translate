@@ -37,15 +37,14 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
     bool changed = false;
 //printf("RemoveAllocaPass: %s\n", F.getName().str().c_str());
     for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        Function::iterator BN = std::next(Function::iterator(BB));
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
         BasicBlock::iterator E = BB->end();
         if (Start == E) return false;
         BasicBlock::iterator I = Start++;
         while(1) {
+            Value *retv = (Value *)I;
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(I));
             int opcode = I->getOpcode();
-            Value *retv = (Value *)I;
             switch (opcode) {
             case Instruction::Alloca: {
                std::string name = I->getName();
@@ -64,6 +63,8 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
                         }
                         else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
                             PN->replaceAllUsesWith(newt); // replace with stored value
+                            if (PI == PN)
+                                PI = PNN;
                             PN->eraseFromParent(); // delete Load instruction
                         }
                         PN = PNN;
@@ -75,27 +76,6 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
 //printf("\n");
                 break;
                 }
-            case Instruction::Call:
-                if (CallInst *CI = dyn_cast<CallInst>(I)) {
-                    Value *Operand = CI->getCalledValue();
-                      std::string cp = Operand->getName();
-                    if (Operand->hasName() && isa<Constant>(Operand)) {
-                      if (cp == "llvm.dbg.declare" || cp == "atexit") {
-                          I->eraseFromParent(); // delete this instruction
-                          changed = true;
-                          break;
-                      }
-                    }
-                    Instruction *nexti = PI;
-                    if (BB == F.begin() && BN == BE && I == BB->getFirstInsertionPt() && nexti == BB->getTerminator()) {
-#if 0 // we inlined a function that still had llvm.dbg.declare
-                        printf("[%s:%d] single!!!! %s\n", __FUNCTION__, __LINE__, F.getName().str().c_str());
-                        InlineFunctionInfo IFI;
-                        InlineFunction(CI, IFI, false);
-#endif
-                    }
-                }
-                break;
             };
             if (PI == E)
                 break;
