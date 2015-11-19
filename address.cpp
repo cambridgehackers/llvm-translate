@@ -40,12 +40,6 @@ public:
        name = aname;
     }
 };
-typedef struct {
-    const char *name;
-    void       *thisp;
-    Function   *RDY;
-    Function   *ENA;
-} RULE_INFO;
 
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
@@ -53,7 +47,7 @@ static int trace_malloc;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
-static std::list<RULE_INFO *> ruleInfo;
+std::list<RULE_INFO *> ruleInfo;
 static struct {
     void *p;
     long size;
@@ -94,7 +88,7 @@ for (auto JJ = OpV->use_begin(); JJ != OpV->use_end(); JJ++)
 return ret;
 }
 #endif
-static Function *fixupFunction(Function *func)
+static Function *fixupFunction(std::string fname, Function *func)
 {
     for (Function::iterator BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
@@ -124,6 +118,7 @@ static Function *fixupFunction(Function *func)
         }
     }
     func->getArgumentList().pop_front(); // remove original argument
+    func->setName(fname);
 //printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
     //func->dump();
     return func;
@@ -131,7 +126,7 @@ static Function *fixupFunction(Function *func)
 
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    ruleInfo.push_back(new RULE_INFO{name, thisp, fixupFunction(RDY[2]), fixupFunction(ENA[2])});
+    ruleInfo.push_back(new RULE_INFO{name, thisp, fixupFunction(std::string(name) + "__RDY", RDY[2]), fixupFunction(std::string(name) + "__ENA", ENA[2])});
 }
 
 static void dumpMemoryRegions(int arg)
@@ -344,14 +339,6 @@ void constructAddressMap(Module *Mod)
 {
     process_metadata(Mod);
     mapitem.clear();
-    for (RULE_INFO *info : ruleInfo) {
-        printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
-        const GlobalValue *g = EE->getGlobalValueAtAddress(info->thisp);
-        if (g)
-            printf("[%s:%d] thisp %s\n", __FUNCTION__, __LINE__, g->getName().str().c_str());
-    }
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(-1);
     if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
         for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
             const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));

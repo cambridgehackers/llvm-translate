@@ -860,17 +860,10 @@ void pushWork(Function *func, Function ***thisp, int skip)
  */
 static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
-    int ModuleRfirst= lookup_field("class.Module", "rfirst")/sizeof(uint64_t);
-    int ModuleNext  = lookup_field("class.Module", "next")/sizeof(uint64_t);
-    int RuleNext    = lookup_field("class.Rule", "next")/sizeof(uint64_t);
-    int RuleRDY = lookup_method("class.Rule", "RDY");
-    int RuleENA = lookup_method("class.Rule", "ENA");
-
-    printf("[%s:%d] offsets ModuleFirst %d next %d, RuleNext %d RDY %d ENA %d\n", __FUNCTION__, __LINE__,
-        ModuleRfirst, ModuleNext, RuleNext, RuleRDY, RuleENA);
     ruleList.clear();
     //structWork.clear();
     // Walk the rule lists for all modules, generating work items
+#if 0
     while (modp) {                   // loop through all modules
         printf("Module %p: rfirst %p next %p\n", modp, modp[ModuleRfirst], modp[ModuleNext]);
         Function ***rulep = (Function ***)modp[ModuleRfirst];        // Module.rfirst
@@ -884,6 +877,15 @@ static void processRules(Function ***modp, FILE *outputFile, FILE *outputNull, F
         }
         modp = (Function ***)modp[ModuleNext]; // Module.next
     }
+#else
+    for (RULE_INFO *info : ruleInfo) {
+        printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
+        RULE_PAIR p = {info->RDY, info->ENA};
+        pushWork(p.RDY, (Function ***)info->thisp, 1);
+        pushWork(p.ENA, (Function ***)info->thisp, 1);
+        ruleList.push_back(p);
+    }
+#endif
 
     // Walk list of work items, generating code
     while (vtablework.begin() != vtablework.end()) {
