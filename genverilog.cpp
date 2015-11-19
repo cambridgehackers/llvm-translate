@@ -125,7 +125,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string p = printOperand(thisp, Callee, false);
-printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        //printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
         if (p == "printf")
             break;
         if (!strncmp(p.c_str(), "&0x", 3) && !func) {
@@ -134,7 +134,7 @@ printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__
                 func = static_cast<Function *>(tval);
                 if (func)
                     p = func->getName();
-                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
+                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
             }
         }
         pushWork(func, called_thisp, 0);

@@ -151,14 +151,14 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string pcalledFunction = printOperand(thisp, Callee, false);
-printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
+//printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
         if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(pcalledFunction.c_str()+1);
             if (tval) {
                 func = static_cast<Function *>(tval);
                 if (func)
                     pcalledFunction = func->getName();
-                printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
+                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
             }
         }
         pushWork(func, called_thisp, 0);

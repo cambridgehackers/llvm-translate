@@ -33,6 +33,7 @@ using namespace llvm;
 
 static std::map<const Value *, Value *> cloneVmap;
 int trace_clone;
+int trace_hoist;
 
 /*
  * clone a DAG from one basic block to another
@@ -182,6 +183,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         const StructType *STy;
         const char *className, *methodName;
         //const GlobalValue *g = NULL;
+        if (trace_hoist)
 printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
         if (!func) {
             void *pact = mapLookup(p.c_str());
@@ -196,8 +198,10 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
         if (!strncmp(cthisp.c_str(), "0x", 2))
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
+        if (trace_hoist)
         printf("HOIST: CallPTR %p %s thisp %p\n", func, fname.c_str(), thisp);
         pushWork(func, called_thisp, 0);
+        if (trace_hoist)
         printf("HOIST: Call %s\n", fname.c_str());
         if (trace_translate)
             printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);
@@ -232,15 +236,19 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             char tempname[1000];
             strcpy(tempname, methodName);
             strcat(tempname, "__RDY");
+        if (trace_hoist)
 printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, tempname, tname.c_str());
             RDYName = lookup_method(tname.c_str(), tempname);
         }
+        if (trace_hoist)
         printf("HOIST: gname %s RDY %d ENA %d thisp %p\n", globalName.c_str(), RDYName, ENAName, thisp);
         if (getClassName(globalName.c_str(), &className, &methodName)) {
+        if (trace_hoist)
 printf("[%s:%d] class %s metho %s\n", __FUNCTION__, __LINE__, className, methodName);
             parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
             //parentENAName = lookup_method(temp, "ENA");
         }
+        if (trace_hoist)
         printf("HOIST: pRDY %p pENA %p\n", parentRDYName, parentENAName);
         if (RDYName >= 0 && parentRDYName) {
             TerminatorInst *TI = parentRDYName->begin()->getTerminator();

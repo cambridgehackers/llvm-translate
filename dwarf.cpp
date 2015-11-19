@@ -99,7 +99,7 @@ CLASS_META *create_class(std::string name, const Metadata *Node)
 
     classp->node = Node;
     classp->name = "class." + name;
-    //if (trace_meta)
+    if (trace_meta)
         printf("%s: ADDCLASS name %s Node %p\n", __FUNCTION__, name.c_str(), Node);
     int ind = name.find("<");
     if (ind >= 0) { /* also insert the class w/o template parameters */
@@ -122,19 +122,17 @@ CLASS_META *lookup_class(const char *cp)
 int lookup_method(const char *classname, std::string methodname)
 {
     CLASS_META *classp = lookup_class(classname);
-    //if (trace_meta)
+    if (trace_meta)
         printf("[%s:%d] class %s meth %s classp %p\n", __FUNCTION__, __LINE__, classname, methodname.c_str(), classp);
     if (!classp)
         return -1;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta);
-        //if (trace_meta)
+        if (trace_meta)
         if (SP)
             printf("[%s:%d] SPname %s\n", __FUNCTION__, __LINE__, SP->getName().str().c_str());
-        if (SP && SP->getName() == methodname) {
-printf("[%s:%d] Found,return %d\n", __FUNCTION__, __LINE__, SP->getVirtualIndex());
+        if (SP && SP->getName() == methodname)
             return SP->getVirtualIndex();
-        }
     }
     return -1;
 }

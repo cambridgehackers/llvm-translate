@@ -478,7 +478,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 goto exitlab;
             }
             else {
-                //if (trace_gep)
+                if (trace_gep)
                     printf("%s: notthis %s name %s\n", __FUNCTION__, p.c_str(), name.c_str());
                 if (p.length() < 2 || p.substr(0,2) != "0x") {
                     cbuffer += "&" + p + "." + name;
@@ -598,7 +598,7 @@ exitlab:
     if (!strncmp(cbuffer.c_str(), "(0x", 3))
         cbuffer = cbuffer.substr(1, cbuffer.length()-2);
     if (trace_gep) {
-    printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
+        printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
     if (!strncmp(cbuffer.c_str(), "0x", 2)) {
         char *endptr;
         void **pint = (void **)strtol(cbuffer.c_str()+2, &endptr, 16);
@@ -750,7 +750,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         globalName = fname;
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
-printf("[%s:%d] PROCESSING %s %d\n", __FUNCTION__, __LINE__, globalName.c_str(), regenItem);
+    //printf("[%s:%d] PROCESSING %s %d\n", __FUNCTION__, __LINE__, globalName.c_str(), regenItem);
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
