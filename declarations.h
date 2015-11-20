@@ -34,6 +34,7 @@
 #define MAX_CHAR_BUFFER 1000
 #define MAX_CLASS_DEFS  200
 #define MAX_VTAB_EXTRA 100
+#define BOGUS_POINTER ((void *)0x5a5a5a5a5a5a5a5a)
 
 #define ERRORIF(A) { \
       if(A) { \

@@ -29,6 +29,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+int trace_cppstruct;// = 1;
 /*
  * Output instructions
  */
@@ -237,13 +238,21 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        const StructType *inherit = dyn_cast<StructType>(element);
         MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+        if (trace_cppstruct) {
+            printf("ELEMENT: %p[%d] tptr %p inherit %p\n", STy, Idx, tptr, inherit);
+            element->dump();
+            if (tptr) {
+                printf("ELEMENT: meta %p\n", tptr->meta);
+                tptr->meta->dump();
+            }
+        }
         if (!tptr)
             continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-        const Type *element = *I;
         const DIType *Ty = dyn_cast<DIType>(tptr->meta);
         std::string fname = CBEMangle(Ty->getName().str());
-        const StructType *inherit = dyn_cast<StructType>(element);
         if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
             if (inherit)
@@ -262,6 +271,8 @@ void generateClassDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
+    if (trace_cppstruct)
+        printf("ELEMENT: TOP %s\n", name.c_str());
     generateClassElements(STy, OStr);
     if (ClassMethodTable *table = classCreate[name])
         for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {

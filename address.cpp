@@ -45,6 +45,7 @@ public:
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
+static int trace_fixup;// = 1;
 static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
@@ -133,12 +134,15 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->getArgumentList().pop_front(); // remove original argument
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    //printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
+    if (trace_fixup)
+        printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     if (!endswith(methodName.c_str(), "__RDY"))
         ruleFunctionNames["class." + className].push_back(methodName);
     ruleFunctionTable["class." + className + "//" + methodName] = func;
-//printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
-    //func->dump();
+    if (trace_fixup) {
+        printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
+        func->dump();
+    }
     return func;
 }
 
@@ -290,7 +294,7 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
-    if (!addr || mapseen[MAPSEEN_TYPE{addr, Ty}])
+    if (!addr || addr == BOGUS_POINTER || mapseen[MAPSEEN_TYPE{addr, Ty}])
         return;
     mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
 printf("[%s:%d] addr %p Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty, aname.c_str());
