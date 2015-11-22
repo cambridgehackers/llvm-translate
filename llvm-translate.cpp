@@ -81,7 +81,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     Linker L(Mod);
     for (i = 1; i < InputFile.size(); ++i) {
         Module *M = llvm_ParseIRFile(InputFile[i], Context, &slots);
-        if (!M || L.linkInModule(M, &ErrorMsg)) {
+        if (!M || L.linkInModule(M)) {
             printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
         }
     }

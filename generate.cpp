@@ -843,16 +843,10 @@ void pushWork(Function *func, Function ***thisp, int skip)
     if (getClassName(func->getName().str().c_str(), &className, &methodName)
      && (STy = findThisArgument(func))) {
         std::string sname = getStructName(STy);
-        std::string tname = STy->getName();
-        CLASS_META *mptr = lookup_class(tname.c_str());
-        if (mptr// && mptr->node->getNumOperands() > 3
-         //&& mptr->node->getOperand(3)->getName() == className
-) {
-            if (!classCreate[sname])
-                classCreate[sname] = new ClassMethodTable(sname, className);
-            classCreate[sname]->method[func] = methodName;
-            functionIndex[func] = classCreate[sname];
-        }
+        if (!classCreate[sname])
+            classCreate[sname] = new ClassMethodTable(sname, className);
+        classCreate[sname]->method[func] = methodName;
+        functionIndex[func] = classCreate[sname];
     }
     vtablework.push_back(VTABLE_WORK(func, thisp, skip));
 }

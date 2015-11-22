@@ -138,9 +138,7 @@ void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 void process_metadata(Module *Mod);
-CLASS_META *lookup_class(const char *cp);
 int lookup_method(const char *classname, std::string methodname);
-int lookup_field(const char *classname, std::string methodname);
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind);
 int getClassName(const char *name, const char **className, const char **methodName);
 std::string fieldName(const StructType *STy, uint64_t ind);

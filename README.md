@@ -5,8 +5,8 @@
     sudo apt-get install libffi-dev
     git clone git://github.com/cambridgehackers/llvm
     git clone git://github.com/cambridgehackers/clang
-    cd llvm; git checkout release_37
-    cd ../clang; git checkout release_37
+    cd llvm; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
+    cd ../clang; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
 
 1) cd llvm 
     mkdir build

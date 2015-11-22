@@ -4,4 +4,4 @@
 #mkdir build
 #cd build
 #../../llvm-translate/configure_llvm
-LDFLAGS=-lBlocksRuntime CFLAGS=-fblocks CXXFLAGS=-fblocks CPPFLAGS=-fblocks ../configure --enable-debug-runtime --enable-debug-symbols --enable-targets=x86,cpp --disable-jit --disable-docs --enable-libffi --with-clang-srcdir=../../clang
+LDFLAGS="-g -lBlocksRuntime" CFLAGS="-fblocks -g" CXXFLAGS="-fblocks -g" ../configure --enable-debug-runtime --enable-debug-symbols --enable-targets=x86,cpp --disable-jit --disable-docs --enable-libffi --with-clang-srcdir=../../clang

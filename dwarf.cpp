@@ -136,19 +136,24 @@ int lookup_method(const char *classname, std::string methodname)
     }
     return -1;
 }
-int lookup_field(const char *classname, std::string methodname)
+std::string fieldName(const StructType *STy, uint64_t ind)
 {
-    if (trace_meta)
-        printf("[%s:%d] class %s field %s\n", __FUNCTION__, __LINE__, classname, methodname.c_str());
-    CLASS_META *classp = lookup_class(classname);
-    if (!classp)
-        return -1;
-    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        const DIType *Ty = dyn_cast<DIType>((*MI)->meta);
-        if (Ty->getTag() == dwarf::DW_TAG_member && Ty->getName().str() == methodname)
-            return Ty->getOffsetInBits()/8;
+    unsigned int subs = 0;
+    int idx = ind;
+    while (idx-- > 0) {
+        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
+            subs++;
+        subs++;
     }
-    return -1;
+    if (subs >= STy->structFieldMap.length()) {
+        printf("[%s:%d] couldn't find index\n", __FUNCTION__, __LINE__);
+        exit(-1);
+    }
+    std::string ret = STy->structFieldMap.substr(subs);
+    idx = ret.find(',');
+    if (idx > 0)
+        ret = ret.substr(0,idx);
+    return ret;
 }
 MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
 {
@@ -189,16 +194,6 @@ static int errorCount;
     }
     }
     return NULL;
-}
-std::string fieldName(const StructType *STy, uint64_t ind)
-{
-    char temp[MAX_CHAR_BUFFER];
-    if (MEMBER_INFO *tptr = lookupMember(STy, ind, dwarf::DW_TAG_member)) {
-        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-        return CBEMangle(Ty->getName().str());
-    }
-    sprintf(temp, "field%d", (int)ind);
-    return temp;
 }
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
 {
