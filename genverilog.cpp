@@ -299,10 +299,9 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     generateModuleSignature(name, OStr, table, NULL);
     int Idx = 0;
     for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        if (MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member)) {
-            const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-            fprintf(OStr, "%s", printType(*I, false, CBEMangle(Ty->getName().str()), "  ", ";\n").c_str());
-        }
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "")
+            fprintf(OStr, "%s", printType(*I, false, fname, "  ", ";\n").c_str());
     }
     fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");
     for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
