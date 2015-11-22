@@ -276,11 +276,7 @@ static int checkDerived(const Type *A, const Type *B)
     if (const StructType *STyB = dyn_cast<StructType>(PTyB->getElementType())) {
         int Idx = 0;
         for (StructType::element_iterator I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
-            MEMBER_INFO *tptr = lookupMember(STyA, Idx, dwarf::DW_TAG_member);
-            if (!tptr)
-                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-            const DIType *LTy = dyn_cast<DIType>(tptr->meta);
-            if (LTy->getTag() == dwarf::DW_TAG_inheritance && *I == STyB) {
+            if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB) {
 printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
                 STyA->dump();
                 STyB->dump();
@@ -297,20 +293,21 @@ static void mapType(char *addr, Type *Ty, std::string aname)
     if (!addr || addr == BOGUS_POINTER || mapseen[MAPSEEN_TYPE{addr, Ty}])
         return;
     mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
-printf("[%s:%d] addr %p Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty, aname.c_str());
+printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
         const StructLayout *SLO = TD->getStructLayout(STy);
         int Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(STy, Idx);
             MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
             if (!tptr)
                 continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
             int off = SLO->getElementOffset(Idx);
             Type *element = *I;
             const DIType *LTy = dyn_cast<DIType>(tptr->meta);
-            std::string fname = CBEMangle(LTy->getName().str());
+            //std::string fname = CBEMangle(LTy->getName().str());
             if (fname.length() <= 6 || fname.substr(0, 6) != "_vptr_") {
                 if (LTy->getTag() == dwarf::DW_TAG_inheritance)
                     mapType(addr, element, aname);
