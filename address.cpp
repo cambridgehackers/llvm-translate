@@ -301,24 +301,26 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
         int Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
-            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-            if (!tptr)
-                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
             int off = SLO->getElementOffset(Idx);
             Type *element = *I;
-            const DIType *LTy = dyn_cast<DIType>(tptr->meta);
-            //std::string fname = CBEMangle(LTy->getName().str());
-            if (fname.length() <= 6 || fname.substr(0, 6) != "_vptr_") {
-                if (LTy->getTag() == dwarf::DW_TAG_inheritance)
+            if (fname == "") {
+                if (dyn_cast<StructType>(element))
                     mapType(addr, element, aname);
-                else {
-                    if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                        const Type *Ty = memoryType(*(char **)(addr + off));
-                        if (Ty && checkDerived(Ty, PTy))
-                            tptr->type = Ty;
+            }
+            else {
+                if (PointerType *PTy = dyn_cast<PointerType>(element)) {
+                    const Type *Ty = memoryType(*(char **)(addr + off));
+                    MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+                    if (!tptr) {
+                        printf("[%s:%d] notptr!!!! fname %s element %p\n", __FUNCTION__, __LINE__, fname.c_str(), dyn_cast<StructType>(element));
+memdump((uint8_t *)(addr+off), 16, "DAT");
+                        continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
                     }
-                    mapType(addr + off, element, aname + "$$" + fname);
+                    if (Ty && checkDerived(Ty, PTy)) {
+                        tptr->type = Ty;
+                    }
                 }
+                mapType(addr + off, element, aname + "$$" + fname);
             }
         }
         break;
