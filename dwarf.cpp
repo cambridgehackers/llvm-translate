@@ -145,13 +145,11 @@ std::string fieldName(const StructType *STy, uint64_t ind)
             subs++;
         subs++;
     }
-    if (subs >= STy->structFieldMap.length()) {
-        printf("[%s:%d] couldn't find index\n", __FUNCTION__, __LINE__);
-        exit(-1);
-    }
+    if (subs >= STy->structFieldMap.length())
+        return "";
     std::string ret = STy->structFieldMap.substr(subs);
     idx = ret.find(',');
-    if (idx > 0)
+    if (idx >= 0)
         ret = ret.substr(0,idx);
     return ret;
 }

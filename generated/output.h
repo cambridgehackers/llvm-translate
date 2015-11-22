@@ -29,10 +29,16 @@ public:
 
 class l_class_OC_Fifo {
 public:
+  class l_class_OC_Rule *rfirst;
+  class l_class_OC_Echo *next;
+  unsigned long long size;
 };
 
 class l_class_OC_Fifo1 {
 public:
+  class l_class_OC_Rule *rfirst;
+  class l_class_OC_Echo *next;
+  unsigned long long size;
   unsigned int element;
   bool full;
   bool deq__RDY(void);
@@ -45,5 +51,6 @@ public:
 
 class l_class_OC_Rule {
 public:
+  class l_class_OC_Rule *next;
 };
 

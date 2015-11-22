@@ -240,28 +240,15 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
         const StructType *inherit = dyn_cast<StructType>(element);
-        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-        if (trace_cppstruct) {
-            printf("ELEMENT: %p[%d] tptr %p inherit %p\n", STy, Idx, tptr, inherit);
-            element->dump();
-            if (tptr) {
-                printf("ELEMENT: meta %p\n", tptr->meta);
-                tptr->meta->dump();
-            }
-        }
-        if (!tptr)
-            continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-        const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-        std::string fname = CBEMangle(Ty->getName().str());
-        if (Ty->getTag() == dwarf::DW_TAG_inheritance) {
+        std::string fname = fieldName(STy, Idx);
+        if (fname == "") {
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
             if (inherit)
                 generateClassElements(inherit, OStr);
             continue;
         }
-        if (fname.length() > 6 && fname.substr(0, 6) == "_vptr_")
-            continue;    /* do not include vtab pointers */
-        if (tptr->type)     // Substitute original type with actual instantiated type
+        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+        if (tptr && tptr->type)     // Substitute original type with actual instantiated type
             element = tptr->type;
         fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
     }
@@ -306,12 +293,8 @@ void generateClassBody(const StructType *STy, FILE *OStr)
         }
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-            if (!tptr)
-                continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
+            std::string fname = fieldName(STy, Idx);
             const StructType *STy = dyn_cast<StructType>(*I);
-            const DIType *Ty = dyn_cast<DIType>(tptr->meta);
-            std::string fname = CBEMangle(Ty->getName().str());
             if (const PointerType *PTy = dyn_cast<PointerType>(*I)) {
                 STy = dyn_cast<StructType>(PTy->getElementType());
                 if (fname != "module" && hasRun(STy, 1))
