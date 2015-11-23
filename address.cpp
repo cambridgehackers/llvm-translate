@@ -294,6 +294,8 @@ static void mapType(char *addr, Type *Ty, std::string aname)
         return;
     mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
 printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    if (validateAddress(3010, addr))
+        printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
@@ -301,26 +303,21 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
         int Idx = 0;
         for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
-            int off = SLO->getElementOffset(Idx);
+            char *eaddr = addr + SLO->getElementOffset(Idx);
             Type *element = *I;
-            if (fname == "") {
-                if (dyn_cast<StructType>(element))
-                    mapType(addr, element, aname);
-            }
-            else {
+            if (fname != "") {
                 if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                    const Type *Ty = memoryType(*(char **)(addr + off));
-                    MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-                    if (!tptr) {
-                        printf("[%s:%d] notptr!!!! fname %s element %p\n", __FUNCTION__, __LINE__, fname.c_str(), dyn_cast<StructType>(element));
-memdump((uint8_t *)(addr+off), 16, "DAT");
-                        continue;    /* for templated classes, like Fifo1<int>, clang adds an int8[3] element to the end of the struct */
-                    }
+                    const Type *Ty = memoryType(*(char **)eaddr);
                     if (Ty && checkDerived(Ty, PTy)) {
+                        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
                         tptr->type = Ty;
                     }
                 }
-                mapType(addr + off, element, aname + "$$" + fname);
+                mapType(eaddr, element, aname + "$$" + fname);
+            }
+            else if (dyn_cast<StructType>(element)) {
+                //printf("[%s:%d] inherit %p eaddr %p\n", __FUNCTION__, __LINE__, element, eaddr);
+                mapType(eaddr, element, aname);
             }
         }
         break;
