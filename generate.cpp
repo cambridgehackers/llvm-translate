@@ -461,39 +461,40 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     Value *FirstOp = I.getOperand();
     bool expose = isAddressExposed(Ptr);
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
-        std::string p = fetchOperand(thisp, Ptr, false);
+        std::string referstr = fetchOperand(thisp, Ptr, false);
         if (trace_gep)
-            printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, p.c_str(), (unsigned long)Total);
+            printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
         PointerType *PTy;
         const StructType *STy;
         const DISubprogram *tptr;
         if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
-         && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))
+         && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
+         && (STy = findThisArgumentType(PTy))
          && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
             std::string name = CBEMangle(tptr->getName().str());
             std::string lname = CBEMangle(tptr->getLinkageName().str());
-            if (p == "(*(this))" || p == "(*(Vthis))") {
+            if (referstr == "(*(this))" || referstr == "(*(Vthis))") {
                 if (trace_gep)
-                    printf("%s: p %s name %s lname %s\n", __FUNCTION__, p.c_str(), name.c_str(), lname.c_str());
+                    printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
                 cbuffer += "&" + (generateRegion == 0 ? lname : name);
                 goto exitlab;
             }
             else {
                 if (trace_gep)
-                    printf("%s: notthis %s name %s\n", __FUNCTION__, p.c_str(), name.c_str());
-                if (p.length() < 2 || p.substr(0,2) != "0x") {
-                    cbuffer += "&" + p + "." + name;
+                    printf("%s: notthis %s name %s\n", __FUNCTION__, referstr.c_str(), name.c_str());
+                if (referstr.length() < 2 || referstr.substr(0,2) != "0x") {
+                    cbuffer += "&" + referstr + "." + name;
                     goto exitlab;
                 }
             }
         }
         else
             printf("%s: couldnt find this pointer\n", __FUNCTION__);
-        if ((p[0] == '(' && p[p.length()-1] == ')'
-           && (tval = mapLookup(p.substr(1, p.length() - 2).c_str())))
-         || (tval = mapLookup(p.c_str())))
+        if ((referstr[0] == '(' && referstr[referstr.length()-1] == ')'
+           && (tval = mapLookup(referstr.substr(1, referstr.length() - 2).c_str())))
+         || (tval = mapLookup(referstr.c_str())))
             goto tvallab;
-        cbuffer += "&" + p;
+        cbuffer += "&" + referstr;
     } else {
        ++I;  // Skip the zero index.
        if (expose && I != E && (*I)->isArrayTy()
