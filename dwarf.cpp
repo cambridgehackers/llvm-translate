@@ -162,33 +162,38 @@ static int errorCount;
     std::string cname = STy->getName();
     CLASS_META *classp = lookup_class(cname.c_str());
     if (trace_meta)
-        printf("%s: lookup class '%s' = %p\n", __FUNCTION__, cname.c_str(), classp);
+        printf("%s: lookup class '%s' = %p ind %d tag %d\n", __FUNCTION__, cname.c_str(), classp, (int)ind, tag);
     if (!classp) {
         printf("%s: can't find class '%s', will exit\n", __FUNCTION__, cname.c_str());
         if (errorCount++ > 20)
             exit(-1);
         return NULL;
     }
-    if (classp->inherit) {
+    if (tag != dwarf::DW_TAG_subprogram && classp->inherit) {
         //const DISubprogram *SP = dyn_cast<DISubprogram>(classp->inherit);
-        if (!ind--)
+        if (!ind--) {
+            printf("[%s:%d] return inherit %p\n", __FUNCTION__, __LINE__, classp->inherit);
             return classp->inherit;
+        }
     }
+    int Idx = 0;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         unsigned int itemTag = -1;
         if (const DIType *Ty = dyn_cast<DIType>((*MI)->meta)) {
             itemTag = Ty->getTag();
             if (trace_meta)
-                printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(Ty->getName().str()).c_str());
+                printf("[%s:%d] [%d] tag %x name %s\n", __FUNCTION__, __LINE__, Idx, itemTag, CBEMangle(Ty->getName().str()).c_str());
         }
         else if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
             itemTag = SP->getTag();
             if (trace_meta)
-                printf("[%s:%d] tag %x name %s\n", __FUNCTION__, __LINE__, itemTag, CBEMangle(SP->getName().str()).c_str());
+                printf("[%s:%d] [%d] tag %x name %s\n", __FUNCTION__, __LINE__, Idx, itemTag, CBEMangle(SP->getName().str()).c_str());
         }
-        if (itemTag == tag)
+        if (itemTag == tag) {
+            Idx++;
             if (!ind--)
                 return *MI;
+        }
     }
     }
     return NULL;
