@@ -569,7 +569,8 @@ next:
                  cbuffer += p + "->";
              cbuffer += fieldp;
              ++I;  // eat the struct index as well.
-           } else
+           }
+        else
              cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
     }
     for (; I != E; ++I) {
