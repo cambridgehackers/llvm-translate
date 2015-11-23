@@ -241,16 +241,16 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const Type *element = *I;
         const StructType *inherit = dyn_cast<StructType>(element);
         std::string fname = fieldName(STy, Idx);
-        if (fname == "") {
-            //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
-            if (inherit)
-                generateClassElements(inherit, OStr);
-            continue;
+        if (fname != "") {
+            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
+            if (tptr && tptr->type)     // Substitute original type with actual instantiated type
+                element = tptr->type;
+            fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
-        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-        if (tptr && tptr->type)     // Substitute original type with actual instantiated type
-            element = tptr->type;
-        fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+        else if (inherit) {
+            //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
+            generateClassElements(inherit, OStr);
+        }
     }
 }
 
