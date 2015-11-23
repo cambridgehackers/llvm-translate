@@ -33,7 +33,7 @@ using namespace llvm;
 
 static std::map<const Value *, Value *> cloneVmap;
 int trace_clone;
-int trace_hoist;
+int trace_hoist = 1;
 
 /*
  * clone a DAG from one basic block to another
@@ -171,24 +171,26 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
         break;
 #endif
     case Instruction::Call: {
+        int RDYName = -1, ENAName = -1;
+        Function *parentRDYName = NULL, *parentENAName = NULL;
+        std::string fname;
+        const StructType *STy;
+        const char *className, *methodName;
         CallInst &ICL = static_cast<CallInst&>(I);
         Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
         std::string p = fetchOperand(thisp, Callee, false);
-        int RDYName = -1, ENAName = -1;
-        Function *parentRDYName = NULL, *parentENAName = NULL;
         Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
-        std::string fname;
-        const StructType *STy;
-        const char *className, *methodName;
-        //const GlobalValue *g = NULL;
-        if (trace_hoist)
-printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
-        if (!func) {
-            void *pact = mapLookup(p.c_str());
-            func = static_cast<Function *>(pact);
+        void *pact = mapLookup(p.c_str());
+        if (getClassName(globalName.c_str(), &className, &methodName)) {
+            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
+            //parentENAName = lookup_method(temp, "ENA");
         }
+        if (trace_hoist)
+            printf("HOIST: CALLER %s[%s, %s] pRDY %p pENA %p thisp %p func %p p '%s' = %p\n", globalName.c_str(), className, methodName, parentRDYName, parentENAName, thisp, func, p.c_str(), pact);
+        if (!func)
+            func = static_cast<Function *>(pact);
         if (!func) {
             printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, p.c_str());
             break;
@@ -199,12 +201,8 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
         if (trace_hoist)
-        printf("HOIST: CallPTR %p %s thisp %p\n", func, fname.c_str(), thisp);
+            printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
         pushWork(func, called_thisp, 0);
-        if (trace_hoist)
-        printf("HOIST: Call %s\n", fname.c_str());
-        if (trace_translate)
-            printf("%s: CALL %d %s %p\n", __FUNCTION__, I.getType()->getTypeID(), fname.c_str(), thisp);
         if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
             cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
@@ -236,20 +234,10 @@ printf("[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, this
             char tempname[1000];
             strcpy(tempname, methodName);
             strcat(tempname, "__RDY");
-        if (trace_hoist)
-printf("[%s:%d] RDYLOOK %s %s class %s\n", __FUNCTION__, __LINE__, methodName, tempname, tname.c_str());
             RDYName = lookup_method(tname.c_str(), tempname);
+            if (trace_hoist)
+                printf("HOIST:    RDYName %d RDYLOOK %s %s class %s ENAName %d\n", RDYName, methodName, tempname, tname.c_str(), ENAName);
         }
-        if (trace_hoist)
-        printf("HOIST: gname %s RDY %d ENA %d thisp %p\n", globalName.c_str(), RDYName, ENAName, thisp);
-        if (getClassName(globalName.c_str(), &className, &methodName)) {
-        if (trace_hoist)
-printf("[%s:%d] class %s metho %s\n", __FUNCTION__, __LINE__, className, methodName);
-            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
-            //parentENAName = lookup_method(temp, "ENA");
-        }
-        if (trace_hoist)
-        printf("HOIST: pRDY %p pENA %p\n", parentRDYName, parentENAName);
         if (RDYName >= 0 && parentRDYName) {
             TerminatorInst *TI = parentRDYName->begin()->getTerminator();
             Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
@@ -277,11 +265,11 @@ printf("[%s:%d] class %s metho %s\n", __FUNCTION__, __LINE__, className, methodN
             }
         }
         if (cthisp == "Vthis") {
-            printf("HOIST: single!!!! %s\n", func->getName().str().c_str());
-fprintf(stderr, "[%s:%d] thisp %p func %p Callee %p p %s\n", __FUNCTION__, __LINE__, thisp, func, Callee, p.c_str());
-ICL.dump();
-I.dump();
-I.getOperand(0)->dump();
+            printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
+            fprintf(stderr, "[%s:%d] thisp %p func %p p %s\n", __FUNCTION__, __LINE__, thisp, func, p.c_str());
+            ICL.dump();
+            I.dump();
+            I.getOperand(0)->dump();
 #if 1
             InlineFunctionInfo IFI;
             InlineFunction(&ICL, IFI, false);
