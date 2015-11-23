@@ -169,13 +169,6 @@ static int errorCount;
             exit(-1);
         return NULL;
     }
-    if (tag != dwarf::DW_TAG_subprogram && classp->inherit) {
-        //const DISubprogram *SP = dyn_cast<DISubprogram>(classp->inherit);
-        if (!ind--) {
-            printf("[%s:%d] return inherit %p\n", __FUNCTION__, __LINE__, classp->inherit);
-            return classp->inherit;
-        }
-    }
     int Idx = 0;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         unsigned int itemTag = -1;

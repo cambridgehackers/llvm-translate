@@ -468,7 +468,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         const DISubprogram *tptr;
         if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
          && (STy = findThisArgumentType(dyn_cast<PointerType>(PTy->getElementType())))
-         && (tptr = lookupMethod(STy, 1+ /* WHY????????????????*/ Total/sizeof(void *)))) {
+         && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
             std::string name = CBEMangle(tptr->getName().str());
             std::string lname = CBEMangle(tptr->getLinkageName().str());
             if (p == "(*(this))" || p == "(*(Vthis))") {
