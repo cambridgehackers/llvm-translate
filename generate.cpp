@@ -459,10 +459,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (LastIndexIsVector)
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     Value *FirstOp = I.getOperand();
+    bool expose = isAddressExposed(Ptr);
     if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
         std::string p = fetchOperand(thisp, Ptr, false);
         if (trace_gep)
-            printf("[%s:%d] const %s\n", __FUNCTION__, __LINE__, p.c_str());
+            printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, p.c_str(), (unsigned long)Total);
         PointerType *PTy;
         const StructType *STy;
         const DISubprogram *tptr;
@@ -494,7 +495,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             goto tvallab;
         cbuffer += "&" + p;
     } else {
-       bool expose = isAddressExposed(Ptr);
        ++I;  // Skip the zero index.
        if (expose && I != E && (*I)->isArrayTy()
          && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
@@ -503,8 +503,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
            GlobalVariable *gv = dyn_cast<GlobalVariable>(Ptr);
            if (gv && !gv->getInitializer()->isNullValue()) {
                Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
-               if (ConstantArray *CA = dyn_cast<ConstantArray>(CPV)) {
-                   (void)CA;
+               if (dyn_cast<ConstantArray>(CPV)) {
                    ERRORIF (val != 2);
                    val = 0;
                }
@@ -535,10 +534,9 @@ next:
                cbuffer += temp;
            }
        }
-       else {
-           if (expose)
+       else if (expose)
                cbuffer += "&" + fetchOperand(thisp, Ptr, true);
-           else if (I != E && (*I)->isStructTy()) {
+       else if (I != E && (*I)->isStructTy()) {
              std::string p = fetchOperand(thisp, Ptr, false);
              void *valp = nameMap[p];
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
@@ -574,7 +572,6 @@ next:
              ++I;  // eat the struct index as well.
            } else
              cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
-        }
     }
     for (; I != E; ++I) {
         if ((*I)->isStructTy()) {
@@ -750,7 +747,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         globalName = fname;
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
-    //printf("[%s:%d] PROCESSING %s %d\n", __FUNCTION__, __LINE__, globalName.c_str(), regenItem);
+    //printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
     if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
