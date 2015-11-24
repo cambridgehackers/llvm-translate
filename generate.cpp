@@ -470,6 +470,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     if (trace_gep)
         printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
+    if ((tval = mapLookup(referstr.c_str())) || (tval = valp))
+        goto tvallab;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (STy = findThisArgumentType(PTy))
@@ -487,8 +489,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             goto exitlab;
         }
     }
-    if ((tval = mapLookup(referstr.c_str())))
-        goto tvallab;
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         if (I != E && ((expose && (*I)->isArrayTy())
@@ -514,12 +514,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 std::string fieldp = fieldName(STy, val);
                 if (trace_gep)
                     printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
-                tval = thisp;
-                if (thisp && referstr == "Vthis")
-                    goto tvallab;
-                tval = valp;
-                if (tval)
-                    goto tvallab;
                 if (!strncmp(referstr.c_str(), "0x", 2)) {
                     tval = mapLookup(referstr.c_str());
                     goto tvallab;
@@ -740,7 +734,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
             mname = std::string(aclassName) + "::" + mname;
         fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", work.skip || regenItem).c_str());
     }
-    //manually done (only for methods) nameMap["Vthis"] = work.thisp;
+    nameMap["Vthis"] = work.thisp;
     for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
