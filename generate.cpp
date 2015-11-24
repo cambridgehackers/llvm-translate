@@ -494,26 +494,21 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         goto tvallab;
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
-        STy = dyn_cast<StructType>(*I);
-        if (I != E && ((expose && (*I)->isArrayTy()) || (!expose && STy))
+        if (I != E && ((expose && (*I)->isArrayTy())
+                    || (!expose && (STy = dyn_cast<StructType>(*I))))
          && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
             uint64_t val = CI->getZExtValue();
+            ConstantDataArray *CPA;
             ++I;     // we processed this index
             if (expose) {
-               if (globalVar && !globalVar->getInitializer()->isNullValue()) {
-                   Constant* CPV = dyn_cast<Constant>(globalVar->getInitializer());
-                   if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
-                       ERRORIF (val);
-                       if (CPA->isString()) {
-                           std::string value = CPA->getAsString();
-                           cbuffer += printString(value.c_str(), value.length());
-                       } else
-                           ERRORIF(1);
-                       goto next;
-                   }
+               if (globalVar && !globalVar->getInitializer()->isNullValue()
+                && (CPA = dyn_cast<ConstantDataArray>(globalVar->getInitializer()))) {
+                   ERRORIF(val || !CPA->isString());
+                   std::string value = CPA->getAsString();
+                   cbuffer += printString(value.c_str(), value.length());
                }
-               cbuffer += fetchOperand(thisp, Ptr, true);
-next:
+               else
+                   cbuffer += fetchOperand(thisp, Ptr, true);
                if (val)
                    cbuffer += '+' + utostr(val);
                if (trace_gep)
