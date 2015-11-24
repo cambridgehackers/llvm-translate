@@ -446,9 +446,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     std::string referstr = fetchOperand(thisp, Ptr, false);
     void *valp = nameMap[referstr];
     GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr);
+    VectorType *LastIndexIsVector = 0;
+
     if (I == E)
         return referstr;
-    VectorType *LastIndexIsVector = 0;
     for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
         if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
@@ -491,9 +492,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
        && (tval = mapLookup(referstr.substr(1, referstr.length() - 2).c_str())))
      || (tval = mapLookup(referstr.c_str())))
         goto tvallab;
-    if (!FirstOp || !FirstOp->isNullValue())
-        cbuffer += "&" + referstr;
-    else {
+    if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         STy = dyn_cast<StructType>(*I);
         if (expose) {
@@ -554,6 +553,8 @@ next:
         else
             cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
     }
+    else
+        cbuffer += "&" + referstr;
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I))
             cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
