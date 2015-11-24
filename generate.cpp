@@ -458,10 +458,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             CI = cast<ConstantInt>(TmpI.getOperand());
             Total += SLO->getElementOffset(CI->getZExtValue());
         } else {
-            SequentialType *ST = cast<SequentialType>(*TmpI);
-            // Get the index number for the array... which must be long type...
             ERRORIF(isa<GlobalValue>(TmpI.getOperand()) || !(CI = dyn_cast<ConstantInt>(TmpI.getOperand())));
-            Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
+            Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
         }
     }
     if (LastIndexIsVector)
@@ -475,19 +473,19 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (STy = findThisArgumentType(PTy))
+     && (referstr == "*(this)" || referstr == "*(Vthis)"
+        || referstr.length() < 2 || referstr.substr(0,2) != "0x")
      && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
         std::string name = CBEMangle(tptr->getName().str());
         std::string lname = CBEMangle(tptr->getLinkageName().str());
         if (trace_gep)
             printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
-        if (referstr == "*(this)" || referstr == "*(Vthis)") {
-            cbuffer += "&" + (generateRegion == 0 ? lname : name);
-            goto exitlab;
-        }
-        else if (referstr.length() < 2 || referstr.substr(0,2) != "0x") {
-            cbuffer += "&(" + referstr + ")." + name;
-            goto exitlab;
-        }
+        cbuffer += "&";
+        if (referstr == "*(this)" || referstr == "*(Vthis)")
+            cbuffer += (generateRegion == 0 ? lname : name);
+        else
+            cbuffer += "(" + referstr + ")." + name;
+        goto exitlab;
     }
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
