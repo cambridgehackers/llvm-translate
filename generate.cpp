@@ -449,10 +449,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     std::string referstr = fetchOperand(thisp, Ptr, false);
     if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
        referstr = referstr.substr(1, referstr.length() - 2).c_str();
-    void *valp = nameMap[referstr];
 
-    if (I == E)
-        return referstr;
     for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
         if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
@@ -470,7 +467,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     if (trace_gep)
         printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
-    if ((tval = mapLookup(referstr.c_str())) || (tval = valp))
+    if (I == E)
+        return referstr;
+    if ((tval = mapLookup(referstr.c_str())) || (tval = nameMap[referstr]))
         goto tvallab;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
@@ -501,31 +500,22 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                  && (CPA = dyn_cast<ConstantDataArray>(globalVar->getInitializer()))) {
                     ERRORIF(val || !CPA->isString());
                     std::string value = CPA->getAsString();
-                    cbuffer += printString(value.c_str(), value.length());
+                    referstr = printString(value.c_str(), value.length());
                 }
-                else
-                    cbuffer += fetchOperand(thisp, Ptr, true);
                 if (val)
-                    cbuffer += '+' + utostr(val);
-                if (trace_gep)
-                    printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
+                    referstr += '+' + utostr(val);
+                cbuffer += referstr;
+                goto looplab;
             }
             else {
-                std::string fieldp = fieldName(STy, val);
-                if (trace_gep)
-                    printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
-                if (!strncmp(referstr.c_str(), "0x", 2)) {
-                    tval = mapLookup(referstr.c_str());
-                    goto tvallab;
-                }
-                cbuffer += "&";
-                if (referstr != "this")
-                    cbuffer += referstr + "->";
-                cbuffer += fieldp;
+                referstr += "->";
+                if (referstr == "this->")
+                    referstr = "";
+                referstr += fieldName(STy, val);
             }
-            goto looplab;
+            if (trace_gep)
+                printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
         }
-        referstr = fetchOperand(thisp, Ptr, true);
     }
     cbuffer += "&" + referstr;
 looplab:
