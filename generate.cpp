@@ -444,6 +444,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
     std::string referstr = fetchOperand(thisp, Ptr, false);
+    if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
+       referstr = referstr.substr(1, referstr.length() - 2).c_str();
     void *valp = nameMap[referstr];
     GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr);
     VectorType *LastIndexIsVector = 0;
@@ -473,7 +475,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
         std::string name = CBEMangle(tptr->getName().str());
         std::string lname = CBEMangle(tptr->getLinkageName().str());
-        if (referstr == "(*(this))" || referstr == "(*(Vthis))") {
+        if (referstr == "*(this)" || referstr == "*(Vthis)") {
             if (trace_gep)
                 printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
             cbuffer += "&" + (generateRegion == 0 ? lname : name);
@@ -483,13 +485,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             if (trace_gep)
                 printf("%s: notthis %s name %s\n", __FUNCTION__, referstr.c_str(), name.c_str());
             if (referstr.length() < 2 || referstr.substr(0,2) != "0x") {
-                cbuffer += "&" + referstr + "." + name;
+                cbuffer += "&(" + referstr + ")." + name;
                 goto exitlab;
             }
         }
     }
-    if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
-       referstr = referstr.substr(1, referstr.length() - 2).c_str();
     if ((tval = mapLookup(referstr.c_str())))
         goto tvallab;
     if (FirstOp && FirstOp->isNullValue()) {
