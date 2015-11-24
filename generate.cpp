@@ -495,11 +495,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         STy = dyn_cast<StructType>(*I);
-        if (I != E) {
-        if (expose) {
-            if ((*I)->isArrayTy() && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
-               uint64_t val = CI->getZExtValue();
-               ++I;     // we processed this index
+        if (I != E && ((expose && (*I)->isArrayTy()) || (!expose && STy))
+         && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
+            uint64_t val = CI->getZExtValue();
+            ++I;     // we processed this index
+            if (expose) {
                if (globalVar && !globalVar->getInitializer()->isNullValue()) {
                    Constant* CPV = dyn_cast<Constant>(globalVar->getInitializer());
                    if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
@@ -513,17 +513,14 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                    }
                }
                cbuffer += fetchOperand(thisp, Ptr, true);
-               if (trace_gep)
-                   printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
 next:
                if (val)
                    cbuffer += '+' + utostr(val);
-               goto looplab;
-           }
-       }
-       else if (STy) {
-           std::string fieldp = fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-           ++I;  // eat the struct index as well.
+               if (trace_gep)
+                   printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
+            }
+            else {
+           std::string fieldp = fieldName(STy, val);
            if (trace_gep)
                printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
            tval = thisp;
@@ -542,8 +539,8 @@ next:
            if (referstr != "this")
                cbuffer += referstr + "->";
            cbuffer += fieldp;
-           goto looplab;
-        }
+            }
+            goto looplab;
         }
         referstr = fetchOperand(thisp, Ptr, true);
     }
