@@ -434,6 +434,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
 {
     std::string cbuffer = "(";
     std::string sep = " ";
+    std::string amper = "&";
     PointerType *PTy;
     const StructType *STy;
     const DISubprogram *tptr;
@@ -504,8 +505,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 }
                 if (val)
                     referstr += '+' + utostr(val);
-                cbuffer += referstr;
-                goto looplab;
+                amper = "";
             }
             else {
                 referstr += "->";
@@ -517,8 +517,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
         }
     }
-    cbuffer += "&" + referstr;
-looplab:
+    cbuffer += amper + referstr;
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I))
             cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
