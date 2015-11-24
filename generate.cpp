@@ -432,40 +432,39 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
  */
 static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
-    std::string cbuffer = "";
-    ConstantInt *CI;
+    std::string cbuffer = "(";
+    PointerType *PTy;
+    const StructType *STy;
+    const DISubprogram *tptr;
+    const ConstantInt *CI;
     void *tval = NULL;
     uint64_t Total = 0;
     const DataLayout *TD = EE->getDataLayout();
+    Value *FirstOp = I.getOperand();
+    bool expose = isAddressExposed(Ptr);
+    std::string referstr = fetchOperand(thisp, Ptr, false);
+    void *valp = nameMap[referstr];
     if (I == E)
-        return fetchOperand(thisp, Ptr, false);
+        return referstr;
     VectorType *LastIndexIsVector = 0;
     for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
         if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
             const StructLayout *SLO = TD->getStructLayout(STy);
-            const ConstantInt *CPU = cast<ConstantInt>(TmpI.getOperand());
-            Total += SLO->getElementOffset(CPU->getZExtValue());
+            CI = cast<ConstantInt>(TmpI.getOperand());
+            Total += SLO->getElementOffset(CI->getZExtValue());
         } else {
             SequentialType *ST = cast<SequentialType>(*TmpI);
             // Get the index number for the array... which must be long type...
             const Constant *CV = dyn_cast<Constant>(TmpI.getOperand());
-            const ConstantInt *CI;
             ERRORIF(!CV || isa<GlobalValue>(CV) || !(CI = dyn_cast<ConstantInt>(CV)));
             Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
         }
     }
-    cbuffer += "(";
     if (LastIndexIsVector)
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
-    Value *FirstOp = I.getOperand();
-    bool expose = isAddressExposed(Ptr);
-    std::string referstr = fetchOperand(thisp, Ptr, false);
     if (trace_gep)
         printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
-    PointerType *PTy;
-    const StructType *STy;
-    const DISubprogram *tptr;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (STy = findThisArgumentType(PTy))
@@ -536,12 +535,10 @@ next:
        else if (expose)
                cbuffer += "&" + fetchOperand(thisp, Ptr, true);
        else if (I != E && (*I)->isStructTy()) {
-             std::string p = fetchOperand(thisp, Ptr, false);
-             void *valp = nameMap[p];
              std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
              if (trace_gep)
-                 printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, p.c_str(), valp, thisp, fieldp.c_str());
-             if (thisp && p == "Vthis") {
+                 printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
+             if (thisp && referstr == "Vthis") {
                  tval = thisp;
                  goto tvallab;
              }
@@ -551,22 +548,22 @@ next:
                  cbuffer += temp;
                  goto exitlab;
              }
-             if (!strncmp(p.c_str(), "(0x", 3) && p[p.length()-1] == ')')
-                 p = p.substr(1,p.length()-2);
-             if (!strncmp(p.c_str(), "0x", 2)) {
-                 tval = mapLookup(p.c_str());
+             if (!strncmp(referstr.c_str(), "(0x", 3) && referstr[referstr.length()-1] == ')')
+                 referstr = referstr.substr(1,referstr.length()-2);
+             if (!strncmp(referstr.c_str(), "0x", 2)) {
+                 tval = mapLookup(referstr.c_str());
                  goto tvallab;
              }
-             if (!strncmp(p.c_str(), "(&", 2) && p[p.length()-1] == ')') {
-                 p = p.substr(2,p.length()-2);
-                 tval = mapLookup(p.c_str());
+             if (!strncmp(referstr.c_str(), "(&", 2) && referstr[referstr.length()-1] == ')') {
+                 referstr = referstr.substr(2,referstr.length()-2);
+                 tval = mapLookup(referstr.c_str());
                  if (tval)
                      goto tvallab;
-                 cbuffer += "&" + p + "." + fieldp;
+                 cbuffer += "&" + referstr + "." + fieldp;
              }
              cbuffer += "&";
-             if (p != "this")
-                 cbuffer += p + "->";
+             if (referstr != "this")
+                 cbuffer += referstr + "->";
              cbuffer += fieldp;
              ++I;  // eat the struct index as well.
            }
@@ -596,12 +593,12 @@ exitlab:
         cbuffer = cbuffer.substr(1, cbuffer.length()-2);
     if (trace_gep) {
         printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
-    if (!strncmp(cbuffer.c_str(), "0x", 2)) {
-        char *endptr;
-        void **pint = (void **)strtol(cbuffer.c_str()+2, &endptr, 16);
-        printf(" [%p]= %p", pint, *pint);
-    }
-    printf("\n");
+        if (!strncmp(cbuffer.c_str(), "0x", 2)) {
+            char *endptr;
+            void **pint = (void **)strtol(cbuffer.c_str()+2, &endptr, 16);
+            printf(" [%p]= %p", pint, *pint);
+        }
+        printf("\n");
     }
     return cbuffer;
 }
