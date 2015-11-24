@@ -495,39 +495,42 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         cbuffer += "&" + referstr;
     else {
         ++I;  // Skip the zero index.
-        if (expose && I != E && (*I)->isArrayTy()
-         && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
-           uint64_t val = CI->getZExtValue();
-           ++I;     // we processed this index
-           if (globalVar && !globalVar->getInitializer()->isNullValue()) {
-               Constant* CPV = dyn_cast<Constant>(globalVar->getInitializer());
-               if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
-                   ERRORIF (val);
-                   if (CPA->isString()) {
-                       StringRef value = CPA->getAsString();
-                       cbuffer += printString(value.str().c_str(), value.str().length());
-                   } else {
-                       cbuffer += "{";
-                       for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-                           cbuffer += sep + printOperand(thisp, CPA->getOperand(i), false);
-                           sep = ", ";
+        STy = dyn_cast<StructType>(*I);
+        if (expose) {
+            if (I != E && (*I)->isArrayTy()
+             && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
+               uint64_t val = CI->getZExtValue();
+               ++I;     // we processed this index
+               if (globalVar && !globalVar->getInitializer()->isNullValue()) {
+                   Constant* CPV = dyn_cast<Constant>(globalVar->getInitializer());
+                   if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
+                       ERRORIF (val);
+                       if (CPA->isString()) {
+                           StringRef value = CPA->getAsString();
+                           cbuffer += printString(value.str().c_str(), value.str().length());
+                       } else {
+                           cbuffer += "{";
+                           for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
+                               cbuffer += sep + printOperand(thisp, CPA->getOperand(i), false);
+                               sep = ", ";
+                           }
+                           cbuffer += " }";
                        }
-                       cbuffer += " }";
+                       goto next;
                    }
-                   goto next;
                }
-           }
-           cbuffer += fetchOperand(thisp, Ptr, true);
-           if (trace_gep)
-               printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
+               cbuffer += fetchOperand(thisp, Ptr, true);
+               if (trace_gep)
+                   printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
 next:
-           if (val)
-               cbuffer += '+' + utostr(val);
+               if (val)
+                   cbuffer += '+' + utostr(val);
+           }
+           else
+               cbuffer += "&" + fetchOperand(thisp, Ptr, true);
        }
-       else if (expose)
-           cbuffer += "&" + fetchOperand(thisp, Ptr, true);
-       else if (I != E && (*I)->isStructTy()) {
-           std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
+       else if (I != E && STy) {
+           std::string fieldp = fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
            ++I;  // eat the struct index as well.
            if (trace_gep)
                printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
@@ -552,10 +555,9 @@ next:
             cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
     }
     for (; I != E; ++I) {
-        if ((*I)->isStructTy()) {
-            StructType *STy = dyn_cast<StructType>(*I);
+        if (StructType *STy = dyn_cast<StructType>(*I))
             cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-        } else if ((*I)->isArrayTy() || !(*I)->isVectorTy())
+        else if ((*I)->isArrayTy() || !(*I)->isVectorTy())
             cbuffer += "[" + fetchOperand(thisp, I.getOperand(), false) + "]";
         else {
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
