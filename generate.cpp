@@ -505,16 +505,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                    if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
                        ERRORIF (val);
                        if (CPA->isString()) {
-                           StringRef value = CPA->getAsString();
-                           cbuffer += printString(value.str().c_str(), value.str().length());
-                       } else {
-                           cbuffer += "{";
-                           for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
-                               cbuffer += sep + printOperand(thisp, CPA->getOperand(i), false);
-                               sep = ", ";
-                           }
-                           cbuffer += " }";
-                       }
+                           std::string value = CPA->getAsString();
+                           cbuffer += printString(value.c_str(), value.length());
+                       } else
+                           ERRORIF(1);
                        goto next;
                    }
                }
@@ -526,7 +520,7 @@ next:
                    cbuffer += '+' + utostr(val);
            }
            else
-               cbuffer += "&" + fetchOperand(thisp, Ptr, true);
+               goto amperfetch;
        }
        else if (I != E && STy) {
            std::string fieldp = fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
@@ -550,8 +544,10 @@ next:
                cbuffer += referstr + "->";
            cbuffer += fieldp;
         }
-        else
-            cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
+        else {
+amperfetch:
+            cbuffer += "&" + fetchOperand(thisp, Ptr, true);
+        }
     }
     else
         cbuffer += "&" + referstr;
