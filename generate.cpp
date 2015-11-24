@@ -476,17 +476,17 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")
      && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
-        std::string name = CBEMangle(tptr->getName().str());
-        std::string lname = CBEMangle(tptr->getLinkageName().str());
+        std::string name = tptr->getName();
+        std::string lname = tptr->getLinkageName();
         if (trace_gep)
             printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
-        cbuffer += "&";
-        if (referstr != "*(this)" && referstr != "*(Vthis)")
-            cbuffer += "(" + referstr + ").";
-        cbuffer += (generateRegion == 0 ? lname : name);
-        goto exitlab;
+        referstr = "(" + referstr + ").";
+        if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
+            referstr = "";
+        referstr += CBEMangle(generateRegion == 0 ? lname : name);
+        I = E; // skip post processing
     }
-    if (FirstOp && FirstOp->isNullValue()) {
+    else if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         if (I != E && ((expose && (*I)->isArrayTy())
                     || (!expose && (STy = dyn_cast<StructType>(*I))))
