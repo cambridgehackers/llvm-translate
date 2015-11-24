@@ -481,10 +481,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         if (trace_gep)
             printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
         cbuffer += "&";
-        if (referstr == "*(this)" || referstr == "*(Vthis)")
-            cbuffer += (generateRegion == 0 ? lname : name);
-        else
-            cbuffer += "(" + referstr + ")." + name;
+        if (referstr != "*(this)" && referstr != "*(Vthis)")
+            cbuffer += "(" + referstr + ").";
+        cbuffer += (generateRegion == 0 ? lname : name);
         goto exitlab;
     }
     if (FirstOp && FirstOp->isNullValue()) {
