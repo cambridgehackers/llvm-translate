@@ -433,6 +433,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
 static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     std::string cbuffer = "(";
+    std::string sep = " ";
     PointerType *PTy;
     const StructType *STy;
     const DISubprogram *tptr;
@@ -440,7 +441,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     void *tval = NULL;
     uint64_t Total = 0;
     const DataLayout *TD = EE->getDataLayout();
-    Value *FirstOp = I.getOperand();
+    Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
     std::string referstr = fetchOperand(thisp, Ptr, false);
     void *valp = nameMap[referstr];
@@ -490,7 +491,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
        && (tval = mapLookup(referstr.substr(1, referstr.length() - 2).c_str())))
      || (tval = mapLookup(referstr.c_str())))
         goto tvallab;
-    if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue())
+    if (!FirstOp || !FirstOp->isNullValue())
         cbuffer += "&" + referstr;
     else {
         ++I;  // Skip the zero index.
@@ -506,7 +507,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                        StringRef value = CPA->getAsString();
                        cbuffer += printString(value.str().c_str(), value.str().length());
                    } else {
-                       std::string sep = " ";
                        cbuffer += "{";
                        for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i) {
                            cbuffer += sep + printOperand(thisp, CPA->getOperand(i), false);
@@ -534,24 +534,14 @@ next:
            tval = thisp;
            if (thisp && referstr == "Vthis")
                goto tvallab;
-           if (valp) {
-               char temp[1000];
-               sprintf(temp, "0x%llx", (long long)Total + (long)valp);
-               cbuffer += temp;
-               goto exitlab;
-           }
+           tval = valp;
+           if (tval)
+               goto tvallab;
            if (!strncmp(referstr.c_str(), "(0x", 3) && referstr[referstr.length()-1] == ')')
                referstr = referstr.substr(1,referstr.length()-2);
            if (!strncmp(referstr.c_str(), "0x", 2)) {
                tval = mapLookup(referstr.c_str());
                goto tvallab;
-           }
-           if (!strncmp(referstr.c_str(), "(&", 2) && referstr[referstr.length()-1] == ')') {
-               referstr = referstr.substr(2,referstr.length()-2);
-               tval = mapLookup(referstr.c_str());
-               if (tval)
-                   goto tvallab;
-               cbuffer += "&" + referstr + "." + fieldp;
            }
            cbuffer += "&";
            if (referstr != "this")
