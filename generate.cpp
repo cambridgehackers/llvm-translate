@@ -488,9 +488,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             }
         }
     }
-    if ((referstr[0] == '(' && referstr[referstr.length()-1] == ')'
-       && (tval = mapLookup(referstr.substr(1, referstr.length() - 2).c_str())))
-     || (tval = mapLookup(referstr.c_str())))
+    if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
+       referstr = referstr.substr(1, referstr.length() - 2).c_str();
+    if ((tval = mapLookup(referstr.c_str())))
         goto tvallab;
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
@@ -529,8 +529,6 @@ next:
            tval = valp;
            if (tval)
                goto tvallab;
-           if (!strncmp(referstr.c_str(), "(0x", 3) && referstr[referstr.length()-1] == ')')
-               referstr = referstr.substr(1,referstr.length()-2);
            if (!strncmp(referstr.c_str(), "0x", 2)) {
                tval = mapLookup(referstr.c_str());
                goto tvallab;

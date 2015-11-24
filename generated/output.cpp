@@ -12,11 +12,11 @@ void _ZN14EchoIndication4echoEi(unsigned int Vv) {
 //processing printf
 //processing _ZN14EchoIndication4echoEi
 bool l_class_OC_EchoTest::rule_drive__RDY(void) {
-    bool tmp__1 =     ((*((echo)->fifo)).enq__RDY)();
+    bool tmp__1 =     ((*(echo->fifo)).enq__RDY)();
         return tmp__1;
 }
 void l_class_OC_EchoTest::rule_drive(void) {
-        ((*((echo)->fifo)).enq)(22);
+        ((*(echo->fifo)).enq)(22);
 }
 void l_class_OC_EchoTest::run()
 {
