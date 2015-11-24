@@ -495,9 +495,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         STy = dyn_cast<StructType>(*I);
+        if (I != E) {
         if (expose) {
-            if (I != E && (*I)->isArrayTy()
-             && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
+            if ((*I)->isArrayTy() && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
                uint64_t val = CI->getZExtValue();
                ++I;     // we processed this index
                if (globalVar && !globalVar->getInitializer()->isNullValue()) {
@@ -518,11 +518,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
 next:
                if (val)
                    cbuffer += '+' + utostr(val);
+               goto looplab;
            }
-           else
-               goto amperfetch;
        }
-       else if (I != E && STy) {
+       else if (STy) {
            std::string fieldp = fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
            ++I;  // eat the struct index as well.
            if (trace_gep)
@@ -543,14 +542,13 @@ next:
            if (referstr != "this")
                cbuffer += referstr + "->";
            cbuffer += fieldp;
+           goto looplab;
         }
-        else {
-amperfetch:
-            cbuffer += "&" + fetchOperand(thisp, Ptr, true);
         }
+        referstr = fetchOperand(thisp, Ptr, true);
     }
-    else
-        cbuffer += "&" + referstr;
+    cbuffer += "&" + referstr;
+looplab:
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I))
             cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
