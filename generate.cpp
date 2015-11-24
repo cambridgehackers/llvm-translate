@@ -444,6 +444,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     bool expose = isAddressExposed(Ptr);
     std::string referstr = fetchOperand(thisp, Ptr, false);
     void *valp = nameMap[referstr];
+    GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr);
     if (I == E)
         return referstr;
     VectorType *LastIndexIsVector = 0;
@@ -456,8 +457,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         } else {
             SequentialType *ST = cast<SequentialType>(*TmpI);
             // Get the index number for the array... which must be long type...
-            const Constant *CV = dyn_cast<Constant>(TmpI.getOperand());
-            ERRORIF(!CV || isa<GlobalValue>(CV) || !(CI = dyn_cast<ConstantInt>(CV)));
+            ERRORIF(isa<GlobalValue>(TmpI.getOperand()) || !(CI = dyn_cast<ConstantInt>(TmpI.getOperand())));
             Total += TD->getTypeAllocSize(ST->getElementType()) * CI->getZExtValue();
         }
     }
@@ -490,22 +490,17 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
        && (tval = mapLookup(referstr.substr(1, referstr.length() - 2).c_str())))
      || (tval = mapLookup(referstr.c_str())))
         goto tvallab;
-    if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue()) {
+    if (!isa<Constant>(FirstOp) || !cast<Constant>(FirstOp)->isNullValue())
         cbuffer += "&" + referstr;
-    } else {
-       ++I;  // Skip the zero index.
-       if (expose && I != E && (*I)->isArrayTy()
+    else {
+        ++I;  // Skip the zero index.
+        if (expose && I != E && (*I)->isArrayTy()
          && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
            uint64_t val = CI->getZExtValue();
            ++I;     // we processed this index
-           GlobalVariable *gv = dyn_cast<GlobalVariable>(Ptr);
-           if (gv && !gv->getInitializer()->isNullValue()) {
-               Constant* CPV = dyn_cast<Constant>(gv->getInitializer());
-               if (dyn_cast<ConstantArray>(CPV)) {
-                   ERRORIF (val != 2);
-                   val = 0;
-               }
-               else if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
+           if (globalVar && !globalVar->getInitializer()->isNullValue()) {
+               Constant* CPV = dyn_cast<Constant>(globalVar->getInitializer());
+               if (ConstantDataArray *CPA = dyn_cast<ConstantDataArray>(CPV)) {
                    ERRORIF (val);
                    if (CPA->isString()) {
                        StringRef value = CPA->getAsString();
@@ -526,49 +521,45 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
            if (trace_gep)
                printf("[%s:%d] cbuf %s\n", __FUNCTION__, __LINE__, cbuffer.c_str());
 next:
-           if (val) {
-               char temp[100];
-               sprintf(temp, "+%lld", (long long)val);
-               cbuffer += temp;
-           }
+           if (val)
+               cbuffer += '+' + utostr(val);
        }
        else if (expose)
-               cbuffer += "&" + fetchOperand(thisp, Ptr, true);
+           cbuffer += "&" + fetchOperand(thisp, Ptr, true);
        else if (I != E && (*I)->isStructTy()) {
-             std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
-             if (trace_gep)
-                 printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
-             if (thisp && referstr == "Vthis") {
-                 tval = thisp;
-                 goto tvallab;
-             }
-             if (valp) {
-                 char temp[1000];
-                 sprintf(temp, "0x%llx", (long long)Total + (long)valp);
-                 cbuffer += temp;
-                 goto exitlab;
-             }
-             if (!strncmp(referstr.c_str(), "(0x", 3) && referstr[referstr.length()-1] == ')')
-                 referstr = referstr.substr(1,referstr.length()-2);
-             if (!strncmp(referstr.c_str(), "0x", 2)) {
-                 tval = mapLookup(referstr.c_str());
-                 goto tvallab;
-             }
-             if (!strncmp(referstr.c_str(), "(&", 2) && referstr[referstr.length()-1] == ')') {
-                 referstr = referstr.substr(2,referstr.length()-2);
-                 tval = mapLookup(referstr.c_str());
-                 if (tval)
-                     goto tvallab;
-                 cbuffer += "&" + referstr + "." + fieldp;
-             }
-             cbuffer += "&";
-             if (referstr != "this")
-                 cbuffer += referstr + "->";
-             cbuffer += fieldp;
-             ++I;  // eat the struct index as well.
+           std::string fieldp = fieldName(dyn_cast<StructType>(*I), cast<ConstantInt>(I.getOperand())->getZExtValue());
+           ++I;  // eat the struct index as well.
+           if (trace_gep)
+               printf("[%s:%d] writeop %s found %p thisp %p fieldp %s\n", __FUNCTION__, __LINE__, referstr.c_str(), valp, thisp, fieldp.c_str());
+           tval = thisp;
+           if (thisp && referstr == "Vthis")
+               goto tvallab;
+           if (valp) {
+               char temp[1000];
+               sprintf(temp, "0x%llx", (long long)Total + (long)valp);
+               cbuffer += temp;
+               goto exitlab;
            }
+           if (!strncmp(referstr.c_str(), "(0x", 3) && referstr[referstr.length()-1] == ')')
+               referstr = referstr.substr(1,referstr.length()-2);
+           if (!strncmp(referstr.c_str(), "0x", 2)) {
+               tval = mapLookup(referstr.c_str());
+               goto tvallab;
+           }
+           if (!strncmp(referstr.c_str(), "(&", 2) && referstr[referstr.length()-1] == ')') {
+               referstr = referstr.substr(2,referstr.length()-2);
+               tval = mapLookup(referstr.c_str());
+               if (tval)
+                   goto tvallab;
+               cbuffer += "&" + referstr + "." + fieldp;
+           }
+           cbuffer += "&";
+           if (referstr != "this")
+               cbuffer += referstr + "->";
+           cbuffer += fieldp;
+        }
         else
-             cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
+            cbuffer += "&(" + fetchOperand(thisp, Ptr, true) + ")";
     }
     for (; I != E; ++I) {
         if ((*I)->isStructTy()) {
