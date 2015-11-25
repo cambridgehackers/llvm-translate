@@ -121,9 +121,7 @@ std::string generateVerilog(Function ***thisp, Instruction &I)
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         std::string cthisp = fetchOperand(thisp, *AI, false);
-        Function ***called_thisp = NULL;
-        if (!strncmp(cthisp.c_str(), "0x", 2))
-            called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string p = printOperand(thisp, Callee, false);
         //printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
         if (p == "printf")

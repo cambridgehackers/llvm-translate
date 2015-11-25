@@ -196,9 +196,7 @@ std::string calculateGuardUpdate(Function ***thisp, Instruction &I)
             break;
         }
         std::string cthisp = fetchOperand(thisp, I.getOperand(0), false);
-        Function ***called_thisp = NULL;
-        if (!strncmp(cthisp.c_str(), "0x", 2))
-            called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
         if (trace_hoist)
             printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
