@@ -74,14 +74,9 @@ void dump_class_data()
 {
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
-      printf("class %s node %p inherit %p; ", classp->name.c_str(), classp->node, classp->inherit);
-      for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-          if (const DIType *Ty = dyn_cast<DIType>((*MI)->meta)) {
-              uint64_t off = Ty->getOffsetInBits()/8;
-              const char *cp = Ty->getName().str().c_str();
-              printf(" M[%s/%lld]", cp, (long long)off);
-          }
-          else if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
+      printf("class %s; ", classp->name.c_str());
+      for (auto MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+          if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI))) {
               uint64_t off = SP->getVirtualIndex();
               const char *cp = SP->getLinkageName().str().c_str();
               if (!strlen(cp))
@@ -97,7 +92,6 @@ CLASS_META *create_class(std::string name, const Metadata *Node)
 {
     CLASS_META *classp = &class_data[class_data_index++];
 
-    classp->node = Node;
     classp->name = "class." + name;
     if (trace_meta)
         printf("%s: ADDCLASS name %s Node %p\n", __FUNCTION__, name.c_str(), Node);
@@ -109,7 +103,7 @@ CLASS_META *create_class(std::string name, const Metadata *Node)
     }
     return classp;
 }
-CLASS_META *lookup_class(const char *cp)
+static CLASS_META *lookup_class(const char *cp)
 {
     CLASS_META *classp = class_data;
     for (int i = 0; i < class_data_index; i++) {
@@ -126,8 +120,8 @@ int lookup_method(const char *classname, std::string methodname)
         printf("[%s:%d] class %s meth %s classp %p\n", __FUNCTION__, __LINE__, classname, methodname.c_str(), classp);
     if (!classp)
         return -1;
-    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta);
+    for (auto MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        const DISubprogram *SP = dyn_cast<DISubprogram>(*MI);
         if (trace_meta)
         if (SP)
             printf("[%s:%d] SPname %s\n", __FUNCTION__, __LINE__, SP->getName().str().c_str());
@@ -136,58 +130,22 @@ int lookup_method(const char *classname, std::string methodname)
     }
     return -1;
 }
-std::string fieldName(const StructType *STy, uint64_t ind)
-{
-    unsigned int subs = 0;
-    int idx = ind;
-    while (idx-- > 0) {
-        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
-            subs++;
-        subs++;
-    }
-    if (subs >= STy->structFieldMap.length())
-        return "";
-    std::string ret = STy->structFieldMap.substr(subs);
-    idx = ret.find(',');
-    if (idx >= 0)
-        ret = ret.substr(0,idx);
-    return ret;
-}
-static MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind)
-{
-static int errorCount;
-    if (!STy)
-        return NULL;
-    if (!STy->isLiteral()) { // unnamed items
-    std::string cname = STy->getName();
-    CLASS_META *classp = lookup_class(cname.c_str());
-    if (trace_meta)
-        printf("%s: lookup class '%s' = %p ind %d\n", __FUNCTION__, cname.c_str(), classp, (int)ind);
-    if (!classp) {
-        printf("%s: can't find class '%s', will exit\n", __FUNCTION__, cname.c_str());
-        if (errorCount++ > 20)
-            exit(-1);
-        return NULL;
-    }
-    int Idx = 0;
-    for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
-        unsigned int itemTag = -1;
-        if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
-            itemTag = SP->getTag();
-            if (trace_meta)
-                printf("[%s:%d] [%d] tag %x name %s\n", __FUNCTION__, __LINE__, Idx, itemTag, CBEMangle(SP->getName().str()).c_str());
-            Idx++;
-            if (!ind--)
-                return *MI;
-        }
-    }
-    }
-    return NULL;
-}
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
 {
-    if (MEMBER_INFO *tptr = lookupMember(STy, ind))
-        return dyn_cast_or_null<DISubprogram>(tptr->meta);
+    std::string cname = STy->getName();
+    CLASS_META *classp = lookup_class(cname.c_str());
+    if (!classp) {
+        printf("%s: can't find class '%s', will exit\n", __FUNCTION__, cname.c_str());
+        exit(-1);
+    }
+    for (auto MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
+        if (const DISubprogram *SP = dyn_cast<DISubprogram>(*MI)) {
+            if (trace_meta)
+                printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, CBEMangle(SP->getName().str()).c_str());
+            if (!ind--)
+                return SP;
+        }
+    }
     return NULL;
 }
 
@@ -393,28 +351,12 @@ printf("[%s:%d] ADDCLASS name %s tag %s\n", __FUNCTION__, __LINE__, name.c_str()
                 if (const DICompositeType *CTy = dyn_cast<DICompositeType>(T)) {
                     DINodeArray Elements = CTy->getElements();
                     for (unsigned k = 0, N = Elements.size(); k < N; ++k) {
-                        if (DIType *Ty = dyn_cast<DIType>(Elements[k])) {
-                            int tag = Ty->getTag();
-                            const Metadata *Node = Ty;
-//printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
-                            if (tag == dwarf::DW_TAG_member)
-                                classp->memberl.push_back(new MEMBER_INFO{Node, NULL});
-                            else if (tag == dwarf::DW_TAG_inheritance) {
-                                classp->inherit = new MEMBER_INFO{Node, NULL};
-                            }
-else
-printf("[%s:%d] NOTMEMBER tag %s name %s\n", __FUNCTION__, __LINE__, dwarf::TagString(tag), name.c_str());
-                        }
-                        else if (DISubprogram *SP = dyn_cast<DISubprogram>(Elements[k])) {
+                        if (DISubprogram *SP = dyn_cast<DISubprogram>(Elements[k])) {
                             const Metadata *Node = SP;
-//printf("[%s:%d] name %s NODE %p\n", __FUNCTION__, __LINE__, name.c_str(), Node);
                             if (classp)
-                                classp->memberl.push_back(new MEMBER_INFO{Node, NULL});
+                                classp->memberl.push_back(Node);
                         }
-                        //dumpType(Ty, classp);
                     }
-                    //auto *DT = dyn_cast<DIDerivedTypeBase>(CTy);
-                    //dumpTref(getNode(DT->getBaseType()), classp);
                 }
             }
         }

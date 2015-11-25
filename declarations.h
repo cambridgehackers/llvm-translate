@@ -55,16 +55,8 @@ public:
 };
 
 typedef struct {
-    const Metadata *meta;
-    const Type *type;
-} MEMBER_INFO;
-
-typedef struct {
     std::string name;
-    const Metadata *node;
-    MEMBER_INFO  *inherit;
-    int           member_count;
-    std::list<MEMBER_INFO *> memberl;
+    std::list<const Metadata *> memberl;
 } CLASS_META;
 
 typedef struct {

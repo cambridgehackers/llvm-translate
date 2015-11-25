@@ -333,6 +333,24 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
     }
 }
 
+std::string fieldName(const StructType *STy, uint64_t ind)
+{
+    unsigned int subs = 0;
+    int idx = ind;
+    while (idx-- > 0) {
+        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
+            subs++;
+        subs++;
+    }
+    if (subs >= STy->structFieldMap.length())
+        return "";
+    std::string ret = STy->structFieldMap.substr(subs);
+    idx = ret.find(',');
+    if (idx >= 0)
+        ret = ret.substr(0,idx);
+    return ret;
+}
+
 void addressrunOnFunction(Function &F)
 {
     const char *className, *methodName;
