@@ -118,16 +118,9 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
     case Instruction::UIToFP: case Instruction::SIToFP:
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
-    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast: {
-        std::string p = fetchOperand(thisp, I.getOperand(0), false);
-        if (p == "Vthis" && thisp) {
-            char ptemp[1000];
-            sprintf(ptemp, "0x%lx", (unsigned long)thisp);
-            p = ptemp;
-        }
-        vout += p;
+    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
+        vout += fetchOperand(thisp, I.getOperand(0), false);
         break;
-        }
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
