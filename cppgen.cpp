@@ -141,9 +141,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         CallSite CS(&I);
         CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
         std::string cthisp = fetchOperand(thisp, *AI, false);
-        Function ***called_thisp = NULL;
-        if (!strncmp(cthisp.c_str(), "0x", 2))
-            called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string pcalledFunction = printOperand(thisp, Callee, false);
 //printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
         if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
@@ -161,7 +159,7 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             std::string pfirst = printOperand(thisp, *AI, false);
             if (pfirst[0] == '&')
                 pfirst = pfirst.substr(1);
-            vout += pfirst + ("." + CMT->method[func]);
+            vout += pfirst + "." + CMT->method[func];
             skip = 1;
         }
         else
