@@ -92,6 +92,21 @@ struct MAPSEENcomp {
     }
 };
 
+typedef struct {
+    const StructType *STy;
+    int               Idx;
+} EREPLACE_INFO;
+
+struct EREPLACEcomp {
+    bool operator() (const EREPLACE_INFO& lhs, const EREPLACE_INFO& rhs) const {
+        if (lhs.STy < rhs.STy)
+            return true;
+        if (lhs.STy > rhs.STy)
+            return false;
+        return lhs.Idx < rhs.Idx;
+    }
+};
+
 class ClassMethodTable {
 public:
     std::string classOrig;
@@ -130,6 +145,7 @@ extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
+extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);

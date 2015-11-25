@@ -52,6 +52,7 @@ static std::map<std::string, void *> maplookup;
 std::list<RULE_INFO *> ruleInfo;
 static std::map<std::string, Function *> ruleFunctionTable;
 std::map<std::string, std::list<std::string>> ruleFunctionNames;
+std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 static struct {
     void *p;
     long size;
@@ -308,10 +309,8 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
             if (fname != "") {
                 if (PointerType *PTy = dyn_cast<PointerType>(element)) {
                     const Type *Ty = memoryType(*(char **)eaddr);
-                    if (Ty && checkDerived(Ty, PTy)) {
-                        MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-                        tptr->type = Ty;
-                    }
+                    if (Ty && checkDerived(Ty, PTy))
+                        replaceType[EREPLACE_INFO{STy, Idx}] = Ty;
                 }
                 mapType(eaddr, element, aname + "$$" + fname);
             }

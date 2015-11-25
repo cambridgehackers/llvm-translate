@@ -233,9 +233,9 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const StructType *inherit = dyn_cast<StructType>(element);
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
-            MEMBER_INFO *tptr = lookupMember(STy, Idx, dwarf::DW_TAG_member);
-            if (tptr && tptr->type)     // Substitute original type with actual instantiated type
-                element = tptr->type;
+            const Type *newType = replaceType[EREPLACE_INFO{STy, Idx}];
+            if (newType)
+                element = newType;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
         else if (inherit) {
