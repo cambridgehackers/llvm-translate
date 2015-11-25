@@ -187,7 +187,6 @@ void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
 bool RemoveAllocaPass_runOnFunction(Function &F);
 void dump_class_data(void);
-MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
 bool call2runOnFunction(Function &F);

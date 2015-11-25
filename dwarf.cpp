@@ -153,7 +153,7 @@ std::string fieldName(const StructType *STy, uint64_t ind)
         ret = ret.substr(0,idx);
     return ret;
 }
-MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind, unsigned int tag)
+static MEMBER_INFO *lookupMember(const StructType *STy, uint64_t ind)
 {
 static int errorCount;
     if (!STy)
@@ -162,7 +162,7 @@ static int errorCount;
     std::string cname = STy->getName();
     CLASS_META *classp = lookup_class(cname.c_str());
     if (trace_meta)
-        printf("%s: lookup class '%s' = %p ind %d tag %d\n", __FUNCTION__, cname.c_str(), classp, (int)ind, tag);
+        printf("%s: lookup class '%s' = %p ind %d\n", __FUNCTION__, cname.c_str(), classp, (int)ind);
     if (!classp) {
         printf("%s: can't find class '%s', will exit\n", __FUNCTION__, cname.c_str());
         if (errorCount++ > 20)
@@ -172,17 +172,10 @@ static int errorCount;
     int Idx = 0;
     for (std::list<MEMBER_INFO *>::iterator MI = classp->memberl.begin(), ME = classp->memberl.end(); MI != ME; MI++) {
         unsigned int itemTag = -1;
-        if (const DIType *Ty = dyn_cast<DIType>((*MI)->meta)) {
-            itemTag = Ty->getTag();
-            if (trace_meta)
-                printf("[%s:%d] [%d] tag %x name %s\n", __FUNCTION__, __LINE__, Idx, itemTag, CBEMangle(Ty->getName().str()).c_str());
-        }
-        else if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
+        if (const DISubprogram *SP = dyn_cast<DISubprogram>((*MI)->meta)) {
             itemTag = SP->getTag();
             if (trace_meta)
                 printf("[%s:%d] [%d] tag %x name %s\n", __FUNCTION__, __LINE__, Idx, itemTag, CBEMangle(SP->getName().str()).c_str());
-        }
-        if (itemTag == tag) {
             Idx++;
             if (!ind--)
                 return *MI;
@@ -193,7 +186,7 @@ static int errorCount;
 }
 const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
 {
-    if (MEMBER_INFO *tptr = lookupMember(STy, ind, dwarf::DW_TAG_subprogram))
+    if (MEMBER_INFO *tptr = lookupMember(STy, ind))
         return dyn_cast_or_null<DISubprogram>(tptr->meta);
     return NULL;
 }
