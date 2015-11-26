@@ -188,3 +188,4 @@ int inheritsModule(const StructType *STy);
 Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType);
 Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
 void prepareClone(Instruction *TI, const Instruction *I);
+std::string printString(std::string arg);

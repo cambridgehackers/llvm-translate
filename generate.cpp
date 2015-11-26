@@ -118,44 +118,6 @@ static bool isAddressExposed(const Value *V)
 {
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
-static std::string printString(const char *cp, int len)
-{
-    std::string cbuffer = "\"";
-    char temp[100];
-    if (!cp[len-1])
-        len--;
-    bool LastWasHex = false;
-    for (unsigned i = 0, e = len; i != e; ++i) {
-        unsigned char C = cp[i];
-        if (isprint(C) && (!LastWasHex || !isxdigit(C))) {
-            LastWasHex = false;
-            if (C == '"' || C == '\\')
-                cbuffer += "\\";
-            sprintf(temp, "%c", (char)C);
-            cbuffer += temp;
-        } else {
-            LastWasHex = false;
-            switch (C) {
-            case '\n': cbuffer += "\\n"; break;
-            case '\t': cbuffer += "\\t"; break;
-            case '\r': cbuffer += "\\r"; break;
-            case '\v': cbuffer += "\\v"; break;
-            case '\a': cbuffer += "\\a"; break;
-            case '\"': cbuffer += "\\\""; break;
-            case '\'': cbuffer += "\\\'"; break;
-            default:
-                cbuffer += "\\x";
-                sprintf(temp, "%c", (char)(( C/16  < 10) ? ( C/16 +'0') : ( C/16 -10+'A')));
-                cbuffer += temp;
-                sprintf(temp, "%c", (char)(((C&15) < 10) ? ((C&15)+'0') : ((C&15)-10+'A')));
-                cbuffer += temp;
-                LastWasHex = true;
-                break;
-            }
-        }
-    }
-    return cbuffer + "\"";
-}
 
 /*
  * Name functions
@@ -501,8 +463,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 if (globalVar && !globalVar->getInitializer()->isNullValue()
                  && (CPA = dyn_cast<ConstantDataArray>(globalVar->getInitializer()))) {
                     ERRORIF(val || !CPA->isString());
-                    std::string value = CPA->getAsString();
-                    referstr = printString(value.c_str(), value.length());
+                    referstr = printString(CPA->getAsString());
                 }
                 if (val)
                     referstr += '+' + utostr(val);
