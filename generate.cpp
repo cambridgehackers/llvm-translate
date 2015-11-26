@@ -792,14 +792,11 @@ static std::string processCInstruction(Function ***thisp, Instruction &I)
         FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
         unsigned len = FTy->getNumParams();
         ERRORIF(FTy->isVarArg() && !len);
+        void *pact = mapLookup(pcalledFunction.c_str());
+
         if (generateRegion == ProcessHoist) {
-        //CallInst &ICL = static_cast<CallInst&>(I);
-        //Value *Callee = ICL.getCalledValue();
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
-        //std::string pcalledFunction = fetchOperand(thisp, Callee, false);
-        //Function *func = dyn_cast<Function>(I.getOperand(I.getNumOperands()-1));
-        void *pact = mapLookup(pcalledFunction.c_str());
         if (getClassName(globalName.c_str(), &className, &methodName)) {
             parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
             //parentENAName = lookup_method(temp, "ENA");
@@ -812,12 +809,9 @@ static std::string processCInstruction(Function ***thisp, Instruction &I)
             printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
             break;
         }
-        std::string cthisp = fetchOperand(thisp, I.getOperand(0), false);
-        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         fname = func->getName();
         if (trace_hoist)
             printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
-        pushWork(func, called_thisp, 0);
         if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
             cloneVmap.clear();
             /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
@@ -907,10 +901,8 @@ static std::string processCInstruction(Function ***thisp, Instruction &I)
             if (regen_methods)
                 break;
         }
-        unsigned len = FTy->getNumParams();
         if (prefix == "")
             vout += "(";
-        if (func) {
         Function::const_arg_iterator FAI = func->arg_begin();
         for (; AI != AE; ++AI, ++ArgNo, FAI++) {
             if (!skip) {
@@ -925,7 +917,6 @@ static std::string processCInstruction(Function ***thisp, Instruction &I)
                 vout += p;
             }
             skip = 0;
-        }
         }
         }
         else {
