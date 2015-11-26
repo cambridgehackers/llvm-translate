@@ -661,11 +661,9 @@ std::string printCall(Function ***thisp, Instruction &I)
     Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
     std::string pcalledFunction = printOperand(thisp, Callee, false);
     if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-        void *tval = mapLookup(pcalledFunction.c_str()+1);
-        if (tval) {
+        if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
             func = static_cast<Function *>(tval);
-            if (func)
-                pcalledFunction = func->getName();
+            pcalledFunction = func->getName();
             //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
         }
     }
@@ -922,16 +920,13 @@ std::string processInstruction(Function ***thisp, Instruction &I)
             pdest = pdest.substr(1, pdest.length() -2);
         if (generateRegion == ProcessHoist)
             break;
-        if (generateRegion == ProcessVerilog)
-            vout += pdest + " <= ";
-        else
-            vout += pdest + " = ";
+        vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
         if (BitMask)
             vout += "((";
-        void *valp = nameMap[sval];
-//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
-        if (valp)
+        if (void *valp = nameMap[sval]) {
+            //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
             sval = mapAddress(valp);
+        }
         vout += sval;
         if (BitMask)
             vout += ") & " + printOperand(thisp, BitMask, false) + ")";
