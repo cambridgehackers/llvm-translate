@@ -1,3 +1,4 @@
+#if 0
 /* Copyright (c) 2015 The Connectal Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -103,6 +104,7 @@ CLASS_META *create_class(std::string name, const Metadata *Node)
     }
     return classp;
 }
+#if 0
 static CLASS_META *lookup_class(const char *cp)
 {
     CLASS_META *classp = class_data;
@@ -148,40 +150,7 @@ const DISubprogram *lookupMethod(const StructType *STy, uint64_t ind)
     }
     return NULL;
 }
-
-int getClassName(const char *name, const char **className, const char **methodName)
-{
-    int status;
-    static char temp[1000];
-    char *pmethod = temp;
-    temp[0] = 0;
-    *className = NULL;
-    *methodName = NULL;
-    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
-    if (demang) {
-        strcpy(temp, demang);
-        while (*pmethod && pmethod[0] != '(')
-            pmethod++;
-        *pmethod = 0;
-        while (pmethod > temp && pmethod[0] != ':')
-            pmethod--;
-        char *p = pmethod++;
-        while (p[0] == ':')
-            *p-- = 0;
-        int len = 0;
-        const char *p1 = demang;
-        while (*p1 && *p1 != '(')
-            p1++;
-        while (p1 != demang && *p1 != ':') {
-            len++;
-            p1--;
-        }
-        *className = temp;
-        *methodName = pmethod;
-        return 1;
-    }
-    return 0;
-}
+#endif
 
 const Metadata *fetchType(const Metadata *arg)
 {
@@ -363,3 +332,4 @@ printf("[%s:%d] ADDCLASS name %s tag %s\n", __FUNCTION__, __LINE__, name.c_str()
 
     }
 }
+#endif

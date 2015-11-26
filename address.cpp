@@ -41,6 +41,10 @@ public:
        name = aname;
     }
 };
+typedef struct {
+    int maxIndex;
+    std::string *methods;
+} METHOD_INFO;
 
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
@@ -53,6 +57,7 @@ std::list<RULE_INFO *> ruleInfo;
 static std::map<std::string, Function *> ruleFunctionTable;
 std::map<std::string, std::list<std::string>> ruleFunctionNames;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
+static std::map<std::string, METHOD_INFO *> classMethod;
 static struct {
     void *p;
     long size;
@@ -309,8 +314,9 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
             if (fname != "") {
                 if (PointerType *PTy = dyn_cast<PointerType>(element)) {
                     const Type *Ty = memoryType(*(char **)eaddr);
-                    if (Ty && checkDerived(Ty, PTy))
+                    if (Ty && checkDerived(Ty, PTy)) {
                         replaceType[EREPLACE_INFO{STy, Idx}] = Ty;
+                    }
                 }
                 mapType(eaddr, element, aname + "$$" + fname);
             }
@@ -367,37 +373,101 @@ void addressrunOnFunction(Function &F)
     }
 }
 
+int lookup_method(const char *classname, std::string methodname)
+{
+    METHOD_INFO *mInfo = classMethod[classname];
+//printf("[%s:%d] classname %s mInfo %p\n", __FUNCTION__, __LINE__, classname, mInfo);
+    if (!mInfo)
+        return -1;
+    for (int i = 0; i < mInfo->maxIndex; i++) {
+        const char *className, *methodName;
+//printf("[%s:%d] [%d] %s\n", __FUNCTION__, __LINE__, i, mInfo->methods[i].c_str());
+        if (getClassName(mInfo->methods[i].c_str(), &className, &methodName)) {
+//printf("[%s:%d] %s %s %s\n", __FUNCTION__, __LINE__, methodname.c_str(), className, methodName);
+            if (methodname == methodName)
+                return i;
+        }
+    }
+    return -1;
+}
+std::string lookupMethod(const StructType *STy, uint64_t ind)
+{
+    std::string sname = STy->getName();
+    METHOD_INFO *mInfo = classMethod[sname];
+//printf("[%s:%d] sname %s mInfo %p\n", __FUNCTION__, __LINE__, sname.c_str(), mInfo);
+    if (mInfo)
+        return mInfo->methods[ind];
+    return NULL;
+}
+
 /*
  * Starting from all toplevel global, construct symbolic names for
  * all reachable addresses
  */
 void constructAddressMap(Module *Mod)
 {
-    process_metadata(Mod);
     mapitem.clear();
-    if (NamedMDNode *CU_Nodes = Mod->getNamedMetadata("llvm.dbg.cu")) {
-        for (unsigned j = 0, e = CU_Nodes->getNumOperands(); j != e; ++j) {
-            const DICompileUnit *CUP = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(j));
-            DIGlobalVariableArray GVs = CUP->getGlobalVariables();
-            for (unsigned i = 0, e = GVs.size(); i != e; ++i) {
-                const GlobalValue *gv = dyn_cast<GlobalValue>(GVs[i]->getVariable());
-                Type *Ty = gv->getType()->getElementType();
-                void *addr = EE->getPointerToGlobal(gv);
-                const Metadata *node = fetchType(GVs[i]->getType());
-                std::string cp = GVs[i]->getLinkageName().str();
-                if (!cp.length())
-                    cp = GVs[i]->getName().str();
-                setMapAddress(addr, cp);
-                const DIType *DT = dyn_cast<DIType>(node);
-                //if (trace_mapt)
-                    printf("CAM: %s tag %s:\n", cp.c_str(), DT ? dwarf::TagString(DT->getTag()) : "notag");
-node->dump();
-                addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), gv->getType());
-                mapDwarfType(1, node, (char *)addr, 0, cp);
-                mapType((char *)addr, Ty, cp);
+    for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
+        std::string name = MI->getName();
+        int status;
+        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
+        Type *Ty = MI->getType()->getElementType();
+        void *addr = EE->getPointerToGlobal(MI);
+        if (ret && !strncmp(ret, "vtable for ", 11)) {
+            const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
+            printf("[%s:%d] global %s ret %s %d\n", __FUNCTION__, __LINE__, name.c_str(), ret, Ty->getElementType()->getTypeID());
+            const ConstantArray *CA;
+            METHOD_INFO *mInfo = NULL;
+            //Ty->dump();
+            if (MI->hasInitializer() && 
+//Ty->getElementType()->getTypeID() == Type::ArrayTyID
+                (CA = dyn_cast<ConstantArray>(MI->getInitializer()))
+) {
+                for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
+                    if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI))) {
+                        if (vinit->getOpcode() == Instruction::BitCast) {
+                            const Value *opval = vinit->getOperand(0);
+                            if (const Function *func = dyn_cast<Function>(opval)) {
+                                const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType());
+                                const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
+                                std::string fname = func->getName();
+                                std::string sname = STy->getName();
+                                if (!mInfo) {
+                                    mInfo = new METHOD_INFO;
+                                    mInfo->maxIndex = 0;
+                                    mInfo->methods = new std::string[20];
+                                    classMethod[sname] = mInfo;
+                                }
+                                mInfo->methods[mInfo->maxIndex++] = fname;
+                            }
+                        }
+                    }
+                }
             }
+            continue;
+        }
+        if ((name.length() < 4 || name.substr(0,4) != ".str")
+         && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
+            addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType());
+            setMapAddress(addr, name);
+            mapType((char *)addr, Ty, name);
         }
     }
     //if (trace_mapt)
         dumpMemoryRegions(4010);
 }
+#if 0
+  TypeFinder StructTypes;
+  StructTypes.run(*Mod, true);
+  for (StructType *STy : StructTypes) {
+    if (!STy->isOpaque()) {
+        std::string name = STy->getName().str();
+printf("[%s:%d] nonopaque %s\n", __FUNCTION__, __LINE__, name.c_str());
+        STy->dump();
+        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//(*I)->dump();
+        }
+    }
+  }
+#endif

@@ -437,7 +437,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     std::string amper = "&";
     PointerType *PTy;
     const StructType *STy;
-    const DISubprogram *tptr;
     const ConstantInt *CI;
     ConstantDataArray *CPA;
     void *tval = NULL;
@@ -474,12 +473,15 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (STy = findThisArgumentType(PTy))
      && (referstr == "*(this)" || referstr == "*(Vthis)"
-        || referstr.length() < 2 || referstr.substr(0,2) != "0x")
-     && (tptr = lookupMethod(STy, Total/sizeof(void *)))) {
-        std::string name = tptr->getName();
-        std::string lname = tptr->getLinkageName();
-        if (trace_gep)
-            printf("%s: p %s name %s lname %s\n", __FUNCTION__, referstr.c_str(), name.c_str(), lname.c_str());
+        || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
+        std::string lname = lookupMethod(STy, Total/sizeof(void *));
+        std::string name;
+        const char *className, *methodName;
+        if (getClassName(lname.c_str(), &className, &methodName))
+            name = methodName;
+        //if (trace_gep)
+            printf("%s: STy %s thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
+                STy->getName().str().c_str(), thisp, referstr.c_str(), name.c_str(), lname.c_str());
         referstr = "(" + referstr + ").";
         if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
             referstr = "";

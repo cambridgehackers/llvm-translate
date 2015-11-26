@@ -87,3 +87,37 @@ std::string ucName(std::string inname)
         return ((char)(inname[0] - 'a' + 'A')) + inname.substr(1, inname.length() - 1);
     return inname;
 }
+
+int getClassName(const char *name, const char **className, const char **methodName)
+{
+    int status;
+    static char temp[1000];
+    char *pmethod = temp;
+    temp[0] = 0;
+    *className = NULL;
+    *methodName = NULL;
+    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
+    if (demang) {
+        strcpy(temp, demang);
+        while (*pmethod && pmethod[0] != '(')
+            pmethod++;
+        *pmethod = 0;
+        while (pmethod > temp && pmethod[0] != ':')
+            pmethod--;
+        char *p = pmethod++;
+        while (p[0] == ':')
+            *p-- = 0;
+        int len = 0;
+        const char *p1 = demang;
+        while (*p1 && *p1 != '(')
+            p1++;
+        while (p1 != demang && *p1 != ':') {
+            len++;
+            p1--;
+        }
+        *className = temp;
+        *methodName = pmethod;
+        return 1;
+    }
+    return 0;
+}
