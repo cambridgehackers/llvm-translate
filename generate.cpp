@@ -642,7 +642,7 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 /*
  * Output instructions
  */
-std::string processCInstruction(Function ***thisp, Instruction &I)
+static std::string processCInstruction(Function ***thisp, Instruction &I)
 {
     std::string vout;
     int opcode = I.getOpcode();

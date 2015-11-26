@@ -157,7 +157,6 @@ void *mapLookup(std::string name);
 
 void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
-std::string processCInstruction(Function ***thisp, Instruction &I);
 void generateClassDef(const StructType *STy, FILE *OStr);
 void generateClassBody(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
