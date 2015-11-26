@@ -716,13 +716,8 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         if (BitMask)
           vout += "((";
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
-        if (void *temp = nameMap[sval]) {
+        if (void *temp = nameMap[sval])
             sval = mapAddress(temp);
-//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, temp, sval);
-        }
-        vout += sval;
-        if (BitMask)
-          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
         }
         else {
         vout += pdest + " = ";
@@ -732,11 +727,10 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
         if (valp)
             sval = mapAddress(valp);
+        }
         vout += sval;
-        if (BitMask) {
+        if (BitMask)
           vout += ") & " + printOperand(thisp, BitMask, false) + ")";
-        }
-        }
         break;
         }
 
@@ -773,9 +767,8 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string pcalledFunction = printOperand(thisp, Callee, false);
         if (generateRegion == ProcessVerilog) {
-        //printf("[%s:%d] pcalledFunction %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
-        if (pcalledFunction == "printf")
-            break;
+        //if (pcalledFunction == "printf")
+            //break;
         if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(pcalledFunction.c_str()+1);
             if (tval) {
