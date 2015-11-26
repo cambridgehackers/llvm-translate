@@ -766,9 +766,6 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         std::string cthisp = fetchOperand(thisp, *AI, false);
         Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
         std::string pcalledFunction = printOperand(thisp, Callee, false);
-        if (generateRegion == ProcessVerilog) {
-        //if (pcalledFunction == "printf")
-            //break;
         if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
             void *tval = mapLookup(pcalledFunction.c_str()+1);
             if (tval) {
@@ -779,9 +776,15 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             }
         }
         pushWork(func, called_thisp, 0);
-        int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         int skip = regen_methods;
+        int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
         std::string prefix;
+        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        unsigned len = FTy->getNumParams();
+        ERRORIF(FTy->isVarArg() && !len);
+
+        if (generateRegion == ProcessVerilog) {
         if (ClassMethodTable *CMT = functionIndex[func]) {
             pcalledFunction = printOperand(thisp, *AI, false);
             if (pcalledFunction[0] == '&')
@@ -796,13 +799,9 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         }
         else {
             vout += pcalledFunction;
-            if (regen_methods) {
+            if (regen_methods)
                 break;
-            }
         }
-        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
         unsigned len = FTy->getNumParams();
         if (prefix == "")
             vout += "(";
@@ -823,22 +822,8 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
             skip = 0;
         }
         }
-        if (prefix == "")
-            vout += ")";
         }
         else {
-        //std::string pcalledFunction = printOperand(thisp, Callee, false);
-        if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-            void *tval = mapLookup(pcalledFunction.c_str()+1);
-            if (tval) {
-                func = static_cast<Function *>(tval);
-                if (func)
-                    pcalledFunction = func->getName();
-                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
-            }
-        }
-        pushWork(func, called_thisp, 0);
-        int skip = regen_methods;
         if (ClassMethodTable *CMT = functionIndex[func]) {
             std::string pfirst = printOperand(thisp, *AI, false);
             if (pfirst[0] == '&')
@@ -848,10 +833,6 @@ std::string processCInstruction(Function ***thisp, Instruction &I)
         }
         else
             vout += pcalledFunction;
-        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-        unsigned len = FTy->getNumParams();
-        ERRORIF(FTy->isVarArg() && !len);
         vout += "(";
         if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
 printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
@@ -865,8 +846,9 @@ printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
             }
             skip = 0;
         }
-        vout += ")";
         }
+        if (prefix == "")
+            vout += ")";
         break;
         }
 #if 0
