@@ -637,6 +637,368 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
     return p;
 }
 /*
+ * Output instructions
+ */
+/*
+ * Generate Verilog output for Store and Call instructions
+ */
+std::string generateVerilog(Function ***thisp, Instruction &I)
+{
+    std::string vout;
+    int opcode = I.getOpcode();
+    switch(opcode) {
+    // Terminators
+    case Instruction::Ret:
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+            vout += "    " + globalName + " = ";
+            if (I.getNumOperands())
+                vout += printOperand(thisp, I.getOperand(0), false);
+        }
+        break;
+#if 0
+    case Instruction::Br:
+        {
+        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
+          char temp[MAX_CHAR_BUFFER];
+          const BranchInst &BI(cast<BranchInst>(I));
+          prepareOperand(BI.getCondition());
+          int cond_item = getLocalSlot(BI.getCondition());
+          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName.c_str(), I.getParent()->getName().str().c_str());
+          sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
+          prepareOperand(BI.getSuccessor(0));
+          prepareOperand(BI.getSuccessor(1));
+        } else if (isa<IndirectBrInst>(I)) {
+          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+            prepareOperand(I.getOperand(i));
+          }
+        }
+        }
+        break;
+    //case Instruction::Switch:
+        //const SwitchInst& SI(cast<SwitchInst>(I));
+        //prepareOperand(SI.getCondition());
+        //prepareOperand(SI.getDefaultDest());
+        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
+          //prepareOperand(i.getCaseValue());
+          //prepareOperand(i.getCaseSuccessor());
+        //}
+#endif
+
+    // Memory instructions...
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        std::string pdest = printOperand(thisp, IS.getPointerOperand(), true);
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        std::string sval = printOperand(thisp, Operand, false);
+        if (!strncmp(pdest.c_str(), "*((0x", 5)) {
+            char *endptr = NULL;
+            void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
+            std::string pname = mapAddress(pint);
+            if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
+                pdest = pname;
+        }
+        if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
+            pdest = pdest.substr(1, pdest.length() -2);
+        vout += pdest + " <= ";
+        if (BitMask)
+          vout += "((";
+//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
+        if (void *temp = nameMap[sval]) {
+            sval = mapAddress(temp);
+//printf("[%s:%d] second %p pname %s\n", __FUNCTION__, __LINE__, temp, sval);
+        }
+        vout += sval;
+        if (BitMask)
+          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
+        break;
+        }
+
+    case Instruction::Call: {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        const char *sep = "";
+        Function *func = ICL.getCalledFunction();
+        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+        Value *Callee = ICL.getCalledValue();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        std::string cthisp = fetchOperand(thisp, *AI, false);
+        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        std::string p = printOperand(thisp, Callee, false);
+        //printf("[%s:%d] p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, p.c_str(), func, thisp, called_thisp);
+        if (p == "printf")
+            break;
+        if (!strncmp(p.c_str(), "&0x", 3) && !func) {
+            void *tval = mapLookup(p.c_str()+1);
+            if (tval) {
+                func = static_cast<Function *>(tval);
+                if (func)
+                    p = func->getName();
+                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, p.c_str());
+            }
+        }
+        pushWork(func, called_thisp, 0);
+        int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        int skip = regen_methods;
+        std::string prefix;
+        if (ClassMethodTable *CMT = functionIndex[func]) {
+            p = printOperand(thisp, *AI, false);
+            if (p[0] == '&')
+                p = p.substr(1);
+            std::string pnew = p;
+            referencedItems[pnew] = func->getType();
+            prefix = p + CMT->method[func];
+            vout += prefix;
+            if (!hasRet)
+                vout += "__ENA = 1";
+            skip = 1;
+        }
+        else {
+            vout += p;
+            if (regen_methods) {
+                break;
+            }
+        }
+        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+        unsigned len = FTy->getNumParams();
+        if (prefix == "")
+            vout += "(";
+        if (func) {
+        Function::const_arg_iterator FAI = func->arg_begin();
+        for (; AI != AE; ++AI, ++ArgNo, FAI++) {
+            if (!skip) {
+                vout += sep;
+                std::string p = printOperand(thisp, *AI, false);
+                if (prefix != "")
+                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
+                else {
+                    ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+                    sep = ", ";
+                }
+                vout += p;
+            }
+            skip = 0;
+        }
+        }
+        if (prefix == "")
+            vout += ")";
+        break;
+        }
+
+#if 0
+    case Instruction::PHI:
+        {
+        char temp[MAX_CHAR_BUFFER];
+        const PHINode *PN = dyn_cast<PHINode>(&I);
+        if (!PN) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(1);
+        }
+        I.getType()->dump();
+        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName.c_str(), I.getParent()->getName().str().c_str());
+        vout += temp + " = ";
+        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
+            int valuein = getLocalSlot(PN->getIncomingValue(op));
+            prepareOperand(PN->getIncomingValue(op));
+            prepareOperand(PN->getIncomingBlock(op));
+            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
+            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+            //TI->dump();
+            const BranchInst *BI = dyn_cast<BranchInst>(TI);
+            const char *trailch = "";
+            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
+              prepareOperand(BI->getCondition());
+              int cond_item = getLocalSlot(BI->getCondition());
+              sprintf(temp, "%s ?", slotarray[cond_item].name);
+              trailch = ":";
+              //prepareOperand(BI->getSuccessor(0));
+              //prepareOperand(BI->getSuccessor(1));
+              vout += temp;
+            }
+            if (slotarray[valuein].name)
+                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
+            else
+                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
+            vout += temp;
+        }
+        }
+        break;
+#endif
+    default:
+        return processCInstruction(thisp, I);
+        printf("Verilog Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        exit(1);
+        break;
+    }
+    return vout;
+}
+std::string processCInstruction(Function ***thisp, Instruction &I)
+{
+    std::string vout;
+    int opcode = I.getOpcode();
+//printf("[%s:%d] op %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), thisp);
+    switch(opcode) {
+    // Terminators
+    case Instruction::Ret:
+        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+            vout += "return ";
+            if (I.getNumOperands())
+                vout += printOperand(thisp, I.getOperand(0), false);
+        }
+        break;
+    case Instruction::Unreachable:
+        break;
+
+    // Standard binary operators...
+    case Instruction::Add: case Instruction::FAdd:
+    case Instruction::Sub: case Instruction::FSub:
+    case Instruction::Mul: case Instruction::FMul:
+    case Instruction::UDiv: case Instruction::SDiv: case Instruction::FDiv:
+    case Instruction::URem: case Instruction::SRem: case Instruction::FRem:
+    case Instruction::Shl: case Instruction::LShr: case Instruction::AShr:
+    // Logical operators...
+    case Instruction::And: case Instruction::Or: case Instruction::Xor:
+        assert(!I.getType()->isPointerTy());
+        if (BinaryOperator::isNeg(&I))
+            vout += "-(" + printOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+        else if (BinaryOperator::isFNeg(&I))
+            vout += "-(" + printOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+        else if (I.getOpcode() == Instruction::FRem) {
+            if (I.getType() == Type::getFloatTy(I.getContext()))
+                vout += "fmodf(";
+            else if (I.getType() == Type::getDoubleTy(I.getContext()))
+                vout += "fmod(";
+            else  // all 3 flavors of long double
+                vout += "fmodl(";
+            vout += printOperand(thisp, I.getOperand(0), false) + ", "
+                 + printOperand(thisp, I.getOperand(1), false) + ")";
+        } else
+            vout += printOperand(thisp, I.getOperand(0), false)
+                 + " " + intmapLookup(opcodeMap, I.getOpcode()) + " "
+                 + printOperand(thisp, I.getOperand(1), false);
+        break;
+
+    // Memory instructions...
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        std::string pdest = printOperand(thisp, IS.getPointerOperand(), true);
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        std::string sval = printOperand(thisp, Operand, false);
+        if (!strncmp(pdest.c_str(), "*((0x", 5)) {
+            char *endptr = NULL;
+            void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
+            std::string pname = mapAddress(pint);
+            if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
+                pdest = pname;
+        }
+        vout += pdest + " = ";
+        if (BitMask)
+          vout += "((";
+        void *valp = nameMap[sval.c_str()];
+//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
+        if (valp)
+            sval = mapAddress(valp);
+        vout += sval;
+        if (BitMask) {
+          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
+        }
+        break;
+        }
+
+    // Convert instructions...
+    case Instruction::SExt:
+    case Instruction::FPTrunc: case Instruction::FPExt:
+    case Instruction::FPToUI: case Instruction::FPToSI:
+    case Instruction::UIToFP: case Instruction::SIToFP:
+    case Instruction::IntToPtr: case Instruction::PtrToInt:
+    case Instruction::AddrSpaceCast:
+    case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
+        vout += fetchOperand(thisp, I.getOperand(0), false);
+        break;
+
+    // Other instructions...
+    case Instruction::ICmp: case Instruction::FCmp: {
+        ICmpInst &CI = static_cast<ICmpInst&>(I);
+        vout += printOperand(thisp, I.getOperand(0), false)
+             + " " + intmapLookup(predText, CI.getPredicate()) + " "
+             + printOperand(thisp, I.getOperand(1), false);
+        break;
+        }
+    case Instruction::Call: {
+        CallInst &ICL = static_cast<CallInst&>(I);
+        unsigned ArgNo = 0;
+        const char *sep = "";
+        Function *func = ICL.getCalledFunction();
+        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+        Value *Callee = ICL.getCalledValue();
+        CallSite CS(&I);
+        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+        std::string cthisp = fetchOperand(thisp, *AI, false);
+        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
+        std::string pcalledFunction = printOperand(thisp, Callee, false);
+//printf("[%s:%d] Call: p %s func %p thisp %p called_thisp %p\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), func, thisp, called_thisp);
+        if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
+            void *tval = mapLookup(pcalledFunction.c_str()+1);
+            if (tval) {
+                func = static_cast<Function *>(tval);
+                if (func)
+                    pcalledFunction = func->getName();
+                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
+            }
+        }
+        pushWork(func, called_thisp, 0);
+        int skip = regen_methods;
+        if (ClassMethodTable *CMT = functionIndex[func]) {
+            std::string pfirst = printOperand(thisp, *AI, false);
+            if (pfirst[0] == '&')
+                pfirst = pfirst.substr(1);
+            vout += pfirst + "." + CMT->method[func];
+            skip = 1;
+        }
+        else
+            vout += pcalledFunction;
+        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+        unsigned len = FTy->getNumParams();
+        ERRORIF(FTy->isVarArg() && !len);
+        vout += "(";
+        if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
+printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
+            skip = 0;
+        }
+        for (; AI != AE; ++AI, ++ArgNo) {
+            if (!skip) {
+                ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
+                vout += sep + printOperand(thisp, *AI, false);
+                sep = ", ";
+            }
+            skip = 0;
+        }
+        vout += ")";
+        break;
+        }
+    default:
+        printf("COther opcode %d.=%s\n", opcode, I.getOpcodeName());
+        exit(1);
+        break;
+    }
+    return vout;
+}
+/*
  * Pass control functions
  */
 std::string processInstruction(Function ***thisp, Instruction *ins)

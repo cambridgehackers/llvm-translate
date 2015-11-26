@@ -138,6 +138,7 @@ extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
+extern std::map<std::string,Type *> referencedItems;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);
