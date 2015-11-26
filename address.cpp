@@ -42,7 +42,7 @@ public:
     }
 };
 typedef struct {
-    int maxIndex;
+    unsigned int maxIndex;
     std::string *methods;
 } METHOD_INFO;
 
@@ -182,7 +182,7 @@ static void dumpMemoryRegions(int arg)
         i++;
     }
 }
-const Type *memoryType(void *p)
+static const Type *memoryType(void *p)
 {
     int i = 0;
 
@@ -376,27 +376,20 @@ void addressrunOnFunction(Function &F)
 
 int lookup_method(const char *classname, std::string methodname)
 {
+    const char *className, *methodName;
     METHOD_INFO *mInfo = classMethod[classname];
-//printf("[%s:%d] classname %s mInfo %p\n", __FUNCTION__, __LINE__, classname, mInfo);
     if (!mInfo)
         return -1;
-    for (int i = 0; i < mInfo->maxIndex; i++) {
-        const char *className, *methodName;
-//printf("[%s:%d] [%d] %s\n", __FUNCTION__, __LINE__, i, mInfo->methods[i].c_str());
-        if (getClassName(mInfo->methods[i].c_str(), &className, &methodName)) {
-//printf("[%s:%d] %s %s %s\n", __FUNCTION__, __LINE__, methodname.c_str(), className, methodName);
-            if (methodname == methodName)
-                return i;
-        }
-    }
+    for (unsigned int i = 0; i < mInfo->maxIndex; i++)
+        if (getClassName(mInfo->methods[i].c_str(), &className, &methodName) && methodname == methodName)
+            return i;
     return -1;
 }
 std::string lookupMethod(const StructType *STy, uint64_t ind)
 {
     std::string sname = STy->getName();
     METHOD_INFO *mInfo = classMethod[sname];
-//printf("[%s:%d] sname %s mInfo %p\n", __FUNCTION__, __LINE__, sname.c_str(), mInfo);
-    if (mInfo)
+    if (mInfo && ind < mInfo->maxIndex)
         return mInfo->methods[ind];
     return NULL;
 }
@@ -409,66 +402,45 @@ void constructAddressMap(Module *Mod)
 {
     mapitem.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
+        const ConstantArray *CA;
         std::string name = MI->getName();
-        int status;
-        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         Type *Ty = MI->getType()->getElementType();
         void *addr = EE->getPointerToGlobal(MI);
-        if (ret && !strncmp(ret, "vtable for ", 11)) {
+        int status;
+        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
+        if (ret && !strncmp(ret, "vtable for ", 11)
+         && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
             const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
-            printf("[%s:%d] global %s ret %s %d\n", __FUNCTION__, __LINE__, name.c_str(), ret, Ty->getElementType()->getTypeID());
-            const ConstantArray *CA;
+            const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
+            printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
             METHOD_INFO *mInfo = NULL;
-            //Ty->dump();
-            if (MI->hasInitializer() && 
-//Ty->getElementType()->getTypeID() == Type::ArrayTyID
-                (CA = dyn_cast<ConstantArray>(MI->getInitializer()))
-) {
-                for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
-                    if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI))) {
-                        if (vinit->getOpcode() == Instruction::BitCast) {
-                            const Value *opval = vinit->getOperand(0);
-                            if (const Function *func = dyn_cast<Function>(opval)) {
-                                const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType());
-                                const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
-                                std::string fname = func->getName();
-                                std::string sname = STy->getName();
-                                if (!mInfo) {
-                                    mInfo = new METHOD_INFO;
-                                    mInfo->maxIndex = 0;
-                                    mInfo->methods = new std::string[20];
-                                    classMethod[sname] = mInfo;
-                                }
-                                mInfo->methods[mInfo->maxIndex++] = fname;
+            int numberMethods = ATy->getNumElements();
+            for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
+                if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI))) {
+                    if (vinit->getOpcode() == Instruction::BitCast) {
+                        if (const Function *func = dyn_cast<Function>(vinit->getOperand(0))) {
+                            const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType());
+                            const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
+                            std::string fname = func->getName();
+                            std::string sname = STy->getName();
+                            if (!mInfo) {
+                                mInfo = new METHOD_INFO;
+                                mInfo->maxIndex = 0;
+                                mInfo->methods = new std::string[numberMethods];
+                                classMethod[sname] = mInfo;
                             }
+                            mInfo->methods[mInfo->maxIndex++] = fname;
                         }
                     }
                 }
             }
-            continue;
         }
-        if ((name.length() < 4 || name.substr(0,4) != ".str")
+        else if ((name.length() < 4 || name.substr(0,4) != ".str")
          && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
             addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType());
-            setMapAddress(addr, name);
             mapType((char *)addr, Ty, name);
         }
     }
     //if (trace_mapt)
         dumpMemoryRegions(4010);
 }
-#if 0
-  TypeFinder StructTypes;
-  StructTypes.run(*Mod, true);
-  for (StructType *STy : StructTypes) {
-    if (!STy->isOpaque()) {
-        std::string name = STy->getName().str();
-printf("[%s:%d] nonopaque %s\n", __FUNCTION__, __LINE__, name.c_str());
-        STy->dump();
-        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//(*I)->dump();
-        }
-    }
-  }
-#endif
