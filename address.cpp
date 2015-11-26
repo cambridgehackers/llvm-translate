@@ -89,15 +89,6 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
     return ptr;
 }
 
-#if 0
-int refCou(Value *OpV)
-{
-int ret = 0;
-for (auto JJ = OpV->use_begin(); JJ != OpV->use_end(); JJ++)
-    ret++;
-return ret;
-}
-#endif
 Function *lookup_function(std::string className, std::string methodName)
 {
     //printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
@@ -253,27 +244,6 @@ void *mapLookup(std::string name)
     return maplookup[name];
 }
 
-std::string getVtableName(void *addr_target)
-{
-    if (const GlobalValue *g = EE->getGlobalValueAtAddress(((uint64_t *)addr_target)-MAGIC_VTABLE_OFFSET)) {
-        int status;
-        std::string name = g->getName();
-        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
-        if (ret && !strncmp(ret, "vtable for ", 11)) {
-Type *Ty = g->getType();
-printf("[%s:%d] %d \n", __FUNCTION__, __LINE__, Ty->getTypeID());
-Ty->dump();
-            if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
-                Type *newel = PTy->getElementType();
-printf("[%s:%d] newel %d\n", __FUNCTION__, __LINE__, newel->getTypeID());
-newel->dump();
-            }
-            return "class." + std::string(ret+11);
-        }
-    }
-    return "";
-}
-
 static int checkDerived(const Type *A, const Type *B)
 {
     if (const PointerType *PTyA = cast<PointerType>(A))
@@ -281,7 +251,7 @@ static int checkDerived(const Type *A, const Type *B)
     if (const StructType *STyA = dyn_cast<StructType>(PTyA->getElementType()))
     if (const StructType *STyB = dyn_cast<StructType>(PTyB->getElementType())) {
         int Idx = 0;
-        for (StructType::element_iterator I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
+        for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
             if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB) {
 printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
                 STyA->dump();
@@ -308,7 +278,7 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
         StructType *STy = cast<StructType>(Ty);
         const StructLayout *SLO = TD->getStructLayout(STy);
         int Idx = 0;
-        for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             char *eaddr = addr + SLO->getElementOffset(Idx);
             Type *element = *I;
@@ -414,7 +384,6 @@ void constructAddressMap(Module *Mod)
             const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
             printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
             METHOD_INFO *mInfo = NULL;
-            int numberMethods = ATy->getNumElements();
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI))) {
                     if (vinit->getOpcode() == Instruction::BitCast) {
@@ -426,7 +395,7 @@ void constructAddressMap(Module *Mod)
                             if (!mInfo) {
                                 mInfo = new METHOD_INFO;
                                 mInfo->maxIndex = 0;
-                                mInfo->methods = new std::string[numberMethods];
+                                mInfo->methods = new std::string[ATy->getNumElements()];
                                 classMethod[sname] = mInfo;
                             }
                             mInfo->methods[mInfo->maxIndex++] = fname;

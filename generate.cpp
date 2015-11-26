@@ -808,10 +808,10 @@ std::string processInstruction(Function ***thisp, Instruction &I)
         unsigned len = FTy->getNumParams();
         ERRORIF(FTy->isVarArg() && !len);
         void *pact = mapLookup(pcalledFunction.c_str());
-
-        if (generateRegion == ProcessHoist) {
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
         ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
+
+        if (generateRegion == ProcessHoist) {
         if (getClassName(globalName.c_str(), &className, &methodName)) {
             parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
             //parentENAName = lookup_method(temp, "ENA");
@@ -926,7 +926,6 @@ std::string processInstruction(Function ***thisp, Instruction &I)
                 if (prefix != "")
                     vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
                 else {
-                    ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                     sep = ", ";
                 }
                 vout += p;
@@ -946,12 +945,11 @@ std::string processInstruction(Function ***thisp, Instruction &I)
             vout += pcalledFunction;
         vout += "(";
         if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
-printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
+            printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
             skip = 0;
         }
         for (; AI != AE; ++AI, ++ArgNo) {
             if (!skip) {
-                ERRORIF (ArgNo < len && (*AI)->getType() != FTy->getParamType(ArgNo));
                 vout += sep + printOperand(thisp, *AI, false);
                 sep = ", ";
             }
