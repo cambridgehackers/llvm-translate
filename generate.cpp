@@ -44,7 +44,6 @@ std::map<std::string,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
-std::list<RULE_PAIR> ruleList;
 static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
@@ -279,7 +278,7 @@ static std::string printTypeCpp(const Type *Ty, bool isSigned, std::string NameS
     case Type::FunctionTyID: {
         const FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
-        for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
+        for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
             tstr += printTypeCpp(*I, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
@@ -349,7 +348,7 @@ static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string N
     case Type::FunctionTyID: {
         const FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
-        for (FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
+        for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
             tstr += printTypeVerilog(*I, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
@@ -407,7 +406,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
         tstr += GetValueName(F);
     tstr += '(';
     if (F->isDeclaration()) {
-        for (FunctionType::param_iterator I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
+        for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
             if (!skip) {
                 tstr += printType(*I, /*isSigned=*/false, "", sep, "");
                 sep = ", ";
@@ -415,7 +414,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
             skip = 0;
         }
     } else if (!F->arg_empty()) {
-        for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+        for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
             if (!skip) {
                 std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
                 tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
@@ -453,7 +452,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
        referstr = referstr.substr(1, referstr.length() - 2).c_str();
 
-    for (gep_type_iterator TmpI = I; TmpI != E; ++TmpI) {
+    for (auto TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
         if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
             const StructLayout *SLO = TD->getStructLayout(STy);
@@ -1065,7 +1064,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
     }
 #if 0
     /* connect up argument formal param names with actual values */
-    for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         int slotindex = getLocalSlot(AI);
         ERRORIF (AI->hasByValAttr());
         (AI->getName().str().c_str());
@@ -1160,15 +1159,12 @@ void pushWork(Function *func, Function ***thisp, int skip)
  */
 static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
-    ruleList.clear();
     //structWork.clear();
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
-        RULE_PAIR p = {info->RDY, info->ENA};
-        pushWork(p.RDY, (Function ***)info->thisp, 1);
-        pushWork(p.ENA, (Function ***)info->thisp, 1);
-        ruleList.push_back(p);
+        pushWork(info->RDY, (Function ***)info->thisp, 1);
+        pushWork(info->ENA, (Function ***)info->thisp, 1);
     }
 
     // Walk list of work items, generating code
@@ -1190,12 +1186,12 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
         const StructType *STy = dyn_cast<StructType>(Ty);
         std::string name;
         structMap[Ty] = 1;
-        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
+        for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir);
         if (STy) {
             if (STy->getName() == "class.Module")
                 return;  // just a dummy class
-            for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
                 printContainedStructs(*I, OStr, ODir);
             if (generateRegion == ProcessVerilog)
                 generateModuleDef(STy, ODir);

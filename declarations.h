@@ -65,11 +65,6 @@ typedef struct {
 } INTMAP_TYPE;
 
 typedef struct {
-    Function *RDY;
-    Function *ENA;
-} RULE_PAIR;
-
-typedef struct {
     const void *addr;
     const void *type;
 } MAPSEEN_TYPE;
@@ -134,7 +129,6 @@ extern int regen_methods;
 extern unsigned NextTypeID;
 extern int generateRegion;
 extern Module *globalMod;
-extern std::list<RULE_PAIR> ruleList;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::list<RULE_INFO *> ruleInfo;
