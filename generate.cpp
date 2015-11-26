@@ -639,6 +639,198 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
     }
     return p;
 }
+
+std::string printCall(Function ***thisp, Instruction &I)
+{
+    std::string vout;
+    int RDYName = -1, ENAName = -1;
+    Function *parentRDYName = NULL, *parentENAName = NULL;
+    std::string fname;
+    const StructType *STy;
+    const char *className, *methodName;
+    CallInst &ICL = static_cast<CallInst&>(I);
+    unsigned ArgNo = 0;
+    const char *sep = "";
+    Function *func = ICL.getCalledFunction();
+    ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+    ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+    Value *Callee = ICL.getCalledValue();
+    CallSite CS(&I);
+    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+    std::string cthisp = fetchOperand(thisp, *AI, false);
+    Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
+    std::string pcalledFunction = printOperand(thisp, Callee, false);
+    if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
+        void *tval = mapLookup(pcalledFunction.c_str()+1);
+        if (tval) {
+            func = static_cast<Function *>(tval);
+            if (func)
+                pcalledFunction = func->getName();
+            //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
+        }
+    }
+    pushWork(func, called_thisp, 0);
+    int skip = regen_methods;
+    int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
+    std::string prefix;
+    PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
+    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+    unsigned len = FTy->getNumParams();
+    ERRORIF(FTy->isVarArg() && !len);
+    void *pact = mapLookup(pcalledFunction.c_str());
+    ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+    ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
+
+    if (generateRegion == ProcessHoist) {
+    if (getClassName(globalName.c_str(), &className, &methodName)) {
+        parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
+        //parentENAName = lookup_method(temp, "ENA");
+    }
+    if (trace_hoist)
+        printf("HOIST: CALLER %s[%s, %s] pRDY %p pENA %p thisp %p func %p pcalledFunction '%s' = %p\n", globalName.c_str(), className, methodName, parentRDYName, parentENAName, thisp, func, pcalledFunction.c_str(), pact);
+    if (!func)
+        func = static_cast<Function *>(pact);
+    if (!func) {
+        printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        return "";
+    }
+    fname = func->getName();
+    if (trace_hoist)
+        printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
+    if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
+        cloneVmap.clear();
+        /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+        Function *F = I.getParent()->getParent();
+        Module *Mod = F->getParent();
+        std::string Fname = F->getName().str();
+        std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
+        Function *otherBody = Mod->getFunction(otherName);
+        TerminatorInst *TI = otherBody->begin()->getTerminator();
+        prepareClone(TI, &I);
+        Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+        Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+        Instruction *newIC = cloneTree(IC, TI);
+        Instruction *newIT = cloneTree(IT, TI);
+        printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+        IRBuilder<> builder(TI->getParent());
+        builder.SetInsertPoint(TI);
+        builder.CreateStore(newIC, newIT);
+        IRBuilder<> oldbuilder(I.getParent());
+        oldbuilder.SetInsertPoint(&I);
+        Value *newLoad = oldbuilder.CreateLoad(IT);
+        I.replaceAllUsesWith(newLoad);
+        I.eraseFromParent();
+        return "";
+    }
+    if ((STy = findThisArgument(func))
+     && getClassName(fname.c_str(), &className, &methodName)) {
+        std::string tname = STy->getName();
+        char tempname[1000];
+        strcpy(tempname, methodName);
+        strcat(tempname, "__RDY");
+        RDYName = lookup_method(tname.c_str(), tempname);
+        if (trace_hoist)
+            printf("HOIST:    RDYName %d RDYLOOK %s %s class %s ENAName %d\n", RDYName, methodName, tempname, tname.c_str(), ENAName);
+    }
+    if (RDYName >= 0 && parentRDYName) {
+        TerminatorInst *TI = parentRDYName->begin()->getTerminator();
+        Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
+        if (CallInst *nc = dyn_cast<CallInst>(newI))
+            nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+        Value *cond = TI->getOperand(0);
+        const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+        if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+            TI->setOperand(0, newI);
+        else {
+            // 'And' return value into condition
+            Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+            cond->replaceAllUsesWith(newBool);
+            // we must set this after the 'replaceAllUsesWith'
+            newBool->setOperand(0, cond);
+        }
+    }
+    if (parentENAName) {
+        TerminatorInst *TI = parentENAName->begin()->getTerminator();
+        if (ENAName >= 0)
+            copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
+        else if (I.use_empty()) {
+            copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
+            I.eraseFromParent(); // delete "Call" instruction
+        }
+    }
+    if (cthisp == "Vthis") {
+        printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
+        fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
+        ICL.dump();
+        I.dump();
+        I.getOperand(0)->dump();
+        InlineFunctionInfo IFI;
+        InlineFunction(&ICL, IFI, false);
+    }
+    }
+    else if (generateRegion == ProcessVerilog) {
+    if (ClassMethodTable *CMT = functionIndex[func]) {
+        pcalledFunction = printOperand(thisp, *AI, false);
+        if (pcalledFunction[0] == '&')
+            pcalledFunction = pcalledFunction.substr(1);
+        std::string pnew = pcalledFunction;
+        referencedItems[pnew] = func->getType();
+        prefix = pcalledFunction + CMT->method[func];
+        vout += prefix;
+        if (!hasRet)
+            vout += "__ENA = 1";
+        skip = 1;
+    }
+    else {
+        vout += pcalledFunction;
+        if (regen_methods)
+            return vout;
+    }
+    if (prefix == "")
+        vout += "(";
+    Function::const_arg_iterator FAI = func->arg_begin();
+    for (; AI != AE; ++AI, ++ArgNo, FAI++) {
+        if (!skip) {
+            vout += sep;
+            std::string p = printOperand(thisp, *AI, false);
+            if (prefix != "")
+                vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
+            else {
+                sep = ", ";
+            }
+            vout += p;
+        }
+        skip = 0;
+    }
+    }
+    else {
+    if (ClassMethodTable *CMT = functionIndex[func]) {
+        std::string pfirst = printOperand(thisp, *AI, false);
+        if (pfirst[0] == '&')
+            pfirst = pfirst.substr(1);
+        vout += pfirst + "." + CMT->method[func];
+        skip = 1;
+    }
+    else
+        vout += pcalledFunction;
+    vout += "(";
+    if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
+        printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
+        skip = 0;
+    }
+    for (; AI != AE; ++AI, ++ArgNo) {
+        if (!skip) {
+            vout += sep + printOperand(thisp, *AI, false);
+            sep = ", ";
+        }
+        skip = 0;
+    }
+    }
+    if (prefix == "")
+        vout += ")";
+    return vout;
+}
+
 /*
  * Output instructions
  */
@@ -730,26 +922,19 @@ std::string processInstruction(Function ***thisp, Instruction &I)
             pdest = pdest.substr(1, pdest.length() -2);
         if (generateRegion == ProcessHoist)
             break;
-        if (generateRegion == ProcessVerilog) {
-        vout += pdest + " <= ";
+        if (generateRegion == ProcessVerilog)
+            vout += pdest + " <= ";
+        else
+            vout += pdest + " = ";
         if (BitMask)
-          vout += "((";
-//printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval, nameMap[sval]);
-        if (void *temp = nameMap[sval])
-            sval = mapAddress(temp);
-        }
-        else {
-        vout += pdest + " = ";
-        if (BitMask)
-          vout += "((";
-        void *valp = nameMap[sval.c_str()];
+            vout += "((";
+        void *valp = nameMap[sval];
 //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
         if (valp)
             sval = mapAddress(valp);
-        }
         vout += sval;
         if (BitMask)
-          vout += ") & " + printOperand(thisp, BitMask, false) + ")";
+            vout += ") & " + printOperand(thisp, BitMask, false) + ")";
         break;
         }
 
@@ -772,194 +957,9 @@ std::string processInstruction(Function ***thisp, Instruction &I)
              + printOperand(thisp, I.getOperand(1), false);
         break;
         }
-    case Instruction::Call: {
-        int RDYName = -1, ENAName = -1;
-        Function *parentRDYName = NULL, *parentENAName = NULL;
-        std::string fname;
-        const StructType *STy;
-        const char *className, *methodName;
-        CallInst &ICL = static_cast<CallInst&>(I);
-        unsigned ArgNo = 0;
-        const char *sep = "";
-        Function *func = ICL.getCalledFunction();
-        ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
-        ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
-        Value *Callee = ICL.getCalledValue();
-        CallSite CS(&I);
-        CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-        std::string cthisp = fetchOperand(thisp, *AI, false);
-        Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
-        std::string pcalledFunction = printOperand(thisp, Callee, false);
-        if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-            void *tval = mapLookup(pcalledFunction.c_str()+1);
-            if (tval) {
-                func = static_cast<Function *>(tval);
-                if (func)
-                    pcalledFunction = func->getName();
-                //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
-            }
-        }
-        pushWork(func, called_thisp, 0);
-        int skip = regen_methods;
-        int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        std::string prefix;
-        PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
-        FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-        unsigned len = FTy->getNumParams();
-        ERRORIF(FTy->isVarArg() && !len);
-        void *pact = mapLookup(pcalledFunction.c_str());
-        ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-        ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
-
-        if (generateRegion == ProcessHoist) {
-        if (getClassName(globalName.c_str(), &className, &methodName)) {
-            parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
-            //parentENAName = lookup_method(temp, "ENA");
-        }
-        if (trace_hoist)
-            printf("HOIST: CALLER %s[%s, %s] pRDY %p pENA %p thisp %p func %p pcalledFunction '%s' = %p\n", globalName.c_str(), className, methodName, parentRDYName, parentENAName, thisp, func, pcalledFunction.c_str(), pact);
-        if (!func)
-            func = static_cast<Function *>(pact);
-        if (!func) {
-            printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-            break;
-        }
-        fname = func->getName();
-        if (trace_hoist)
-            printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
-        if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
-            cloneVmap.clear();
-            /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-            Function *F = I.getParent()->getParent();
-            Module *Mod = F->getParent();
-            std::string Fname = F->getName().str();
-            std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
-            Function *otherBody = Mod->getFunction(otherName);
-            TerminatorInst *TI = otherBody->begin()->getTerminator();
-            prepareClone(TI, &I);
-            Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
-            Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-            Instruction *newIC = cloneTree(IC, TI);
-            Instruction *newIT = cloneTree(IT, TI);
-            printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
-            IRBuilder<> builder(TI->getParent());
-            builder.SetInsertPoint(TI);
-            builder.CreateStore(newIC, newIT);
-            IRBuilder<> oldbuilder(I.getParent());
-            oldbuilder.SetInsertPoint(&I);
-            Value *newLoad = oldbuilder.CreateLoad(IT);
-            I.replaceAllUsesWith(newLoad);
-            I.eraseFromParent();
-            break;
-        }
-        if ((STy = findThisArgument(func))
-         && getClassName(fname.c_str(), &className, &methodName)) {
-            std::string tname = STy->getName();
-            char tempname[1000];
-            strcpy(tempname, methodName);
-            strcat(tempname, "__RDY");
-            RDYName = lookup_method(tname.c_str(), tempname);
-            if (trace_hoist)
-                printf("HOIST:    RDYName %d RDYLOOK %s %s class %s ENAName %d\n", RDYName, methodName, tempname, tname.c_str(), ENAName);
-        }
-        if (RDYName >= 0 && parentRDYName) {
-            TerminatorInst *TI = parentRDYName->begin()->getTerminator();
-            Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
-            if (CallInst *nc = dyn_cast<CallInst>(newI))
-                nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
-            Value *cond = TI->getOperand(0);
-            const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
-            if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-                TI->setOperand(0, newI);
-            else {
-                // 'And' return value into condition
-                Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-                cond->replaceAllUsesWith(newBool);
-                // we must set this after the 'replaceAllUsesWith'
-                newBool->setOperand(0, cond);
-            }
-        }
-        if (parentENAName) {
-            TerminatorInst *TI = parentENAName->begin()->getTerminator();
-            if (ENAName >= 0)
-                copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
-            else if (I.use_empty()) {
-                copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
-                I.eraseFromParent(); // delete "Call" instruction
-            }
-        }
-        if (cthisp == "Vthis") {
-            printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
-            fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
-            ICL.dump();
-            I.dump();
-            I.getOperand(0)->dump();
-            InlineFunctionInfo IFI;
-            InlineFunction(&ICL, IFI, false);
-        }
-        }
-        else if (generateRegion == ProcessVerilog) {
-        if (ClassMethodTable *CMT = functionIndex[func]) {
-            pcalledFunction = printOperand(thisp, *AI, false);
-            if (pcalledFunction[0] == '&')
-                pcalledFunction = pcalledFunction.substr(1);
-            std::string pnew = pcalledFunction;
-            referencedItems[pnew] = func->getType();
-            prefix = pcalledFunction + CMT->method[func];
-            vout += prefix;
-            if (!hasRet)
-                vout += "__ENA = 1";
-            skip = 1;
-        }
-        else {
-            vout += pcalledFunction;
-            if (regen_methods)
-                break;
-        }
-        if (prefix == "")
-            vout += "(";
-        Function::const_arg_iterator FAI = func->arg_begin();
-        for (; AI != AE; ++AI, ++ArgNo, FAI++) {
-            if (!skip) {
-                vout += sep;
-                std::string p = printOperand(thisp, *AI, false);
-                if (prefix != "")
-                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
-                else {
-                    sep = ", ";
-                }
-                vout += p;
-            }
-            skip = 0;
-        }
-        }
-        else {
-        if (ClassMethodTable *CMT = functionIndex[func]) {
-            std::string pfirst = printOperand(thisp, *AI, false);
-            if (pfirst[0] == '&')
-                pfirst = pfirst.substr(1);
-            vout += pfirst + "." + CMT->method[func];
-            skip = 1;
-        }
-        else
-            vout += pcalledFunction;
-        vout += "(";
-        if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
-            printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
-            skip = 0;
-        }
-        for (; AI != AE; ++AI, ++ArgNo) {
-            if (!skip) {
-                vout += sep + printOperand(thisp, *AI, false);
-                sep = ", ";
-            }
-            skip = 0;
-        }
-        }
-        if (prefix == "")
-            vout += ")";
+    case Instruction::Call:
+        vout += printCall(thisp, I);
         break;
-        }
 #if 0
     case Instruction::Br:
         {
