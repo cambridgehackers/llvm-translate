@@ -302,6 +302,7 @@ static void mapType(char *addr, Type *Ty, std::string aname)
 printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
+    setMapAddress(addr, aname);
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
