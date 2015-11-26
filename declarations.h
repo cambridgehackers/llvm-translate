@@ -141,6 +141,7 @@ extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::map<std::string,Type *> referencedItems;
+extern std::map<const Value *, Value *> cloneVmap;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);
@@ -154,7 +155,6 @@ int getClassName(const char *name, const char **className, const char **methodNa
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
-std::string calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
 void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 std::string processCInstruction(Function ***thisp, Instruction &I);
@@ -192,3 +192,6 @@ void addressrunOnFunction(Function &F);
 void recursiveDelete(Value *V);
 Function *lookup_function(std::string className, std::string methodName);
 int inheritsModule(const StructType *STy);
+Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType);
+Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
+void prepareClone(Instruction *TI, const Instruction *I);
