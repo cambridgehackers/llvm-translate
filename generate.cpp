@@ -566,7 +566,7 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
     if (isAddressImplicit)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
-        std::string p = processInstruction(thisp, I);
+        std::string p = processInstruction(thisp, *I);
         if (p[0] == '(' && p[p.length()-1] == ')')
             p = p.substr(1,p.length()-2);
         if (prefix == "*" && p[0] == '&') {
@@ -642,12 +642,27 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 /*
  * Output instructions
  */
-static std::string processCInstruction(Function ***thisp, Instruction &I)
+std::string processInstruction(Function ***thisp, Instruction &I)
 {
     std::string vout;
     int opcode = I.getOpcode();
 //printf("[%s:%d] op %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), thisp);
     switch(opcode) {
+    case Instruction::GetElementPtr: {
+        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
+        return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
+        }
+    case Instruction::Load: {
+        LoadInst &IL = static_cast<LoadInst&>(I);
+        ERRORIF (IL.isVolatile());
+        return fetchOperand(thisp, I.getOperand(0), true);
+        }
+    case Instruction::Alloca: // ignore
+        if (generateRegion == ProcessCPP) {
+            if (const AllocaInst *AI = isDirectAlloca(&I))
+              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
+        }
+        break;
     // Terminators
     case Instruction::Ret:
         if (generateRegion == ProcessHoist)
@@ -1019,30 +1034,6 @@ printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
     }
     return vout;
 }
-/*
- * Pass control functions
- */
-std::string processInstruction(Function ***thisp, Instruction *ins)
-{
-    switch (ins->getOpcode()) {
-    case Instruction::GetElementPtr: {
-        GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(*ins);
-        return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
-        }
-    case Instruction::Load: {
-        LoadInst &IL = static_cast<LoadInst&>(*ins);
-        ERRORIF (IL.isVolatile());
-        return fetchOperand(thisp, ins->getOperand(0), true);
-        }
-    case Instruction::Alloca: // ignore
-        if (generateRegion == ProcessCPP) {
-            if (const AllocaInst *AI = isDirectAlloca(&*ins))
-              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-        }
-        break;
-    }
-    return processCInstruction(thisp, *ins);
-}
 
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
@@ -1111,7 +1102,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-                std::string vout = processInstruction(work.thisp, ins);
+                std::string vout = processInstruction(work.thisp, *ins);
                 if (vout != "") {
                     if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {

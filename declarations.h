@@ -173,7 +173,7 @@ std::string CBEMangle(const std::string &S);
 const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(Function *func);
 
-std::string processInstruction(Function ***thisp, Instruction *ins);
+std::string processInstruction(Function ***thisp, Instruction &I);
 void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName);
 void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
