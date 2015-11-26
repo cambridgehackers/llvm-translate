@@ -235,7 +235,7 @@ std::string GetValueName(const Value *Operand)
             VarName += buffer;
         }
     }
-    if (generateRegion == 1 && VarName != "this")
+    if (generateRegion == ProcessVerilog && VarName != "this")
         return globalName + "_" + VarName;
     if (regen_methods)
         return VarName;
@@ -386,7 +386,7 @@ static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string N
 }
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
 {
-    if (generateRegion == 1)
+    if (generateRegion == ProcessVerilog)
         return printTypeVerilog(Ty, isSigned, NameSoFar, prefix, postfix, false);
     else
         return printTypeCpp(Ty, isSigned, NameSoFar, prefix, postfix, false);
@@ -485,7 +485,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         referstr = "(" + referstr + ").";
         if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
             referstr = "";
-        referstr += CBEMangle(generateRegion == 0 ? lname : name);
+        referstr += CBEMangle(generateRegion == ProcessHoist ? lname : name);
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
@@ -1014,16 +1014,16 @@ std::string processInstruction(Function ***thisp, Instruction *ins)
         return fetchOperand(thisp, ins->getOperand(0), true);
         }
     case Instruction::Alloca: // ignore
-        if (generateRegion == 2) {
+        if (generateRegion == ProcessCPP) {
             if (const AllocaInst *AI = isDirectAlloca(&*ins))
               return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
         }
         break;
     }
-    if (generateRegion == 2)
+    if (generateRegion == ProcessCPP)
         return processCInstruction(thisp, *ins);
     else
-        return generateRegion ? generateVerilog(thisp, *ins)
+        return generateRegion != ProcessHoist ? generateVerilog(thisp, *ins)
                         : calculateGuardUpdate(thisp, *ins);
 }
 
@@ -1053,7 +1053,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
     //printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
-    if (generateRegion == 1 && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
+    if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
@@ -1071,7 +1071,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
     }
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    if (generateRegion == 2) {
+    if (generateRegion == ProcessCPP) {
         int status;
         const char *demang = abi::__cxa_demangle(globalName.c_str(), 0, 0, &status);
         if (!regenItem && ((demang && strstr(demang, "::~"))
@@ -1092,7 +1092,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 
             BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
             if (!isInlinableInst(*ins)) {
-                if (trace_translate && generateRegion == 2)
+                if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
                 std::string vout = processInstruction(work.thisp, ins);
                 if (vout != "") {
@@ -1106,7 +1106,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
                             nameMap[name] = tval;
                     }
                     fprintf(outputFile, "    ");
-                    if (generateRegion == 2) {
+                    if (generateRegion == ProcessCPP) {
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                          && ins->use_begin() != ins->use_end())
                             fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = ").c_str());
@@ -1129,7 +1129,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
     }
     if (hasGuard)
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
-    if (generateRegion == 2)
+    if (generateRegion == ProcessCPP)
         fprintf(outputFile, "}\n");
     else if (!regenItem)
         fprintf(outputFile, "\n");
@@ -1196,9 +1196,9 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
                 return;  // just a dummy class
             for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
                 printContainedStructs(*I, OStr, ODir);
-            if (generateRegion == 1)
+            if (generateRegion == ProcessVerilog)
                 generateModuleDef(STy, ODir);
-            else if (generateRegion == 2)
+            else if (generateRegion == ProcessCPP)
                 generateClassBody(STy, OStr);
             else
                 generateClassDef(STy, OStr);
@@ -1259,11 +1259,11 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
-    generateRegion = 0;
+    generateRegion = ProcessHoist;
     processRules(OutNull, OutNull, OutNull);
 
     // Generate verilog for all rules
-    generateRegion = 1;
+    generateRegion = ProcessVerilog;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
     processRules(OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
@@ -1271,12 +1271,12 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateVerilogHeader(*Mod, OutVInstance, OutNull);
 
     // Generate cpp code for all rules
-    generateRegion = 2;
+    generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
     processRules(Out, OutNull, OutHeader);
     UnnamedStructIDs.clear();
     generateStructs(Out, ""); // generate class method bodies
-    generateRegion = 3;
+    generateRegion = ProcessClass;
     generateStructs(OutHeader, ""); // generate class definitions
     return false;
 }
