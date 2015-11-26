@@ -155,7 +155,6 @@ std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
 std::string calculateGuardUpdate(Function ***parent_thisp, Instruction &I);
-std::string generateVerilog(Function ***thisp, Instruction &I);
 void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 std::string processCInstruction(Function ***thisp, Instruction &I);

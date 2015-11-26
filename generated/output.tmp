@@ -44,11 +44,11 @@ bool l_class_OC_Fifo1::enq__RDY(void) {
         return ((full) ^ 1);
 }
 void l_class_OC_Fifo1::enq(unsigned int v) {
-        (element) = v;
-        (full) = 1;
+        element = v;
+        full = 1;
 }
 void l_class_OC_Fifo1::deq(void) {
-        (full) = 0;
+        full = 0;
 }
 bool l_class_OC_Fifo1::first__RDY(void) {
         return (full);
