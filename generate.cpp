@@ -1205,7 +1205,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         printf("'main' function not found in module.\n");
         exit(1);
     }
-    generateRegion = ProcessHoist;
+    generateRegion = ProcessNone;
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
@@ -1218,6 +1218,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     constructAddressMap(Mod);
     //dump_class_data();
 
+    generateRegion = ProcessHoist;
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 
