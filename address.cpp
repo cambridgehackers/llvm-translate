@@ -325,12 +325,11 @@ void addressrunOnFunction(Function &F)
 
 int lookup_method(const char *classname, std::string methodname)
 {
-    const char *className, *methodName;
     METHOD_INFO *mInfo = classMethod[classname];
     if (!mInfo)
         return -1;
     for (unsigned int i = 0; i < mInfo->maxIndex; i++)
-        if (getClassName(mInfo->methods[i].c_str(), &className, &methodName) && methodname == methodName)
+        if (getMethodName(mInfo->methods[i]) == methodname)
             return i;
     return -1;
 }

@@ -189,3 +189,4 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
 Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
 void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);
+std::string getMethodName(std::string name);

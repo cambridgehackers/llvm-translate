@@ -91,13 +91,9 @@ void generateClassDef(const StructType *STy, FILE *OStr)
         printf("ELEMENT: TOP %s\n", name.c_str());
     generateClassElements(STy, OStr);
     if (ClassMethodTable *table = classCreate[name])
-        for (auto FI : table->method) {
-            Function *func = FI.first;
-            std::string fname = func->getName();
-            const char *className, *methodName;
-            getClassName(fname.c_str(), &className, &methodName);
-            fprintf(OStr, "  %s", printFunctionSignature(func, methodName, false, ";\n", 1).c_str());
-        }
+        for (auto FI : table->method)
+            fprintf(OStr, "  %s", printFunctionSignature(FI.first,
+                getMethodName(FI.first->getName()), false, ";\n", 1).c_str());
     if (hasRun(STy, 1))
         fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");

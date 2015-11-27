@@ -439,10 +439,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         std::string lname = lookupMethod(STy, Total/sizeof(void *));
-        std::string name;
-        const char *className, *methodName;
-        if (getClassName(lname.c_str(), &className, &methodName))
-            name = methodName;
+        std::string name = getMethodName(lname);
         //if (trace_gep)
             printf("%s: STy %s thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
                 STy->getName().str().c_str(), thisp, referstr.c_str(), name.c_str(), lname.c_str());
@@ -602,12 +599,13 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 
 std::string printCall(Function ***thisp, Instruction &I)
 {
+    std::string methodString;
     std::string vout;
     int RDYName = -1, ENAName = -1;
     Function *parentRDYName = NULL, *parentENAName = NULL;
     std::string fname;
     const StructType *STy;
-    const char *className, *methodName;
+    std::string methodName;
     CallInst &ICL = static_cast<CallInst&>(I);
     unsigned ArgNo = 0;
     const char *sep = "";
@@ -640,6 +638,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
 
     if (generateRegion == ProcessHoist) {
+    const char *className, *methodName;
     if (getClassName(globalName.c_str(), &className, &methodName)) {
         parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
         //parentENAName = lookup_method(temp, "ENA");
@@ -681,14 +680,11 @@ std::string printCall(Function ***thisp, Instruction &I)
         return "";
     }
     if ((STy = findThisArgument(func))
-     && getClassName(fname.c_str(), &className, &methodName)) {
+     && (methodString = getMethodName(fname)) != "") {
         std::string tname = STy->getName();
-        char tempname[1000];
-        strcpy(tempname, methodName);
-        strcat(tempname, "__RDY");
-        RDYName = lookup_method(tname.c_str(), tempname);
+        RDYName = lookup_method(tname.c_str(), (methodString + "__RDY").c_str());
         if (trace_hoist)
-            printf("HOIST:    RDYName %d RDYLOOK %s %s class %s ENAName %d\n", RDYName, methodName, tempname, tname.c_str(), ENAName);
+            printf("HOIST:    RDYName %d RDYLOOK %s class %s ENAName %d\n", RDYName, methodString.c_str(), tname.c_str(), ENAName);
     }
     if (RDYName >= 0 && parentRDYName) {
         TerminatorInst *TI = parentRDYName->begin()->getTerminator();
@@ -1000,10 +996,10 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 {
     Function *func = work.f;
     int hasGuard = 0;
-    const char *className, *methodName;
+    std::string methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    int regenItem = (regen_methods && getClassName(fname.c_str(), &className, &methodName));
+    int regenItem = (regen_methods && (methodName = getMethodName(fname)) != "");
 
     NextAnonValueNumber = 0;
     nameMap.clear();

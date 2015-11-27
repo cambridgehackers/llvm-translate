@@ -122,6 +122,14 @@ int getClassName(const char *name, const char **className, const char **methodNa
     return 0;
 }
 
+std::string getMethodName(std::string name)
+{
+    const char *className, *methodName;
+    if (getClassName(name.c_str(), &className, &methodName))
+        return methodName;
+    return "";
+}
+
 std::string printString(std::string arg)
 {
     const char *cp = arg.c_str();
