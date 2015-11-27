@@ -87,6 +87,7 @@ bool callMemrunOnFunction(Function &F)
 bool call2runOnFunction(Function &F)
 {
     bool changed = false;
+    Module *Mod = F.getParent();
     std::string fname = F.getName();
 //printf("CallProcessPass2: %s\n", fname.c_str());
     if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
@@ -97,25 +98,19 @@ bool call2runOnFunction(Function &F)
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Call) {
-                Module *Mod = II->getParent()->getParent()->getParent();
-                Value *called = II->getOperand(II->getNumOperands()-1);
-                CallInst *CI = dyn_cast<CallInst>(II);
-                if (//called->getName() != "printf" && 
-CI) {
-                    std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
-                    if (lname[0] == '(' && lname[lname.length()-1] == ')')
-                        lname = lname.substr(1, lname.length() - 2);
-                    Value *val = Mod->getNamedValue(lname);
-                    std::string cthisp = fetchOperand(NULL, II->getOperand(0), false);
-                    if (val && cthisp == "Vthis") {
-                        //fprintf(stdout,"callProcess: lname %s single!!!! cthisp %s\n", lname.c_str(), cthisp.c_str());
-                        RemoveAllocaPass_runOnFunction(*dyn_cast<Function>(val));
-                        II->setOperand(II->getNumOperands()-1, val);
-                        InlineFunctionInfo IFI;
-                        InlineFunction(CI, IFI, false);
-                        changed = true;
-                    }
+            if (CallInst *CI = dyn_cast<CallInst>(II)) {
+                std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
+                if (lname[0] == '(' && lname[lname.length()-1] == ')')
+                    lname = lname.substr(1, lname.length() - 2);
+                Value *val = Mod->getNamedValue(lname);
+                std::string cthisp = fetchOperand(NULL, II->getOperand(0), false);
+                if (val && cthisp == "Vthis") {
+                    //fprintf(stdout,"callProcess: lname %s single!!!! cthisp %s\n", lname.c_str(), cthisp.c_str());
+                    RemoveAllocaPass_runOnFunction(*dyn_cast<Function>(val));
+                    II->setOperand(II->getNumOperands()-1, val);
+                    InlineFunctionInfo IFI;
+                    InlineFunction(CI, IFI, false);
+                    changed = true;
                 }
             }
             II = PI;
