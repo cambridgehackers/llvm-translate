@@ -82,7 +82,7 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
 
 Function *lookup_function(std::string className, std::string methodName)
 {
-    //printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
+    printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     return ruleFunctionTable[className + "//" + methodName];
 }
 
@@ -122,11 +122,11 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->getArgumentList().pop_front(); // remove original argument
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    if (trace_fixup)
+    //if (trace_fixup)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     if (!endswith(methodName.c_str(), "__RDY"))
         ruleFunctionNames["class." + className].push_back(methodName);
-    ruleFunctionTable["class." + className + "//" + methodName] = func;
+    ruleFunctionTable[className + "//" + methodName] = func;
     if (trace_fixup) {
         printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
         func->dump();

@@ -640,7 +640,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (generateRegion == ProcessHoist) {
     const char *className, *methodName;
     if (getClassName(globalName.c_str(), &className, &methodName)) {
-        parentRDYName = lookup_function((std::string("class.") + className).c_str(), std::string(methodName) + "__RDY");
+        parentRDYName = lookup_function(className, std::string(methodName) + "__RDY");
         //parentENAName = lookup_method(temp, "ENA");
     }
     if (trace_hoist)
