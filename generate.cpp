@@ -1098,17 +1098,13 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
 
 void pushWork(Function *func, Function ***thisp, int skip)
 {
-    const char *className, *methodName;
-    const StructType *STy;
-
     if (!func)
         return;
-    if (getClassName(func->getName().str().c_str(), &className, &methodName)
-     && (STy = findThisArgument(func))) {
+    if (const StructType *STy = findThisArgument(func)) {
         std::string sname = getStructName(STy);
         if (!classCreate[sname])
-            classCreate[sname] = new ClassMethodTable(sname, className);
-        classCreate[sname]->method[func] = methodName;
+            classCreate[sname] = new ClassMethodTable;
+        classCreate[sname]->method[func] = getMethodName(func->getName());
         functionIndex[func] = classCreate[sname];
     }
     vtablework.push_back(VTABLE_WORK(func, thisp, skip));

@@ -96,11 +96,8 @@ struct EREPLACEcomp {
 
 class ClassMethodTable {
 public:
-    std::string classOrig;
-    std::string className;
     std::map<Function *, std::string> method;
     const StructType *type;
-    ClassMethodTable(std::string corig, const char *name) : classOrig(corig), className(name) { }
 };
 
 typedef struct {
