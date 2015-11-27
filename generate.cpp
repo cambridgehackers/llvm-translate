@@ -449,7 +449,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         referstr = "(" + referstr + ").";
         if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
             referstr = "";
-        referstr += CBEMangle(generateRegion == ProcessHoist ? lname : name);
+        referstr += CBEMangle(generateRegion <= ProcessHoist ? lname : name);
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
@@ -1218,7 +1218,6 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     constructAddressMap(Mod);
     //dump_class_data();
 
-    generateRegion = ProcessHoist;
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 
