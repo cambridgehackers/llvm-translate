@@ -82,7 +82,8 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
 
 Function *lookup_function(std::string className, std::string methodName)
 {
-    printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
+    if (trace_fixup)
+        printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     return ruleFunctionTable[className + "//" + methodName];
 }
 
@@ -122,7 +123,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->getArgumentList().pop_front(); // remove original argument
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    //if (trace_fixup)
+    if (trace_fixup)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     if (!endswith(methodName.c_str(), "__RDY"))
         ruleFunctionNames["class." + className].push_back(methodName);
@@ -310,11 +311,10 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 
 void addressrunOnFunction(Function &F)
 {
-    const StructType *STy;
     std::string fname = F.getName();
 //printf("addressrunOnFunction: %s\n", fname.c_str());
-    if (getMethodName(fname) != ""
-     && (STy = findThisArgument(&F))) {
+    if (getMethodName(fname) != "")
+    if (const StructType *STy = findThisArgument(&F)) {
         std::string sname = getStructName(STy);
         if (!classCreate[sname])
             classCreate[sname] = new ClassMethodTable;
@@ -325,9 +325,7 @@ void addressrunOnFunction(Function &F)
 int lookup_method(const char *classname, std::string methodname)
 {
     METHOD_INFO *mInfo = classMethod[classname];
-    if (!mInfo)
-        return -1;
-    for (unsigned int i = 0; i < mInfo->maxIndex; i++)
+    for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
         if (getMethodName(mInfo->methods[i]) == methodname)
             return i;
     return -1;
