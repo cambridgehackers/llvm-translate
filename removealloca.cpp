@@ -29,7 +29,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-//_ZN6ModuleC2Em
 int isConstructorDestructor(std::string name)
 {
      char *endptr = NULL;
