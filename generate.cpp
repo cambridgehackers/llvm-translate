@@ -189,7 +189,7 @@ std::string GetValueName(const Value *Operand)
     }
     std::string VarName;
     VarName.reserve(Name.capacity());
-    for (std::string::iterator charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
+    for (auto charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
         char ch = *charp;
         if (isalnum(ch) || ch == '_')
             VarName += ch;
@@ -1046,10 +1046,10 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", work.skip || regenItem).c_str());
     }
     nameMap["Vthis"] = work.thisp;
-    for (Function::iterator BB = func->begin(), E = func->end(); BB != E; ++BB) {
+    for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
-        for (BasicBlock::iterator ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
+        for (auto ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
 
             BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
             if (!isInlinableInst(*ins)) {
@@ -1201,19 +1201,19 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         printf("'main' function not found in module.\n");
         exit(1);
     }
-    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using dwarf debug info
-    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         addressrunOnFunction(*FB);
     constructAddressMap(Mod);
     //dump_class_data();
 
-    for (Module::iterator FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()

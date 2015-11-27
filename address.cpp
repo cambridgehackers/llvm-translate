@@ -98,8 +98,8 @@ Function *lookup_function(std::string className, std::string methodName)
 static Function *fixupFunction(std::string methodName, Function *func)
 {
     std::string className;
-    for (Function::iterator BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+    for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             std::string vname = II->getName();
             Argument *newArg = NULL;

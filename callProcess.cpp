@@ -45,8 +45,8 @@ bool callMemrunOnFunction(Function &F)
      * This enables llvm-translate to easily maintain a list of valid memory regions
      * during processing.
      */
-    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             if (II->getOpcode() == Instruction::Call) {
                 Module *Mod = II->getParent()->getParent()->getParent();
@@ -94,8 +94,8 @@ bool call2runOnFunction(Function &F)
         return changed;
     }
     changed = RemoveAllocaPass_runOnFunction(F);
-    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE; ) {
+    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             if (II->getOpcode() == Instruction::Call) {
                 Module *Mod = II->getParent()->getParent()->getParent();

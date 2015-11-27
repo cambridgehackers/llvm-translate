@@ -55,7 +55,7 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
 //printf("RemoveAllocaPass: %s = %s\n", fname.c_str(), demang);
     if (isConstructorDestructor(fname))
         return changed;
-    for (Function::iterator BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
         BasicBlock::iterator E = BB->end();
         if (Start == E) return false;

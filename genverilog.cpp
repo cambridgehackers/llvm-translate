@@ -52,7 +52,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
         fprintf(OStr, "module %s (\n", name.c_str());
     paramList.push_back(inp + "CLK");
     paramList.push_back(inp + "nRST");
-    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+    for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
         const Type *retTy = func->getReturnType();
@@ -70,7 +70,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
             skip = 0;
         }
     }
-    for (std::list<std::string>::iterator PI = paramList.begin(); PI != paramList.end();) {
+    for (auto PI = paramList.begin(); PI != paramList.end();) {
         fprintf(OStr, "    %s", PI->c_str());
         PI++;
         if (PI != paramList.end())
@@ -100,7 +100,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "%s", printType(*I, false, fname, "  ", ";\n").c_str());
     }
     fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");
-    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+    for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
@@ -123,7 +123,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
      */
     FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
     fprintf(BStr, "interface %s;\n", ucName(name).c_str());
-    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+    for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
@@ -146,7 +146,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
     std::string sched = "";
     std::string sep = "";
-    for (std::map<Function *, std::string>::iterator FI = table->method.begin(); FI != table->method.end(); FI++) {
+    for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
         Function *func = FI->first;
         std::string mname = FI->second;
         if (mname.length() > 5 && mname.substr(mname.length() - 5, 5) == "__RDY")
@@ -177,7 +177,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
-    for (std::map<std::string,Type *>::iterator RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
+    for (auto RI = referencedItems.begin(); RI != referencedItems.end(); RI++) {
         const StructType *STy;
         if ((STy = findThisArgumentType(dyn_cast<PointerType>(RI->second)))) {
             std::string name = getStructName(STy);
