@@ -311,13 +311,12 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 void addressrunOnFunction(Function &F)
 {
     const char *className, *methodName;
-    const StructType *STy = NULL;
+    const StructType *STy;
     std::string fname = F.getName();
 //printf("addressrunOnFunction: %s\n", fname.c_str());
     if (getClassName(fname.c_str(), &className, &methodName)
      && (STy = findThisArgument(&F))) {
         std::string sname = getStructName(STy);
-        std::string tname = STy->getName();
         if (!classCreate[sname])
             classCreate[sname] = new ClassMethodTable(sname, className);
         classCreate[sname]->type = STy;

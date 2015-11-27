@@ -69,7 +69,6 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
-        const StructType *inherit = dyn_cast<StructType>(element);
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
             const Type *newType = replaceType[EREPLACE_INFO{STy, Idx}];
@@ -77,7 +76,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
                 element = newType;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
-        else if (inherit) {
+        else if (const StructType *inherit = dyn_cast<StructType>(element)) {
             //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
             generateClassElements(inherit, OStr);
         }
@@ -92,8 +91,8 @@ void generateClassDef(const StructType *STy, FILE *OStr)
         printf("ELEMENT: TOP %s\n", name.c_str());
     generateClassElements(STy, OStr);
     if (ClassMethodTable *table = classCreate[name])
-        for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
-            Function *func = FI->first;
+        for (auto FI : table->method) {
+            Function *func = FI.first;
             std::string fname = func->getName();
             const char *className, *methodName;
             getClassName(fname.c_str(), &className, &methodName);
@@ -108,8 +107,8 @@ void generateClassBody(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
     if (ClassMethodTable *table = classCreate[name])
-        for (auto FI = table->method.begin(); FI != table->method.end(); FI++) {
-            VTABLE_WORK workItem(FI->first, NULL, 1);
+        for (auto FI : table->method) {
+            VTABLE_WORK workItem(FI.first, NULL, 1);
             regen_methods = 3;
             processFunction(workItem, OStr, name);
             regen_methods = 0;
