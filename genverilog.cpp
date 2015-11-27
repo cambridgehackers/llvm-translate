@@ -62,7 +62,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
         else
             paramList.push_back(inp + mname + "__ENA");
         int skip = 1;
-        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 const Type *Ty = AI->getType();
                 paramList.push_back(inp + verilogArrRange(Ty) + mname + "_" + AI->getName().str());
@@ -94,7 +94,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(name, OStr, table, NULL);
     int Idx = 0;
-    for (StructType::element_iterator I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         std::string fname = fieldName(STy, Idx);
         if (fname != "")
             fprintf(OStr, "%s", printType(*I, false, fname, "  ", ";\n").c_str());
@@ -131,7 +131,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             continue;
         fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
         int skip = 1;
-        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 //const Type *Ty = AI->getType();
                 //paramList.push_back(inp + verilogArrRange(Ty) + 
@@ -157,7 +157,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         else
             fprintf(BStr, "    method %s(", mname.c_str());
         int skip = 1;
-        for (Function::const_arg_iterator AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 //const Type *Ty = AI->getType();
                 //paramList.push_back(inp + verilogArrRange(Ty) + 

@@ -141,7 +141,7 @@ void generateCppData(FILE *OStr, Module &Mod)
 {
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
-    for (Module::global_iterator I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
+    for (auto I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (processVar(I)) {

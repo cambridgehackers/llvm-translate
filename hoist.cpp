@@ -62,11 +62,9 @@ Instruction *cloneTree(const Instruction *I, Instruction *insertPoint)
 void prepareClone(Instruction *TI, const Instruction *I)
 {
     cloneVmap.clear();
-    Function *TargetF = TI->getParent()->getParent();
+    auto TargetA = TI->getParent()->getParent()->arg_begin();
     const Function *SourceF = I->getParent()->getParent();
-    Function::arg_iterator TargetA = TargetF->arg_begin();
-    for (Function::const_arg_iterator AI = SourceF->arg_begin(),
-             AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
+    for (auto AI = SourceF->arg_begin(), AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
 }
 Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
