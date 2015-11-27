@@ -110,7 +110,7 @@ typedef struct {
     Function   *ENA;
 } RULE_INFO;
 
-enum {ProcessHoist = 0, ProcessVerilog = 1, ProcessCPP = 2, ProcessClass = 3};
+enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP, ProcessClass};
 
 extern ExecutionEngine *EE;
 extern int trace_translate;

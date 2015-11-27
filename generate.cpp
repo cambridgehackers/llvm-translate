@@ -746,6 +746,10 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     if (prefix == "")
         vout += "(";
+    if (!func) {
+        printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        return "";
+    }
     Function::const_arg_iterator FAI = func->arg_begin();
     for (; AI != AE; ++AI, ++ArgNo, FAI++) {
         if (!skip) {
@@ -1201,6 +1205,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         printf("'main' function not found in module.\n");
         exit(1);
     }
+    generateRegion = ProcessHoist;
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
