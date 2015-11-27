@@ -46,6 +46,12 @@ typedef struct {
     std::string *methods;
 } METHOD_INFO;
 
+typedef  struct {
+    void *p;
+    size_t size;
+    const Type *type;
+} MEMORY_REGION;
+
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
@@ -58,26 +64,11 @@ static std::map<std::string, Function *> ruleFunctionTable;
 std::map<std::string, std::list<std::string>> ruleFunctionNames;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 static std::map<std::string, METHOD_INFO *> classMethod;
-static struct {
-    void *p;
-    long size;
-    const Type *type;
-} callfunhack[100];
+static std::list<MEMORY_REGION> memoryRegion;
 
 /*
  * Allocated memory region management
  */
-static void addItemToList(void *p, long size, const Type *type)
-{
-    int i = 0;
-
-    while(callfunhack[i].p)
-        i++;
-    callfunhack[i].p = p;
-    callfunhack[i].size = size;
-    callfunhack[i].type = type;
-}
-
 extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
@@ -85,7 +76,7 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
     memset(ptr, 0x5a, newsize);
     if (trace_malloc)
         printf("[%s:%d] %ld = %p type %p\n", __FUNCTION__, __LINE__, size, ptr, type);
-    addItemToList(ptr, newsize, type);
+    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type});
     return ptr;
 }
 
@@ -151,57 +142,46 @@ extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Func
 
 static void dumpMemoryRegions(int arg)
 {
-    int i = 0;
-
     printf("%s: %d\n", __FUNCTION__, arg);
-    while(callfunhack[i].p) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(callfunhack[i].p);
+    for (MEMORY_REGION info : memoryRegion) {
+        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("[%d] = %p %s %s\n", i, callfunhack[i].p, gname.c_str(), mapAddress(callfunhack[i].p).c_str());
-        if (callfunhack[i].type)
-            callfunhack[i].type->dump();
-        long size = callfunhack[i].size;
+        printf("%p %s %s\n", info.p, gname.c_str(), mapAddress(info.p).c_str());
+        if (info.type)
+            info.type->dump();
+        long size = info.size;
         if (size > GIANT_SIZE) {
            size -= GIANT_SIZE;
            size -= 10 * sizeof(int);
            size = size/2;
         }
         size += 16;
-        memdumpl((unsigned char *)callfunhack[i].p, size, "data");
-        i++;
+        memdumpl((unsigned char *)info.p, size, "data");
     }
 }
 static const Type *memoryType(void *p)
 {
-    int i = 0;
-
-    while(callfunhack[i].p) {
-        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
-            return callfunhack[i].type;
-        i++;
+    for (MEMORY_REGION info : memoryRegion) {
+        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
+            return info.type;
     }
     return NULL;
 }
 int validateAddress(int arg, void *p)
 {
-    int i = 0;
-
-    while(callfunhack[i].p) {
-        if (p >= callfunhack[i].p && (long)p < ((long)callfunhack[i].p + callfunhack[i].size))
+    for (MEMORY_REGION info : memoryRegion) {
+        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
             return 0;
-        i++;
     }
     printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
-    i = 0;
-    while(callfunhack[i].p) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(callfunhack[i].p);
+    for (MEMORY_REGION info : memoryRegion) {
+        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
         const char *cp = "";
         if (g)
             cp = g->getName().str().c_str();
-        printf("%p %s size 0x%lx\n", callfunhack[i].p, cp, callfunhack[i].size);
-        i++;
+        printf("%p %s size 0x%lx\n", info.p, cp, info.size);
     }
     return 1;
 }
@@ -411,7 +391,7 @@ void constructAddressMap(Module *Mod)
         }
         else if ((name.length() < 4 || name.substr(0,4) != ".str")
          && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
-            addItemToList(addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType());
+            memoryRegion.push_back(MEMORY_REGION{addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType()});
             mapType((char *)addr, Ty, name);
         }
     }
