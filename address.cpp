@@ -361,7 +361,11 @@ std::string lookupMethod(const StructType *STy, uint64_t ind)
     METHOD_INFO *mInfo = classMethod[sname];
     if (mInfo && ind < mInfo->maxIndex)
         return mInfo->methods[ind];
-    return NULL;
+    if (generateRegion != ProcessNone) {
+        printf("%s: gname %s: could not find %s/%d. mInfo %p\n", __FUNCTION__, globalName.c_str(), sname.c_str(), (int)ind, mInfo);
+        exit(-1);
+    }
+    return "";
 }
 
 /*
@@ -380,27 +384,28 @@ void constructAddressMap(Module *Mod)
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-            const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
+            const PointerType *PTy, *Ty = dyn_cast<PointerType>(MI->getType());
             const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
+            const Function *func;
+            const StructType *STy;
+            const ConstantExpr *vinit;
             printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
             METHOD_INFO *mInfo = NULL;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
-                if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI))) {
-                    if (vinit->getOpcode() == Instruction::BitCast) {
-                        if (const Function *func = dyn_cast<Function>(vinit->getOperand(0))) {
-                            const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType());
-                            const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
-                            std::string fname = func->getName();
-                            std::string sname = STy->getName();
-                            if (!mInfo) {
-                                mInfo = new METHOD_INFO;
-                                mInfo->maxIndex = 0;
-                                mInfo->methods = new std::string[ATy->getNumElements()];
-                                classMethod[sname] = mInfo;
-                            }
-                            mInfo->methods[mInfo->maxIndex++] = fname;
-                        }
+                if ((vinit = dyn_cast<ConstantExpr>((*CI)))
+                 && vinit->getOpcode() == Instruction::BitCast
+                 && (func = dyn_cast<Function>(vinit->getOperand(0)))
+                 && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
+                 && (STy = dyn_cast<StructType>(PTy->getElementType()))) {
+                    std::string fname = func->getName();
+                    std::string sname = STy->getName();
+                    if (!mInfo) {
+                        mInfo = new METHOD_INFO;
+                        mInfo->maxIndex = 0;
+                        mInfo->methods = new std::string[ATy->getNumElements()];
+                        classMethod[sname] = mInfo;
                     }
+                    mInfo->methods[mInfo->maxIndex++] = fname;
                 }
             }
         }

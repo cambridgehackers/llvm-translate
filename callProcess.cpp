@@ -101,7 +101,8 @@ bool call2runOnFunction(Function &F)
                 Module *Mod = II->getParent()->getParent()->getParent();
                 Value *called = II->getOperand(II->getNumOperands()-1);
                 CallInst *CI = dyn_cast<CallInst>(II);
-                if (called->getName() != "printf" && CI) {
+                if (//called->getName() != "printf" && 
+CI) {
                     std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
                     if (lname[0] == '(' && lname[lname.length()-1] == ')')
                         lname = lname.substr(1, lname.length() - 2);
