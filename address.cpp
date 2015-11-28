@@ -21,14 +21,11 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-//#define DEBUG_TYPE "llvm-translate"
 #include <stdio.h>
 #include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
-
-#define MAGIC_VTABLE_OFFSET 2
 
 using namespace llvm;
 
@@ -53,7 +50,7 @@ static std::map<void *, std::string> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
 std::list<RULE_INFO *> ruleInfo;
-static std::map<std::string, Function *> ruleFunctionTable;
+std::map<Function *, Function *> ruleRDYFunction;
 std::map<std::string, std::list<std::string>> ruleFunctionNames;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 static std::map<std::string, METHOD_INFO *> classMethod;
@@ -71,13 +68,6 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
         printf("[%s:%d] %ld = %p type %p\n", __FUNCTION__, __LINE__, size, ptr, type);
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type});
     return ptr;
-}
-
-Function *lookup_function(std::string className, std::string methodName)
-{
-    if (trace_fixup)
-        printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
-    return ruleFunctionTable[className + "//" + methodName];
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -120,7 +110,6 @@ static Function *fixupFunction(std::string methodName, Function *func)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     if (!endswith(methodName, "__RDY"))
         ruleFunctionNames["class." + className].push_back(methodName);
-    ruleFunctionTable[className + "//" + methodName] = func;
     if (trace_fixup) {
         printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
         func->dump();
@@ -132,6 +121,7 @@ extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Func
 {
     std::string name = aname;
     ruleInfo.push_back(new RULE_INFO{aname, thisp, fixupFunction(name + "__RDY", RDY[2]), fixupFunction(name, ENA[2])});
+    ruleRDYFunction[ENA[2]] = RDY[2];
 }
 
 static void dumpMemoryRegions(int arg)
@@ -155,6 +145,7 @@ static void dumpMemoryRegions(int arg)
         memdumpl((unsigned char *)info.p, size, "data");
     }
 }
+
 static const Type *memoryType(void *p)
 {
     for (MEMORY_REGION info : memoryRegion) {
@@ -163,6 +154,7 @@ static const Type *memoryType(void *p)
     }
     return NULL;
 }
+
 int validateAddress(int arg, void *p)
 {
     for (MEMORY_REGION info : memoryRegion) {
@@ -206,10 +198,12 @@ std::string setMapAddress(void *arg, std::string name)
         printf("%s: %p\n", __FUNCTION__, arg);
     return temp;
 }
+
 std::string mapAddress(void *arg)
 {
     return setMapAddress(arg, "");
 }
+
 void *mapLookup(std::string name)
 {
     char *endptr = NULL;

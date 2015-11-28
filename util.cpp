@@ -88,7 +88,7 @@ std::string ucName(std::string inname)
     return inname;
 }
 
-int getClassName(const char *name, const char **className, const char **methodName)
+static int getClassName(const char *name, const char **className, const char **methodName)
 {
     int status;
     static char temp[1000];

@@ -133,6 +133,8 @@ extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::map<std::string,Type *> referencedItems;
 extern std::map<const Value *, Value *> cloneVmap;
+extern Function *currentFunction;
+extern std::map<Function *, Function *> ruleRDYFunction;
 
 int validateAddress(int arg, void *p);
 std::string setMapAddress(void *arg, std::string name);
@@ -142,7 +144,6 @@ void constructAddressMap(Module *Mod);
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 int lookup_method(const char *classname, std::string methodname);
 std::string lookupMethod(const StructType *STy, uint64_t ind);
-int getClassName(const char *name, const char **className, const char **methodName);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 

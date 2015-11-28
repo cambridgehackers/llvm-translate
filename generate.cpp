@@ -52,6 +52,7 @@ static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
+Function *currentFunction;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -602,7 +603,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     std::string methodString;
     std::string vout;
     int RDYName = -1, ENAName = -1;
-    Function *parentRDYName = NULL, *parentENAName = NULL;
+    Function *parentRDYName = ruleRDYFunction[currentFunction];
     std::string fname;
     const StructType *STy;
     std::string methodName;
@@ -638,13 +639,8 @@ std::string printCall(Function ***thisp, Instruction &I)
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
 
     if (generateRegion == ProcessHoist) {
-    const char *className, *methodName;
-    if (getClassName(globalName.c_str(), &className, &methodName)) {
-        parentRDYName = lookup_function(className, std::string(methodName) + "__RDY");
-        //parentENAName = lookup_method(temp, "ENA");
-    }
     if (trace_hoist)
-        printf("HOIST: CALLER %s[%s, %s] pRDY %p pENA %p thisp %p func %p pcalledFunction '%s' = %p\n", globalName.c_str(), className, methodName, parentRDYName, parentENAName, thisp, func, pcalledFunction.c_str(), pact);
+        printf("HOIST: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s' = %p\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), pact);
     if (!func)
         func = static_cast<Function *>(pact);
     if (!func) {
@@ -703,15 +699,15 @@ std::string printCall(Function ***thisp, Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
-    if (parentENAName) {
-        TerminatorInst *TI = parentENAName->begin()->getTerminator();
-        if (ENAName >= 0)
-            copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
-        else if (I.use_empty()) {
-            copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
-            I.eraseFromParent(); // delete "Call" instruction
-        }
-    }
+    //if (parentENAName) {
+        //TerminatorInst *TI = parentENAName->begin()->getTerminator();
+        //if (ENAName >= 0)
+            //copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
+        //else if (I.use_empty()) {
+            //copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
+            //I.eraseFromParent(); // delete "Call" instruction
+        //}
+    //}
     if (cthisp == "Vthis") {
         printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
         fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
@@ -995,6 +991,7 @@ static std::map<const Function *, int> funcSeen;
 void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName)
 {
     Function *func = work.f;
+    currentFunction = func;
     int hasGuard = 0;
     std::string methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
