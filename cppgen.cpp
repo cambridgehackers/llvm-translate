@@ -102,18 +102,16 @@ void generateClassBody(const StructType *STy, FILE *OStr)
         }
     if (hasRun(STy, 1)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-        //fprintf(OStr, "    printf(\" %s::run()\\n\");\n", name.c_str());
-        if (hasRun(STy, 0)) {
+        if (hasRun(STy, 0))
              for (auto item : ruleFunctionNames[STy->getName()])
                  fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
-        }
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             const StructType *STy = dyn_cast<StructType>(*I);
             if (const PointerType *PTy = dyn_cast<PointerType>(*I)) {
                 STy = dyn_cast<StructType>(PTy->getElementType());
-                if (fname != "module" && hasRun(STy, 1))
+                if (hasRun(STy, 1))
                     fprintf(OStr, "    %s->run();\n", fname.c_str());
             }
             else if (hasRun(STy, 1))
@@ -123,15 +121,6 @@ void generateClassBody(const StructType *STy, FILE *OStr)
     }
 }
 
-static int processVar(const GlobalVariable *GV)
-{
-    if (GV->isDeclaration() || GV->getSection() == std::string("llvm.metadata")
-     || (GV->hasAppendingLinkage() && GV->use_empty()
-      && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
-        return 0;
-    return 1;
-}
-
 void generateCppData(FILE *OStr, Module &Mod)
 {
     NextTypeID = 1;
@@ -139,19 +128,21 @@ void generateCppData(FILE *OStr, Module &Mod)
     for (auto I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
-        if (processVar(I)) {
-          ArrayType *ATy;
-          Type *Ty = I->getType()->getElementType();
-          if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
-              && ATy->getElementType()->getTypeID() == Type::PointerTyID)
-           && I->getInitializer()->isNullValue()) {
-              if (I->hasLocalLinkage())
+        if (I->isDeclaration() || I->getSection() == std::string("llvm.metadata")
+         || (I->hasAppendingLinkage() && I->use_empty()
+          && (I->getName() == "llvm.global_ctors" || I->getName() == "llvm.global_dtors")))
+            continue;
+        ArrayType *ATy;
+        Type *Ty = I->getType()->getElementType();
+        if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+            && ATy->getElementType()->getTypeID() == Type::PointerTyID)
+         && I->getInitializer()->isNullValue()) {
+            if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
-              fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
-              if (!I->getInitializer()->isNullValue())
+            fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
+            if (!I->getInitializer()->isNullValue())
                 fprintf(OStr, " = %s", printOperand(NULL, I->getInitializer(), false).c_str());
-              fprintf(OStr, ";\n");
-          }
+            fprintf(OStr, ";\n");
         }
     }
 }
