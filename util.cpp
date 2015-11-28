@@ -88,46 +88,21 @@ std::string ucName(std::string inname)
     return inname;
 }
 
-static int getClassName(const char *name, const char **className, const char **methodName)
-{
-    int status;
-    static char temp[1000];
-    char *pmethod = temp;
-    temp[0] = 0;
-    *className = NULL;
-    *methodName = NULL;
-    const char *demang = abi::__cxa_demangle(name, 0, 0, &status);
-    if (demang) {
-        strcpy(temp, demang);
-        while (*pmethod && pmethod[0] != '(')
-            pmethod++;
-        *pmethod = 0;
-        while (pmethod > temp && pmethod[0] != ':')
-            pmethod--;
-        char *p = pmethod++;
-        while (p[0] == ':')
-            *p-- = 0;
-        int len = 0;
-        const char *p1 = demang;
-        while (*p1 && *p1 != '(')
-            p1++;
-        while (p1 != demang && *p1 != ':') {
-            len++;
-            p1--;
-        }
-        *className = temp;
-        *methodName = pmethod;
-        return 1;
-    }
-    return 0;
-}
-
 std::string getMethodName(std::string name)
 {
-    const char *className, *methodName;
-    if (getClassName(name.c_str(), &className, &methodName))
-        return methodName;
-    return "";
+    int status;
+    const char *demang = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
+    if (!demang)
+        return "";
+    char temp[1000];
+    char *pmethod = temp;
+    strcpy(temp, demang);
+    while (*pmethod && pmethod[0] != '(')
+        pmethod++;
+    *pmethod = 0;
+    while (pmethod > temp && pmethod[0] != ':')
+        pmethod--;
+    return pmethod+1;
 }
 
 std::string printString(std::string arg)
