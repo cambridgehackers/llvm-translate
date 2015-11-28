@@ -34,16 +34,9 @@ using namespace llvm;
 
 #include "declarations.h"
 
-class ADDRESSMAP_TYPE {
-public:
-    std::string name;
-    ADDRESSMAP_TYPE(std::string aname) {
-       name = aname;
-    }
-};
 typedef struct {
     unsigned int maxIndex;
-    const char **methods;
+    std::string *methods;
 } METHOD_INFO;
 
 typedef  struct {
@@ -56,7 +49,7 @@ typedef  struct {
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
-static std::map<void *, ADDRESSMAP_TYPE *> mapitem;
+static std::map<void *, std::string> mapitem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
 std::list<RULE_INFO *> ruleInfo;
@@ -193,13 +186,13 @@ int validateAddress(int arg, void *p)
 std::string setMapAddress(void *arg, std::string name)
 {
     const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    ADDRESSMAP_TYPE *mptr = mapitem[arg];
-    if (mptr)
-        return mptr->name.c_str();
+    std::string mptrname = mapitem[arg];
+    if (mptrname != "")
+        return mptrname.c_str();
     if (g)
         name = g->getName().str();
     if (name.length() != 0) {
-        mapitem[arg] = new ADDRESSMAP_TYPE(name);
+        mapitem[arg] = name;
         if (name != "") {
             maplookup[name] = arg;
             //printf("%s: setname %s = %p\n", __FUNCTION__, name.c_str(), arg);
@@ -377,10 +370,10 @@ void constructAddressMap(Module *Mod)
                     if (!mInfo) {
                         mInfo = new METHOD_INFO;
                         mInfo->maxIndex = 0;
-                        mInfo->methods = (const char **)malloc(sizeof(char *) * ATy->getNumElements());
+                        mInfo->methods = new std::string[ATy->getNumElements()];
                         classMethod[sname] = mInfo;
                     }
-                    mInfo->methods[mInfo->maxIndex++] = strdup(fname.c_str());
+                    mInfo->methods[mInfo->maxIndex++] = fname;
                 }
             }
         }
