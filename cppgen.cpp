@@ -31,27 +31,6 @@ using namespace llvm;
 
 int trace_cppstruct;// = 1;
 
-static int processVar(const GlobalVariable *GV)
-{
-    if (GV->isDeclaration() || GV->getSection() == std::string("llvm.metadata")
-     || (GV->hasAppendingLinkage() && GV->use_empty()
-      && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
-        return 0;
-    return 1;
-}
-
-static int hasRun(const StructType *STy, int recurse)
-{
-    if (STy) {
-        std::string sname = STy->getName();
-        if (ruleFunctionNames[sname].size())
-            return 1;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
-                return 1;
-    }
-    return 0;
-}
 int inheritsModule(const StructType *STy)
 {
     if (STy) {
@@ -83,6 +62,18 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     }
 }
 
+static int hasRun(const StructType *STy, int recurse)
+{
+    if (STy) {
+        std::string sname = STy->getName();
+        if (ruleFunctionNames[sname].size())
+            return 1;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
+                return 1;
+    }
+    return 0;
+}
 void generateClassDef(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
@@ -130,6 +121,15 @@ void generateClassBody(const StructType *STy, FILE *OStr)
         }
         fprintf(OStr, "}\n");
     }
+}
+
+static int processVar(const GlobalVariable *GV)
+{
+    if (GV->isDeclaration() || GV->getSection() == std::string("llvm.metadata")
+     || (GV->hasAppendingLinkage() && GV->use_empty()
+      && (GV->getName() == "llvm.global_ctors" || GV->getName() == "llvm.global_dtors")))
+        return 0;
+    return 1;
 }
 
 void generateCppData(FILE *OStr, Module &Mod)
