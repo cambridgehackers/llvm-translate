@@ -53,7 +53,7 @@ std::list<RULE_INFO *> ruleInfo;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<std::string, std::list<std::string>> ruleFunctionNames;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
-static std::map<std::string, METHOD_INFO *> classMethod;
+static std::map<const StructType *, METHOD_INFO *> classMethod;
 static std::list<MEMORY_REGION> memoryRegion;
 
 /*
@@ -309,9 +309,9 @@ void addressrunOnFunction(Function &F)
     }
 }
 
-int lookup_method(const char *classname, std::string methodname)
+int lookup_method(const StructType *STy, std::string methodname)
 {
-    METHOD_INFO *mInfo = classMethod[classname];
+    METHOD_INFO *mInfo = classMethod[STy];
     for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
         if (getMethodName(mInfo->methods[i]) == methodname)
             return i;
@@ -320,7 +320,7 @@ int lookup_method(const char *classname, std::string methodname)
 std::string lookupMethod(const StructType *STy, uint64_t ind)
 {
     std::string sname = STy->getName();
-    METHOD_INFO *mInfo = classMethod[sname];
+    METHOD_INFO *mInfo = classMethod[STy];
     if (mInfo && ind < mInfo->maxIndex)
         return mInfo->methods[ind];
     if (generateRegion != ProcessNone) {
@@ -365,7 +365,7 @@ void constructAddressMap(Module *Mod)
                         mInfo = new METHOD_INFO;
                         mInfo->maxIndex = 0;
                         mInfo->methods = new std::string[ATy->getNumElements()];
-                        classMethod[sname] = mInfo;
+                        classMethod[STy] = mInfo;
                     }
                     mInfo->methods[mInfo->maxIndex++] = fname;
                 }

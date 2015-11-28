@@ -678,7 +678,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     if ((STy = findThisArgument(func))
      && (methodString = getMethodName(fname)) != "") {
         std::string tname = STy->getName();
-        RDYName = lookup_method(tname.c_str(), (methodString + "__RDY").c_str());
+        RDYName = lookup_method(STy, (methodString + "__RDY").c_str());
         if (trace_hoist)
             printf("HOIST:    RDYName %d RDYLOOK %s class %s ENAName %d\n", RDYName, methodString.c_str(), tname.c_str(), ENAName);
     }

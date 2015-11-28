@@ -142,7 +142,7 @@ std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
-int lookup_method(const char *classname, std::string methodname);
+int lookup_method(const StructType *STy, std::string methodname);
 std::string lookupMethod(const StructType *STy, uint64_t ind);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
