@@ -146,15 +146,6 @@ static void dumpMemoryRegions(int arg)
     }
 }
 
-static const Type *memoryType(void *p)
-{
-    for (MEMORY_REGION info : memoryRegion) {
-        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
-            return info.type;
-    }
-    return NULL;
-}
-
 int validateAddress(int arg, void *p)
 {
     for (MEMORY_REGION info : memoryRegion) {
@@ -229,6 +220,15 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
         }
     }
     return 0;
+}
+
+static const Type *memoryType(void *p)
+{
+    for (MEMORY_REGION info : memoryRegion) {
+        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
+            return info.type;
+    }
+    return NULL;
 }
 
 static void mapType(char *addr, Type *Ty, std::string aname)
