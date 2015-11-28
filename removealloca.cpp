@@ -69,7 +69,7 @@ bool RemoveAllocaPass_runOnFunction(Function &F)
                std::string name = I->getName();
                int ind = name.find("block");
 //printf("       ALLOCA %s;", name.c_str());
-                if (I->hasName() && ind == -1 && endswith(name.c_str(), ".addr")) {
+                if (I->hasName() && ind == -1 && endswith(name, ".addr")) {
                     Value *newt = NULL;
                     BasicBlock::iterator PN = PI;
                     while (PN != E) {

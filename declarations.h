@@ -157,7 +157,6 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
 std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 
-bool endswith(const char *str, const char *suffix);
 std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
@@ -187,3 +186,4 @@ Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
 void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);
 std::string getMethodName(std::string name);
+bool endswith(std::string str, std::string suffix);

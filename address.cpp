@@ -43,7 +43,7 @@ public:
 };
 typedef struct {
     unsigned int maxIndex;
-    std::string *methods;
+    const char **methods;
 } METHOD_INFO;
 
 typedef  struct {
@@ -125,7 +125,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
     if (trace_fixup)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
-    if (!endswith(methodName.c_str(), "__RDY"))
+    if (!endswith(methodName, "__RDY"))
         ruleFunctionNames["class." + className].push_back(methodName);
     ruleFunctionTable[className + "//" + methodName] = func;
     if (trace_fixup) {
@@ -337,7 +337,7 @@ std::string lookupMethod(const StructType *STy, uint64_t ind)
     if (mInfo && ind < mInfo->maxIndex)
         return mInfo->methods[ind];
     if (generateRegion != ProcessNone) {
-        printf("%s: gname %s: could not find %s/%d. mInfo %p\n", __FUNCTION__, globalName.c_str(), sname.c_str(), (int)ind, mInfo);
+        printf("%s: gname %s: could not find %s/%d. mInfo %p max %d\n", __FUNCTION__, globalName.c_str(), sname.c_str(), (int)ind, mInfo, mInfo? mInfo->maxIndex : -1);
         exit(-1);
     }
     return "";
@@ -377,10 +377,10 @@ void constructAddressMap(Module *Mod)
                     if (!mInfo) {
                         mInfo = new METHOD_INFO;
                         mInfo->maxIndex = 0;
-                        mInfo->methods = new std::string[ATy->getNumElements()];
+                        mInfo->methods = (const char **)malloc(sizeof(char *) * ATy->getNumElements());
                         classMethod[sname] = mInfo;
                     }
-                    mInfo->methods[mInfo->maxIndex++] = fname;
+                    mInfo->methods[mInfo->maxIndex++] = strdup(fname.c_str());
                 }
             }
         }

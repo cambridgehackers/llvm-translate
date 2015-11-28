@@ -75,10 +75,10 @@ int i;
     printf("\n");
 }
 
-bool endswith(const char *str, const char *suffix)
+bool endswith(std::string str, std::string suffix)
 {
-    int skipl = strlen(str) - strlen(suffix);
-    return skipl >= 0 && !strcmp(str + skipl, suffix);
+    int skipl = str.length() - suffix.length();
+    return skipl >= 0 && str.substr(skipl) == suffix;
 }
 
 std::string ucName(std::string inname)
