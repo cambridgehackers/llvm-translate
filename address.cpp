@@ -309,12 +309,17 @@ void addressrunOnFunction(Function &F)
     }
 }
 
-int lookup_method(const StructType *STy, std::string methodname)
+int lookupRDY(const Function *func)
 {
-    METHOD_INFO *mInfo = classMethod[STy];
-    for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
-        if (getMethodName(mInfo->methods[i]) == methodname)
-            return i;
+    std::string methodString;
+    if (const StructType *STy = findThisArgument(func))
+    if ((methodString = getMethodName(func->getName())) != "") {
+        std::string tname = STy->getName();
+        METHOD_INFO *mInfo = classMethod[STy];
+        for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
+            if (getMethodName(mInfo->methods[i]) == methodString + "__RDY")
+                return i;
+    }
     return -1;
 }
 std::string lookupMethod(const StructType *STy, uint64_t ind)

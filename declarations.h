@@ -142,8 +142,8 @@ std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
-int lookup_method(const StructType *STy, std::string methodname);
 std::string lookupMethod(const StructType *STy, uint64_t ind);
+int lookupRDY(const Function *func);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
@@ -162,7 +162,7 @@ std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 const StructType *findThisArgumentType(const PointerType *PTy);
-const StructType *findThisArgument(Function *func);
+const StructType *findThisArgument(const Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction &I);
 void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName);

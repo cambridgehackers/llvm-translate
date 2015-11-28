@@ -152,7 +152,7 @@ std::string getStructName(const StructType *STy)
     }
 }
 
-const StructType *findThisArgument(Function *func)
+const StructType *findThisArgument(const Function *func)
 {
     const PointerType *PTy;
     const StructType *STy = NULL;
@@ -602,10 +602,8 @@ std::string printCall(Function ***thisp, Instruction &I)
 {
     std::string methodString;
     std::string vout;
-    int RDYName = -1, ENAName = -1;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     std::string fname;
-    const StructType *STy;
     std::string methodName;
     CallInst &ICL = static_cast<CallInst&>(I);
     unsigned ArgNo = 0;
@@ -647,6 +645,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
+    int RDYName = lookupRDY(func);
     fname = func->getName();
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
@@ -674,13 +673,6 @@ std::string printCall(Function ***thisp, Instruction &I)
         I.replaceAllUsesWith(newLoad);
         I.eraseFromParent();
         return "";
-    }
-    if ((STy = findThisArgument(func))
-     && (methodString = getMethodName(fname)) != "") {
-        std::string tname = STy->getName();
-        RDYName = lookup_method(STy, (methodString + "__RDY").c_str());
-        if (trace_hoist)
-            printf("HOIST:    RDYName %d RDYLOOK %s class %s ENAName %d\n", RDYName, methodString.c_str(), tname.c_str(), ENAName);
     }
     if (RDYName >= 0 && parentRDYName) {
         TerminatorInst *TI = parentRDYName->begin()->getTerminator();
