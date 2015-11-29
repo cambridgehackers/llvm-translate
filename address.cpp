@@ -251,15 +251,13 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
             std::string fname = fieldName(STy, Idx);
             char *eaddr = addr + SLO->getElementOffset(Idx);
             Type *element = *I;
-            if (fname != "") {
-                if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                    const Type *Ty = memoryType(*(char **)eaddr);
-                    if (Ty && checkDerived(Ty, PTy)) {
-                        replaceType[EREPLACE_INFO{STy, Idx}] = Ty;
-                    }
-                }
-                mapType(eaddr, element, aname + "$$" + fname);
+            if (PointerType *PTy = dyn_cast<PointerType>(element)) {
+                const Type *Ty = memoryType(*(char **)eaddr);
+                if (Ty && checkDerived(Ty, PTy))
+                    replaceType[EREPLACE_INFO{STy, Idx}] = Ty;
             }
+            if (fname != "")
+                mapType(eaddr, element, aname + "$$" + fname);
             else if (dyn_cast<StructType>(element)) {
                 //printf("[%s:%d] inherit %p eaddr %p\n", __FUNCTION__, __LINE__, element, eaddr);
                 mapType(eaddr, element, aname);
@@ -267,13 +265,9 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
         }
         break;
         }
-    case Type::PointerTyID: {
-        PointerType *PTy = cast<PointerType>(Ty);
-        Type *element = PTy->getElementType();
-        char *addr_target = *(char **)addr;
-        mapType(addr_target, element, aname);
+    case Type::PointerTyID:
+        mapType(*(char **)addr, cast<PointerType>(Ty)->getElementType(), aname);
         break;
-        }
     default:
         break;
     }
