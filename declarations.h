@@ -105,6 +105,8 @@ typedef struct {
     Function   *ENA;
 } RULE_INFO;
 
+typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
+
 enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP, ProcessClass};
 
 extern ExecutionEngine *EE;
@@ -144,10 +146,7 @@ int lookupRDY(const Function *func);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
-void generateModuleDef(const StructType *STy, std::string oDir);
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
-void generateClassDef(const StructType *STy, FILE *OStr);
-void generateClassBody(const StructType *STy, FILE *OStr);
 void generateCppData(FILE *OStr, Module &Mod);
 
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
@@ -182,3 +181,6 @@ void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);
 std::string getMethodName(std::string name);
 bool endswith(std::string str, std::string suffix);
+void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir);
+void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir);
+void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);

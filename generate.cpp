@@ -1104,7 +1104,7 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     }
 }
 
-static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
+static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
 {
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
         const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
@@ -1112,32 +1112,24 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir)
             structWork.push_back(subSTy);
     }
     else if (!structMap[Ty]) {
-        const StructType *STy = dyn_cast<StructType>(Ty);
-        std::string name;
         structMap[Ty] = 1;
         for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I, OStr, ODir);
-        if (STy) {
-            if (STy->getName() == "class.Module")
-                return;  // just a dummy class
-            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-                printContainedStructs(*I, OStr, ODir);
-            if (generateRegion == ProcessVerilog)
-                generateModuleDef(STy, ODir);
-            else if (generateRegion == ProcessCPP)
-                generateClassBody(STy, OStr);
-            else
-                generateClassDef(STy, OStr);
-        }
+            printContainedStructs(*I, OStr, ODir, cb);
+        if (const StructType *STy = dyn_cast<StructType>(Ty))
+            if (STy->getName() != "class.Module") {
+                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+                    printContainedStructs(*I, OStr, ODir, cb);
+                cb(STy, OStr, ODir);
+            }
     }
 }
-static void generateStructs(FILE *OStr, std::string oDir)
+static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
 {
     structWork_run = 1;
     structMap.clear();
     auto current = structWork.begin();
     while (current != structWork.end()) {
-        printContainedStructs(*current, OStr, oDir);
+        printContainedStructs(*current, OStr, oDir, cb);
         current = std::next(current);
     }
     structWork_run = 0;
@@ -1194,7 +1186,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
     processRules(OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
-    generateStructs(NULL, OutDirectory);
+    generateStructs(NULL, OutDirectory, generateModuleDef);
     generateVerilogHeader(*Mod, OutVInstance, OutNull);
 
     // Generate cpp code for all rules
@@ -1202,8 +1194,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateCppData(Out, *Mod);
     processRules(Out, OutNull, OutHeader);
     UnnamedStructIDs.clear();
-    generateStructs(Out, ""); // generate class method bodies
-    generateRegion = ProcessClass;
-    generateStructs(OutHeader, ""); // generate class definitions
+    generateStructs(Out, "", generateClassBody); // generate class method bodies
+    generateStructs(OutHeader, "", generateClassDef); // generate class definitions
     return false;
 }

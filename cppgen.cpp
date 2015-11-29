@@ -73,7 +73,7 @@ static int hasRun(const StructType *STy, int recurse)
     }
     return 0;
 }
-void generateClassDef(const StructType *STy, FILE *OStr)
+void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
@@ -89,7 +89,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     fprintf(OStr, "};\n\n");
 }
 
-void generateClassBody(const StructType *STy, FILE *OStr)
+void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 {
     std::string name = getStructName(STy);
     if (ClassMethodTable *table = classCreate[STy])

@@ -77,7 +77,7 @@ static void generateModuleSignature(FILE *OStr, const StructType *STy, const cha
     fprintf(OStr, "\n");
 }
 
-void generateModuleDef(const StructType *STy, std::string oDir)
+void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
