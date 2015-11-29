@@ -80,7 +80,7 @@ static void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-static Function *fixupFunction(std::string methodName, Function *func)
+static const StructType *fixupFunction(std::string methodName, Function *func)
 {
     const StructType *STy = NULL;
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
@@ -113,24 +113,22 @@ static Function *fixupFunction(std::string methodName, Function *func)
     std::string className = STy->getName().substr(6);
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    if (trace_fixup)
-        printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
-    if (!endswith(methodName, "__RDY")) {
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        classCreate[STy]->rules.push_back(methodName);
-    }
     if (trace_fixup) {
-        printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
+        printf("[%s:%d] AFTER class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
         func->dump();
     }
-    return func;
+    return STy;
 }
 
 extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
 {
     std::string name = aname;
-    ruleInfo.push_back(new RULE_INFO{aname, thisp, fixupFunction(name + "__RDY", RDY[2]), fixupFunction(name, ENA[2])});
+    const StructType *STyRDY = fixupFunction(name + "__RDY", RDY[2]);
+    if (!classCreate[STyRDY])
+        classCreate[STyRDY] = new ClassMethodTable;
+    classCreate[STyRDY]->rules.push_back(name);
+    fixupFunction(name, ENA[2]);
+    ruleInfo.push_back(new RULE_INFO{aname, thisp, RDY[2], ENA[2]});
     ruleRDYFunction[ENA[2]] = RDY[2];
 }
 
