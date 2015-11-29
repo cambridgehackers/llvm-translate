@@ -129,11 +129,10 @@ void generateCppData(FILE *OStr, Module &Mod)
         ArrayType *ATy = dyn_cast<ArrayType>(Ty);
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
-        if (I->isDeclaration() || I->getSection() == std::string("llvm.metadata")
-         || (I->hasAppendingLinkage() && I->use_empty()
-          && (I->getName() == "llvm.global_ctors" || I->getName() == "llvm.global_dtors")))
-            continue;
-        if ((!ATy || !dyn_cast<PointerType>(ATy->getElementType())) && I->getInitializer()->isNullValue()) {
+        if (!I->isDeclaration() && I->getSection() != std::string("llvm.metadata")
+         && !(I->hasAppendingLinkage() && I->use_empty()
+             && (I->getName() == "llvm.global_ctors" || I->getName() == "llvm.global_dtors"))
+         && (!ATy || !dyn_cast<PointerType>(ATy->getElementType())) && I->getInitializer()->isNullValue()) {
             if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
             fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
