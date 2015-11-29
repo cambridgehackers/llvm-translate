@@ -170,7 +170,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
     for (auto RI : referencedItems)
-        if (const StructType *STy = findThisArgumentType(dyn_cast<PointerType>(RI.second)))
+        if (const StructType *STy = findThisArgument(RI.second))
             if (classCreate[STy] && RI.first != "Vthis")
                 generateModuleSignature(OStr, STy, RI.first.c_str());
 }

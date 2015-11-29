@@ -43,7 +43,7 @@ std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 std::list<RULE_INFO *> ruleInfo;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
-std::map<std::string,Type *> referencedItems;
+std::map<std::string, const Function *> referencedItems;
 std::map<std::string, void *> nameMap;
 unsigned NextTypeID;
 int regen_methods;
@@ -713,7 +713,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
         std::string pnew = pcalledFunction;
-        referencedItems[pnew] = func->getType();
+        referencedItems[pnew] = func;
         prefix = pcalledFunction + CMT->method[func];
         vout += prefix;
         if (!hasRet)

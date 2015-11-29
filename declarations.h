@@ -127,7 +127,7 @@ extern Function *currentFunction;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string, DICompositeType *> retainedTypes;
-extern std::map<std::string,Type *> referencedItems;
+extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::list<RULE_INFO *> ruleInfo;
