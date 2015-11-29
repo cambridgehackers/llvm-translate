@@ -39,7 +39,6 @@ static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
 const Function *EntryFn;
 std::string globalName;
-std::map<Function *,ClassMethodTable *> functionIndex;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
@@ -58,6 +57,7 @@ static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
+static std::map<Function *,ClassMethodTable *> functionIndex;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
