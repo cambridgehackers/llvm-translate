@@ -403,7 +403,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     std::string cbuffer = "(", sep = " ", amper = "&";
     PointerType *PTy;
     const StructType *STy;
-    const ConstantInt *CI;
     ConstantDataArray *CPA;
     void *tval = NULL;
     uint64_t Total = 0;
@@ -418,12 +417,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
 
     for (auto TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
+        const ConstantInt *CI = cast<ConstantInt>(TmpI.getOperand());
         if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
-            const StructLayout *SLO = TD->getStructLayout(STy);
-            CI = cast<ConstantInt>(TmpI.getOperand());
-            Total += SLO->getElementOffset(CI->getZExtValue());
+            Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
         } else {
-            ERRORIF(isa<GlobalValue>(TmpI.getOperand()) || !(CI = dyn_cast<ConstantInt>(TmpI.getOperand())));
+            ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
             Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
         }
     }
@@ -454,8 +452,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     else if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         if (I != E && ((expose && (*I)->isArrayTy())
-                    || (!expose && (STy = dyn_cast<StructType>(*I))))
-         && (CI = dyn_cast<ConstantInt>(I.getOperand()))) {
+                    || (!expose && (STy = dyn_cast<StructType>(*I)))))
+        if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
             uint64_t val = CI->getZExtValue();
             ++I;     // we processed this index
             if (expose) {
