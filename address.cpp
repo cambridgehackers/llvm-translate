@@ -51,7 +51,7 @@ static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
 static std::map<std::string, void *> maplookup;
 std::list<RULE_INFO *> ruleInfo;
 std::map<Function *, Function *> ruleRDYFunction;
-std::map<std::string, std::list<std::string>> ruleFunctionNames;
+std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 static std::map<const StructType *, METHOD_INFO *> classMethod;
 static std::list<MEMORY_REGION> memoryRegion;
@@ -86,7 +86,7 @@ static void recursiveDelete(Value *V)
 
 static Function *fixupFunction(std::string methodName, Function *func)
 {
-    std::string className;
+    const StructType *STy = NULL;
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -97,8 +97,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
                 if (vname == "this") {
                     const PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     newArg = new Argument(II->getType(), "this", func);
-                    if (StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
-                        className = STy->getName().substr(6);
+                    STy = dyn_cast<StructType>(PTy->getElementType());
                     II->replaceAllUsesWith(newArg);
                 }
                 if (II->use_empty())
@@ -118,12 +117,13 @@ static Function *fixupFunction(std::string methodName, Function *func)
         }
     }
     func->getArgumentList().pop_front(); // remove original argument
+    std::string className = STy->getName().substr(6);
     func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
     if (trace_fixup)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
     if (!endswith(methodName, "__RDY"))
-        ruleFunctionNames["class." + className].push_back(methodName);
+        ruleFunctionNames[STy].push_back(methodName);
     if (trace_fixup) {
         printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
         func->dump();

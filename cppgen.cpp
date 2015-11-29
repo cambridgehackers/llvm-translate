@@ -65,8 +65,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
 static int hasRun(const StructType *STy, int recurse)
 {
     if (STy) {
-        std::string sname = STy->getName();
-        if (ruleFunctionNames[sname].size())
+        if (ruleFunctionNames[STy].size())
             return 1;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
             if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
@@ -102,7 +101,7 @@ void generateClassBody(const StructType *STy, FILE *OStr)
     if (hasRun(STy, 1)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
         if (hasRun(STy, 0))
-             for (auto item : ruleFunctionNames[STy->getName()])
+             for (auto item : ruleFunctionNames[STy])
                  fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {

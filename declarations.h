@@ -127,7 +127,7 @@ extern Module *globalMod;
 extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::list<RULE_INFO *> ruleInfo;
-extern std::map<std::string, std::list<std::string>> ruleFunctionNames;
+extern std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::map<std::string,Type *> referencedItems;
 extern std::map<const Value *, Value *> cloneVmap;
