@@ -45,6 +45,7 @@ std::map<const StructType *,ClassMethodTable *> classCreate;
 std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 std::list<RULE_INFO *> ruleInfo;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
+std::map<std::string,Type *> referencedItems;
 std::map<std::string, void *> nameMap;
 unsigned NextTypeID;
 int regen_methods;
@@ -648,7 +649,6 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
     if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
-        cloneVmap.clear();
         /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
         Function *F = I.getParent()->getParent();
         Module *Mod = F->getParent();

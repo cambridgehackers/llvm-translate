@@ -131,7 +131,6 @@ extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::map<std::string,Type *> referencedItems;
-extern std::map<const Value *, Value *> cloneVmap;
 extern Function *currentFunction;
 extern std::map<Function *, Function *> ruleRDYFunction;
 

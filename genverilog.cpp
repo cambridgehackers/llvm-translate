@@ -29,8 +29,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-std::map<std::string,Type *> referencedItems;
-
 std::string verilogArrRange(const Type *Ty)
 {
     unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();

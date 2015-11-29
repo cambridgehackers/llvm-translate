@@ -30,8 +30,8 @@ using namespace llvm;
 
 #include "declarations.h"
 
-std::map<const Value *, Value *> cloneVmap;
-int trace_clone;
+static std::map<const Value *, Value *> cloneVmap;
+static int trace_clone;
 
 /*
  * clone a DAG from one basic block to another
