@@ -42,6 +42,7 @@ const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
+std::map<const StructType *, METHOD_INFO *> classMethod;
 std::list<RULE_INFO *> ruleInfo;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 std::map<std::string, const Function *> referencedItems;
@@ -443,9 +444,16 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (STy = findThisArgumentType(PTy))
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
-        std::string lname = lookupMethod(STy, Total/sizeof(void *));
+        std::string lname;
+        METHOD_INFO *mInfo = classMethod[STy];
+        if (mInfo && Total/sizeof(void *) < mInfo->maxIndex)
+            lname = mInfo->methods[Total/sizeof(void *)];
+        else if (generateRegion != ProcessNone) {
+            printf("%s: gname %s: could not find %s/%d. mInfo %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, mInfo, mInfo? mInfo->maxIndex : -1);
+            exit(-1);
+        }
         std::string name = getMethodName(lname);
-        //if (trace_gep)
+        if (trace_gep)
             printf("%s: STy %s thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
                 STy->getName().str().c_str(), thisp, referstr.c_str(), name.c_str(), lname.c_str());
         referstr = "(" + referstr + ").";
@@ -645,7 +653,16 @@ std::string printCall(Function ***thisp, Instruction &I)
         printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
-    int RDYName = lookupRDY(func);
+    int RDYName = -1;
+    std::string rmethodString;
+    if (const StructType *STy = findThisArgument(func))
+    if ((rmethodString = getMethodName(func->getName())) != "") {
+        std::string tname = STy->getName();
+        METHOD_INFO *mInfo = classMethod[STy];
+        for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
+            if (getMethodName(mInfo->methods[i]) == rmethodString + "__RDY")
+                RDYName = i;
+    }
     fname = func->getName();
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());

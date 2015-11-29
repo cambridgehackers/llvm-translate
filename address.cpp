@@ -31,11 +31,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-typedef struct {
-    unsigned int maxIndex;
-    std::string *methods;
-} METHOD_INFO;
-
 typedef  struct {
     void *p;
     size_t size;
@@ -49,7 +44,6 @@ static int trace_fixup;// = 1;
 static std::map<void *, std::string> mapItem;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapSeen;
 static std::map<std::string, void *> mapNameLookup;
-static std::map<const StructType *, METHOD_INFO *> classMethod;
 static std::list<MEMORY_REGION> memoryRegion;
 
 /*
@@ -273,32 +267,6 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     if (idx >= 0)
         ret = ret.substr(0,idx);
     return ret;
-}
-
-int lookupRDY(const Function *func)
-{
-    std::string methodString;
-    if (const StructType *STy = findThisArgument(func))
-    if ((methodString = getMethodName(func->getName())) != "") {
-        std::string tname = STy->getName();
-        METHOD_INFO *mInfo = classMethod[STy];
-        for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
-            if (getMethodName(mInfo->methods[i]) == methodString + "__RDY")
-                return i;
-    }
-    return -1;
-}
-std::string lookupMethod(const StructType *STy, uint64_t ind)
-{
-    std::string sname = STy->getName();
-    METHOD_INFO *mInfo = classMethod[STy];
-    if (mInfo && ind < mInfo->maxIndex)
-        return mInfo->methods[ind];
-    if (generateRegion != ProcessNone) {
-        printf("%s: gname %s: could not find %s/%d. mInfo %p max %d\n", __FUNCTION__, globalName.c_str(), sname.c_str(), (int)ind, mInfo, mInfo? mInfo->maxIndex : -1);
-        exit(-1);
-    }
-    return "";
 }
 
 /*

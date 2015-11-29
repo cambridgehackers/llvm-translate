@@ -93,6 +93,11 @@ typedef struct {
     Function   *ENA;
 } RULE_INFO;
 
+typedef struct {
+    unsigned int maxIndex;
+    std::string *methods;
+} METHOD_INFO;
+
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
 enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP};
@@ -113,6 +118,7 @@ extern Function *currentFunction;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
+extern std::map<const StructType *, METHOD_INFO *> classMethod;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;
@@ -122,8 +128,6 @@ std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
 
 const char *intmapLookup(INTMAP_TYPE *map, int value);
-std::string lookupMethod(const StructType *STy, uint64_t ind);
-int lookupRDY(const Function *func);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
