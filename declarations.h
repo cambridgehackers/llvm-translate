@@ -179,7 +179,6 @@ void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, s
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
 void addressrunOnFunction(Function &F);
-void recursiveDelete(Value *V);
 Function *lookup_function(std::string className, std::string methodName);
 int inheritsModule(const StructType *STy);
 Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType);

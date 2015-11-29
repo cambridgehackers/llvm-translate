@@ -91,17 +91,3 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
                      vtabbase, methodIndex)), new_thisp);
     return dyn_cast<Instruction>(newCall);
 }
-
-void recursiveDelete(Value *V)
-{
-    Instruction *I = dyn_cast<Instruction>(V);
-    if (!I)
-        return;
-    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
-        Value *OpV = I->getOperand(i);
-        I->setOperand(i, nullptr);
-        if (OpV->use_empty())
-            recursiveDelete(OpV);
-    }
-    I->eraseFromParent();
-}

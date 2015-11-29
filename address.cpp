@@ -70,6 +70,20 @@ extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
     return ptr;
 }
 
+static void recursiveDelete(Value *V)
+{
+    Instruction *I = dyn_cast<Instruction>(V);
+    if (!I)
+        return;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+        Value *OpV = I->getOperand(i);
+        I->setOperand(i, nullptr);
+        if (OpV->use_empty())
+            recursiveDelete(OpV);
+    }
+    I->eraseFromParent();
+}
+
 static Function *fixupFunction(std::string methodName, Function *func)
 {
     std::string className;
