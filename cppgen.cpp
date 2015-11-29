@@ -125,17 +125,15 @@ void generateCppData(FILE *OStr, Module &Mod)
     NextTypeID = 1;
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
     for (auto I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
+        Type *Ty = I->getType()->getElementType();
+        ArrayType *ATy = dyn_cast<ArrayType>(Ty);
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (I->isDeclaration() || I->getSection() == std::string("llvm.metadata")
          || (I->hasAppendingLinkage() && I->use_empty()
           && (I->getName() == "llvm.global_ctors" || I->getName() == "llvm.global_dtors")))
             continue;
-        ArrayType *ATy;
-        Type *Ty = I->getType()->getElementType();
-        if (!((ATy = dyn_cast<ArrayType>(Ty))
-            && ATy->getElementType()->getTypeID() == Type::PointerTyID)
-         && I->getInitializer()->isNullValue()) {
+        if ((!ATy || !dyn_cast<PointerType>(ATy->getElementType())) && I->getInitializer()->isNullValue()) {
             if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
             fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
