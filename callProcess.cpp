@@ -31,7 +31,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
-int isConstructorDestructor(std::string name)
+static int isConstructorDestructor(std::string name)
 {
      char *endptr = NULL;
      if (name.length() < 8 || name.substr(0,3) != "_ZN")
@@ -48,7 +48,7 @@ int isConstructorDestructor(std::string name)
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
  */
-bool RemoveAllocaPass_runOnFunction(Function &F)
+static bool RemoveAllocaPass_runOnFunction(Function &F)
 {
     bool changed = false;
     int status;

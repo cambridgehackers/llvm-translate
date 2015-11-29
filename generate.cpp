@@ -397,9 +397,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
  */
 static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
-    std::string cbuffer = "(";
-    std::string sep = " ";
-    std::string amper = "&";
+    std::string cbuffer = "(", sep = " ", amper = "&";
     PointerType *PTy;
     const StructType *STy;
     const ConstantInt *CI;
@@ -589,8 +587,7 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     std::string p = fetchOperand(thisp, Operand, Indirect);
-    void *tval = mapLookup(p.c_str());
-    if (tval) {
+    if (void *tval = mapLookup(p.c_str())) {
         char temp[1000];
         sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval).c_str());
         return std::string(temp);
@@ -600,11 +597,8 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 
 std::string printCall(Function ***thisp, Instruction &I)
 {
-    std::string methodString;
-    std::string vout;
+    std::string vout, methodString, fname, methodName;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
-    std::string fname;
-    std::string methodName;
     CallInst &ICL = static_cast<CallInst&>(I);
     unsigned ArgNo = 0;
     const char *sep = "";

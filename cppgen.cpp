@@ -134,7 +134,7 @@ void generateCppData(FILE *OStr, Module &Mod)
             continue;
         ArrayType *ATy;
         Type *Ty = I->getType()->getElementType();
-        if (!(Ty->getTypeID() == Type::ArrayTyID && (ATy = cast<ArrayType>(Ty))
+        if (!((ATy = dyn_cast<ArrayType>(Ty))
             && ATy->getElementType()->getTypeID() == Type::PointerTyID)
          && I->getInitializer()->isNullValue()) {
             if (I->hasLocalLinkage())

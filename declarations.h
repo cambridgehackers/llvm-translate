@@ -168,7 +168,6 @@ std::string processInstruction(Function ***thisp, Instruction &I);
 void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName);
 void pushWork(Function *func, Function ***thisp, int skip);
 std::string verilogArrRange(const Type *Ty);
-bool RemoveAllocaPass_runOnFunction(Function &F);
 void dump_class_data(void);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
