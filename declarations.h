@@ -19,21 +19,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <list>
-#include <set>
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/InstVisitor.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/CommandLine.h"
 
 #define SEPARATOR ":"
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
 #define MAX_CHAR_BUFFER 1000
-#define MAX_CLASS_DEFS  200
-#define MAX_VTAB_EXTRA 100
 #define BOGUS_POINTER ((void *)0x5a5a5a5a5a5a5a5a)
 
 #define ERRORIF(A) { \
@@ -51,11 +44,6 @@ public:
        thisp = b;
     }
 };
-
-typedef struct {
-    std::string name;
-    std::list<const Metadata *> memberl;
-} CLASS_META;
 
 typedef struct {
     int value;
@@ -117,16 +105,12 @@ extern std::string globalName;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern const Function *EntryFn;
-extern cl::opt<std::string> MArch;
-extern cl::list<std::string> MAttrs;
 extern int regen_methods;
 extern unsigned NextTypeID;
 extern int generateRegion;
 extern Module *globalMod;
 extern Function *currentFunction;
-extern SmallDenseMap<const MDString *, const DIType *, 32> TypeRefs;
 extern std::map<std::string, void *> nameMap;
-extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
@@ -156,10 +140,8 @@ std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 const StructType *findThisArgument(const Function *func);
 
-std::string processInstruction(Function ***thisp, Instruction &I);
 void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName);
 std::string verilogArrRange(const Type *Ty);
-void dump_class_data(void);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
 bool call2runOnFunction(Function &F);

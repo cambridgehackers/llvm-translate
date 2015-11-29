@@ -26,6 +26,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -57,6 +58,7 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::map<Function *,ClassMethodTable *> functionIndex;
+static std::string processInstruction(Function ***thisp, Instruction &I);
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -777,7 +779,7 @@ std::string printCall(Function ***thisp, Instruction &I)
 /*
  * Output instructions
  */
-std::string processInstruction(Function ***thisp, Instruction &I)
+static std::string processInstruction(Function ***thisp, Instruction &I)
 {
     std::string vout;
     int opcode = I.getOpcode();
