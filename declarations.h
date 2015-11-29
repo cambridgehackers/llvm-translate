@@ -120,7 +120,7 @@ extern const Function *EntryFn;
 extern cl::opt<std::string> MArch;
 extern cl::list<std::string> MAttrs;
 extern std::map<std::string, void *> nameMap;
-extern std::map<std::string,ClassMethodTable *> classCreate;
+extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *,ClassMethodTable *> functionIndex;
 extern int regen_methods;
 extern unsigned NextTypeID;

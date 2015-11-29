@@ -78,7 +78,7 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
-    ClassMethodTable *table = classCreate[name];
+    ClassMethodTable *table = classCreate[STy];
 
 printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
     if (!table || !inheritsModule(STy)
@@ -173,7 +173,7 @@ void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
     for (auto RI : referencedItems) {
         if (const StructType *STy = findThisArgumentType(dyn_cast<PointerType>(RI.second))) {
             std::string name = getStructName(STy);
-            ClassMethodTable *table = classCreate[name];
+            ClassMethodTable *table = classCreate[STy];
 printf("%s: name %s type %p table %p instance %s\n", __FUNCTION__, name.c_str(), RI.second, table, RI.first.c_str());
             if (table && RI.first != "Vthis")
                 generateModuleSignature(name, OStr, table, RI.first.c_str());

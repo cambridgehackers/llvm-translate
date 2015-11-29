@@ -40,7 +40,7 @@ static int trace_hoist = 1;
 static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 std::string globalName;
-std::map<std::string,ClassMethodTable *> classCreate;
+std::map<const StructType *,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
@@ -158,8 +158,10 @@ const StructType *findThisArgument(const Function *func)
     const StructType *STy = NULL;
     if (func && func->arg_begin() != func->arg_end()
      && func->arg_begin()->getName() == "this"
-     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType())))
+     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))) {
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
+        getStructName(STy);
+    }
     return STy;
 }
 
@@ -169,8 +171,10 @@ const StructType *findThisArgumentType(const PointerType *PTy)
     const FunctionType *func;
     if (PTy && (func = dyn_cast<FunctionType>(PTy->getElementType()))
      && func->getNumParams() > 0
-     && (PTy = dyn_cast<PointerType>(func->getParamType(0))))
+     && (PTy = dyn_cast<PointerType>(func->getParamType(0)))) {
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
+        getStructName(STy);
+    }
     return STy;
 }
 std::string GetValueName(const Value *Operand)
@@ -1084,11 +1088,10 @@ void pushWork(Function *func, Function ***thisp, int skip)
     if (!func)
         return;
     if (const StructType *STy = findThisArgument(func)) {
-        std::string sname = getStructName(STy);
-        if (!classCreate[sname])
-            classCreate[sname] = new ClassMethodTable;
-        classCreate[sname]->method[func] = getMethodName(func->getName());
-        functionIndex[func] = classCreate[sname];
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
+        classCreate[STy]->method[func] = getMethodName(func->getName());
+        functionIndex[func] = classCreate[STy];
     }
     vtablework.push_back(VTABLE_WORK(func, thisp, skip));
 }

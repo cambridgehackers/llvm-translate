@@ -81,7 +81,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
     if (trace_cppstruct)
         printf("ELEMENT: TOP %s\n", name.c_str());
     generateClassElements(STy, OStr);
-    if (ClassMethodTable *table = classCreate[name])
+    if (ClassMethodTable *table = classCreate[STy])
         for (auto FI : table->method)
             fprintf(OStr, "  %s", printFunctionSignature(FI.first,
                 getMethodName(FI.first->getName()), false, ";\n", 1).c_str());
@@ -93,7 +93,7 @@ void generateClassDef(const StructType *STy, FILE *OStr)
 void generateClassBody(const StructType *STy, FILE *OStr)
 {
     std::string name = getStructName(STy);
-    if (ClassMethodTable *table = classCreate[name])
+    if (ClassMethodTable *table = classCreate[STy])
         for (auto FI : table->method) {
             VTABLE_WORK workItem(FI.first, NULL, 1);
             regen_methods = 3;

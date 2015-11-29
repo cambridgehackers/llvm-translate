@@ -316,10 +316,9 @@ void addressrunOnFunction(Function &F)
 //printf("addressrunOnFunction: %s\n", fname.c_str());
     if (getMethodName(fname) != "")
     if (const StructType *STy = findThisArgument(&F)) {
-        std::string sname = getStructName(STy);
-        if (!classCreate[sname])
-            classCreate[sname] = new ClassMethodTable;
-        classCreate[sname]->type = STy;
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
+        classCreate[STy]->type = STy;
     }
 }
 
