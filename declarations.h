@@ -135,7 +135,6 @@ extern Function *currentFunction;
 extern std::map<Function *, Function *> ruleRDYFunction;
 
 int validateAddress(int arg, void *p);
-std::string setMapAddress(void *arg, std::string name);
 std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
 

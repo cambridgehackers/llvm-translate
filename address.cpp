@@ -177,33 +177,24 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-std::string setMapAddress(void *arg, std::string name)
+static void setMapAddress(void *arg, std::string name)
 {
-    const GlobalValue *g = EE->getGlobalValueAtAddress(arg);
-    std::string mptrname = mapitem[arg];
-    if (mptrname != "")
-        return mptrname.c_str();
-    if (g)
-        name = g->getName().str();
-    if (name.length() != 0) {
+    if (mapitem[arg] == "") {
         mapitem[arg] = name;
-        if (name != "") {
-            maplookup[name] = arg;
-            //printf("%s: setname %s = %p\n", __FUNCTION__, name.c_str(), arg);
-        }
-        if (name[0] != '(')
-            return name;
+        maplookup[name] = arg;
     }
-    static char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "%p", arg);
-    if (trace_mapa)
-        printf("%s: %p\n", __FUNCTION__, arg);
-    return temp;
 }
 
 std::string mapAddress(void *arg)
 {
-    return setMapAddress(arg, "");
+    std::string val = mapitem[arg];
+    if (val != "")
+        return val;
+    char temp[MAX_CHAR_BUFFER];
+    sprintf(temp, "%p", arg);
+    if (trace_mapa)
+        printf("%s: %p\n", __FUNCTION__, arg);
+    return temp;
 }
 
 void *mapLookup(std::string name)
