@@ -154,7 +154,6 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
-const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(const Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction &I);
