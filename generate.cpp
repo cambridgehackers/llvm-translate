@@ -36,7 +36,7 @@ using namespace llvm;
 
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
-static int trace_hoist = 1;
+static int trace_hoist;// = 1;
 static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 std::string globalName;
@@ -44,7 +44,6 @@ std::map<const StructType *,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
 static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
-static int structWork_run;
 std::map<std::string, void *> nameMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
@@ -139,7 +138,6 @@ static void pushWork(Function *func, Function ***thisp)
 std::string getStructName(const StructType *STy)
 {
     assert(STy);
-    //if (!structWork_run)
     if (!structMap[STy])
         structWork.push_back(STy);
     if (!STy->isLiteral() && !STy->getName().empty())
@@ -1086,7 +1084,6 @@ void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName)
  */
 static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
-    //structWork.clear();
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
@@ -1123,14 +1120,12 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
 }
 static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
 {
-    structWork_run = 1;
     structMap.clear();
     auto current = structWork.begin();
     while (current != structWork.end()) {
         printContainedStructs(*current, OStr, oDir, cb);
         current = std::next(current);
     }
-    structWork_run = 0;
 }
 
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
