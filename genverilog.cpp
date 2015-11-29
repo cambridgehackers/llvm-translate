@@ -33,13 +33,15 @@ std::map<std::string,Type *> referencedItems;
 
 std::string verilogArrRange(const Type *Ty)
 {
-unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+    unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
     if (NumBits > 8)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }
-static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
+static void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance)
 {
+    ClassMethodTable *table = classCreate[STy];
+    std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
     if (instance) {
@@ -85,7 +87,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
      || table->method.begin() == table->method.end())
         return;
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
-    generateModuleSignature(name, OStr, table, NULL);
+    generateModuleSignature(OStr, STy, NULL);
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         std::string fname = fieldName(STy, Idx);
@@ -170,13 +172,11 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 }
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
-    for (auto RI : referencedItems) {
+    for (auto RI : referencedItems)
         if (const StructType *STy = findThisArgumentType(dyn_cast<PointerType>(RI.second))) {
-            std::string name = getStructName(STy);
             ClassMethodTable *table = classCreate[STy];
-printf("%s: name %s type %p table %p instance %s\n", __FUNCTION__, name.c_str(), RI.second, table, RI.first.c_str());
+printf("%s: type %p instance %s\n", __FUNCTION__, RI.second, RI.first.c_str());
             if (table && RI.first != "Vthis")
-                generateModuleSignature(name, OStr, table, RI.first.c_str());
+                generateModuleSignature(OStr, STy, RI.first.c_str());
         }
-    }
 }
