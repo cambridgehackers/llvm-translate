@@ -174,14 +174,6 @@ int validateAddress(int arg, void *p)
 /*
  * Build up reverse address map from all data items after running constructors
  */
-static void setMapAddress(void *arg, std::string name)
-{
-    if (mapItem[arg] == "") {
-        mapItem[arg] = name;
-        mapNameLookup[name] = arg;
-    }
-}
-
 std::string mapAddress(void *arg)
 {
     std::string val = mapItem[arg];
@@ -221,15 +213,6 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
     return 0;
 }
 
-static const Type *memoryType(void *p)
-{
-    for (MEMORY_REGION info : memoryRegion) {
-        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
-            return info.type;
-    }
-    return NULL;
-}
-
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -239,7 +222,8 @@ static void mapType(char *addr, Type *Ty, std::string aname)
 printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
-    setMapAddress(addr, aname);
+    mapItem[addr] = aname;
+    mapNameLookup[aname] = addr;
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
@@ -250,9 +234,11 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
             char *eaddr = addr + SLO->getElementOffset(Idx);
             Type *element = *I;
             if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                const Type *Ty = memoryType(*(char **)eaddr);
-                if (Ty && checkDerived(Ty, PTy))
-                    replaceType[EREPLACE_INFO{STy, Idx}] = Ty;
+                void *p = *(char **)eaddr;
+                for (MEMORY_REGION info : memoryRegion)
+                    if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)
+                     && checkDerived(info.type, PTy))
+                        replaceType[EREPLACE_INFO{STy, Idx}] = info.type;
             }
             if (fname != "")
                 mapType(eaddr, element, aname + "$$" + fname);
