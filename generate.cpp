@@ -51,7 +51,7 @@ int regen_methods;
 int generateRegion;
 Function *currentFunction;
 
-static std::list<VTABLE_WORK> vtablework;
+static std::list<VTABLE_WORK> vtableWork;
 static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
@@ -135,7 +135,7 @@ static void pushWork(Function *func, Function ***thisp)
         classCreate[STy]->method[func] = getMethodName(func->getName());
         functionIndex[func] = classCreate[STy];
     }
-    vtablework.push_back(VTABLE_WORK(func, thisp));
+    vtableWork.push_back(VTABLE_WORK(func, thisp));
 }
 
 /*
@@ -1097,10 +1097,9 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     }
 
     // Walk list of work items, generating code
-    while (vtablework.begin() != vtablework.end()) {
-        Function *F = vtablework.begin()->f;
-        processFunction(*vtablework.begin(), (functionIndex[F] ? outputNull : outputFile), "");
-        vtablework.pop_front();
+    while (vtableWork.begin() != vtableWork.end()) {
+        processFunction(*vtableWork.begin(), functionIndex[vtableWork.begin()->f] ? outputNull : outputFile, "");
+        vtableWork.pop_front();
     }
 }
 

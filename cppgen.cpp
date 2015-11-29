@@ -102,14 +102,10 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
-            const StructType *STy = dyn_cast<StructType>(*I);
-            if (const PointerType *PTy = dyn_cast<PointerType>(*I)) {
-                STy = dyn_cast<StructType>(PTy->getElementType());
-                if (hasRun(STy, 1))
-                    fprintf(OStr, "    %s->run();\n", fname.c_str());
-            }
-            else if (hasRun(STy, 1))
-                fprintf(OStr, "    %s.run();\n", fname.c_str());
+            const PointerType *PTy = dyn_cast<PointerType>(*I);
+            const StructType *elt = !PTy ? dyn_cast<StructType>(*I) : dyn_cast<StructType>(PTy->getElementType());
+            if (hasRun(elt, 1))
+                fprintf(OStr, "    %s%srun();\n", fname.c_str(), PTy ? "->" : ".");
         }
         fprintf(OStr, "}\n");
     }
