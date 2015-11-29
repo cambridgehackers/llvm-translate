@@ -325,15 +325,13 @@ void constructAddressMap(Module *Mod)
                 if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
                 if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
-                    std::string fname = func->getName();
-                    std::string sname = STy->getName();
                     if (!mInfo) {
                         mInfo = new METHOD_INFO;
                         mInfo->maxIndex = 0;
                         mInfo->methods = new std::string[ATy->getNumElements()];
                         classMethod[STy] = mInfo;
                     }
-                    mInfo->methods[mInfo->maxIndex++] = fname;
+                    mInfo->methods[mInfo->maxIndex++] = func->getName();
                 }
             }
         }
