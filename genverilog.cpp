@@ -103,8 +103,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         if (!hasRet)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         regen_methods = 1;
-        VTABLE_WORK foo(func, NULL, 1);
-        processFunction(foo, OStr, "");
+        processFunction(VTABLE_WORK{func, NULL}, OStr, "");
         regen_methods = 0;
         if (!hasRet)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
@@ -173,10 +172,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
 void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
 {
     for (auto RI : referencedItems)
-        if (const StructType *STy = findThisArgumentType(dyn_cast<PointerType>(RI.second))) {
-            ClassMethodTable *table = classCreate[STy];
-printf("%s: type %p instance %s\n", __FUNCTION__, RI.second, RI.first.c_str());
-            if (table && RI.first != "Vthis")
+        if (const StructType *STy = findThisArgumentType(dyn_cast<PointerType>(RI.second)))
+            if (classCreate[STy] && RI.first != "Vthis")
                 generateModuleSignature(OStr, STy, RI.first.c_str());
-        }
 }

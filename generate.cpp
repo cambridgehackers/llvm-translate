@@ -120,6 +120,19 @@ static bool isAddressExposed(const Value *V)
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 
+static void pushWork(Function *func, Function ***thisp)
+{
+    if (!func)
+        return;
+    if (const StructType *STy = findThisArgument(func)) {
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
+        classCreate[STy]->method[func] = getMethodName(func->getName());
+        functionIndex[func] = classCreate[STy];
+    }
+    vtablework.push_back(VTABLE_WORK(func, thisp));
+}
+
 /*
  * Name functions
  */
@@ -608,7 +621,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
         }
     }
-    pushWork(func, called_thisp, 0);
+    pushWork(func, called_thisp);
     int skip = regen_methods;
     int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string prefix;
@@ -964,7 +977,7 @@ std::string processInstruction(Function ***thisp, Instruction &I)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName)
+void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName)
 {
     Function *func = work.f;
     currentFunction = func;
@@ -1016,7 +1029,7 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         std::string mname = globalName;
         if (regenItem)
             mname = std::string(aclassName) + "::" + mname;
-        fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", work.skip || regenItem).c_str());
+        fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", regenItem).c_str());
     }
     nameMap["Vthis"] = work.thisp;
     for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
@@ -1069,19 +1082,6 @@ void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName
         fprintf(outputFile, "\n");
 }
 
-void pushWork(Function *func, Function ***thisp, int skip)
-{
-    if (!func)
-        return;
-    if (const StructType *STy = findThisArgument(func)) {
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        classCreate[STy]->method[func] = getMethodName(func->getName());
-        functionIndex[func] = classCreate[STy];
-    }
-    vtablework.push_back(VTABLE_WORK(func, thisp, skip));
-}
-
 /*
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
@@ -1092,8 +1092,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
-        pushWork(info->RDY, (Function ***)info->thisp, 1);
-        pushWork(info->ENA, (Function ***)info->thisp, 1);
+        pushWork(info->RDY, (Function ***)info->thisp);
+        pushWork(info->ENA, (Function ***)info->thisp);
     }
 
     // Walk list of work items, generating code

@@ -95,9 +95,8 @@ void generateClassBody(const StructType *STy, FILE *OStr)
     std::string name = getStructName(STy);
     if (ClassMethodTable *table = classCreate[STy])
         for (auto FI : table->method) {
-            VTABLE_WORK workItem(FI.first, NULL, 1);
             regen_methods = 3;
-            processFunction(workItem, OStr, name);
+            processFunction(VTABLE_WORK(FI.first, NULL), OStr, name);
             regen_methods = 0;
         }
     if (hasRun(STy, 1)) {

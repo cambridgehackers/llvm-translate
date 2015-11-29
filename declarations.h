@@ -46,11 +46,9 @@ class VTABLE_WORK {
 public:
     Function *f;      // Since passes modify instructions, this cannot be 'const'
     Function ***thisp;
-    int skip;
-    VTABLE_WORK(Function *a, Function ***b, int c) {
+    VTABLE_WORK(Function *a, Function ***b) {
        f = a;
        thisp = b;
-       skip = c;
     }
 };
 
@@ -165,8 +163,7 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 const StructType *findThisArgument(const Function *func);
 
 std::string processInstruction(Function ***thisp, Instruction &I);
-void processFunction(VTABLE_WORK &work, FILE *outputFile, std::string aclassName);
-void pushWork(Function *func, Function ***thisp, int skip);
+void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName);
 std::string verilogArrRange(const Type *Ty);
 void dump_class_data(void);
 void memdump(unsigned char *p, int len, const char *title);
