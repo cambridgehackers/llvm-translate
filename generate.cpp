@@ -41,7 +41,6 @@ const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
-std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 std::list<RULE_INFO *> ruleInfo;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 std::map<std::string,Type *> referencedItems;

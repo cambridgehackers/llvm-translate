@@ -95,6 +95,7 @@ struct EREPLACEcomp {
 class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
+    std::list<std::string> rules;
 };
 
 typedef struct {
@@ -128,7 +129,6 @@ extern std::map<std::string, void *> nameMap;
 extern std::map<std::string, DICompositeType *> retainedTypes;
 extern std::map<std::string,Type *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
-extern std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;

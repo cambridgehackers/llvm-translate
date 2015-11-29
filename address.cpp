@@ -115,8 +115,11 @@ static Function *fixupFunction(std::string methodName, Function *func)
     func->setLinkage(GlobalValue::LinkOnceODRLinkage);
     if (trace_fixup)
         printf("[%s:%d] class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
-    if (!endswith(methodName, "__RDY"))
-        ruleFunctionNames[STy].push_back(methodName);
+    if (!endswith(methodName, "__RDY")) {
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
+        classCreate[STy]->rules.push_back(methodName);
+    }
     if (trace_fixup) {
         printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
         func->dump();
