@@ -1192,8 +1192,8 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
     processRules(Out, OutNull, OutHeader);
-    UnnamedStructIDs.clear();
     generateStructs(Out, "", generateClassBody); // generate class method bodies
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
+    UnnamedStructIDs.clear();
     return false;
 }
