@@ -95,7 +95,6 @@ struct EREPLACEcomp {
 class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
-    const StructType *type;
 };
 
 typedef struct {
@@ -107,7 +106,7 @@ typedef struct {
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
-enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP, ProcessClass};
+enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP};
 
 extern ExecutionEngine *EE;
 extern int trace_translate;
@@ -172,7 +171,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
 void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname);
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
-void addressrunOnFunction(Function &F);
 Function *lookup_function(std::string className, std::string methodName);
 int inheritsModule(const StructType *STy);
 Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType);

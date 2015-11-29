@@ -298,18 +298,6 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     return ret;
 }
 
-void addressrunOnFunction(Function &F)
-{
-    std::string fname = F.getName();
-//printf("addressrunOnFunction: %s\n", fname.c_str());
-    if (getMethodName(fname) != "")
-    if (const StructType *STy = findThisArgument(&F)) {
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        classCreate[STy]->type = STy;
-    }
-}
-
 int lookupRDY(const Function *func)
 {
     std::string methodString;

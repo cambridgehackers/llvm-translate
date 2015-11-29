@@ -1170,9 +1170,8 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
 
     // Construct the address -> symbolic name map using dwarf debug info
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        addressrunOnFunction(*FB);
+        findThisArgument(FB);
     constructAddressMap(Mod);
-    //dump_class_data();
 
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
