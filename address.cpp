@@ -46,13 +46,9 @@ typedef  struct {
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
-static std::map<void *, std::string> mapitem;
-static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapseen;
-static std::map<std::string, void *> maplookup;
-std::list<RULE_INFO *> ruleInfo;
-std::map<Function *, Function *> ruleRDYFunction;
-std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
-std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
+static std::map<void *, std::string> mapItem;
+static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapSeen;
+static std::map<std::string, void *> mapNameLookup;
 static std::map<const StructType *, METHOD_INFO *> classMethod;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -179,15 +175,15 @@ int validateAddress(int arg, void *p)
  */
 static void setMapAddress(void *arg, std::string name)
 {
-    if (mapitem[arg] == "") {
-        mapitem[arg] = name;
-        maplookup[name] = arg;
+    if (mapItem[arg] == "") {
+        mapItem[arg] = name;
+        mapNameLookup[name] = arg;
     }
 }
 
 std::string mapAddress(void *arg)
 {
-    std::string val = mapitem[arg];
+    std::string val = mapItem[arg];
     if (val != "")
         return val;
     char temp[MAX_CHAR_BUFFER];
@@ -202,7 +198,7 @@ void *mapLookup(std::string name)
     char *endptr = NULL;
     if (!strncmp(name.c_str(), "0x", 2))
         return (void *)strtol(name.c_str()+2, &endptr, 16);
-    return maplookup[name];
+    return mapNameLookup[name];
 }
 
 static int checkDerived(const Type *A, const Type *B)
@@ -236,9 +232,9 @@ static const Type *memoryType(void *p)
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
-    if (!addr || addr == BOGUS_POINTER || mapseen[MAPSEEN_TYPE{addr, Ty}])
+    if (!addr || addr == BOGUS_POINTER || mapSeen[MAPSEEN_TYPE{addr, Ty}])
         return;
-    mapseen[MAPSEEN_TYPE{addr, Ty}] = 1;
+    mapSeen[MAPSEEN_TYPE{addr, Ty}] = 1;
 printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
@@ -330,7 +326,7 @@ std::string lookupMethod(const StructType *STy, uint64_t ind)
  */
 void constructAddressMap(Module *Mod)
 {
-    mapitem.clear();
+    mapItem.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         const ConstantArray *CA;
         std::string name = MI->getName();

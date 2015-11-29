@@ -37,21 +37,26 @@ using namespace llvm;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
-static std::list<VTABLE_WORK> vtablework;
 const Function *EntryFn;
 std::string globalName;
-std::map<const StructType *,ClassMethodTable *> classCreate;
 std::map<Function *,ClassMethodTable *> functionIndex;
-static std::list<const StructType *> structWork;
-static std::map<const Type *, int> structMap;
+std::map<Function *, Function *> ruleRDYFunction;
+std::map<const StructType *,ClassMethodTable *> classCreate;
+std::map<const StructType *, std::list<std::string>> ruleFunctionNames;
+std::list<RULE_INFO *> ruleInfo;
+std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 std::map<std::string, void *> nameMap;
-static DenseMap<const Value*, unsigned> AnonValueNumbers;
-static unsigned NextAnonValueNumber;
-static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
 Function *currentFunction;
+
+static std::list<VTABLE_WORK> vtablework;
+static std::list<const StructType *> structWork;
+static std::map<const Type *, int> structMap;
+static DenseMap<const Value*, unsigned> AnonValueNumbers;
+static unsigned NextAnonValueNumber;
+static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
