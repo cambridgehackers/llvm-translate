@@ -29,8 +29,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-int trace_cppstruct;// = 1;
-
 int inheritsModule(const StructType *STy)
 {
     if (STy) {
@@ -77,8 +75,6 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
-    if (trace_cppstruct)
-        printf("ELEMENT: TOP %s\n", name.c_str());
     generateClassElements(STy, OStr);
     if (ClassMethodTable *table = classCreate[STy])
         for (auto FI : table->method)
@@ -129,9 +125,9 @@ void generateCppData(FILE *OStr, Module &Mod)
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (!I->isDeclaration() && I->getSection() != std::string("llvm.metadata")
-         && (!I->hasAppendingLinkage() || !I->use_empty()
-             || (I->getName() != "llvm.global_ctors" && I->getName() != "llvm.global_dtors"))
-         && (!ATy || !dyn_cast<PointerType>(ATy->getElementType())) && I->getInitializer()->isNullValue()) {
+         && !I->hasAppendingLinkage() && !I->use_empty() && I->getInitializer()->isNullValue()
+         && I->getName() != "llvm.global_ctors" && I->getName() != "llvm.global_dtors"
+         && (!ATy || !dyn_cast<PointerType>(ATy->getElementType()))) {
             if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
             fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
