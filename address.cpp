@@ -91,23 +91,20 @@ static Function *fixupFunction(std::string methodName, Function *func)
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             std::string vname = II->getName();
-            Argument *newArg = NULL;
             switch (II->getOpcode()) {
             case Instruction::Load:
                 if (vname == "this") {
+                    II->setName("unused");
                     const PointerType *PTy = dyn_cast<PointerType>(II->getType());
-                    newArg = new Argument(II->getType(), "this", func);
+                    Argument *newArg = new Argument(II->getType(), "this", func);
                     STy = dyn_cast<StructType>(PTy->getElementType());
                     II->replaceAllUsesWith(newArg);
                 }
                 if (II->use_empty())
                     recursiveDelete(II);
-                if (newArg)
-                    newArg->setName("this");
                 break;
             case Instruction::Store: {
                 std::string name = II->getOperand(0)->getName();
-                //printf("[%s:%d] name %s\n", __FUNCTION__, __LINE__, name.c_str());
                 if (name == ".block_descriptor" || name == "block")
                     recursiveDelete(II);
                 break;
