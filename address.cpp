@@ -123,10 +123,10 @@ static const StructType *fixupFunction(std::string methodName, Function *func)
 extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
 {
     std::string name = aname;
-    const StructType *STyRDY = fixupFunction(name + "__RDY", RDY[2]);
-    if (!classCreate[STyRDY])
-        classCreate[STyRDY] = new ClassMethodTable;
-    classCreate[STyRDY]->rules.push_back(name);
+    const StructType *STy = fixupFunction(name + "__RDY", RDY[2]);
+    if (!classCreate[STy])
+        classCreate[STy] = new ClassMethodTable;
+    classCreate[STy]->rules.push_back(name);
     fixupFunction(name, ENA[2]);
     ruleInfo.push_back(new RULE_INFO{aname, thisp, RDY[2], ENA[2]});
     ruleRDYFunction[ENA[2]] = RDY[2];
