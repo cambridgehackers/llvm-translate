@@ -130,8 +130,8 @@ void generateCppData(FILE *OStr, Module &Mod)
         ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
           || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
         if (!I->isDeclaration() && I->getSection() != std::string("llvm.metadata")
-         && !(I->hasAppendingLinkage() && I->use_empty()
-             && (I->getName() == "llvm.global_ctors" || I->getName() == "llvm.global_dtors"))
+         && (!I->hasAppendingLinkage() || !I->use_empty()
+             || (I->getName() != "llvm.global_ctors" && I->getName() != "llvm.global_dtors"))
          && (!ATy || !dyn_cast<PointerType>(ATy->getElementType())) && I->getInitializer()->isNullValue()) {
             if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
