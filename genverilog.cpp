@@ -40,9 +40,8 @@ unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
 }
 static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTable *table, const char *instance)
 {
+    std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
-    std::string inp = "input ";
-    std::string outp = "output ";
     if (instance) {
         inp = instance;
         outp = instance;
@@ -63,21 +62,15 @@ static void generateModuleSignature(std::string name, FILE *OStr, ClassMethodTab
             paramList.push_back(inp + mname + "__ENA");
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                const Type *Ty = AI->getType();
-                paramList.push_back(inp + verilogArrRange(Ty) + mname + "_" + AI->getName().str());
-            }
+            if (!skip)
+                paramList.push_back(inp + verilogArrRange(AI->getType()) + mname + "_" + AI->getName().str());
             skip = 0;
         }
     }
     for (auto PI = paramList.begin(); PI != paramList.end();) {
         fprintf(OStr, "    %s", PI->c_str());
         PI++;
-        if (PI != paramList.end())
-            fprintf(OStr, ",");
-        else
-            fprintf(OStr, ");");
-        fprintf(OStr, "\n");
+        fprintf(OStr, PI != paramList.end() ? ",\n" : ");\n");
     }
     fprintf(OStr, "\n");
 }
