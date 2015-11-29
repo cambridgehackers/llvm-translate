@@ -325,27 +325,22 @@ void constructAddressMap(Module *Mod)
 {
     mapItem.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
-        const ConstantArray *CA;
         std::string name = MI->getName();
-        Type *Ty = MI->getType()->getElementType();
-        void *addr = EE->getPointerToGlobal(MI);
+        const ConstantArray *CA;
         int status;
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-            const PointerType *PTy, *Ty = dyn_cast<PointerType>(MI->getType());
+            const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
             const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
-            const Function *func;
-            const StructType *STy;
-            const ConstantExpr *vinit;
             printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
             METHOD_INFO *mInfo = NULL;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
-                if ((vinit = dyn_cast<ConstantExpr>((*CI)))
-                 && vinit->getOpcode() == Instruction::BitCast
-                 && (func = dyn_cast<Function>(vinit->getOperand(0)))
-                 && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-                 && (STy = dyn_cast<StructType>(PTy->getElementType()))) {
+                if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
+                if (vinit->getOpcode() == Instruction::BitCast)
+                if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
+                if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
+                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
                     std::string fname = func->getName();
                     std::string sname = STy->getName();
                     if (!mInfo) {
@@ -360,6 +355,8 @@ void constructAddressMap(Module *Mod)
         }
         else if ((name.length() < 4 || name.substr(0,4) != ".str")
          && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
+            void *addr = EE->getPointerToGlobal(MI);
+            Type *Ty = MI->getType()->getElementType();
             memoryRegion.push_back(MEMORY_REGION{addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType()});
             mapType((char *)addr, Ty, name);
         }
