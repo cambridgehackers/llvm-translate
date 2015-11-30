@@ -42,9 +42,9 @@ typedef  struct {
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
-static std::map<void *, std::string> mapItem;
-static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> mapSeen;
-static std::map<std::string, void *> mapNameLookup;
+static std::map<void *, std::string> addressToName;
+static std::map<std::string, void *> nameToAddress;
+static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
 /*
@@ -174,7 +174,7 @@ int validateAddress(int arg, void *p)
  */
 std::string mapAddress(void *arg)
 {
-    std::string val = mapItem[arg];
+    std::string val = addressToName[arg];
     if (val != "")
         return val;
     char temp[MAX_CHAR_BUFFER];
@@ -189,7 +189,7 @@ void *mapLookup(std::string name)
     char *endptr = NULL;
     if (!strncmp(name.c_str(), "0x", 2))
         return (void *)strtol(name.c_str()+2, &endptr, 16);
-    return mapNameLookup[name];
+    return nameToAddress[name];
 }
 
 static int checkDerived(const Type *A, const Type *B)
@@ -214,14 +214,15 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
-    if (!addr || addr == BOGUS_POINTER || mapSeen[MAPSEEN_TYPE{addr, Ty}])
+    if (!addr || addr == BOGUS_POINTER
+     || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
         return;
-    mapSeen[MAPSEEN_TYPE{addr, Ty}] = 1;
+    addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
 printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
-    mapItem[addr] = aname;
-    mapNameLookup[aname] = addr;
+    addressToName[addr] = aname;
+    nameToAddress[aname] = addr;
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
@@ -233,10 +234,19 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
             Type *element = *I;
             if (PointerType *PTy = dyn_cast<PointerType>(element)) {
                 void *p = *(char **)eaddr;
+                /* Look up destination address in allocated regions, to see
+                 * what if its datatype is a derived type from the pointer
+                 * target type.  If so, replace pointer base type.
+                 */
                 for (MEMORY_REGION info : memoryRegion)
                     if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)
-                     && checkDerived(info.type, PTy))
-                        replaceType[EREPLACE_INFO{STy, Idx}] = info.type;
+                     && checkDerived(info.type, PTy)) {
+                        if (!classCreate[STy])
+                            classCreate[STy] = new ClassMethodTable;
+printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(),
+info.STy, info.STy->getName().str().c_str());
+                        classCreate[STy]->replaceType[Idx] = info.type;
+                    }
             }
             if (fname != "")
                 mapType(eaddr, element, aname + "$$" + fname);
@@ -279,7 +289,7 @@ std::string fieldName(const StructType *STy, uint64_t ind)
  */
 void constructAddressMap(Module *Mod)
 {
-    mapItem.clear();
+    addressToName.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         const ConstantArray *CA;

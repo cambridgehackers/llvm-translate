@@ -43,7 +43,6 @@ std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 std::list<RULE_INFO *> ruleInfo;
-std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 std::map<std::string, const Function *> referencedItems;
 std::map<std::string, void *> nameMap;
 unsigned NextTypeID;

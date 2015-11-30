@@ -65,24 +65,10 @@ struct MAPSEENcomp {
     }
 };
 
-typedef struct {
-    const StructType *STy;
-    int               Idx;
-} EREPLACE_INFO;
-
-struct EREPLACEcomp {
-    bool operator() (const EREPLACE_INFO& lhs, const EREPLACE_INFO& rhs) const {
-        if (lhs.STy < rhs.STy)
-            return true;
-        if (lhs.STy > rhs.STy)
-            return false;
-        return lhs.Idx < rhs.Idx;
-    }
-};
-
 class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
+    std::map<int, const Type *>       replaceType;
     std::list<std::string>            rules;
     unsigned int                      vtableCount;
     std::string                      *vtable;
@@ -116,7 +102,6 @@ extern Function *currentFunction;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
-extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;
 
