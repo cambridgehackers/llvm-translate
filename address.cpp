@@ -261,6 +261,7 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
 printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(),
 info.STy, info.STy->getName().str().c_str());
                         classCreate[STy]->replaceType[Idx] = info.type;
+                        classCreate[STy]->allocateLocally[Idx] = (STy == info.STy);
                     }
             }
             if (fname != "")

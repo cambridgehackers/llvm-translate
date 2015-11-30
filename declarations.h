@@ -44,6 +44,7 @@ class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
     std::map<int, const Type *>       replaceType;
+    std::map<int, bool>               allocateLocally;
     std::list<std::string>            rules;
     unsigned int                      vtableCount;
     std::string                      *vtable;
