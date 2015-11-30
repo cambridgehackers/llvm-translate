@@ -118,7 +118,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         Function *func = FI.first;
         std::string mname = FI.second;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (mname.length() > 5 && mname.substr(mname.length() - 5, 5) == "__RDY")
+        if (endswith(mname, "__RDY"))
             continue;
         fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
         int skip = 1;
@@ -140,7 +140,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     for (auto FI : table->method) {
         Function *func = FI.first;
         std::string mname = FI.second;
-        if (mname.length() > 5 && mname.substr(mname.length() - 5, 5) == "__RDY")
+        if (endswith(mname, "__RDY"))
             continue;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
         if (hasRet)
