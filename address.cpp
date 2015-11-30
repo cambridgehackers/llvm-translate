@@ -294,9 +294,9 @@ void constructAddressMap(Module *Mod)
                 if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
                     if (!classCreate[STy])
                         classCreate[STy] = new ClassMethodTable;
-                    if (!classCreate[STy]->methods)
-                        classCreate[STy]->methods = new std::string[ATy->getNumElements()];
-                    classCreate[STy]->methods[classCreate[STy]->maxIndex++] = func->getName();
+                    if (!classCreate[STy]->vtable)
+                        classCreate[STy]->vtable = new std::string[ATy->getNumElements()];
+                    classCreate[STy]->vtable[classCreate[STy]->vtableCount++] = func->getName();
                 }
             }
         }

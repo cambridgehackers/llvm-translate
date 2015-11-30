@@ -31,19 +31,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int isConstructorDestructor(std::string name)
-{
-     char *endptr = NULL;
-     if (name.length() < 8 || name.substr(0,3) != "_ZN")
-         return 0;
-     int len = strtol(name.c_str()+3, &endptr, 10);
-     if (len <= 0)
-         return 0;
-     endptr += len;
-     if (!strncmp(endptr, "C2E", 3) || !strncmp(endptr, "D2E", 3))
-         return 1;
-     return 0;
-}
 /*
  * Remove alloca and calls to 'llvm.dbg.declare()' that were added
  * when compiling with '-g'
@@ -51,12 +38,6 @@ static int isConstructorDestructor(std::string name)
 static bool RemoveAllocaPass_runOnFunction(Function &F)
 {
     bool changed = false;
-    int status;
-    std::string fname = F.getName();
-    const char *demang = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-//printf("RemoveAllocaPass: %s = %s\n", fname.c_str(), demang);
-    if (isConstructorDestructor(fname))
-        return changed;
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         BasicBlock::iterator Start = BB->getFirstInsertionPt();
         BasicBlock::iterator E = BB->end();
@@ -68,8 +49,8 @@ static bool RemoveAllocaPass_runOnFunction(Function &F)
             int opcode = I->getOpcode();
             switch (opcode) {
             case Instruction::Alloca: {
-               std::string name = I->getName();
-               int ind = name.find("block");
+                std::string name = I->getName();
+                int ind = name.find("block");
 //printf("       ALLOCA %s;", name.c_str());
                 if (I->hasName() && ind == -1 && endswith(name, ".addr")) {
                     Value *newt = NULL;

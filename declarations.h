@@ -83,10 +83,10 @@ struct EREPLACEcomp {
 class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
-    std::list<std::string> rules;
-    unsigned int maxIndex;
-    std::string *methods;
-    ClassMethodTable(): maxIndex(0), methods(NULL) {}
+    std::list<std::string>            rules;
+    unsigned int                      vtableCount;
+    std::string                      *vtable;
+    ClassMethodTable(): vtableCount(0), vtable(NULL) {}
 };
 
 typedef struct {

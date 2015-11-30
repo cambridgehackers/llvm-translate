@@ -445,10 +445,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         std::string lname;
         ClassMethodTable *table = classCreate[STy];
-        if (table && Total/sizeof(void *) < table->maxIndex)
-            lname = table->methods[Total/sizeof(void *)];
+        if (table && Total/sizeof(void *) < table->vtableCount)
+            lname = table->vtable[Total/sizeof(void *)];
         else if (generateRegion != ProcessNone) {
-            printf("%s: gname %s: could not find %s/%d. table %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, table, table? table->maxIndex : -1);
+            printf("%s: gname %s: could not find %s/%d. table %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, table, table? table->vtableCount : -1);
             exit(-1);
         }
         std::string name = getMethodName(lname);
@@ -658,8 +658,8 @@ std::string printCall(Function ***thisp, Instruction &I)
     if ((rmethodString = getMethodName(func->getName())) != "") {
         std::string tname = STy->getName();
         ClassMethodTable *table = classCreate[STy];
-        for (unsigned int i = 0; table && i < table->maxIndex; i++)
-            if (getMethodName(table->methods[i]) == rmethodString + "__RDY")
+        for (unsigned int i = 0; table && i < table->vtableCount; i++)
+            if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
                 RDYName = i;
     }
     fname = func->getName();
