@@ -42,7 +42,6 @@ const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
-std::map<const StructType *, METHOD_INFO *> classMethod;
 std::list<RULE_INFO *> ruleInfo;
 std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 std::map<std::string, const Function *> referencedItems;
@@ -445,11 +444,11 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         std::string lname;
-        METHOD_INFO *mInfo = classMethod[STy];
-        if (mInfo && Total/sizeof(void *) < mInfo->maxIndex)
-            lname = mInfo->methods[Total/sizeof(void *)];
+        ClassMethodTable *table = classCreate[STy];
+        if (table && Total/sizeof(void *) < table->maxIndex)
+            lname = table->methods[Total/sizeof(void *)];
         else if (generateRegion != ProcessNone) {
-            printf("%s: gname %s: could not find %s/%d. mInfo %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, mInfo, mInfo? mInfo->maxIndex : -1);
+            printf("%s: gname %s: could not find %s/%d. table %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, table, table? table->maxIndex : -1);
             exit(-1);
         }
         std::string name = getMethodName(lname);
@@ -658,9 +657,9 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (const StructType *STy = findThisArgument(func))
     if ((rmethodString = getMethodName(func->getName())) != "") {
         std::string tname = STy->getName();
-        METHOD_INFO *mInfo = classMethod[STy];
-        for (unsigned int i = 0; mInfo && i < mInfo->maxIndex; i++)
-            if (getMethodName(mInfo->methods[i]) == rmethodString + "__RDY")
+        ClassMethodTable *table = classCreate[STy];
+        for (unsigned int i = 0; table && i < table->maxIndex; i++)
+            if (getMethodName(table->methods[i]) == rmethodString + "__RDY")
                 RDYName = i;
     }
     fname = func->getName();

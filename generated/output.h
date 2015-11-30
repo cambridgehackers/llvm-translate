@@ -19,6 +19,11 @@ public:
   void run();
 };
 
+class l_class_OC_Fifo {
+public:
+  unsigned long long unused_data_to_force_inheritance;
+};
+
 class l_class_OC_Fifo1 {
 public:
   unsigned long long unused_data_to_force_inheritance;

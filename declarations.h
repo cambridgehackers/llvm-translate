@@ -84,6 +84,9 @@ class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
     std::list<std::string> rules;
+    unsigned int maxIndex;
+    std::string *methods;
+    ClassMethodTable(): maxIndex(0), methods(NULL) {}
 };
 
 typedef struct {
@@ -92,11 +95,6 @@ typedef struct {
     Function   *RDY;
     Function   *ENA;
 } RULE_INFO;
-
-typedef struct {
-    unsigned int maxIndex;
-    std::string *methods;
-} METHOD_INFO;
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
@@ -118,7 +116,6 @@ extern Function *currentFunction;
 extern std::map<std::string, void *> nameMap;
 extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
-extern std::map<const StructType *, METHOD_INFO *> classMethod;
 extern std::map<EREPLACE_INFO, const Type *, EREPLACEcomp> replaceType;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;

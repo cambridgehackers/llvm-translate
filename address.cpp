@@ -286,20 +286,17 @@ void constructAddressMap(Module *Mod)
             const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
             const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
             printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
-            METHOD_INFO *mInfo = NULL;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
                 if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
-                    if (!mInfo) {
-                        mInfo = new METHOD_INFO;
-                        mInfo->maxIndex = 0;
-                        mInfo->methods = new std::string[ATy->getNumElements()];
-                        classMethod[STy] = mInfo;
-                    }
-                    mInfo->methods[mInfo->maxIndex++] = func->getName();
+                    if (!classCreate[STy])
+                        classCreate[STy] = new ClassMethodTable;
+                    if (!classCreate[STy]->methods)
+                        classCreate[STy]->methods = new std::string[ATy->getNumElements()];
+                    classCreate[STy]->methods[classCreate[STy]->maxIndex++] = func->getName();
                 }
             }
         }
