@@ -27,18 +27,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-int inheritsModule(const StructType *STy)
-{
-    if (STy) {
-        std::string sname = STy->getName();
-        if (sname == "class.Module")
-            return 1;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (inheritsModule(dyn_cast<StructType>(*I)))
-                return 1;
-    }
-    return 0;
-}
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
@@ -51,17 +39,15 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
                 element = newType;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
-        else if (const StructType *inherit = dyn_cast<StructType>(element)) {
-            //printf("[%s:%d]inherit %p\n", __FUNCTION__, __LINE__, inherit);
+        else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);
-        }
     }
 }
 
 static int hasRun(const StructType *STy, int recurse)
 {
-    if (STy) {
-        if (classCreate[STy] && classCreate[STy]->rules.size())
+    if (STy && classCreate[STy]) {
+        if (classCreate[STy]->rules.size())
             return 1;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
             if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
@@ -71,10 +57,10 @@ static int hasRun(const StructType *STy, int recurse)
 }
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
+    ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
-    ClassMethodTable *table = classCreate[STy];
     for (auto FI : table->method)
         fprintf(OStr, "  %s", printFunctionSignature(FI.first,
             getMethodName(FI.first->getName()), false, ";\n", 1).c_str());
@@ -85,8 +71,8 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 {
-    std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
+    std::string name = getStructName(STy);
     for (auto FI : table->method) {
         regen_methods = 3;
         processFunction(VTABLE_WORK(FI.first, NULL), OStr, name);
@@ -101,8 +87,8 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             const PointerType *PTy = dyn_cast<PointerType>(*I);
-            const StructType *elt = !PTy ? dyn_cast<StructType>(*I) : dyn_cast<StructType>(PTy->getElementType());
-            if (hasRun(elt, 1))
+            if (hasRun(!PTy ? dyn_cast<StructType>(*I)
+                            : dyn_cast<StructType>(PTy->getElementType()), 1))
                 fprintf(OStr, "    %s%srun();\n", fname.c_str(), PTy ? "->" : ".");
         }
         fprintf(OStr, "}\n");
