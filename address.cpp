@@ -26,6 +26,8 @@
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 
 using namespace llvm;
 
@@ -226,6 +228,45 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
     return 0;
 }
 
+static void inlineReferences(const StructType *STy, uint64_t Idx, const Type *newType)
+{
+    for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
+        bool changed = false;
+        for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
+            for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
+                BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
+#if 1
+                if (LoadInst *IL = dyn_cast<LoadInst>(II)) {
+                Value *val = IL->getOperand(0);
+                if (GetElementPtrInst *IG = dyn_cast<GetElementPtrInst>(val)) {
+                    gep_type_iterator I = gep_type_begin(IG), E = gep_type_end(IG);
+                    Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
+                    if (I++ != E && FirstOp && FirstOp->isNullValue()
+                     && I != E && STy == dyn_cast<StructType>(*I))
+                        if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand()))
+                            if (CI->getZExtValue() == Idx) {
+printf("[%s:%d] **********************************\n", __FUNCTION__, __LINE__);
+//IG->dump();
+//IL->dump();
+                                     //IL->setOperand(0, 0);
+                                     val->setName("replacedType");
+                                     val->mutateType(IL->getType());
+                                     IL->replaceAllUsesWith(val);
+                                     IL->eraseFromParent();
+                                     changed = true;
+                            }
+                }
+                }
+#endif
+                II = PI;
+            }
+        if (changed) {
+printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
+            FB->dump();
+        }
+    }
+
+}
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -258,10 +299,13 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
                      && checkDerived(info.type, PTy)) {
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
+                        classCreate[STy]->replaceType[Idx] = info.type;
+                        if (STy == info.STy) {
 printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(),
 info.STy, info.STy->getName().str().c_str());
-                        classCreate[STy]->replaceType[Idx] = info.type;
-                        classCreate[STy]->allocateLocally[Idx] = (STy == info.STy);
+                            //classCreate[STy]->allocateLocally[Idx] = true;
+                            //inlineReferences(STy, Idx, info.type);
+                        }
                     }
             }
             if (fname != "")

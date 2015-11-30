@@ -41,7 +41,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
                     if (table->allocateLocally[Idx])
                         if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
 printf("[%s:%d] allocateLocally %d\n", __FUNCTION__, __LINE__, Idx);
-                            //element = PTy->getPointerElementType();
+                            element = PTy->getPointerElementType();
                         }
                 }
             }
