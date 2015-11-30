@@ -114,22 +114,24 @@ bool callMemrunOnFunction(Function &F)
                     && CF && CF->isDeclaration()) {
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
-                    unsigned long tparam = 0;
+                    unsigned long tparam = 0, styparam = (unsigned long)findThisArgument(&F);
                     printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
                     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
                         tparam = (unsigned long)PI->getType();
                     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
+                        Type::getInt64Ty(Mod->getContext()),
                         Type::getInt64Ty(Mod->getContext())};
                     FunctionType *fty = FunctionType::get(
                         Type::getInt8PtrTy(Mod->getContext()),
-                        ArrayRef<Type*>(Params, 2), false);
+                        ArrayRef<Type*>(Params, 3), false);
                     Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
                     Function *F = dyn_cast<Function>(newmalloc);
                     F->setCallingConv(CF->getCallingConv());
                     F->setDoesNotAlias(0);
                     F->setAttributes(CF->getAttributes());
-                    II->replaceAllUsesWith(builder.CreateCall(
-                        F, {II->getOperand(0), builder.getInt64(tparam)}, "llvm_translate_malloc"));
+                    II->replaceAllUsesWith(builder.CreateCall(F,
+                       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
+                       "llvm_translate_malloc"));
                     II->eraseFromParent();
                     changed = true;
                 }

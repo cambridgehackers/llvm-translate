@@ -35,6 +35,7 @@ typedef  struct {
     void *p;
     size_t size;
     const Type *type;
+    const StructType *STy;
 } MEMORY_REGION;
 
 #define GIANT_SIZE 1024
@@ -49,14 +50,14 @@ static std::list<MEMORY_REGION> memoryRegion;
 /*
  * Allocated memory region management
  */
-extern "C" void *llvm_translate_malloc(size_t size, const Type *type)
+extern "C" void *llvm_translate_malloc(size_t size, const Type *type, const StructType *STy)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
     memset(ptr, 0x5a, newsize);
     if (trace_malloc)
-        printf("[%s:%d] %ld = %p type %p\n", __FUNCTION__, __LINE__, size, ptr, type);
-    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type});
+        printf("[%s:%d] %ld = %p type %p sty %p\n", __FUNCTION__, __LINE__, size, ptr, type, STy);
+    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
 }
 
@@ -134,7 +135,10 @@ static void dumpMemoryRegions(int arg)
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("%p %s %s\n", info.p, gname.c_str(), mapAddress(info.p).c_str());
+        printf("%p %s %s", info.p, gname.c_str(), mapAddress(info.p).c_str());
+        if (info.STy)
+            printf(" STy %s", info.STy->getName().str().c_str());
+        printf("\n");
         if (info.type)
             info.type->dump();
         long size = info.size;
