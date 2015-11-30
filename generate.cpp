@@ -1132,9 +1132,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
 {
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
-        const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType());
-        if (subSTy && structMap[subSTy]) /* Not recursion!  These are generated afterword, if we didn't generate before */
-            structWork.push_back(subSTy);
+        if (const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType()))
+            printContainedStructs(subSTy, OStr, ODir, cb);
     }
     else if (!structMap[Ty]) {
         structMap[Ty] = 1;
@@ -1142,8 +1141,14 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
             printContainedStructs(*I, OStr, ODir, cb);
         if (const StructType *STy = dyn_cast<StructType>(Ty))
             if (STy->getName() != "class.Module") {
-                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+                ClassMethodTable *table = classCreate[STy];
+                int Idx = 0;
+                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                     printContainedStructs(*I, OStr, ODir, cb);
+                    if (table)
+                        if (const Type *newType = table->replaceType[Idx])
+                            printContainedStructs(newType, OStr, ODir, cb);
+                }
                 if (classCreate[STy])
                     cb(STy, OStr, ODir);
             }
