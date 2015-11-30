@@ -34,7 +34,6 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const Type *element = *I;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
-//replaceType[EREPLACE_INFO{STy, Idx}];
             if (ClassMethodTable *table = classCreate[STy]) {
                 const Type *newType = table->replaceType[Idx];
                 if (newType)
@@ -78,7 +77,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     std::string name = getStructName(STy);
     for (auto FI : table->method) {
         regen_methods = 3;
-        processFunction(VTABLE_WORK(FI.first, NULL), OStr, name);
+        processFunction(FI.first, NULL, OStr, name);
         regen_methods = 0;
     }
     if (hasRun(STy, 1)) {

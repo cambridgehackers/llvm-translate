@@ -35,6 +35,16 @@ using namespace llvm;
 
 #include "declarations.h"
 
+class VTABLE_WORK {
+public:
+    Function *f;      // Since passes modify instructions, this cannot be 'const'
+    Function ***thisp;
+    VTABLE_WORK(Function *a, Function ***b) {
+       f = a;
+       thisp = b;
+    }
+};
+
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
@@ -994,9 +1004,8 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
 static std::map<const Function *, int> funcSeen;
-void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName)
+void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName)
 {
-    Function *func = work.f;
     currentFunction = func;
     int hasGuard = 0;
     std::string methodName;
@@ -1048,7 +1057,7 @@ void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName)
             mname = std::string(aclassName) + "::" + mname;
         fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", regenItem).c_str());
     }
-    nameMap["Vthis"] = work.thisp;
+    nameMap["Vthis"] = thisp;
     for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
@@ -1058,7 +1067,7 @@ void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName)
             if (!isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-                std::string vout = processInstruction(work.thisp, *ins);
+                std::string vout = processInstruction(thisp, *ins);
                 if (vout != "") {
                     if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
                      && ins->use_begin() != ins->use_end()) {
@@ -1114,7 +1123,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 
     // Walk list of work items, generating code
     while (vtableWork.begin() != vtableWork.end()) {
-        processFunction(*vtableWork.begin(), functionIndex[vtableWork.begin()->f] ? outputNull : outputFile, "");
+        Function *func = vtableWork.begin()->f;
+        processFunction(func, vtableWork.begin()->thisp, functionIndex[func] ? outputNull : outputFile, "");
         vtableWork.pop_front();
     }
 }

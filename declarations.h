@@ -35,35 +35,10 @@
           exit(1); \
       }}
 
-class VTABLE_WORK {
-public:
-    Function *f;      // Since passes modify instructions, this cannot be 'const'
-    Function ***thisp;
-    VTABLE_WORK(Function *a, Function ***b) {
-       f = a;
-       thisp = b;
-    }
-};
-
 typedef struct {
     int value;
     const char *name;
 } INTMAP_TYPE;
-
-typedef struct {
-    const void *addr;
-    const void *type;
-} MAPSEEN_TYPE;
-
-struct MAPSEENcomp {
-    bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
-        if (lhs.addr < rhs.addr)
-            return true;
-        if (lhs.addr > rhs.addr)
-            return false;
-        return lhs.type < rhs.type;
-    }
-};
 
 class ClassMethodTable {
 public:
@@ -125,7 +100,7 @@ std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 const StructType *findThisArgument(const Function *func);
 
-void processFunction(VTABLE_WORK work, FILE *outputFile, std::string aclassName);
+void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);

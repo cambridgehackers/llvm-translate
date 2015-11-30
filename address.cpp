@@ -38,6 +38,21 @@ typedef  struct {
     const StructType *STy;
 } MEMORY_REGION;
 
+typedef struct {
+    const void *addr;
+    const void *type;
+} MAPSEEN_TYPE;
+
+struct MAPSEENcomp {
+    bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
+        if (lhs.addr < rhs.addr)
+            return true;
+        if (lhs.addr > rhs.addr)
+            return false;
+        return lhs.type < rhs.type;
+    }
+};
+
 #define GIANT_SIZE 1024
 static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
