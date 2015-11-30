@@ -1201,7 +1201,10 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     processRules(OutVMain, OutNull, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
-    generateVerilogHeader(*Mod, OutVInstance, OutNull);
+    for (auto RI : referencedItems)
+        if (const StructType *STy = findThisArgument(RI.second))
+            if (classCreate[STy] && RI.first != "Vthis")
+                generateModuleSignature(OutVInstance, STy, RI.first.c_str());
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;

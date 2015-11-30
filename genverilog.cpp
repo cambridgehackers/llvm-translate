@@ -36,7 +36,7 @@ std::string verilogArrRange(const Type *Ty)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }
-static void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance)
+void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance)
 {
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
@@ -166,11 +166,4 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(BStr, "    schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
     fprintf(BStr, "endmodule\n");
     fclose(BStr);
-}
-void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull)
-{
-    for (auto RI : referencedItems)
-        if (const StructType *STy = findThisArgument(RI.second))
-            if (classCreate[STy] && RI.first != "Vthis")
-                generateModuleSignature(OStr, STy, RI.first.c_str());
 }

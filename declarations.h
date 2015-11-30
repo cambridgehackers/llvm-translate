@@ -131,7 +131,6 @@ const char *intmapLookup(INTMAP_TYPE *map, int value);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
-void generateVerilogHeader(Module &Mod, FILE *OStr, FILE *ONull);
 void generateCppData(FILE *OStr, Module &Mod);
 
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
@@ -165,3 +164,4 @@ bool endswith(std::string str, std::string suffix);
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir);
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir);
 void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);
+void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance);
