@@ -1136,7 +1136,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
             if (STy->getName() != "class.Module") {
                 for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
                     printContainedStructs(*I, OStr, ODir, cb);
-                cb(STy, OStr, ODir);
+                if (classCreate[STy])
+                    cb(STy, OStr, ODir);
             }
     }
 }
