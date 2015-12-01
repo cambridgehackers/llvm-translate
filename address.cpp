@@ -372,18 +372,15 @@ void constructAddressMap(Module *Mod)
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-            const PointerType *Ty = dyn_cast<PointerType>(MI->getType());
-            const ArrayType *ATy = dyn_cast<ArrayType>(Ty->getElementType());
-            printf("[%s:%d] global %s ret %s ATy %p\n", __FUNCTION__, __LINE__, name.c_str(), ret, ATy);
+            uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
+            printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const StructType *STy = findThisArgumentType(func->getType())) {
-                    if (!classCreate[STy])
-                        classCreate[STy] = new ClassMethodTable;
                     if (!classCreate[STy]->vtable)
-                        classCreate[STy]->vtable = new std::string[ATy->getNumElements()];
+                        classCreate[STy]->vtable = new std::string[numElements];
                     classCreate[STy]->vtable[classCreate[STy]->vtableCount++] = func->getName();
                 }
             }
