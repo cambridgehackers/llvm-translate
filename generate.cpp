@@ -636,7 +636,6 @@ std::string printCall(Function ***thisp, Instruction &I)
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     unsigned len = FTy->getNumParams();
     ERRORIF(FTy->isVarArg() && !len);
-    void *pact = mapLookup(pcalledFunction.c_str());
     ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     int RDYName = -1;
@@ -644,9 +643,7 @@ std::string printCall(Function ***thisp, Instruction &I)
 
     if (generateRegion == ProcessHoist) {
     if (trace_hoist)
-        printf("HOIST: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s' = %p\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), pact);
-    if (!func)
-        func = static_cast<Function *>(pact);
+        printf("HOIST: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
     if (!func) {
         printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
