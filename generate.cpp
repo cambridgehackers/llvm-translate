@@ -205,7 +205,7 @@ const StructType *findThisArgumentType(const PointerType *PTy)
     if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
     if (func->getNumParams() > 0)
     if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
-    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
+    if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
         getStructName(STy);
         return STy;
     }
