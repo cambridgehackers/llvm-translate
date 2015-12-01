@@ -95,6 +95,7 @@ static void recursiveDelete(Value *V)
 static const StructType *fixupFunction(std::string methodName, Function **func)
 {
     const StructType *STy = NULL;
+    PointerType *PTy = NULL;
     for (auto BB = (*func)->begin(), BE = (*func)->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -103,7 +104,7 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
             case Instruction::Load:
                 if (vname == "this") {
                     II->setName("unused");
-                    const PointerType *PTy = dyn_cast<PointerType>(II->getType());
+                    PTy = dyn_cast<PointerType>(II->getType());
                     Argument *newArg = new Argument(II->getType(), "this", (*func));
                     STy = dyn_cast<StructType>(PTy->getElementType());
                     II->replaceAllUsesWith(newArg);
@@ -125,6 +126,17 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
     std::string className = STy->getName().substr(6);
     (*func)->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
     (*func)->setLinkage(GlobalValue::LinkOnceODRLinkage);
+    Type *Params[] = {PTy};
+    FunctionType *ftype = FunctionType::get((*func)->getReturnType(),
+                          ArrayRef<Type*>(Params, 1), false);
+    Function *fnew = Function::Create(ftype, GlobalValue::LinkOnceODRLinkage,
+        "JJ_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev",
+        (*func)->getParent());
+    //fnew->getBasicBlockList().splice(fnew->begin(), (*func)->getBasicBlockList());
+(*func)->getType()->dump();
+fnew->getType()->dump();
+//ftype->dump();
+fnew->dump();
     if (!classCreate[STy])
         classCreate[STy] = new ClassMethodTable;
     if (trace_fixup) {
