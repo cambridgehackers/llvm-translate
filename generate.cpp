@@ -625,7 +625,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
             func = static_cast<Function *>(tval);
             pcalledFunction = func->getName();
-            //printf("[%s:%d] tval %p pnew %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
+            //printf("[%s:%d] tval %p pcalledF %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
         }
     }
     pushWork(func, called_thisp);
@@ -639,6 +639,8 @@ std::string printCall(Function ***thisp, Instruction &I)
     void *pact = mapLookup(pcalledFunction.c_str());
     ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
+    int RDYName = -1;
+    std::string rmethodString;
 
     if (generateRegion == ProcessHoist) {
     if (trace_hoist)
@@ -649,13 +651,11 @@ std::string printCall(Function ***thisp, Instruction &I)
         printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
-    int RDYName = -1;
-    std::string rmethodString;
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
-    if ((rmethodString = getMethodName(func->getName())) != "")
-        for (unsigned int i = 0; table && i < table->vtableCount; i++)
-            if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
-                RDYName = i;
+        if ((rmethodString = getMethodName(func->getName())) != "")
+            for (unsigned int i = 0; table && i < table->vtableCount; i++)
+                if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
+                    RDYName = i;
     fname = func->getName();
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
@@ -700,15 +700,6 @@ std::string printCall(Function ***thisp, Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
-    //if (parentENAName) {
-        //TerminatorInst *TI = parentENAName->begin()->getTerminator();
-        //if (ENAName >= 0)
-            //copyFunction(TI, &I, ENAName, Type::getVoidTy(TI->getContext()));
-        //else if (I.use_empty()) {
-            //copyFunction(TI, &I, 0, NULL); // Move this call to the 'ENA()' method
-            //I.eraseFromParent(); // delete "Call" instruction
-        //}
-    //}
     if (cthisp == "Vthis") {
         printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
         fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
@@ -724,13 +715,12 @@ std::string printCall(Function ***thisp, Instruction &I)
         pcalledFunction = printOperand(thisp, *AI, false);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
-        std::string pnew = pcalledFunction;
-        referencedItems[pnew] = findThisArgumentType(func->getType());
         prefix = pcalledFunction + CMT->method[func];
         vout += prefix;
+        skip = 1;
+        referencedItems[pcalledFunction] = findThisArgumentType(func->getType());
         if (!hasRet)
             vout += "__ENA = 1";
-        skip = 1;
     }
     else {
         vout += pcalledFunction;
@@ -750,9 +740,8 @@ std::string printCall(Function ***thisp, Instruction &I)
             std::string p = printOperand(thisp, *AI, false);
             if (prefix != "")
                 vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
-            else {
+            else
                 sep = ", ";
-            }
             vout += p;
         }
         skip = 0;
@@ -760,10 +749,10 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     else {
     if (ClassMethodTable *CMT = functionIndex[func]) {
-        std::string pfirst = printOperand(thisp, *AI, false);
-        if (pfirst[0] == '&')
-            pfirst = pfirst.substr(1);
-        vout += pfirst + "." + CMT->method[func];
+        pcalledFunction = printOperand(thisp, *AI, false);
+        if (pcalledFunction[0] == '&')
+            pcalledFunction = pcalledFunction.substr(1);
+        vout += pcalledFunction + "." + CMT->method[func];
         skip = 1;
     }
     else
