@@ -76,7 +76,6 @@ extern int generateRegion;
 extern Module *globalMod;
 extern Function *currentFunction;
 extern std::map<std::string, void *> nameMap;
-extern std::map<std::string, const Function *> referencedItems;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;

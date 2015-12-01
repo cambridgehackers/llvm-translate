@@ -53,7 +53,6 @@ std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 std::list<RULE_INFO *> ruleInfo;
-std::map<std::string, const Function *> referencedItems;
 std::map<std::string, void *> nameMap;
 unsigned NextTypeID;
 int regen_methods;
@@ -65,6 +64,7 @@ static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
+static std::map<std::string, const StructType *> referencedItems;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::map<Function *,ClassMethodTable *> functionIndex;
 static std::string processInstruction(Function ***thisp, Instruction &I);
@@ -175,13 +175,6 @@ const StructType *findThisArgumentType(const PointerType *PTy)
             classCreate[STy] = new ClassMethodTable;
         return STy;
     }
-    return NULL;
-}
-
-static const StructType *findThisArgument(const Function *func)
-{
-    if (func)
-        return findThisArgumentType(func->getType());
     return NULL;
 }
 
@@ -658,7 +651,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     int RDYName = -1;
     std::string rmethodString;
-    if (ClassMethodTable *table = classCreate[findThisArgument(func)])
+    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
     if ((rmethodString = getMethodName(func->getName())) != "")
         for (unsigned int i = 0; table && i < table->vtableCount; i++)
             if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
@@ -732,7 +725,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
         std::string pnew = pcalledFunction;
-        referencedItems[pnew] = func;
+        referencedItems[pnew] = findThisArgumentType(func->getType());
         prefix = pcalledFunction + CMT->method[func];
         vout += prefix;
         if (!hasRet)
@@ -1189,9 +1182,9 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
-    // Construct the address -> symbolic name map using dwarf debug info
+    // Construct the address -> symbolic name map
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        findThisArgument(FB);
+        findThisArgumentType(FB->getType());
     constructAddressMap(Mod);
 
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
@@ -1208,9 +1201,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
-        if (const StructType *STy = findThisArgument(RI.second))
-            if (classCreate[STy] && RI.first != "Vthis")
-                generateModuleSignature(OutVInstance, STy, RI.first.c_str());
+        generateModuleSignature(OutVInstance, RI.second, RI.first.c_str());
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
