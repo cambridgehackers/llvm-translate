@@ -109,7 +109,6 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
                     II->setName("unused");
                     PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     STy = dyn_cast<StructType>(PTy->getElementType());
-#if 1
                     std::string className = STy->getName().substr(6);
                     Type *Params[] = {PTy};
                     fnew = Function::Create(FunctionType::get((*func)->getReturnType(),
@@ -117,11 +116,14 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
                         "_ZN" + utostr(className.length()) + className
                             + utostr(methodName.length()) + methodName + "Ev",
                         (*func)->getParent());
-#endif
-                    Argument *newArg = new Argument(II->getType(), "this", (*func));
+                    fnew->arg_begin()->setName("this");
+                    Argument *newArg = new Argument(PTy, "this", (*func));
                     II->replaceAllUsesWith(newArg);
+                    VMap[newArg] = fnew->arg_begin();
+                    recursiveDelete(II);
+                    (*func)->getArgumentList().pop_front(); // remove original argument
                 }
-                if (II->use_empty())
+                else if (II->use_empty())
                     recursiveDelete(II);
                 break;
             case Instruction::Store: {
@@ -133,12 +135,6 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
             }
             II = PI;
         }
-    }
-    (*func)->getArgumentList().pop_front(); // remove original argument
-    Function::arg_iterator DestI = fnew->arg_begin();
-    for (Function::const_arg_iterator I = (*func)->arg_begin(), E = (*func)->arg_end(); I != E; ++I) {
-        DestI->setName(I->getName()); // Copy the name over...
-        VMap[I] = DestI++;
     }
     SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
     CloneFunctionInto(fnew, *func, VMap, false, Returns, "", nullptr);
