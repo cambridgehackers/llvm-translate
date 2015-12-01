@@ -178,15 +178,8 @@ static const StructType *findThisArgumentType(const PointerType *PTy)
 
 const StructType *findThisArgument(const Function *func)
 {
-    if (func && func->arg_begin() != func->arg_end())
-    if (func->arg_begin()->getName() == "this")
-    if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
-const StructType *ns = findThisArgumentType(func->getType());
-if (ns != STy) {
-printf("[%s:%d] STy %p other %p\n", __FUNCTION__, __LINE__, STy, ns);
-func->getType()->dump();
-}
+    if (func)
+    if (const StructType *STy = findThisArgumentType(func->getType())) {
         if (!classCreate[STy])
             classCreate[STy] = new ClassMethodTable;
         getStructName(STy);

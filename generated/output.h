@@ -32,8 +32,8 @@ public:
   unsigned long long unused_data_to_force_inheritance;
   class l_class_OC_Echo *echo;
   unsigned int x;
-  bool rule_drive__RDY(void);
   void rule_drive(void);
+  bool rule_drive__RDY(void);
   void run();
 };
 

@@ -28,6 +28,8 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -95,7 +97,8 @@ static void recursiveDelete(Value *V)
 static const StructType *fixupFunction(std::string methodName, Function **func)
 {
     const StructType *STy = NULL;
-    PointerType *PTy = NULL;
+    Function *fnew = NULL;
+    ValueToValueMapTy VMap;
     for (auto BB = (*func)->begin(), BE = (*func)->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -104,9 +107,18 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
             case Instruction::Load:
                 if (vname == "this") {
                     II->setName("unused");
-                    PTy = dyn_cast<PointerType>(II->getType());
-                    Argument *newArg = new Argument(II->getType(), "this", (*func));
+                    PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     STy = dyn_cast<StructType>(PTy->getElementType());
+#if 1
+                    std::string className = STy->getName().substr(6);
+                    Type *Params[] = {PTy};
+                    fnew = Function::Create(FunctionType::get((*func)->getReturnType(),
+                        ArrayRef<Type*>(Params, 1), false), GlobalValue::LinkOnceODRLinkage,
+                        "_ZN" + utostr(className.length()) + className
+                            + utostr(methodName.length()) + methodName + "Ev",
+                        (*func)->getParent());
+#endif
+                    Argument *newArg = new Argument(II->getType(), "this", (*func));
                     II->replaceAllUsesWith(newArg);
                 }
                 if (II->use_empty())
@@ -123,24 +135,18 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
         }
     }
     (*func)->getArgumentList().pop_front(); // remove original argument
-    std::string className = STy->getName().substr(6);
-    (*func)->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
-    (*func)->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    Type *Params[] = {PTy};
-    FunctionType *ftype = FunctionType::get((*func)->getReturnType(),
-                          ArrayRef<Type*>(Params, 1), false);
-    Function *fnew = Function::Create(ftype, GlobalValue::LinkOnceODRLinkage,
-        "JJ_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev",
-        (*func)->getParent());
-    //fnew->getBasicBlockList().splice(fnew->begin(), (*func)->getBasicBlockList());
-(*func)->getType()->dump();
-fnew->getType()->dump();
-//ftype->dump();
-fnew->dump();
+    Function::arg_iterator DestI = fnew->arg_begin();
+    for (Function::const_arg_iterator I = (*func)->arg_begin(), E = (*func)->arg_end(); I != E; ++I) {
+        DestI->setName(I->getName()); // Copy the name over...
+        VMap[I] = DestI++;
+    }
+    SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
+    CloneFunctionInto(fnew, *func, VMap, false, Returns, "", nullptr);
+    *func = fnew;
     if (!classCreate[STy])
         classCreate[STy] = new ClassMethodTable;
     if (trace_fixup) {
-        printf("[%s:%d] AFTER class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
+        printf("[%s:%d] AFTER method %s\n", __FUNCTION__, __LINE__, methodName.c_str());
         (*func)->dump();
     }
     return STy;
