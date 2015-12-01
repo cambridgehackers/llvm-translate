@@ -87,58 +87,34 @@ static bool RemoveAllocaPass_runOnFunction(Function &F)
     return changed;
 }
 
-bool callMemrunOnFunction(Function &F)
+/*
+ * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
+ * This enables llvm-translate to easily maintain a list of valid memory regions
+ * during processing.
+ */
+void callMemrunOnFunction(CallInst *II)
 {
-    bool changed = false;
-    std::string fname = F.getName();
-//printf("CallProcessPass: %s\n", fname.c_str());
-    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
-        printf("SKIPPING %s\n", fname.c_str());
-        return changed;
-    }
-    changed = RemoveAllocaPass_runOnFunction(F);
-    /*
-     * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
-     * This enables llvm-translate to easily maintain a list of valid memory regions
-     * during processing.
-     */
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
-            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Call) {
-                Module *Mod = II->getParent()->getParent()->getParent();
-                Value *called = II->getOperand(II->getNumOperands()-1);
-                std::string cp = called->getName();
-                const Function *CF = dyn_cast<Function>(called);
-                if ((cp == "_Znwm" || cp == "malloc")
-                    && CF && CF->isDeclaration()) {
-                    IRBuilder<> builder(II->getParent());
-                    builder.SetInsertPoint(II);
-                    unsigned long tparam = 0, styparam = (unsigned long)findThisArgumentType(F.getType());
-                    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
-                        tparam = (unsigned long)PI->getType();
-                    Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
-                        Type::getInt64Ty(Mod->getContext()),
-                        Type::getInt64Ty(Mod->getContext())};
-                    FunctionType *fty = FunctionType::get(
-                        Type::getInt8PtrTy(Mod->getContext()),
-                        ArrayRef<Type*>(Params, 3), false);
-                    Value *newmalloc = Mod->getOrInsertFunction("llvm_translate_malloc", fty);
-                    Function *F = dyn_cast<Function>(newmalloc);
-                    F->setCallingConv(CF->getCallingConv());
-                    F->setDoesNotAlias(0);
-                    F->setAttributes(CF->getAttributes());
-                    II->replaceAllUsesWith(builder.CreateCall(F,
-                       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
-                       "llvm_translate_malloc"));
-                    II->eraseFromParent();
-                    changed = true;
-                }
-            }
-            II = PI;
-        }
-    }
-    return changed;
+    Module *Mod = II->getParent()->getParent()->getParent();
+    Value *called = II->getOperand(II->getNumOperands()-1);
+    const Function *CF = dyn_cast<Function>(called);
+    Instruction *PI = II->user_back();
+    unsigned long tparam = 0, styparam = (unsigned long)findThisArgumentType(CF->getType());
+    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
+        tparam = (unsigned long)PI->getType();
+    Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
+        Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext())};
+    FunctionType *fty = FunctionType::get(Type::getInt8PtrTy(Mod->getContext()),
+        ArrayRef<Type*>(Params, 3), false);
+    Function *F = dyn_cast<Function>(Mod->getOrInsertFunction("llvm_translate_malloc", fty));
+    F->setCallingConv(CF->getCallingConv());
+    F->setDoesNotAlias(0);
+    F->setAttributes(CF->getAttributes());
+    IRBuilder<> builder(II->getParent());
+    builder.SetInsertPoint(II);
+    II->replaceAllUsesWith(builder.CreateCall(F,
+       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
+       "llvm_translate_malloc"));
+    II->eraseFromParent();
 }
 
 bool call2runOnFunction(Function &F)

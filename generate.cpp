@@ -1163,8 +1163,14 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     }
     generateRegion = ProcessNone;
     // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
-    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        callMemrunOnFunction(*FB);
+    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
+    p = malloc_names;
+    while(*p) {
+        if (Function *Declare = Mod->getFunction(*p))
+            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+                callMemrunOnFunction(cast<CallInst>(*I));
+        p++;
+    }
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
