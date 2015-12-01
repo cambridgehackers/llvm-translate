@@ -115,7 +115,6 @@ bool callMemrunOnFunction(Function &F)
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
                     unsigned long tparam = 0, styparam = (unsigned long)findThisArgumentType(F.getType());
-                    printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
                     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
                         tparam = (unsigned long)PI->getType();
                     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
@@ -139,7 +138,6 @@ bool callMemrunOnFunction(Function &F)
             II = PI;
         }
     }
-//printf("CallProcessPass: end %s changed %d\n", fname.c_str(), changed);
     return changed;
 }
 
@@ -175,6 +173,5 @@ bool call2runOnFunction(Function &F)
             II = PI;
         }
     }
-//printf("CallProcessPass2: end %s changed %d\n", fname.c_str(), changed);
     return changed;
 }

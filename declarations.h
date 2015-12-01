@@ -119,5 +119,5 @@ bool endswith(std::string str, std::string suffix);
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir);
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir);
 void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);
-void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance);
+void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance);
 const StructType *findThisArgumentType(const PointerType *PTy);

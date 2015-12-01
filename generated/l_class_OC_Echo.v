@@ -3,7 +3,6 @@ module l_class_OC_Echo (
     input nRST,
     input rule_respond__ENA,
     output rule_respond__RDY);
-
   ;
   ;
    reg[31:0] pipetemp;

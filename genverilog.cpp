@@ -36,16 +36,16 @@ std::string verilogArrRange(const Type *Ty)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }
-void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance)
+void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance)
 {
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
-    if (instance) {
+    if (instance != "") {
         inp = instance;
         outp = instance;
-        fprintf(OStr, "%s %s (\n", name.c_str(), instance);
+        fprintf(OStr, "%s %s (\n", name.c_str(), instance.c_str());
     }
     else
         fprintf(OStr, "module %s (\n", name.c_str());
@@ -70,9 +70,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, const char *inst
     for (auto PI = paramList.begin(); PI != paramList.end();) {
         fprintf(OStr, "    %s", PI->c_str());
         PI++;
-        fprintf(OStr, PI != paramList.end() ? ",\n" : ");\n");
+        if (PI != paramList.end())
+            fprintf(OStr, ",\n");
     }
-    fprintf(OStr, "\n");
+    fprintf(OStr, ");\n");
 }
 
 static int inheritsModule(const StructType *STy)
@@ -97,7 +98,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     if (!inheritsModule(STy))
         return;
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
-    generateModuleSignature(OStr, STy, NULL);
+    generateModuleSignature(OStr, STy, "");
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         std::string fname = fieldName(STy, Idx);

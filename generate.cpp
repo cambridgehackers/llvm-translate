@@ -1162,6 +1162,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         exit(1);
     }
     generateRegion = ProcessNone;
+    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         callMemrunOnFunction(*FB);
 
@@ -1173,6 +1174,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         findThisArgumentType(FB->getType());
     constructAddressMap(Mod);
 
+    // now inline intra-class method call bodies
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         call2runOnFunction(*FB);
 
@@ -1187,7 +1189,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
-        generateModuleSignature(OutVInstance, RI.second, RI.first.c_str());
+        generateModuleSignature(OutVInstance, RI.second, RI.first);
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;

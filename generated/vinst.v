@@ -8,4 +8,3 @@ l_class_OC_Fifo1 echoTest$$echo$$fifo (
     echoTest$$echo$$fifodeq__ENA,
     echoTest$$echo$$fifofirst__RDY,
     echoTest$$echo$$fifo[31:0]first);
-

@@ -8,7 +8,6 @@ module l_class_OC_Fifo1 (
     input deq__ENA,
     output first__RDY,
     output [31:0]first);
-
    reg[31:0] element;
    reg full;
   always @( posedge CLK) begin
