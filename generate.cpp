@@ -139,11 +139,9 @@ static void pushWork(Function *func, Function ***thisp)
 {
     if (!func)
         return;
-    if (const StructType *STy = findThisArgument(func)) {
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        classCreate[STy]->method[func] = getMethodName(func->getName());
-        functionIndex[func] = classCreate[STy];
+    if (ClassMethodTable *table = classCreate[findThisArgument(func)]) {
+        table->method[func] = getMethodName(func->getName());
+        functionIndex[func] = table;
     }
     vtableWork.push_back(VTABLE_WORK(func, thisp));
 }
@@ -173,6 +171,8 @@ const StructType *findThisArgument(const Function *func)
      && func->arg_begin()->getName() == "this"
      && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))) {
         STy = dyn_cast<StructType>(PTy->getPointerElementType());
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
         getStructName(STy);
     }
     return STy;
@@ -416,7 +416,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
 {
     std::string cbuffer = "(", sep = " ", amper = "&";
     PointerType *PTy;
-    const StructType *STy;
     ConstantDataArray *CPA;
     void *tval = NULL;
     uint64_t Total = 0;
@@ -432,9 +431,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     for (auto TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
         const ConstantInt *CI = cast<ConstantInt>(TmpI.getOperand());
-        if (StructType *STy = dyn_cast<StructType>(*TmpI)) {
+        if (StructType *STy = dyn_cast<StructType>(*TmpI))
             Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
-        } else {
+        else {
             ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
             Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
         }
@@ -447,23 +446,23 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         return referstr;
     if ((tval = mapLookup(referstr.c_str())) || (tval = nameMap[referstr]))
         goto tvallab;
+    ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-     && (STy = findThisArgumentType(PTy))
+     && (table = classCreate[findThisArgumentType(PTy)])
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         std::string lname;
-        ClassMethodTable *table = classCreate[STy];
         if (table && Total/sizeof(void *) < table->vtableCount)
             lname = table->vtable[Total/sizeof(void *)];
         else if (generateRegion != ProcessNone) {
-            printf("%s: gname %s: could not find %s/%d. table %p max %d\n", __FUNCTION__, globalName.c_str(), STy->getName().str().c_str(), (int)Total, table, table? table->vtableCount : -1);
+            printf("%s: gname %s: could not find %d. table %p max %d\n", __FUNCTION__, globalName.c_str(), (int)Total, table, table? table->vtableCount : -1);
             exit(-1);
         }
         std::string name = getMethodName(lname);
         if (trace_gep)
-            printf("%s: STy %s thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
-                STy->getName().str().c_str(), thisp, referstr.c_str(), name.c_str(), lname.c_str());
+            printf("%s: thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
+                thisp, referstr.c_str(), name.c_str(), lname.c_str());
         referstr = "(" + referstr + ").";
         if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
             referstr = "";
@@ -471,6 +470,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
+        const StructType *STy;
         ++I;  // Skip the zero index.
         if (I != E && ((expose && (*I)->isArrayTy())
                     || (!expose && (STy = dyn_cast<StructType>(*I)))))
@@ -663,14 +663,11 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     int RDYName = -1;
     std::string rmethodString;
-    if (const StructType *STy = findThisArgument(func))
-    if ((rmethodString = getMethodName(func->getName())) != "") {
-        std::string tname = STy->getName();
-        ClassMethodTable *table = classCreate[STy];
+    if (ClassMethodTable *table = classCreate[findThisArgument(func)])
+    if ((rmethodString = getMethodName(func->getName())) != "")
         for (unsigned int i = 0; table && i < table->vtableCount; i++)
             if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
                 RDYName = i;
-    }
     fname = func->getName();
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
