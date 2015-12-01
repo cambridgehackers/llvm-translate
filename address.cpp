@@ -102,11 +102,9 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
     for (auto BB = (*func)->begin(), BE = (*func)->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            std::string vname = II->getName();
             switch (II->getOpcode()) {
             case Instruction::Load:
-                if (vname == "this") {
-                    II->setName("unused");
+                if (II->getName() == "this") {
                     PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     STy = dyn_cast<StructType>(PTy->getElementType());
                     std::string className = STy->getName().substr(6);
@@ -114,10 +112,10 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
                     fnew = Function::Create(FunctionType::get((*func)->getReturnType(),
                         ArrayRef<Type*>(Params, 1), false), GlobalValue::LinkOnceODRLinkage,
                         "_ZN" + utostr(className.length()) + className
-                            + utostr(methodName.length()) + methodName + "Ev",
+                              + utostr(methodName.length()) + methodName + "Ev",
                         (*func)->getParent());
                     fnew->arg_begin()->setName("this");
-                    Argument *newArg = new Argument(PTy, "this", (*func));
+                    Argument *newArg = new Argument(PTy, "JJJthis", (*func));
                     II->replaceAllUsesWith(newArg);
                     VMap[newArg] = fnew->arg_begin();
                     recursiveDelete(II);
