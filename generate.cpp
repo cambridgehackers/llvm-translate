@@ -163,33 +163,38 @@ std::string getStructName(const StructType *STy)
     }
 }
 
+static const StructType *findThisArgumentType(const PointerType *PTy)
+{
+    if (PTy)
+    if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
+    if (func->getNumParams() > 0)
+    if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
+    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
+        getStructName(STy);
+        return STy;
+    }
+    return NULL;
+}
+
 const StructType *findThisArgument(const Function *func)
 {
-    const PointerType *PTy;
-    const StructType *STy = NULL;
-    if (func && func->arg_begin() != func->arg_end()
-     && func->arg_begin()->getName() == "this"
-     && (PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))) {
-        STy = dyn_cast<StructType>(PTy->getPointerElementType());
+    if (func && func->arg_begin() != func->arg_end())
+    if (func->arg_begin()->getName() == "this")
+    if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
+    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
+const StructType *ns = findThisArgumentType(func->getType());
+if (ns != STy) {
+printf("[%s:%d] STy %p other %p\n", __FUNCTION__, __LINE__, STy, ns);
+func->getType()->dump();
+}
         if (!classCreate[STy])
             classCreate[STy] = new ClassMethodTable;
         getStructName(STy);
+        return STy;
     }
-    return STy;
+    return NULL;
 }
 
-static const StructType *findThisArgumentType(const PointerType *PTy)
-{
-    const StructType *STy = NULL;
-    const FunctionType *func;
-    if (PTy && (func = dyn_cast<FunctionType>(PTy->getElementType()))
-     && func->getNumParams() > 0
-     && (PTy = dyn_cast<PointerType>(func->getParamType(0)))) {
-        STy = dyn_cast<StructType>(PTy->getPointerElementType());
-        getStructName(STy);
-    }
-    return STy;
-}
 std::string GetValueName(const Value *Operand)
 {
     const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);

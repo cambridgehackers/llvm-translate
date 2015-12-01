@@ -92,10 +92,10 @@ static void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-static const StructType *fixupFunction(std::string methodName, Function *func)
+static const StructType *fixupFunction(std::string methodName, Function **func)
 {
     const StructType *STy = NULL;
-    for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
+    for (auto BB = (*func)->begin(), BE = (*func)->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             std::string vname = II->getName();
@@ -104,7 +104,7 @@ static const StructType *fixupFunction(std::string methodName, Function *func)
                 if (vname == "this") {
                     II->setName("unused");
                     const PointerType *PTy = dyn_cast<PointerType>(II->getType());
-                    Argument *newArg = new Argument(II->getType(), "this", func);
+                    Argument *newArg = new Argument(II->getType(), "this", (*func));
                     STy = dyn_cast<StructType>(PTy->getElementType());
                     II->replaceAllUsesWith(newArg);
                 }
@@ -121,27 +121,28 @@ static const StructType *fixupFunction(std::string methodName, Function *func)
             II = PI;
         }
     }
-    func->getArgumentList().pop_front(); // remove original argument
+    (*func)->getArgumentList().pop_front(); // remove original argument
     std::string className = STy->getName().substr(6);
-    func->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
-    func->setLinkage(GlobalValue::LinkOnceODRLinkage);
+    (*func)->setName("_ZN" + utostr(className.length()) + className + utostr(methodName.length()) + methodName + "Ev");
+    (*func)->setLinkage(GlobalValue::LinkOnceODRLinkage);
     if (!classCreate[STy])
         classCreate[STy] = new ClassMethodTable;
     if (trace_fixup) {
         printf("[%s:%d] AFTER class %s method %s\n", __FUNCTION__, __LINE__, className.c_str(), methodName.c_str());
-        func->dump();
+        (*func)->dump();
     }
     return STy;
 }
 
 extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
 {
+    Function *rdyFunc = RDY[2], *enaFunc = ENA[2];
     std::string name = aname;
-    const StructType *STy = fixupFunction(name + "__RDY", RDY[2]);
+    const StructType *STy = fixupFunction(name + "__RDY", &rdyFunc);
     classCreate[STy]->rules.push_back(name);
-    fixupFunction(name, ENA[2]);
-    ruleInfo.push_back(new RULE_INFO{aname, thisp, RDY[2], ENA[2]});
-    ruleRDYFunction[ENA[2]] = RDY[2];
+    fixupFunction(name, &enaFunc);
+    ruleInfo.push_back(new RULE_INFO{aname, thisp, rdyFunc, enaFunc});
+    ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
 static void dumpMemoryRegions(int arg)
