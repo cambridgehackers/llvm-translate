@@ -94,32 +94,31 @@ static void recursiveDelete(Value *V)
     I->eraseFromParent();
 }
 
-static const StructType *fixupFunction(std::string methodName, Function **func)
+static Function *fixupFunction(std::string methodName, Function *func)
 {
-    const StructType *STy = NULL;
     Function *fnew = NULL;
     ValueToValueMapTy VMap;
-    for (auto BB = (*func)->begin(), BE = (*func)->end(); BB != BE; ++BB) {
+    for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             switch (II->getOpcode()) {
             case Instruction::Load:
                 if (II->getName() == "this") {
                     PointerType *PTy = dyn_cast<PointerType>(II->getType());
-                    STy = dyn_cast<StructType>(PTy->getElementType());
+                    const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
                     std::string className = STy->getName().substr(6);
                     Type *Params[] = {PTy};
-                    fnew = Function::Create(FunctionType::get((*func)->getReturnType(),
+                    fnew = Function::Create(FunctionType::get(func->getReturnType(),
                         ArrayRef<Type*>(Params, 1), false), GlobalValue::LinkOnceODRLinkage,
                         "_ZN" + utostr(className.length()) + className
                               + utostr(methodName.length()) + methodName + "Ev",
-                        (*func)->getParent());
+                        func->getParent());
                     fnew->arg_begin()->setName("this");
-                    Argument *newArg = new Argument(PTy, "JJJthis", (*func));
+                    Argument *newArg = new Argument(PTy, "JJJthis", func);
                     II->replaceAllUsesWith(newArg);
                     VMap[newArg] = fnew->arg_begin();
                     recursiveDelete(II);
-                    (*func)->getArgumentList().pop_front(); // remove original argument
+                    func->getArgumentList().pop_front(); // remove original argument
                 }
                 else if (II->use_empty())
                     recursiveDelete(II);
@@ -135,24 +134,19 @@ static const StructType *fixupFunction(std::string methodName, Function **func)
         }
     }
     SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
-    CloneFunctionInto(fnew, *func, VMap, false, Returns, "", nullptr);
-    *func = fnew;
-    if (!classCreate[STy])
-        classCreate[STy] = new ClassMethodTable;
+    CloneFunctionInto(fnew, func, VMap, false, Returns, "", nullptr);
     if (trace_fixup) {
         printf("[%s:%d] AFTER method %s\n", __FUNCTION__, __LINE__, methodName.c_str());
-        (*func)->dump();
+        fnew->dump();
     }
-    return STy;
+    return fnew;
 }
 
 extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
 {
-    Function *rdyFunc = RDY[2], *enaFunc = ENA[2];
     std::string name = aname;
-    const StructType *STy = fixupFunction(name + "__RDY", &rdyFunc);
-    classCreate[STy]->rules.push_back(name);
-    fixupFunction(name, &enaFunc);
+    Function *rdyFunc = fixupFunction(name + "__RDY", RDY[2]), *enaFunc = fixupFunction(name, ENA[2]);
+    classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
     ruleInfo.push_back(new RULE_INFO{aname, thisp, rdyFunc, enaFunc});
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
