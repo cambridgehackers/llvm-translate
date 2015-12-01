@@ -99,7 +99,6 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
-const StructType *findThisArgument(const Function *func);
 
 void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName);
 std::string verilogArrRange(const Type *Ty);
@@ -122,3 +121,4 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir);
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir);
 void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);
 void generateModuleSignature(FILE *OStr, const StructType *STy, const char *instance);
+const StructType *findThisArgumentType(const PointerType *PTy);

@@ -114,7 +114,7 @@ bool callMemrunOnFunction(Function &F)
                     && CF && CF->isDeclaration()) {
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
-                    unsigned long tparam = 0, styparam = (unsigned long)findThisArgument(&F);
+                    unsigned long tparam = 0, styparam = (unsigned long)findThisArgumentType(F.getType());
                     printf("[%s:%d]CALL %d\n", __FUNCTION__, __LINE__, called->getValueID());
                     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
                         tparam = (unsigned long)PI->getType();

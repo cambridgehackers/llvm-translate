@@ -139,7 +139,7 @@ static void pushWork(Function *func, Function ***thisp)
 {
     if (!func)
         return;
-    if (ClassMethodTable *table = classCreate[findThisArgument(func)]) {
+    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())]) {
         table->method[func] = getMethodName(func->getName());
         functionIndex[func] = table;
     }
@@ -163,7 +163,7 @@ std::string getStructName(const StructType *STy)
     }
 }
 
-static const StructType *findThisArgumentType(const PointerType *PTy)
+const StructType *findThisArgumentType(const PointerType *PTy)
 {
     if (PTy)
     if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
@@ -171,20 +171,17 @@ static const StructType *findThisArgumentType(const PointerType *PTy)
     if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
     if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
         getStructName(STy);
+        if (!classCreate[STy])
+            classCreate[STy] = new ClassMethodTable;
         return STy;
     }
     return NULL;
 }
 
-const StructType *findThisArgument(const Function *func)
+static const StructType *findThisArgument(const Function *func)
 {
     if (func)
-    if (const StructType *STy = findThisArgumentType(func->getType())) {
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        getStructName(STy);
-        return STy;
-    }
+        return findThisArgumentType(func->getType());
     return NULL;
 }
 
