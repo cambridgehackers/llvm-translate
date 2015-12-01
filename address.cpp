@@ -363,6 +363,8 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 void constructAddressMap(Module *Mod)
 {
     addressToName.clear();
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+        findThisArgumentType(FB->getType());
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         const ConstantArray *CA;

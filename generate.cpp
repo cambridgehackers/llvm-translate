@@ -1144,40 +1144,35 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
 printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
+    // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
     const char **p = delete_names;
-    while(*p) {
-        if (Function *Declare = Mod->getFunction(*p)) {
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++)) {
             while (!Declare->use_empty()) {
                 CallInst *CI = cast<CallInst>(Declare->user_back());
                 CI->eraseFromParent();
             }
             Declare->eraseFromParent();
         }
-        p++;
-    }
+    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
+    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
+    p = malloc_names;
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++))
+            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+                callMemrunOnFunction(cast<CallInst>(*I));
     EntryFn = Mod->getFunction("main");
     if (!EntryFn) {
         printf("'main' function not found in module.\n");
         exit(1);
     }
     generateRegion = ProcessNone;
-    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
-    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
-    p = malloc_names;
-    while(*p) {
-        if (Function *Declare = Mod->getFunction(*p))
-            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                callMemrunOnFunction(cast<CallInst>(*I));
-        p++;
-    }
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map
-    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        findThisArgumentType(FB->getType());
     constructAddressMap(Mod);
 
     // now inline intra-class method call bodies
