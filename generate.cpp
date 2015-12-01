@@ -154,6 +154,8 @@ std::string getStructName(const StructType *STy)
     assert(STy);
     if (!structMap[STy])
         structWork.push_back(STy);
+    if (!classCreate[STy])
+        classCreate[STy] = new ClassMethodTable;
     if (!STy->isLiteral() && !STy->getName().empty())
         return CBEMangle("l_"+STy->getName().str());
     else {
@@ -161,21 +163,6 @@ std::string getStructName(const StructType *STy)
             UnnamedStructIDs[STy] = NextTypeID++;
         return "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
     }
-}
-
-const StructType *findThisArgumentType(const PointerType *PTy)
-{
-    if (PTy)
-    if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
-    if (func->getNumParams() > 0)
-    if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
-    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
-        getStructName(STy);
-        if (!classCreate[STy])
-            classCreate[STy] = new ClassMethodTable;
-        return STy;
-    }
-    return NULL;
 }
 
 std::string GetValueName(const Value *Operand)
@@ -210,6 +197,19 @@ std::string GetValueName(const Value *Operand)
     if (regen_methods)
         return VarName;
     return "V" + VarName;
+}
+
+const StructType *findThisArgumentType(const PointerType *PTy)
+{
+    if (PTy)
+    if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
+    if (func->getNumParams() > 0)
+    if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
+    if (const StructType *STy = dyn_cast<StructType>(PTy->getPointerElementType())) {
+        getStructName(STy);
+        return STy;
+    }
+    return NULL;
 }
 
 /*
@@ -986,6 +986,11 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
 
     NextAnonValueNumber = 0;
     nameMap.clear();
+    if (trace_translate) {
+        printf("FULL_AFTER_OPT: %s\n", fname.c_str());
+        func->dump();
+        printf("TRANSLATE:\n");
+    }
     if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
         printf("SKIPPING %s\n", fname.c_str());
         return;
@@ -1000,11 +1005,6 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
-    }
-    if (trace_translate) {
-        printf("FULL_AFTER_OPT: %s\n", func->getName().str().c_str());
-        func->dump();
-        printf("TRANSLATE:\n");
     }
 #if 0
     /* connect up argument formal param names with actual values */
