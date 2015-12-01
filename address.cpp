@@ -377,8 +377,7 @@ void constructAddressMap(Module *Mod)
                 if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
-                if (const PointerType *PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
+                if (const StructType *STy = findThisArgumentType(func->getType())) {
                     if (!classCreate[STy])
                         classCreate[STy] = new ClassMethodTable;
                     if (!classCreate[STy]->vtable)
