@@ -39,24 +39,20 @@ static bool RemoveAllocaPass_runOnFunction(Function &F)
 {
     bool changed = false;
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        BasicBlock::iterator Start = BB->getFirstInsertionPt();
-        BasicBlock::iterator E = BB->end();
-        if (Start == E) return false;
-        BasicBlock::iterator I = Start++;
-        while(1) {
-            Value *retv = (Value *)I;
-            BasicBlock::iterator PI = std::next(BasicBlock::iterator(I));
+        for (auto I = BB->getFirstInsertionPt(), E = BB->end(); I != E;) {
+            auto PI = std::next(BasicBlock::iterator(I));
             int opcode = I->getOpcode();
             switch (opcode) {
             case Instruction::Alloca: {
+                Value *retv = (Value *)I;
                 std::string name = I->getName();
                 int ind = name.find("block");
 //printf("       ALLOCA %s;", name.c_str());
                 if (I->hasName() && ind == -1 && endswith(name, ".addr")) {
                     Value *newt = NULL;
-                    BasicBlock::iterator PN = PI;
+                    auto PN = PI;
                     while (PN != E) {
-                        BasicBlock::iterator PNN = std::next(BasicBlock::iterator(PN));
+                        auto PNN = std::next(BasicBlock::iterator(PN));
                         if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
                             newt = PN->getOperand(0); // Remember value we were storing in temp
                             if (PI == PN)
@@ -79,8 +75,6 @@ static bool RemoveAllocaPass_runOnFunction(Function &F)
                 break;
                 }
             };
-            if (PI == E)
-                break;
             I = PI;
         }
     }
