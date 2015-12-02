@@ -508,11 +508,8 @@ exitlab:
         cbuffer = cbuffer.substr(1, cbuffer.length()-2);
     if (trace_gep) {
         printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
-        if (!strncmp(cbuffer.c_str(), "0x", 2)) {
-            char *endptr;
-            void **pint = (void **)strtol(cbuffer.c_str()+2, &endptr, 16);
+        if (void **pint = (void **)mapLookup(cbuffer))
             printf(" [%p]= %p", pint, *pint);
-        }
         printf("\n");
     }
     return cbuffer;
@@ -540,11 +537,8 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
             p = p.substr(1);
         }
         if (prefix == "*" && !strncmp(p.c_str(), "0x", 2)) {
-            char *endptr;
-            void **pint = (void **)strtol(p.c_str()+2, &endptr, 16);
-            char temp[100];
-            sprintf(temp, "0x%lx", (unsigned long)*pint);
-            cbuffer += temp;
+            void **pint = (void **)mapLookup(p);
+            cbuffer += hexAddress(*pint);
         }
         else {
             int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');

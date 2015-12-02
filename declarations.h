@@ -121,3 +121,4 @@ void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance);
 const StructType *findThisArgumentType(const PointerType *PTy);
 void callMemrunOnFunction(CallInst *II);
+std::string hexAddress(void *arg);

@@ -193,6 +193,13 @@ int validateAddress(int arg, void *p)
     return 1;
 }
 
+std::string hexAddress(void *arg)
+{
+    char temp[MAX_CHAR_BUFFER];
+    sprintf(temp, "%p", arg);
+    return temp;
+}
+
 /*
  * Build up reverse address map from all data items after running constructors
  */
@@ -201,11 +208,7 @@ std::string mapAddress(void *arg)
     std::string val = addressToName[arg];
     if (val != "")
         return val;
-    char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "%p", arg);
-    if (trace_mapa)
-        printf("%s: %p\n", __FUNCTION__, arg);
-    return temp;
+    return hexAddress(arg);
 }
 
 void *mapLookup(std::string name)
