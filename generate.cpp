@@ -846,13 +846,6 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(thisp, Operand, false);
-        if (!strncmp(pdest.c_str(), "*((0x", 5)) {
-            char *endptr = NULL;
-            void *pint = (void *)strtol(pdest.c_str()+5, &endptr, 16);
-            std::string pname = mapAddress(pint);
-            if (strncmp(pname.c_str(), "0x", 2) && !strcmp(endptr, "))"))
-                pdest = pname;
-        }
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
             pdest = pdest.substr(1, pdest.length() -2);
         if (generateRegion == ProcessHoist)
