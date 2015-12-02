@@ -21,8 +21,6 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-#include <stdio.h>
-#include <list>
 #include <cxxabi.h> // abi::__cxa_demangle
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -58,7 +56,6 @@ struct MAPSEENcomp {
 };
 
 #define GIANT_SIZE 1024
-static int trace_mapa;// = 1;
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static std::map<void *, std::string> addressToName;

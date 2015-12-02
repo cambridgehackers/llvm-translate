@@ -536,10 +536,8 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
             prefix = "";
             p = p.substr(1);
         }
-        if (prefix == "*" && !strncmp(p.c_str(), "0x", 2)) {
-            void **pint = (void **)mapLookup(p);
-            cbuffer += hexAddress(*pint);
-        }
+        if (prefix == "*" && !strncmp(p.c_str(), "0x", 2))
+            cbuffer += hexAddress(*(void **)mapLookup(p));
         else {
             int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
             cbuffer += prefix;
@@ -571,9 +569,8 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
                 temp[0] = 0;
                 if (Ty == Type::getInt1Ty(CPV->getContext()))
                     cbuffer += CI->getZExtValue() ? "1" : "0";
-                else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32) {
+                else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32)
                     sprintf(temp, "%ld", CI->getZExtValue());
-                }
                 else if (CI->isMinValue(true))
                     sprintf(temp, "%ld", CI->getZExtValue());//  'u';
                 else
@@ -591,11 +588,8 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
 {
     std::string p = fetchOperand(thisp, Operand, Indirect);
-    if (void *tval = mapLookup(p.c_str())) {
-        char temp[1000];
-        sprintf(temp, "%s%s", Indirect ? "" : "&", mapAddress(tval).c_str());
-        return std::string(temp);
-    }
+    if (void *tval = mapLookup(p.c_str()))
+        return (Indirect ? "" : "&") + mapAddress(tval);
     return p;
 }
 
