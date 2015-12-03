@@ -455,16 +455,19 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     }
     else if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
-        if (I != E && ((*I)->isStructTy() || (*I)->isArrayTy()))
-        if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
-            uint64_t val = CI->getZExtValue();
+        if (I != E) {
             if (const StructType *STy = dyn_cast<StructType>(*I)) {
                 referstr += "->";
                 if (referstr == "this->")
                     referstr = "";
-                referstr += fieldName(STy, val);
+                referstr += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+                if (trace_gep)
+                    printf("[%s:%d] expose %d Freferstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
+                ++I;     // we processed this index
             }
-            else {
+            else if ((*I)->isArrayTy())
+            if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
+                uint64_t val = CI->getZExtValue();
                 if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr))
                 if (globalVar && !globalVar->getInitializer()->isNullValue()
                  && (CPA = dyn_cast<ConstantDataArray>(globalVar->getInitializer()))) {
@@ -474,10 +477,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                 if (val)
                     referstr += '+' + utostr(val);
                 amper = "";
+                if (trace_gep)
+                    printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
+                ++I;     // we processed this index
             }
-            if (trace_gep)
-                printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
-            ++I;     // we processed this index
         }
     }
     cbuffer += amper + referstr;
