@@ -776,12 +776,6 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         ERRORIF (IL.isVolatile());
         return fetchOperand(thisp, I.getOperand(0), true);
         }
-    case Instruction::Alloca: // ignore
-        if (generateRegion == ProcessCPP) {
-            if (const AllocaInst *AI = isDirectAlloca(&I))
-              return printType(AI->getAllocatedType(), false, GetValueName(AI), "    ", ";    /* Address-exposed local */\n");
-        }
-        break;
     // Terminators
     case Instruction::Ret:
         if (generateRegion == ProcessHoist)
