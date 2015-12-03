@@ -118,7 +118,12 @@ void generateCppData(FILE *OStr, Module &Mod)
          && (!ATy || !dyn_cast<PointerType>(ATy->getElementType()))) {
             if (I->hasLocalLinkage())
                 fprintf(OStr, "static ");
-            fprintf(OStr, "%s", printType(Ty, false, GetValueName(I), "", "").c_str());
+            if (const GlobalValue *GV = dyn_cast<GlobalValue>(I))
+                fprintf(OStr, "%s", printType(Ty, false, CBEMangle(GV->getName().str()), "", "").c_str());
+            else {
+                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                exit(-1);
+            }
             if (!I->getInitializer()->isNullValue())
                 fprintf(OStr, " = %s", printOperand(NULL, I->getInitializer(), false).c_str());
             fprintf(OStr, ";\n");

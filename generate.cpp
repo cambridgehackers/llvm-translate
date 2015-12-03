@@ -162,7 +162,7 @@ std::string getStructName(const StructType *STy)
     }
 }
 
-std::string GetValueName(const Value *Operand)
+static std::string GetValueName(const Value *Operand)
 {
     const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
     const Value *V;

@@ -95,7 +95,6 @@ std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
 std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 
-std::string GetValueName(const Value *Operand);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 
