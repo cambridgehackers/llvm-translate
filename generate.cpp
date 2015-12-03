@@ -455,17 +455,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     }
     else if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
-        if (I != E) {
-            if (const StructType *STy = dyn_cast<StructType>(*I)) {
-                referstr += "->";
-                if (referstr == "this->")
-                    referstr = "";
-                referstr += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-                if (trace_gep)
-                    printf("[%s:%d] expose %d Freferstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
-                ++I;     // we processed this index
-            }
-            else if ((*I)->isArrayTy())
+        if (I != E && (*I)->isArrayTy())
             if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
                 uint64_t val = CI->getZExtValue();
                 if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr))
@@ -481,20 +471,35 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                     printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
                 ++I;     // we processed this index
             }
-        }
     }
-    cbuffer += amper + referstr;
+    cbuffer += amper;
     for (; I != E; ++I) {
-        if (StructType *STy = dyn_cast<StructType>(*I))
-            cbuffer += "." + fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
-        else if ((*I)->isArrayTy() || !(*I)->isVectorTy())
+        if (StructType *STy = dyn_cast<StructType>(*I)) {
+            if (expose) {
+                cbuffer += referstr;
+                cbuffer += "JJ.";
+            }
+            else {
+                referstr += "->";
+                if (referstr == "this->")
+                    referstr = "";
+                cbuffer += referstr;
+            }
+            cbuffer += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+        }
+        else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
+            cbuffer += referstr;
             cbuffer += "[" + fetchOperand(thisp, I.getOperand(), false) + "]";
+        }
         else {
+            cbuffer += referstr;
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
                 cbuffer += ")+(" + printOperand(thisp, I.getOperand(), false);
             cbuffer += "))";
         }
+        referstr = "";
     }
+    cbuffer += referstr;
     goto exitlab;
 tvallab:
     char temp2[1000];
