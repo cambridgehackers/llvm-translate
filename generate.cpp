@@ -628,6 +628,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     int RDYName = -1;
     std::string rmethodString;
+    ClassMethodTable *CMT = functionIndex[func];
 
     if (generateRegion == ProcessHoist) {
     if (trace_hoist)
@@ -696,7 +697,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     }
     else if (generateRegion == ProcessVerilog) {
-    if (ClassMethodTable *CMT = functionIndex[func]) {
+    if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
@@ -712,12 +713,12 @@ std::string printCall(Function ***thisp, Instruction &I)
         if (regen_methods)
             return vout;
     }
-    if (prefix == "")
-        vout += "(";
     if (!func) {
         printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
+    if (prefix == "")
+        vout += "(";
     Function::const_arg_iterator FAI = func->arg_begin();
     for (; AI != AE; ++AI, ++ArgNo, FAI++) {
         if (!skip) {
@@ -733,7 +734,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     }
     else {
-    if (ClassMethodTable *CMT = functionIndex[func]) {
+    if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
