@@ -405,7 +405,6 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     void *tval = NULL;
     uint64_t Total = 0;
     VectorType *LastIndexIsVector = 0;
-    GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr);
     const DataLayout *TD = EE->getDataLayout();
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
@@ -455,14 +454,18 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
-        const StructType *STy;
         ++I;  // Skip the zero index.
-        if (I != E && ((expose && (*I)->isArrayTy())
-                    || (!expose && (STy = dyn_cast<StructType>(*I)))))
+        if (I != E && ((*I)->isStructTy() || (*I)->isArrayTy()))
         if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
             uint64_t val = CI->getZExtValue();
-            ++I;     // we processed this index
-            if (expose) {
+            if (const StructType *STy = dyn_cast<StructType>(*I)) {
+                referstr += "->";
+                if (referstr == "this->")
+                    referstr = "";
+                referstr += fieldName(STy, val);
+            }
+            else {
+                if (GlobalVariable *globalVar = dyn_cast<GlobalVariable>(Ptr))
                 if (globalVar && !globalVar->getInitializer()->isNullValue()
                  && (CPA = dyn_cast<ConstantDataArray>(globalVar->getInitializer()))) {
                     ERRORIF(val || !CPA->isString());
@@ -472,14 +475,9 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
                     referstr += '+' + utostr(val);
                 amper = "";
             }
-            else {
-                referstr += "->";
-                if (referstr == "this->")
-                    referstr = "";
-                referstr += fieldName(STy, val);
-            }
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str());
+            ++I;     // we processed this index
         }
     }
     cbuffer += amper + referstr;
