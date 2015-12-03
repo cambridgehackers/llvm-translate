@@ -383,7 +383,8 @@ void constructAddressMap(Module *Mod)
          && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
             void *addr = EE->getPointerToGlobal(MI);
             Type *Ty = MI->getType()->getElementType();
-            memoryRegion.push_back(MEMORY_REGION{addr, EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType()});
+            memoryRegion.push_back(MEMORY_REGION{addr,
+                EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
             mapType((char *)addr, Ty, name);
         }
     }

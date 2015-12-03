@@ -92,7 +92,9 @@ void callMemrunOnFunction(CallInst *II)
     Value *called = II->getOperand(II->getNumOperands()-1);
     const Function *CF = dyn_cast<Function>(called);
     Instruction *PI = II->user_back();
-    unsigned long tparam = 0, styparam = (unsigned long)findThisArgumentType(CF->getType());
+    unsigned long tparam = 0;
+    unsigned long styparam = (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType());
+    //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
         tparam = (unsigned long)PI->getType();
     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
