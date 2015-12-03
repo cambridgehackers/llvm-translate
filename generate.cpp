@@ -368,7 +368,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     if (altname != "")
         tstr += altname;
     else
-        tstr += GetValueName(F);
+        tstr += F->getName();
     tstr += '(';
     if (F->isDeclaration()) {
         for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
