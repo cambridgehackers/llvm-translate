@@ -60,7 +60,6 @@ int generateRegion;
 Function *currentFunction;
 
 static std::list<VTABLE_WORK> vtableWork;
-static std::list<const StructType *> structWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
@@ -152,8 +151,6 @@ static void pushWork(Function *func, Function ***thisp)
 std::string getStructName(const StructType *STy)
 {
     assert(STy);
-    if (!structMap[STy])
-        structWork.push_back(STy);
     if (!classCreate[STy])
         classCreate[STy] = new ClassMethodTable;
     if (!STy->isLiteral() && !STy->getName().empty())
@@ -1084,6 +1081,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
 {
+    if (!Ty)
+        return;
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
         if (const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType()))
             printContainedStructs(subSTy, OStr, ODir, cb);
@@ -1099,8 +1098,7 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                 for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                     printContainedStructs(*I, OStr, ODir, cb);
                     if (table)
-                        if (const Type *newType = table->replaceType[Idx])
-                            printContainedStructs(newType, OStr, ODir, cb);
+                        printContainedStructs(table->replaceType[Idx], OStr, ODir, cb);
                 }
                 if (classCreate[STy])
                     cb(STy, OStr, ODir);
@@ -1110,11 +1108,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
 static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
 {
     structMap.clear();
-    auto current = structWork.begin();
-    while (current != structWork.end()) {
-        printContainedStructs(*current, OStr, oDir, cb);
-        current = std::next(current);
-    }
+    for (auto current : classCreate)
+        printContainedStructs(current.first, OStr, oDir, cb);
 }
 
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
