@@ -28,6 +28,7 @@
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
@@ -36,7 +37,7 @@ using namespace llvm;
 typedef  struct {
     void *p;
     size_t size;
-    const Type *type;
+    Type *type;
     const StructType *STy;
 } MEMORY_REGION;
 
@@ -66,7 +67,7 @@ static std::list<MEMORY_REGION> memoryRegion;
 /*
  * Allocated memory region management
  */
-extern "C" void *llvm_translate_malloc(size_t size, const Type *type, const StructType *STy)
+extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType *STy)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
@@ -235,10 +236,42 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
     return 0;
 }
 
-static void inlineReferences(const StructType *STy, uint64_t Idx, const Type *newType)
+#if 1
+void myReplaceAllUsesWith(Value *Old, Value *New)
+{
+  assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
+  //assert(!contains(New, Old) && "Old->replaceAllUsesWith(expr(Old)) is NOT valid!");
+  //assert(New->getType() == Old->getType() && "replaceAllUses of value with new value of different type!");
+
+  // Notify all ValueHandles (if present) that Old value is going away.
+  //if (Old->HasValueHandle)
+    //ValueHandleBase::ValueIsRAUWd(Old, New);
+  if (Old->isUsedByMetadata())
+    ValueAsMetadata::handleRAUW(Old, New);
+
+  while (!Old->use_empty()) {
+    Use &U = *Old->use_begin();
+    // Must handle Constants specially, we cannot call replaceUsesOfWith on a
+    // constant because they are uniqued.
+    if (auto *C = dyn_cast<Constant>(U.getUser())) {
+      if (!isa<GlobalValue>(C)) {
+        C->handleOperandChange(Old, New, &U);
+        continue;
+      }
+    }
+
+    U.set(New);
+  }
+
+  if (BasicBlock *BB = dyn_cast<BasicBlock>(Old))
+    BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
+}
+#endif
+static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
         bool changed = false;
+        bool seen = false;
         for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
                 BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -253,13 +286,26 @@ static void inlineReferences(const StructType *STy, uint64_t Idx, const Type *ne
                         if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand()))
                             if (CI->getZExtValue() == Idx) {
 printf("[%s:%d] **********************************\n", __FUNCTION__, __LINE__);
+#if 0
+        if (!seen) {
+printf("[%s:%d] BEFORE\n", __FUNCTION__, __LINE__);
+            FB->dump();
+        }
+#endif
 //IG->dump();
 //IL->dump();
                                      //IL->setOperand(0, 0);
                                      val->setName("replacedType");
-                                     val->mutateType(IL->getType());
-                                     IL->replaceAllUsesWith(val);
+                                     val->mutateType(newType);
+                                     IRBuilder<> builder(IL->getParent());
+                                     builder.SetInsertPoint(IL);
+                                     Value *newval = builder.CreateLoad(
+                                              builder.CreateBitCast(val, newType));
+//IL->getType());
+                                     //IL->replaceAllUsesWith(val);
+                                     myReplaceAllUsesWith(IL, newval);
                                      IL->eraseFromParent();
+                                     seen = true;
                                      changed = true;
                             }
                 }
@@ -312,6 +358,7 @@ printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->ge
 info.STy, info.STy->getName().str().c_str());
                             //classCreate[STy]->allocateLocally[Idx] = true;
                             //inlineReferences(STy, Idx, info.type);
+                            //classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
                         }
                     }
             }
