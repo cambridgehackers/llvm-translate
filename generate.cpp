@@ -437,15 +437,16 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         std::string lname;
+        // Lookup method index in vtable
         if (table && Total/sizeof(void *) < table->vtableCount)
             lname = table->vtable[Total/sizeof(void *)];
         else if (generateRegion != ProcessNone) {
-            printf("%s: gname %s: could not find %d. table %p max %d\n", __FUNCTION__, globalName.c_str(), (int)Total, table, table? table->vtableCount : -1);
+            printf("%s: gname %s: could not find %d. vtable %p max %d\n", __FUNCTION__, globalName.c_str(), (int)Total, table, table? table->vtableCount : -1);
             exit(-1);
         }
         std::string name = getMethodName(lname);
         if (trace_gep)
-            printf("%s: thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
+            printf("%s: Method invocation thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
                 thisp, referstr.c_str(), name.c_str(), lname.c_str());
         referstr = "(" + referstr + ").";
         if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
@@ -637,7 +638,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (trace_hoist)
         printf("HOIST: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
     if (!func) {
-        printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        printf("%s: Hoist not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
@@ -717,7 +718,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             return vout;
     }
     if (!func) {
-        printf("%s not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        printf("%s: Verilog not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
     if (prefix == "")
