@@ -635,16 +635,16 @@ std::string printCall(Function ***thisp, Instruction &I)
     std::string rmethodString;
     ClassMethodTable *CMT = functionIndex[func];
 
-    if (generateRegion == ProcessHoist) {
     if (trace_hoist)
-        printf("HOIST: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
+        printf("CALL: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
+    if (generateRegion == ProcessHoist) {
     if (!func) {
         printf("%s: Hoist not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
     }
-    Value *oldOp = I.getOperand(I.getNumOperands()-1);
+    Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
     printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
-    if (0 && func != oldOp) {
+    if (oldOp) {
         I.setOperand(I.getNumOperands()-1, func);
         recursiveDelete(oldOp);
     }
@@ -749,7 +749,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         pcalledFunction = printOperand(thisp, *AI, false);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
-        vout += pcalledFunction + "." + CMT->method[func];
+        vout += pcalledFunction + "->" + CMT->method[func];
         skip = 1;
     }
     else

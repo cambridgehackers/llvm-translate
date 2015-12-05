@@ -17,8 +17,8 @@ module l_class_OC_Echo (
 
         // Method: rule_respond
         if (rule_respond__ENA) begin
-        ((*(fifo)).deq);
-        rule_respond_call = ((*(fifo)).first);
+        (fifo)deq__ENA = 1;
+        rule_respond_call = (fifo)first;
         _ZN14EchoIndication4echoEi;
         end; // End of rule_respond
 
