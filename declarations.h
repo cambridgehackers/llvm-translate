@@ -43,7 +43,7 @@ typedef struct {
 class ClassMethodTable {
 public:
     std::map<Function *, std::string> method;
-    std::map<int, const Type *>       replaceType;
+    std::map<int, Type *>             replaceType;
     std::map<int, bool>               allocateLocally;
     std::list<std::string>            rules;
     unsigned int                      vtableCount;
@@ -122,3 +122,4 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 void callMemrunOnFunction(CallInst *II);
 std::string hexAddress(void *arg);
 void recursiveDelete(Value *V);
+void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType);

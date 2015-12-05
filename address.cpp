@@ -267,7 +267,7 @@ void myReplaceAllUsesWith(Value *Old, Value *New)
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 #endif
-static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
+void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
         bool changed = false;

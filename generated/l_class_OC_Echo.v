@@ -11,8 +11,8 @@ module l_class_OC_Echo (
     end
     else begin
         // Method: rule_respond__RDY
-    rule_respond__RDY_tmp__1 = ((*(fifo)).deq__RDY);
-    rule_respond__RDY_tmp__2 = ((*(fifo)).first__RDY);
+    rule_respond__RDY_tmp__1 = (fifo)deq__RDY;
+    rule_respond__RDY_tmp__2 = (fifo)first__RDY;
         rule_respond__RDY = (rule_respond__RDY_tmp__1 & rule_respond__RDY_tmp__2);
 
         // Method: rule_respond

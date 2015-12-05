@@ -1075,8 +1075,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
-        pushWork(info->RDY, (Function ***)info->thisp);
         pushWork(info->ENA, (Function ***)info->thisp);
+        pushWork(info->RDY, (Function ***)info->thisp); // must be after 'ENA'
     }
 
     // Walk list of work items, generating code
@@ -1167,6 +1167,19 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
     processRules(OutNull, OutNull, OutNull);
+    for (auto info : classCreate) {
+        const StructType *STy = info.first;
+        ClassMethodTable *table = info.second;
+        if (STy && table)
+        for (auto rtype : info.second->replaceType) {
+printf("[%s:%d] infost %p rtype.first %d type %p\n", __FUNCTION__, __LINE__, info.first, rtype.first, rtype.second);
+#if 0
+            table->allocateLocally[rtype.first] = true;
+            inlineReferences(STy, rtype.first, rtype.second);
+            rtype.second = cast<PointerType>(rtype.second)->getElementType();
+#endif
+        }
+    }
 
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;
