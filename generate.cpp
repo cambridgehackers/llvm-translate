@@ -448,9 +448,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         if (trace_gep)
             printf("%s: Method invocation thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
                 thisp, referstr.c_str(), name.c_str(), lname.c_str());
-        referstr = "(" + referstr + ").";
-        if (referstr == "(*(this))." || referstr == "(*(Vthis)).")
+        if (referstr == "*(this)" || referstr == "*(Vthis)")
             referstr = "";
+        else
+            referstr = "(" + referstr + ").";
         referstr += CBEMangle(generateRegion <= ProcessHoist ? lname : name);
         I = E; // skip post processing
     }
@@ -640,6 +641,12 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (!func) {
         printf("%s: Hoist not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         return "";
+    }
+    Value *oldOp = I.getOperand(I.getNumOperands()-1);
+    printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+    if (0 && func != oldOp) {
+        I.setOperand(I.getNumOperands()-1, func);
+        recursiveDelete(oldOp);
     }
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
         if ((rmethodString = getMethodName(func->getName())) != "")

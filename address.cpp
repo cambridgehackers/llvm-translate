@@ -77,7 +77,7 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     return ptr;
 }
 
-static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
+void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
 {
     Instruction *I = dyn_cast<Instruction>(V);
     if (!I)

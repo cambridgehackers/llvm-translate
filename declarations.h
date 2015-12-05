@@ -121,3 +121,4 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 const StructType *findThisArgumentType(const PointerType *PTy);
 void callMemrunOnFunction(CallInst *II);
 std::string hexAddress(void *arg);
+void recursiveDelete(Value *V);
