@@ -28,7 +28,6 @@
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
@@ -137,6 +136,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
         printf("[%s:%d] AFTER method %s\n", __FUNCTION__, __LINE__, methodName.c_str());
         fnew->dump();
     }
+    func->setName("unused_block_function");
     return fnew;
 }
 
@@ -272,12 +272,14 @@ static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
         bool changed = false;
         bool seen = false;
+        if (FB->getName().substr(0, 21) != "unused_block_function")
         for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
                 BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
 #if 1
                 if (LoadInst *IL = dyn_cast<LoadInst>(II)) {
-                Value *val = IL->getOperand(0);
+                Instruction *val = dyn_cast<Instruction>(IL->getOperand(0));
+                Instruction *useMe = val;
                 if (GetElementPtrInst *IG = dyn_cast<GetElementPtrInst>(val)) {
                     gep_type_iterator I = gep_type_begin(IG), E = gep_type_end(IG);
                     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
@@ -292,34 +294,47 @@ printf("[%s:%d] BEFORE\n", __FUNCTION__, __LINE__);
             FB->dump();
         }
 #endif
-//IG->dump();
-//IL->dump();
-                                     //IL->setOperand(0, 0);
-                                     val->setName("replacedType");
-                                     val->mutateType(newType);
-                                     IRBuilder<> builder(IL->getParent());
-                                     builder.SetInsertPoint(IL);
-                                     Value *newval = builder.CreateLoad(
-                                              builder.CreateBitCast(val, newType));
-//IL->getType());
-                                     //IL->replaceAllUsesWith(val);
-                                     myReplaceAllUsesWith(IL, newval);
-                                     IL->eraseFromParent();
-                                     seen = true;
-                                     changed = true;
+                                 val->mutateType(newType);
+#if 0
+fprintf(stderr, "[%s:%d]CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__);
+newType->dump();
+val->getType()->dump();
+#endif
+                                 int Idx = 0;
+                                 for (auto UI = IL->use_begin(), UE = IL->use_end(); UI != UE; UI++, Idx++) {
+                                     fprintf(stderr, "[%s:%d]use[%d] UI %p UEeq %p number %d\n", __FUNCTION__, __LINE__, Idx, UI, std::next(UI) == UE, (int)UI->getOperandNo());
+                                     Instruction *currentI = dyn_cast<Instruction>(UI->getUser());
+                                     currentI->dump();
+                                     if (Idx > 0) {
+                                         useMe = val->clone();
+                                         useMe->insertBefore(currentI);
+                                     }
+                                     if (currentI->getOpcode() == Instruction::Load) {
+                                         fprintf(stderr, "[%s:%d]replace\n", __FUNCTION__, __LINE__);
+                                         currentI->dump();
+                                         useMe->dump();
+                                         myReplaceAllUsesWith(currentI, useMe);
+                                         currentI->eraseFromParent();
+                                     }
+                                     else
+                                         currentI->setOperand(UI->getOperandNo(), useMe);
+                                 }
+                                 useMe = NULL;
+                                 seen = true;
+                                 changed = true;
                             }
-                }
+                    }
                 }
 #endif
                 II = PI;
             }
         if (changed) {
-printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
+            printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
             FB->dump();
         }
     }
-
 }
+
 static void mapType(char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();

@@ -22,8 +22,8 @@ public:
   class l_class_OC_Fifo1 *fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
-  void rule_respond(void);
   bool rule_respond__RDY(void);
+  void rule_respond(void);
   void run();
 };
 
