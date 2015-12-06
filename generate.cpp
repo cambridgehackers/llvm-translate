@@ -1172,10 +1172,11 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         if (ClassMethodTable *table = info.second)
         for (auto rtype : info.second->replaceType) {
             int Idx = rtype.first;
-            //printf("[%s:%d] infost %p Idx %d type %p\n", __FUNCTION__, __LINE__, info.first, Idx, rtype.second);
-            table->allocateLocally[Idx] = true;
-            inlineReferences(STy, Idx, rtype.second);
-            table->replaceType[Idx] = cast<PointerType>(rtype.second)->getElementType();
+            printf("[%s:%d] STy %p Idx %d type %p\n", __FUNCTION__, __LINE__, STy, Idx, rtype.second);
+            if (table->allocateLocally[Idx]) {
+                inlineReferences(STy, Idx, rtype.second);
+                table->replaceType[Idx] = cast<PointerType>(rtype.second)->getElementType();
+            }
         }
     }
 

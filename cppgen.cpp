@@ -36,14 +36,8 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         if (fname != "") {
             if (ClassMethodTable *table = classCreate[STy]) {
                 const Type *newType = table->replaceType[Idx];
-                if (newType) {
+                if (newType)
                     element = newType;
-                    if (table->allocateLocally[Idx])
-                        //if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
-printf("[%s:%d] allocateLocally %d\n", __FUNCTION__, __LINE__, Idx);
-                            //element = PTy->getElementType();
-                        //}
-                }
             }
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }

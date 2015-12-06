@@ -293,7 +293,7 @@ static void mapType(char *addr, Type *Ty, std::string aname)
      || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
         return;
     addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
-printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    //printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
     addressToName[addr] = aname;
@@ -319,21 +319,14 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
                         classCreate[STy]->replaceType[Idx] = info.type;
-printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(),
-info.STy, info.STy ?info.STy->getName().str().c_str():"");
-                        if (STy == info.STy) {
-                            //classCreate[STy]->allocateLocally[Idx] = true;
-                            //inlineReferences(STy, Idx, info.type);
-                            //classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
-                        }
+                        if (STy == info.STy)
+                            classCreate[STy]->allocateLocally[Idx] = true;
                     }
             }
             if (fname != "")
                 mapType(eaddr, element, aname + "$$" + fname);
-            else if (dyn_cast<StructType>(element)) {
-                //printf("[%s:%d] inherit %p eaddr %p\n", __FUNCTION__, __LINE__, element, eaddr);
+            else if (dyn_cast<StructType>(element))
                 mapType(eaddr, element, aname);
-            }
         }
         break;
         }
