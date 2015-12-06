@@ -295,6 +295,10 @@ printf("[%s:%d] BEFORE\n", __FUNCTION__, __LINE__);
         }
 #endif
                                  val->mutateType(newType);
+#if 1
+myReplaceAllUsesWith(IL, val);
+IL->eraseFromParent();
+#else
 #if 0
 fprintf(stderr, "[%s:%d]CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__);
 newType->dump();
@@ -302,7 +306,7 @@ val->getType()->dump();
 #endif
                                  int Idx = 0;
                                  for (auto UI = IL->use_begin(), UE = IL->use_end(); UI != UE; UI++, Idx++) {
-                                     fprintf(stderr, "[%s:%d]use[%d] UI %p UEeq %p number %d\n", __FUNCTION__, __LINE__, Idx, UI, std::next(UI) == UE, (int)UI->getOperandNo());
+                                     fprintf(stderr, "%s:use[%d] UI %p number %d\n", __FUNCTION__, Idx, UI, (int)UI->getOperandNo());
                                      Instruction *currentI = dyn_cast<Instruction>(UI->getUser());
                                      currentI->dump();
                                      if (Idx > 0) {
@@ -314,11 +318,12 @@ val->getType()->dump();
                                          currentI->dump();
                                          useMe->dump();
                                          myReplaceAllUsesWith(currentI, useMe);
-                                         currentI->eraseFromParent();
+                                         recursiveDelete(currentI);
                                      }
                                      else
                                          currentI->setOperand(UI->getOperandNo(), useMe);
                                  }
+#endif
                                  useMe = NULL;
                                  seen = true;
                                  changed = true;
@@ -328,7 +333,7 @@ val->getType()->dump();
 #endif
                 II = PI;
             }
-        if (changed) {
+        if (0 && changed) {
             printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
             FB->dump();
         }
@@ -368,9 +373,9 @@ printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, T
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
                         classCreate[STy]->replaceType[Idx] = info.type;
-                        if (STy == info.STy) {
 printf("[%s:%d] STy %p[%s] infos %p[%s]\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(),
-info.STy, info.STy->getName().str().c_str());
+info.STy, info.STy ?info.STy->getName().str().c_str():"");
+                        if (STy == info.STy) {
                             //classCreate[STy]->allocateLocally[Idx] = true;
                             //inlineReferences(STy, Idx, info.type);
                             //classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();

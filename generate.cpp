@@ -1168,16 +1168,14 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     generateRegion = ProcessHoist;
     processRules(OutNull, OutNull, OutNull);
     for (auto info : classCreate) {
-        const StructType *STy = info.first;
-        ClassMethodTable *table = info.second;
-        if (STy && table)
+        if (const StructType *STy = info.first)
+        if (ClassMethodTable *table = info.second)
         for (auto rtype : info.second->replaceType) {
-printf("[%s:%d] infost %p rtype.first %d type %p\n", __FUNCTION__, __LINE__, info.first, rtype.first, rtype.second);
-#if 0
-            table->allocateLocally[rtype.first] = true;
-            inlineReferences(STy, rtype.first, rtype.second);
-            rtype.second = cast<PointerType>(rtype.second)->getElementType();
-#endif
+            int Idx = rtype.first;
+            //printf("[%s:%d] infost %p Idx %d type %p\n", __FUNCTION__, __LINE__, info.first, Idx, rtype.second);
+            table->allocateLocally[Idx] = true;
+            inlineReferences(STy, Idx, rtype.second);
+            table->replaceType[Idx] = cast<PointerType>(rtype.second)->getElementType();
         }
     }
 

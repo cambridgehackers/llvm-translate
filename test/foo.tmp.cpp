@@ -26,7 +26,6 @@ class l_class_OC_EchoIndication {
 public:
 };
 
-class l_class_OC_Fifo1 zFifo1;
 class l_class_OC_EchoIndication zEchoIndication;
 class l_class_OC_Echo zEcho;
 
@@ -51,7 +50,6 @@ int i;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-    zEcho.fifo = &zFifo1;
     zEcho.ind = &zEchoIndication;
     echoTest.echo = &zEcho;
     while (!stop_main_program) {
