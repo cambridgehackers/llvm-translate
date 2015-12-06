@@ -722,8 +722,8 @@ std::string printCall(Function ***thisp, Instruction &I)
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
-        if (pcalledFunction[0] == '&')
-            pcalledFunction = pcalledFunction.substr(1);
+        if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1])
+            pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
         prefix = pcalledFunction + CMT->method[func];
         vout += prefix;
         skip = 1;
@@ -763,9 +763,12 @@ std::string printCall(Function ***thisp, Instruction &I)
         }
     if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
-        if (pcalledFunction[0] == '&')
-            pcalledFunction = pcalledFunction.substr(1);
-        vout += pcalledFunction + "->" + CMT->method[func];
+        std::string sep = "->";
+        if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1]) {
+            pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
+            sep = ".";
+        }
+        vout += pcalledFunction + sep + CMT->method[func];
         skip = 1;
     }
     else

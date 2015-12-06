@@ -11,14 +11,14 @@ module l_class_OC_Echo (
     end
     else begin
         // Method: rule_respond__RDY
-    rule_respond__RDY_tmp__1 = (&fifo)deq__RDY;
-    rule_respond__RDY_tmp__2 = (&fifo)first__RDY;
+    rule_respond__RDY_tmp__1 = fifodeq__RDY;
+    rule_respond__RDY_tmp__2 = fifofirst__RDY;
         rule_respond__RDY = (rule_respond__RDY_tmp__1 & rule_respond__RDY_tmp__2);
 
         // Method: rule_respond
         if (rule_respond__ENA) begin
-        (&fifo)deq__ENA = 1;
-        rule_respond_call = (&fifo)first;
+        fifodeq__ENA = 1;
+        rule_respond_call = fifofirst;
         (ind)echo__ENA = 1;
             (ind)echo_v = rule_respond_call;
         end; // End of rule_respond
