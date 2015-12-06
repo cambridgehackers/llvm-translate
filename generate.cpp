@@ -1099,18 +1099,17 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
         structMap[Ty] = 1;
         for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir, cb);
-        if (const StructType *STy = dyn_cast<StructType>(Ty))
-            if (STy->getName() != "class.Module") {
-                ClassMethodTable *table = classCreate[STy];
-                int Idx = 0;
-                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                    printContainedStructs(*I, OStr, ODir, cb);
-                    if (table)
-                        printContainedStructs(table->replaceType[Idx], OStr, ODir, cb);
-                }
-                if (classCreate[STy])
-                    cb(STy, OStr, ODir);
+        if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+            ClassMethodTable *table = classCreate[STy];
+            int Idx = 0;
+            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+                printContainedStructs(*I, OStr, ODir, cb);
+                if (table)
+                    printContainedStructs(table->replaceType[Idx], OStr, ODir, cb);
             }
+            if (classCreate[STy])
+                cb(STy, OStr, ODir);
+        }
     }
 }
 static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
