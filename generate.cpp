@@ -1076,7 +1076,7 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     for (RULE_INFO *info : ruleInfo) {
         printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
         pushWork(info->ENA, (Function ***)info->thisp);
-        pushWork(info->RDY, (Function ***)info->thisp); // must be after 'ENA'
+        pushWork(info->RDY, (Function ***)info->thisp); // must be after 'ENA', since hoisting copies guards
     }
 
     // Walk list of work items, generating code
@@ -1128,7 +1128,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     FILE *OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
     FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
-printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
     // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
     const char **p = delete_names;
@@ -1172,7 +1171,7 @@ printf("[%s:%d] globalMod %p\n", __FUNCTION__, __LINE__, globalMod);
         if (ClassMethodTable *table = info.second)
         for (auto rtype : info.second->replaceType) {
             int Idx = rtype.first;
-            printf("[%s:%d] STy %p Idx %d type %p\n", __FUNCTION__, __LINE__, STy, Idx, rtype.second);
+            //printf("[%s:%d] STy %p Idx %d type %p\n", __FUNCTION__, __LINE__, STy, Idx, rtype.second);
             if (table->allocateLocally[Idx]) {
                 inlineReferences(STy, Idx, rtype.second);
                 table->replaceType[Idx] = cast<PointerType>(rtype.second)->getElementType();

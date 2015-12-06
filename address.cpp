@@ -140,12 +140,12 @@ static Function *fixupFunction(std::string methodName, Function *func)
     return fnew;
 }
 
-extern "C" void addBaseRule(void *thisp, const char *aname, Function **RDY, Function **ENA)
+extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    std::string name = aname;
-    Function *rdyFunc = fixupFunction(name + "__RDY", RDY[2]), *enaFunc = fixupFunction(name, ENA[2]);
+    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
+    Function *enaFunc = fixupFunction(name, ENA[2]);
     classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
-    ruleInfo.push_back(new RULE_INFO{aname, thisp, rdyFunc, enaFunc});
+    ruleInfo.push_back(new RULE_INFO{name, thisp, rdyFunc, enaFunc});
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
