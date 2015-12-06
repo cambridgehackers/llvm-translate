@@ -268,16 +268,15 @@ void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
                 BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
                 if (LoadInst *IL = dyn_cast<LoadInst>(II)) {
-                Instruction *val = dyn_cast<Instruction>(IL->getOperand(0));
-                if (GetElementPtrInst *IG = dyn_cast<GetElementPtrInst>(val)) {
+                if (GetElementPtrInst *IG = dyn_cast<GetElementPtrInst>(IL->getOperand(0))) {
                     gep_type_iterator I = gep_type_begin(IG), E = gep_type_end(IG);
                     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
                     if (I++ != E && FirstOp && FirstOp->isNullValue()
                      && I != E && STy == dyn_cast<StructType>(*I))
                         if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand()))
                             if (CI->getZExtValue() == Idx) {
-                                 val->mutateType(newType);
-                                 myReplaceAllUsesWith(IL, val);
+                                 IG->mutateType(newType);
+                                 myReplaceAllUsesWith(IL, IG);
                                  IL->eraseFromParent();
                             }
                     }
