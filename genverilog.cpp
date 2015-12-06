@@ -67,6 +67,19 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             skip = 0;
         }
     }
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "") {
+            if (ClassMethodTable *table = classCreate[STy])
+                if (const Type *newType = table->replaceType[Idx])
+                    element = newType;
+            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
+                paramList.push_back(outp + printType(PTy->getElementType(), false, fname, "  ", ""));
+            }
+        }
+    }
     for (auto PI = paramList.begin(); PI != paramList.end();) {
         fprintf(OStr, "    %s", PI->c_str());
         PI++;
@@ -94,7 +107,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             if (ClassMethodTable *table = classCreate[STy])
                 if (const Type *newType = table->replaceType[Idx])
                     element = newType;
-            fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+            if (!dyn_cast<PointerType>(element))
+                fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
     }
     fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");

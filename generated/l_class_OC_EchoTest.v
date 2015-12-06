@@ -2,8 +2,8 @@ module l_class_OC_EchoTest (
     input CLK,
     input nRST,
     input rule_drive__ENA,
-    output rule_drive__RDY);
-  VERILOG_class l_class_OC_Echo *echo;
+    output rule_drive__RDY,
+    output   VERILOG_class l_class_OC_Echo echo);
    reg[31:0] x;
   always @( posedge CLK) begin
     if (!nRST) begin
@@ -11,12 +11,12 @@ module l_class_OC_EchoTest (
     else begin
         // Method: rule_drive
         if (rule_drive__ENA) begin
-        echo->fifoenq__ENA = 1;
-            echo->fifoenq_v = 22;
+        echo->fifo_enq__ENA = 1;
+            echo->fifo_enq_v = 22;
         end; // End of rule_drive
 
         // Method: rule_drive__RDY
-    rule_drive__RDY_tmp__1 = echo->fifoenq__RDY;
+    rule_drive__RDY_tmp__1 = echo->fifo_enq__RDY;
         rule_drive__RDY = rule_drive__RDY_tmp__1;
 
     end; // nRST

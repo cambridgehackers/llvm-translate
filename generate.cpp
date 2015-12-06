@@ -722,9 +722,11 @@ std::string printCall(Function ***thisp, Instruction &I)
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
-        if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1])
-            pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
-        prefix = pcalledFunction + CMT->method[func];
+        if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1])
+            pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
+        if (pcalledFunction[0] == '&')
+            pcalledFunction = pcalledFunction.substr(1);
+        prefix = pcalledFunction + "_" + CMT->method[func];
         vout += prefix;
         skip = 1;
         referencedItems[pcalledFunction] = findThisArgumentType(func->getType());
