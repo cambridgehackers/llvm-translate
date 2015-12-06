@@ -263,15 +263,12 @@ static void myReplaceAllUsesWith(Value *Old, Value *New)
 void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
-        bool changed = false;
-        bool seen = false;
         if (FB->getName().substr(0, 21) != "unused_block_function")
         for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
                 BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
                 if (LoadInst *IL = dyn_cast<LoadInst>(II)) {
                 Instruction *val = dyn_cast<Instruction>(IL->getOperand(0));
-                Instruction *useMe = val;
                 if (GetElementPtrInst *IG = dyn_cast<GetElementPtrInst>(val)) {
                     gep_type_iterator I = gep_type_begin(IG), E = gep_type_end(IG);
                     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
@@ -282,18 +279,11 @@ void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
                                  val->mutateType(newType);
                                  myReplaceAllUsesWith(IL, val);
                                  IL->eraseFromParent();
-                                 useMe = NULL;
-                                 seen = true;
-                                 changed = true;
                             }
                     }
                 }
                 II = PI;
             }
-        if (0 && changed) {
-            printf("[%s:%d] AFTER\n", __FUNCTION__, __LINE__);
-            FB->dump();
-        }
     }
 }
 
