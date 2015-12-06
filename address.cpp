@@ -236,19 +236,14 @@ printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB)
     return 0;
 }
 
-#if 1
-void myReplaceAllUsesWith(Value *Old, Value *New)
+static void myReplaceAllUsesWith(Value *Old, Value *New)
 {
-  assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
-  //assert(!contains(New, Old) && "Old->replaceAllUsesWith(expr(Old)) is NOT valid!");
   //assert(New->getType() == Old->getType() && "replaceAllUses of value with new value of different type!");
-
   // Notify all ValueHandles (if present) that Old value is going away.
   //if (Old->HasValueHandle)
     //ValueHandleBase::ValueIsRAUWd(Old, New);
   if (Old->isUsedByMetadata())
     ValueAsMetadata::handleRAUW(Old, New);
-
   while (!Old->use_empty()) {
     Use &U = *Old->use_begin();
     // Must handle Constants specially, we cannot call replaceUsesOfWith on a
@@ -259,14 +254,12 @@ void myReplaceAllUsesWith(Value *Old, Value *New)
         continue;
       }
     }
-
     U.set(New);
   }
-
   if (BasicBlock *BB = dyn_cast<BasicBlock>(Old))
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
-#endif
+
 void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
@@ -276,7 +269,6 @@ void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
         for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
                 BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-#if 1
                 if (LoadInst *IL = dyn_cast<LoadInst>(II)) {
                 Instruction *val = dyn_cast<Instruction>(IL->getOperand(0));
                 Instruction *useMe = val;
@@ -287,50 +279,15 @@ void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
                      && I != E && STy == dyn_cast<StructType>(*I))
                         if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand()))
                             if (CI->getZExtValue() == Idx) {
-printf("[%s:%d] **********************************\n", __FUNCTION__, __LINE__);
-#if 0
-        if (!seen) {
-printf("[%s:%d] BEFORE\n", __FUNCTION__, __LINE__);
-            FB->dump();
-        }
-#endif
                                  val->mutateType(newType);
-#if 1
-myReplaceAllUsesWith(IL, val);
-IL->eraseFromParent();
-#else
-#if 0
-fprintf(stderr, "[%s:%d]CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC\n", __FUNCTION__, __LINE__);
-newType->dump();
-val->getType()->dump();
-#endif
-                                 int Idx = 0;
-                                 for (auto UI = IL->use_begin(), UE = IL->use_end(); UI != UE; UI++, Idx++) {
-                                     fprintf(stderr, "%s:use[%d] UI %p number %d\n", __FUNCTION__, Idx, UI, (int)UI->getOperandNo());
-                                     Instruction *currentI = dyn_cast<Instruction>(UI->getUser());
-                                     currentI->dump();
-                                     if (Idx > 0) {
-                                         useMe = val->clone();
-                                         useMe->insertBefore(currentI);
-                                     }
-                                     if (currentI->getOpcode() == Instruction::Load) {
-                                         fprintf(stderr, "[%s:%d]replace\n", __FUNCTION__, __LINE__);
-                                         currentI->dump();
-                                         useMe->dump();
-                                         myReplaceAllUsesWith(currentI, useMe);
-                                         recursiveDelete(currentI);
-                                     }
-                                     else
-                                         currentI->setOperand(UI->getOperandNo(), useMe);
-                                 }
-#endif
+                                 myReplaceAllUsesWith(IL, val);
+                                 IL->eraseFromParent();
                                  useMe = NULL;
                                  seen = true;
                                  changed = true;
                             }
                     }
                 }
-#endif
                 II = PI;
             }
         if (0 && changed) {

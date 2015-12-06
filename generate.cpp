@@ -643,7 +643,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         return "";
     }
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
-    printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+    //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
     if (oldOp) {
         I.setOperand(I.getNumOperands()-1, func);
         recursiveDelete(oldOp);
