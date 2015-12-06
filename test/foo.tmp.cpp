@@ -22,10 +22,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 #include "../generated/output.h"
 #include "../generated/output.cpp"
 
-class l_class_OC_EchoIndication {
-public:
-};
-
 class l_class_OC_EchoIndication zEchoIndication;
 class l_class_OC_Echo zEcho;
 

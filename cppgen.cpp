@@ -34,11 +34,9 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         const Type *element = *I;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
-            if (ClassMethodTable *table = classCreate[STy]) {
-                const Type *newType = table->replaceType[Idx];
-                if (newType)
+            if (ClassMethodTable *table = classCreate[STy])
+                if (const Type *newType = table->replaceType[Idx])
                     element = newType;
-            }
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))

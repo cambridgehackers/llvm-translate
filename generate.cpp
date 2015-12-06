@@ -327,8 +327,7 @@ static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string N
         break;
         }
     case Type::StructTyID:
-        //cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
-        return "";
+        cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
         const ArrayType *ATy = cast<ArrayType>(Ty);

@@ -3,7 +3,7 @@ module l_class_OC_EchoTest (
     input nRST,
     input rule_drive__ENA,
     output rule_drive__RDY);
-  ;
+  VERILOG_class l_class_OC_Echo *echo;
    reg[31:0] x;
   always @( posedge CLK) begin
     if (!nRST) begin
