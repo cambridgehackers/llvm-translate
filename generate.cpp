@@ -106,10 +106,8 @@ const char *intmapLookup(INTMAP_TYPE *map, int value)
 
 static bool isInlinableInst(const Instruction &I)
 {
-    //if (I.use_begin() == I.use_end())
+    //if (isa<CallInst>(I))
         //return false;
-    if (isa<CallInst>(I))
-        return false;
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
         return true;
     if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
@@ -652,7 +650,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     ClassMethodTable *CMT = functionIndex[func];
 
     if (trace_hoist)
-        printf("CALL: CALLER %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
+        printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
     if (generateRegion == ProcessHoist) {
     if (!func) {
         printf("%s: Hoist not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
@@ -722,6 +720,8 @@ std::string printCall(Function ***thisp, Instruction &I)
         InlineFunctionInfo IFI;
         InlineFunction(&ICL, IFI, false);
     }
+    for (; AI != AE; ++AI) // force evaluation of all parameters
+            fetchOperand(thisp, *AI, false);
     }
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
@@ -817,8 +817,6 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         }
     // Terminators
     case Instruction::Ret:
-        if (generateRegion == ProcessHoist)
-            break;
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
             if (generateRegion == ProcessVerilog)
                 vout += "    " + globalName + " = ";
@@ -1047,7 +1045,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         for (auto ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
 
             BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
-            if (!isInlinableInst(*ins)) {
+            if (next_ins == ins_end || !isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
                 std::string vout = processInstruction(thisp, *ins);

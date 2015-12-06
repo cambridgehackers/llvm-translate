@@ -11,16 +11,13 @@ module l_class_OC_Echo (
     end
     else begin
         // Method: rule_respond__RDY
-    rule_respond__RDY_tmp__1 = fifo_deq__RDY;
-    rule_respond__RDY_tmp__2 = fifo_first__RDY;
-        rule_respond__RDY = (rule_respond__RDY_tmp__1 & rule_respond__RDY_tmp__2);
+        rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
 
         // Method: rule_respond
         if (rule_respond__ENA) begin
         fifo_deq__ENA = 1;
-        rule_respond_call = fifo_first;
         ind_echo__ENA = 1;
-            ind_echo_v = rule_respond_call;
+            ind_echo_v = (fifo_first);
         end; // End of rule_respond
 
     end; // nRST
