@@ -76,19 +76,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     fprintf(OStr, ");\n");
 }
 
-static int inheritsModule(const StructType *STy)
-{
-    if (STy) {
-        std::string sname = STy->getName();
-        if (sname == "class.Module")
-            return 1;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (inheritsModule(dyn_cast<StructType>(*I)))
-                return 1;
-    }
-    return 0;
-}
-
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);

@@ -10,6 +10,7 @@ public:
 
 class l_class_OC_EchoIndication {
 public:
+  void echo(unsigned int Vv);
 };
 
 class l_class_OC_Fifo1 {
@@ -17,9 +18,9 @@ public:
   unsigned long long unused_data_to_force_inheritance;
   unsigned int element;
   bool full;
+  bool deq__RDY(void);
   bool enq__RDY(void);
   void enq(unsigned int Vv);
-  bool deq__RDY(void);
   void deq(void);
   bool first__RDY(void);
   unsigned int first(void);

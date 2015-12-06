@@ -134,6 +134,19 @@ static bool isAddressExposed(const Value *V)
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 
+int inheritsModule(const StructType *STy)
+{
+    if (STy) {
+        std::string sname = STy->getName();
+        if (sname == "class.Module")
+            return 1;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
+            if (inheritsModule(dyn_cast<StructType>(*I)))
+                return 1;
+    }
+    return 0;
+}
+
 static void pushWork(Function *func, Function ***thisp)
 {
     if (!func)
@@ -744,6 +757,10 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     }
     else {
+        if (!inheritsModule(findThisArgumentType(currentFunction->getType()))) {
+            printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
+            skip = 0;
+        }
     if (CMT) {
         pcalledFunction = printOperand(thisp, *AI, false);
         if (pcalledFunction[0] == '&')

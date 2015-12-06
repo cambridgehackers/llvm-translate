@@ -19,7 +19,8 @@ module l_class_OC_Echo (
         if (rule_respond__ENA) begin
         (&fifo)deq__ENA = 1;
         rule_respond_call = (&fifo)first;
-        _ZN14EchoIndication4echoEi;
+        (ind)echo__ENA = 1;
+            (ind)echo_v = rule_respond_call;
         end; // End of rule_respond
 
     end; // nRST

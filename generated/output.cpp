@@ -3,22 +3,20 @@
 /* Global Variable Definitions and Initialization */
 class l_class_OC_EchoTest echoTest;
 unsigned int stop_main_program;
-//processing _ZN14EchoIndication4echoEi
-void _ZN14EchoIndication4echoEi(unsigned int Vv) {
-        printf((("Heard an echo: %d\n")), Vv);
+//processing printf
+void l_class_OC_EchoIndication::echo(unsigned int v) {
+        printf((("Heard an echo: %d\n")), v);
         stop_main_program = 1;
 }
-//processing printf
-//processing _ZN14EchoIndication4echoEi
+bool l_class_OC_Fifo1::deq__RDY(void) {
+        return (full);
+}
 bool l_class_OC_Fifo1::enq__RDY(void) {
         return ((full) ^ 1);
 }
 void l_class_OC_Fifo1::enq(unsigned int v) {
         element = v;
         full = 1;
-}
-bool l_class_OC_Fifo1::deq__RDY(void) {
-        return (full);
 }
 void l_class_OC_Fifo1::deq(void) {
         full = 0;
@@ -37,7 +35,7 @@ bool l_class_OC_Echo::rule_respond__RDY(void) {
 void l_class_OC_Echo::rule_respond(void) {
         (&fifo)->deq();
     unsigned int call =     (&fifo)->first();
-        _ZN14EchoIndication4echoEi(call);
+        (ind)->echo(call);
 }
 void l_class_OC_Echo::run()
 {
