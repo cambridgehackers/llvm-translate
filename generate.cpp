@@ -106,10 +106,14 @@ const char *intmapLookup(INTMAP_TYPE *map, int value)
 
 static bool isInlinableInst(const Instruction &I)
 {
+    //if (I.use_begin() == I.use_end())
+        //return false;
+    if (isa<CallInst>(I))
+        return false;
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
         return true;
     if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
-      || isa<TerminatorInst>(I) || isa<CallInst>(I) || isa<PHINode>(I)
+      || isa<TerminatorInst>(I) || isa<PHINode>(I)
       || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
       || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
         return false;
@@ -760,7 +764,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     else {
         if (!inheritsModule(findThisArgumentType(currentFunction->getType()))) {
-            printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
+            //printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
             skip = 0;
         }
     if (CMT) {
