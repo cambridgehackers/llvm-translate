@@ -3,8 +3,8 @@
 module l_class_OC_Echo (
     input CLK,
     input nRST,
-    output rule_respond__RDY,
     input rule_respond__ENA,
+    output rule_respond__RDY,
     output ind_echo__ENA,
     output [31:0]ind_echo_v);
     l_class_OC_Fifo1 fifo (
@@ -22,15 +22,15 @@ module l_class_OC_Echo (
       if (!nRST) begin
       end
       else begin
-        // Method: rule_respond__RDY
-        rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
-
         // Method: rule_respond
         if (rule_respond__ENA) begin
         fifo_deq__ENA = 1;
         ind_echo__ENA = 1;
             ind_echo_v = (fifo_first);
         end; // End of rule_respond
+
+        // Method: rule_respond__RDY
+        rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
 
       end; // nRST
     end; // always @ (posedge CLK)

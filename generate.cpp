@@ -106,8 +106,8 @@ const char *intmapLookup(INTMAP_TYPE *map, int value)
 
 static bool isInlinableInst(const Instruction &I)
 {
-    //if (isa<CallInst>(I))
-        //return false;
+    if (isa<CallInst>(I) && generateRegion == ProcessCPP)
+        return false; // needed to force guardedValue reads before Action calls
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
         return true;
     if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()

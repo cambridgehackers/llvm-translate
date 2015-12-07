@@ -95,6 +95,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
 {
     Function *fnew = NULL;
     ValueToValueMapTy VMap;
+    std::list<Instruction *> moveList;
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
@@ -126,10 +127,16 @@ static Function *fixupFunction(std::string methodName, Function *func)
                     recursiveDelete(II);
                 break;
                 }
+            case Instruction::Call:
+                if (II->getType() == Type::getVoidTy(II->getParent()->getContext()))
+                    moveList.push_back(II); // move all Action calls to end of basic block
+                break;
             }
             II = PI;
         }
     }
+    for (auto item: moveList)
+        item->moveBefore(item->getParent()->getTerminator());
     SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
     CloneFunctionInto(fnew, func, VMap, false, Returns, "", nullptr);
     if (trace_fixup) {

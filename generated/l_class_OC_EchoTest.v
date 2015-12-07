@@ -8,8 +8,8 @@ module l_class_OC_EchoTest (
     output   VERILOG_class l_class_OC_Fifo1 echo_fifo,
     output   VERILOG_class l_class_OC_EchoIndication *echo_ind,
     output    reg[31:0] echo_pipetemp,
-    input echo_rule_respond__RDY,
-    output echo_rule_respond__ENA);
+    output echo_rule_respond__ENA,
+    input echo_rule_respond__RDY);
    reg[31:0] x;
     always @( posedge CLK) begin
       if (!nRST) begin
