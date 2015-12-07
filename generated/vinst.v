@@ -1,13 +1,3 @@
-    l_class_OC_Fifo1 echo->fifo (
-        echo->fifo_CLK,
-        echo->fifo_nRST,
-        echo->fifo_deq__RDY,
-        echo->fifo_enq__RDY,
-        echo->fifo_enq__ENA,
-        echo->fifo_enq_v,
-        echo->fifo_deq__ENA,
-        echo->fifo_first__RDY,
-        echo->fifo_first);
     l_class_OC_Fifo1 echoTest$$echo$$fifo (
         echoTest$$echo$$fifo_CLK,
         echoTest$$echo$$fifo_nRST,

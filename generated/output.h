@@ -39,7 +39,6 @@ public:
 
 class l_class_OC_EchoTest {
 public:
-  unsigned long long unused_data_to_force_inheritance;
   class l_class_OC_Echo *echo;
   unsigned int x;
   void rule_drive(void);
