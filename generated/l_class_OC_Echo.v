@@ -1,3 +1,5 @@
+//RDY:        rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
+//RULE:   rule_respond__ENA
 module l_class_OC_Echo (
     input CLK,
     input nRST,
@@ -5,21 +7,21 @@ module l_class_OC_Echo (
     input rule_respond__ENA,
     output ind_echo__ENA,
     output [31:0]ind_echo_v);
-l_class_OC_Fifo1 fifo (
-    fifo_CLK,
-    fifo_nRST,
-    fifo_deq__RDY,
-    fifo_enq__RDY,
-    fifo_enq__ENA,
-    fifo_enq_v,
-    fifo_deq__ENA,
-    fifo_first__RDY,
-    fifo_first);
+    l_class_OC_Fifo1 fifo (
+        fifo_CLK,
+        fifo_nRST,
+        fifo_deq__RDY,
+        fifo_enq__RDY,
+        fifo_enq__ENA,
+        fifo_enq_v,
+        fifo_deq__ENA,
+        fifo_first__RDY,
+        fifo_first);
    reg[31:0] pipetemp;
-  always @( posedge CLK) begin
-    if (!nRST) begin
-    end
-    else begin
+    always @( posedge CLK) begin
+      if (!nRST) begin
+      end
+      else begin
         // Method: rule_respond__RDY
         rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
 
@@ -30,7 +32,7 @@ l_class_OC_Fifo1 fifo (
             ind_echo_v = (fifo_first);
         end; // End of rule_respond
 
-    end; // nRST
-  end; // always @ (posedge CLK)
+      end; // nRST
+    end; // always @ (posedge CLK)
 endmodule 
 

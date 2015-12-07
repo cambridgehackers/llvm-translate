@@ -1,3 +1,5 @@
+//RDY:        rule_drive__RDY = (echo->fifo_enq__RDY);
+//RULE:   rule_drive__ENA
 module l_class_OC_EchoTest (
     input CLK,
     input nRST,
@@ -9,10 +11,10 @@ module l_class_OC_EchoTest (
     input echo_rule_respond__RDY,
     output echo_rule_respond__ENA);
    reg[31:0] x;
-  always @( posedge CLK) begin
-    if (!nRST) begin
-    end
-    else begin
+    always @( posedge CLK) begin
+      if (!nRST) begin
+      end
+      else begin
         // Method: rule_drive
         if (rule_drive__ENA) begin
         echo->fifo_enq__ENA = 1;
@@ -22,7 +24,7 @@ module l_class_OC_EchoTest (
         // Method: rule_drive__RDY
         rule_drive__RDY = (echo->fifo_enq__RDY);
 
-    end; // nRST
-  end; // always @ (posedge CLK)
+      end; // nRST
+    end; // always @ (posedge CLK)
 endmodule 
 

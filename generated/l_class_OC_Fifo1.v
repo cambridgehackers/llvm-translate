@@ -1,3 +1,8 @@
+//RDY:        deq__RDY = (full);
+//RDY:        enq__RDY = ((full) ^ 1);
+//RDY:        first__RDY = (full);
+//RULE:   enq__ENA
+//RULE:   deq__ENA
 module l_class_OC_Fifo1 (
     input CLK,
     input nRST,
@@ -10,10 +15,10 @@ module l_class_OC_Fifo1 (
     output [31:0]first);
    reg[31:0] element;
    reg full;
-  always @( posedge CLK) begin
-    if (!nRST) begin
-    end
-    else begin
+    always @( posedge CLK) begin
+      if (!nRST) begin
+      end
+      else begin
         // Method: deq__RDY
         deq__RDY = (full);
 
@@ -37,7 +42,7 @@ module l_class_OC_Fifo1 (
         // Method: first
         first = (element);
 
-    end; // nRST
-  end; // always @ (posedge CLK)
+      end; // nRST
+    end; // always @ (posedge CLK)
 endmodule 
 

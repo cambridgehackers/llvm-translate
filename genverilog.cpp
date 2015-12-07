@@ -42,13 +42,12 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
+    std::list<std::string> enaList;
+    std::list<Function *> rdyList;
     if (instance != "") {
         inp = instance + "_";
         outp = instance + "_";
-        fprintf(OStr, "%s %s (\n", name.c_str(), instance.c_str());
     }
-    else
-        fprintf(OStr, "module %s (\n", name.c_str());
     paramList.push_back(inp + "CLK");
     paramList.push_back(inp + "nRST");
     for (auto FI : table->method) {
@@ -56,10 +55,16 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         std::string mname = FI.second;
         const Type *retTy = func->getReturnType();
         int hasRet = (retTy != Type::getVoidTy(func->getContext()));
-        if (hasRet)
+        if (hasRet) {
             paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
-        else
+            if (endswith(mname, "__RDY") && instance == "")
+                rdyList.push_back(func);
+        }
+        else {
             paramList.push_back(inp + mname + "__ENA");
+            if (instance == "")
+                enaList.push_back(mname + "__ENA");
+        }
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
@@ -111,7 +116,21 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             }
         }
     }
+    for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
+        fprintf(OStr, "//RDY:");
+        regen_methods = 1;
+        processFunction(*PI, NULL, OStr, "");
+        regen_methods = 0;
+    }
+    for (auto PI = enaList.begin(); PI != enaList.end(); PI++)
+        fprintf(OStr, "//RULE:   %s\n", PI->c_str());
+    if (instance != "")
+        fprintf(OStr, "    %s %s (\n", name.c_str(), instance.c_str());
+    else
+        fprintf(OStr, "module %s (\n", name.c_str());
     for (auto PI = paramList.begin(); PI != paramList.end();) {
+        if (instance != "")
+            fprintf(OStr, "    ");
         fprintf(OStr, "    %s", PI->c_str());
         PI++;
         if (PI != paramList.end())
@@ -146,7 +165,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             }
         }
     }
-    fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");
+    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n      end\n      else begin\n");
     for (auto FI : table->method) {
         Function *func = FI.first;
         std::string mname = FI.second;
@@ -161,8 +180,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
-    fprintf(OStr, "    end; // nRST\n");
-    fprintf(OStr, "  end; // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "      end; // nRST\n");
+    fprintf(OStr, "    end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
     /*
      * Now generate importBVI for use of module from Bluespec
