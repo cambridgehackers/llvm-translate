@@ -43,8 +43,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
     if (instance != "") {
-        inp = instance;
-        outp = instance;
+        inp = instance + "_";
+        outp = instance + "_";
         fprintf(OStr, "%s %s (\n", name.c_str(), instance.c_str());
     }
     else
@@ -57,13 +57,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         const Type *retTy = func->getReturnType();
         int hasRet = (retTy != Type::getVoidTy(func->getContext()));
         if (hasRet)
-            paramList.push_back(outp + verilogArrRange(retTy) + mname);
+            paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
         else
             paramList.push_back(inp + mname + "__ENA");
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
-                paramList.push_back(inp + verilogArrRange(AI->getType()) + mname + "_" + AI->getName().str());
+                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
             skip = 0;
         }
     }
@@ -76,7 +76,38 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 if (const Type *newType = table->replaceType[Idx])
                     element = newType;
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
-                paramList.push_back(outp + printType(PTy->getElementType(), false, fname, "  ", ""));
+                element = PTy->getElementType();
+                if (const StructType *STy = dyn_cast<StructType>(element)) {
+                    if (ClassMethodTable *table = classCreate[STy]) {
+                    int Idx = 0;
+                    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+                        const Type *element = *I;
+                            if (const Type *newType = table->replaceType[Idx])
+                                element = newType;
+                        std::string ename = fieldName(STy, Idx);
+                        if (ename != "")
+                            paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", ""));
+                    }
+                    for (auto FI : table->method) {
+                        Function *func = FI.first;
+                        std::string mname = fname + "_" + FI.second;
+                        const Type *retTy = func->getReturnType();
+                        int hasRet = (retTy != Type::getVoidTy(func->getContext()));
+                        if (hasRet)
+                            paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
+                        else
+                            paramList.push_back(outp + mname + "__ENA");
+                        int skip = 1;
+                        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                            if (!skip)
+                                paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
+                            skip = 0;
+                        }
+                    }
+                    }
+                }
+                else
+                    paramList.push_back(outp + printType(element, false, fname, "  ", ""));
             }
         }
     }
@@ -107,8 +138,12 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
             if (ClassMethodTable *table = classCreate[STy])
                 if (const Type *newType = table->replaceType[Idx])
                     element = newType;
-            if (!dyn_cast<PointerType>(element))
-                fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+            if (!dyn_cast<PointerType>(element)) {
+                if (const StructType *STy = dyn_cast<StructType>(element))
+                    generateModuleSignature(OStr, STy, fname);
+                else
+                    fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+            }
         }
     }
     fprintf(OStr, "  always @( posedge CLK) begin\n    if (!nRST) begin\n    end\n    else begin\n");

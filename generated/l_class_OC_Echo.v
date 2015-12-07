@@ -3,8 +3,18 @@ module l_class_OC_Echo (
     input nRST,
     output rule_respond__RDY,
     input rule_respond__ENA,
-    output   VERILOG_class l_class_OC_EchoIndication ind);
-  VERILOG_class l_class_OC_Fifo1 fifo;
+    output ind_echo__ENA,
+    output [31:0]ind_echo_v);
+l_class_OC_Fifo1 fifo (
+    fifo_CLK,
+    fifo_nRST,
+    fifo_deq__RDY,
+    fifo_enq__RDY,
+    fifo_enq__ENA,
+    fifo_enq_v,
+    fifo_deq__ENA,
+    fifo_first__RDY,
+    fifo_first);
    reg[31:0] pipetemp;
   always @( posedge CLK) begin
     if (!nRST) begin

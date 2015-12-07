@@ -38,11 +38,11 @@ void l_class_OC_Echo::run()
 {
     if (rule_respond__RDY()) rule_respond();
 }
-bool l_class_OC_EchoTest::rule_drive__RDY(void) {
-        return (echo->fifo.enq__RDY());
-}
 void l_class_OC_EchoTest::rule_drive(void) {
         echo->fifo.enq(22);
+}
+bool l_class_OC_EchoTest::rule_drive__RDY(void) {
+        return (echo->fifo.enq__RDY());
 }
 void l_class_OC_EchoTest::run()
 {
