@@ -1,8 +1,6 @@
 //RDY:        echoReq__RDY = 1;
-//RDY:        rule_respondexport__RDY = (this_echoReq__RDY);
 //RDY:        rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
 //RULE:   echoReq__ENA
-//RULE:   rule_respondexport__ENA
 //RULE:   rule_respond__ENA
 module l_class_OC_Echo (
     input CLK,
@@ -10,8 +8,6 @@ module l_class_OC_Echo (
     output echoReq__RDY,
     input echoReq__ENA,
     input [31:0]echoReq_v,
-    input rule_respondexport__ENA,
-    output rule_respondexport__RDY,
     input rule_respond__ENA,
     output rule_respond__RDY,
     output   VERILOGunsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
@@ -40,15 +36,6 @@ module l_class_OC_Echo (
         fifo_enq__ENA = 1;
             fifo_enq_v = echoReq_v;
         end; // End of echoReq
-
-        // Method: rule_respondexport
-        if (rule_respondexport__ENA) begin
-        this_echoReq__ENA = 1;
-            this_echoReq_v = 99;
-        end; // End of rule_respondexport
-
-        // Method: rule_respondexport__RDY
-        rule_respondexport__RDY = (this_echoReq__RDY);
 
         // Method: rule_respond
         if (rule_respond__ENA) begin

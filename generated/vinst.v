@@ -1,16 +1,3 @@
-    l_class_OC_Echo echoTest$$echo (
-        echoTest$$echo_CLK,
-        echoTest$$echo_nRST,
-        echoTest$$echo_echoReq__RDY,
-        echoTest$$echo_echoReq__ENA,
-        echoTest$$echo_echoReq_v,
-        echoTest$$echo_rule_respondexport__ENA,
-        echoTest$$echo_rule_respondexport__RDY,
-        echoTest$$echo_rule_respond__ENA,
-        echoTest$$echo_rule_respond__RDY,
-        echoTest$$echo_  VERILOGunsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
-        echoTest$$echo_ind_echo__ENA,
-        echoTest$$echo_ind_echo_v);
     l_class_OC_Fifo1 echoTest$$echo$$fifo (
         echoTest$$echo$$fifo_CLK,
         echoTest$$echo$$fifo_nRST,
@@ -41,16 +28,13 @@
         ind_nRST,
         ind_echo__ENA,
         ind_echo_v);
-    l_class_OC_Echo this (
+    l_class_OC_Fifo1 this (
         this_CLK,
         this_nRST,
-        this_echoReq__RDY,
-        this_echoReq__ENA,
-        this_echoReq_v,
-        this_rule_respondexport__ENA,
-        this_rule_respondexport__RDY,
-        this_rule_respond__ENA,
-        this_rule_respond__RDY,
-        this_  VERILOGunsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
-        this_ind_echo__ENA,
-        this_ind_echo_v);
+        this_enq__ENA,
+        this_enq_v,
+        this_deq__RDY,
+        this_deq__ENA,
+        this_first__RDY,
+        this_first,
+        this_notEmpty);

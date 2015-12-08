@@ -1155,6 +1155,9 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
             }
             Declare->eraseFromParent();
         }
+    // Construct the vtable map for classes
+    constructVtableMap(Mod);
+
     // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};
     p = malloc_names;
@@ -1162,6 +1165,13 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         if (Function *Declare = Mod->getFunction(*p++))
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 callMemrunOnFunction(cast<CallInst>(*I));
+   // Add StructType parameter to exportSymbol calls
+    if (Function *Declare = Mod->getFunction("exportSymbol"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
+            CallInst *II = cast<CallInst>(*I);
+            II->setOperand(2, ConstantInt::get(Type::getInt64Ty(II->getContext()),
+                (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
+        }
     EntryFn = Mod->getFunction("main");
     if (!EntryFn) {
         printf("'main' function not found in module.\n");

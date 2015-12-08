@@ -35,8 +35,6 @@ public:
   unsigned int pipetemp;
   bool echoReq__RDY(void);
   void echoReq(unsigned int Vv);
-  void rule_respondexport(void);
-  bool rule_respondexport__RDY(void);
   void rule_respond(void);
   bool rule_respond__RDY(void);
   void run();

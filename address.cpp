@@ -158,6 +158,23 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
+static void addFunction(void *thisp, std::string name, ClassMethodTable *table)
+{
+    std::string lname = lookupMethodName(table, vtableFind(table, name));
+    if (lname == "") {
+        printf("ExportSymbol: could not find method %s\n", name.c_str());
+        exit(-1);
+    }
+    ruleInfo.push_back(new RULE_INFO{thisp, EE->FindFunctionNamed(lname.c_str())});
+}
+
+extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
+{
+    ClassMethodTable *table = classCreate[STy];
+    addFunction(thisp, name, table);
+    addFunction(thisp, std::string(name) + "__RDY", table); // must be after 'ENA'
+}
+
 static void dumpMemoryRegions(int arg)
 {
     printf("%s: %d\n", __FUNCTION__, arg);
@@ -400,11 +417,7 @@ int checkExportMethod(const StructType *STy, std::string aname)
     return 0;
 }
 
-/*
- * Starting from all toplevel global, construct symbolic names for
- * all reachable addresses
- */
-void constructAddressMap(Module *Mod)
+void constructVtableMap(Module *Mod)
 {
     addressToName.clear();
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
@@ -429,7 +442,18 @@ void constructAddressMap(Module *Mod)
                 }
             }
         }
-        else if ((name.length() < 4 || name.substr(0,4) != ".str")
+    }
+}
+
+/*
+ * Starting from all toplevel global, construct symbolic names for
+ * all reachable addresses
+ */
+void constructAddressMap(Module *Mod)
+{
+    for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
+        std::string name = MI->getName();
+        if ((name.length() < 4 || name.substr(0,4) != ".str")
          && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
             void *addr = EE->getPointerToGlobal(MI);
             Type *Ty = MI->getType()->getElementType();

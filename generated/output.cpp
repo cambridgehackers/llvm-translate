@@ -35,13 +35,6 @@ bool l_class_OC_Echo::echoReq__RDY(void) {
 void l_class_OC_Echo::echoReq(unsigned int v) {
         fifo.enq(v);
 }
-void l_class_OC_Echo::rule_respondexport(void) {
-        this->echoReq(99);
-}
-bool l_class_OC_Echo::rule_respondexport__RDY(void) {
-    bool tmp__1 =     this->echoReq__RDY();
-        return tmp__1;
-}
 void l_class_OC_Echo::rule_respond(void) {
     unsigned int call =     fifo.first();
         fifo.deq();
@@ -54,6 +47,5 @@ bool l_class_OC_Echo::rule_respond__RDY(void) {
 }
 void l_class_OC_Echo::run()
 {
-    if (rule_respondexport__RDY()) rule_respondexport();
     if (rule_respond__RDY()) rule_respond();
 }

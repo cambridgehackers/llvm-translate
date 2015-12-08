@@ -125,3 +125,4 @@ int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 int checkExportMethod(const StructType *STy, std::string aname);
+void constructVtableMap(Module *Mod);
