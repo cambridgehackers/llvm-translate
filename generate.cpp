@@ -1083,7 +1083,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
  * Symbolically run through all rules, running either preprocessing or
  * generating verilog.
  */
-static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
+static void processRules(FILE *outputFile, FILE *outputNull)
 {
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
@@ -1189,7 +1189,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
-    processRules(OutNull, OutNull, OutNull);
+    processRules(OutNull, OutNull);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)
@@ -1206,7 +1206,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    processRules(OutVMain, OutNull, OutNull);
+    processRules(OutVMain, OutNull);
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
@@ -1215,7 +1215,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
-    processRules(Out, OutNull, OutHeader);
+    processRules(Out, OutNull);
     generateStructs(Out, "", generateClassBody); // generate class method bodies
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
     UnnamedStructIDs.clear();
