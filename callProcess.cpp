@@ -141,11 +141,6 @@ bool call2runOnFunction(Function &F)
                 std::string cthisp = printOperand(NULL, II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
                 if (func && cthisp == "Vthis") {
-                    //if (const StructType *STy = findThisArgumentType(func->getType()))
-                    //if (checkExportMethod(STy, getMethodName(pcalledFunction))) {
-                        //fprintf(stdout,"callProcess: pcalledFunction %s\n", pcalledFunction.c_str());
-                        //goto nextlab;
-                    //}
                     fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
                     RemoveAllocaPass_runOnFunction(*func);
                     II->setOperand(II->getNumOperands()-1, func);
@@ -154,7 +149,6 @@ bool call2runOnFunction(Function &F)
                     changed = true;
                 }
             }
-nextlab:
             II = PI;
         }
     }
