@@ -45,7 +45,7 @@ public:
     }
 };
 
-static int trace_call=1;
+static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
@@ -1171,7 +1171,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
-    // Walk list of work items, generating code
+    // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
         processFunction(item.f, item.thisp, NULL, "");
     for (auto info : classCreate) {
@@ -1190,8 +1190,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    for (auto item : vtableWork)
-        processFunction(item.f, NULL, NULL, "");
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
@@ -1200,8 +1198,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
-    for (auto item : vtableWork)
-        processFunction(item.f, NULL, NULL, "");
     generateStructs(Out, "", generateClassBody); // generate class method bodies
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
     UnnamedStructIDs.clear();
