@@ -1078,18 +1078,6 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         fprintf(outputFile, "\n");
 }
 
-/*
- * Symbolically run through all rules, running either preprocessing or
- * generating verilog.
- */
-static void processRules(FILE *outputFile, FILE *outputNull)
-{
-    // Walk list of work items, generating code
-    for (auto item : vtableWork)
-        processFunction(item.f, (generateRegion == ProcessHoist) ? item.thisp : NULL,
-            functionIndex[item.f] ? outputNull : outputFile, "");
-}
-
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
 {
     if (!Ty)
@@ -1177,7 +1165,9 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
-    processRules(OutNull, OutNull);
+    // Walk list of work items, generating code
+    for (auto item : vtableWork)
+        processFunction(item.f, item.thisp, OutNull, "");
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)
@@ -1194,7 +1184,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    processRules(OutVMain, OutNull);
+    for (auto item : vtableWork)
+        processFunction(item.f, NULL, OutNull, "");
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
@@ -1203,7 +1194,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
-    processRules(Out, OutNull);
+    for (auto item : vtableWork)
+        processFunction(item.f, NULL, OutNull, "");
     generateStructs(Out, "", generateClassBody); // generate class method bodies
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
     UnnamedStructIDs.clear();

@@ -3,8 +3,6 @@ module top(input CLK, input nRST);
     if (!nRST) then begin
     end
     else begin
-//processing printf
-
     end; // nRST
   end; // always @ (posedge CLK)
 endmodule 
