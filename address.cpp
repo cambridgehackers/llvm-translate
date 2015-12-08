@@ -158,21 +158,24 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
-static void addFunction(void *thisp, std::string name, ClassMethodTable *table)
+static Function *addFunction(void *thisp, std::string name, ClassMethodTable *table)
 {
     std::string lname = lookupMethodName(table, vtableFind(table, name));
     if (lname == "") {
         printf("ExportSymbol: could not find method %s\n", name.c_str());
         exit(-1);
     }
-    ruleInfo.push_back(new RULE_INFO{thisp, EE->FindFunctionNamed(lname.c_str())});
+    Function *func = EE->FindFunctionNamed(lname.c_str());
+    ruleInfo.push_back(new RULE_INFO{thisp, func});
+    return func;
 }
 
 extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
 {
     ClassMethodTable *table = classCreate[STy];
-    addFunction(thisp, name, table);
-    addFunction(thisp, std::string(name) + "__RDY", table); // must be after 'ENA'
+    Function *enaFunc = addFunction(thisp, name, table);
+    Function *rdyFunc = addFunction(thisp, std::string(name) + "__RDY", table); // must be after 'ENA'
+    ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
 static void dumpMemoryRegions(int arg)

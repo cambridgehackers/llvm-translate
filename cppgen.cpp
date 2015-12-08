@@ -33,6 +33,8 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
         std::string fname = fieldName(STy, Idx);
+        if (fname == "unused_data_to_force_inheritance")
+            continue;
         if (fname != "") {
             if (ClassMethodTable *table = classCreate[STy])
                 if (const Type *newType = table->replaceType[Idx])

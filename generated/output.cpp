@@ -8,6 +8,10 @@ void l_class_OC_EchoIndication::echo(unsigned int v) {
         printf((("Heard an echo: %d\n")), v);
         stop_main_program = 1;
 }
+bool l_class_OC_Fifo1::enq__RDY(void) {
+    bool call =     this->notFull();
+        return call;
+}
 void l_class_OC_Fifo1::enq(unsigned int v) {
         element = v;
         full = 1;
@@ -29,8 +33,17 @@ unsigned int l_class_OC_Fifo1::first(void) {
 bool l_class_OC_Fifo1::notEmpty(void) {
         return (full);
 }
+bool l_class_OC_Fifo1::notFull(void) {
+        return ((full) ^ 1);
+}
+bool l_class_OC_Echo::rule_respond__RDY(void) {
+    bool tmp__1 =     fifo.deq__RDY();
+    bool tmp__2 =     fifo.first__RDY();
+        return (tmp__1 & tmp__2);
+}
 bool l_class_OC_Echo::echoReq__RDY(void) {
-        return 1;
+    bool tmp__1 =     fifo.enq__RDY();
+        return tmp__1;
 }
 void l_class_OC_Echo::echoReq(unsigned int v) {
         fifo.enq(v);
@@ -39,11 +52,6 @@ void l_class_OC_Echo::rule_respond(void) {
     unsigned int call =     fifo.first();
         fifo.deq();
         (ind)->echo(call);
-}
-bool l_class_OC_Echo::rule_respond__RDY(void) {
-    bool tmp__1 =     fifo.deq__RDY();
-    bool tmp__2 =     fifo.first__RDY();
-        return (tmp__1 & tmp__2);
 }
 void l_class_OC_Echo::run()
 {
