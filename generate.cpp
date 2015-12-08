@@ -1094,7 +1094,10 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
     // Walk list of work items, generating code
     while (vtableWork.begin() != vtableWork.end()) {
         Function *func = vtableWork.begin()->f;
-        processFunction(func, vtableWork.begin()->thisp, functionIndex[func] ? outputNull : outputFile, "");
+        Function ***thisp = vtableWork.begin()->thisp;
+        if (generateRegion != ProcessHoist)
+            thisp = NULL;
+        processFunction(func, thisp, functionIndex[func] ? outputNull : outputFile, "");
         vtableWork.pop_front();
     }
 }
