@@ -45,7 +45,7 @@ public:
     }
 };
 
-static int trace_call;//=1;
+static int trace_call=1;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
@@ -657,14 +657,14 @@ std::string printCall(Function ***thisp, Instruction &I)
 
     if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
+    if (!func) {
+        printf("%s: not an instantiable call!!!! %s thisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
+        exit(-1);
+    }
     if (CMT && generateRegion != ProcessHoist) {
         pcalledFunction = printOperand(thisp, *AI, false);
     }
     if (generateRegion == ProcessHoist) {
-    if (!func) {
-        printf("%s: Hoist not an instantiable call!!!! %s thisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
-        return "";
-    }
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
     //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
     if (oldOp) {
@@ -738,10 +738,6 @@ std::string printCall(Function ***thisp, Instruction &I)
         vout += pcalledFunction;
         if (regen_methods)
             return vout;
-    }
-    if (!func) {
-        printf("%s: Verilog not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-        return "";
     }
     if (prefix == "")
         vout += "(";
@@ -866,8 +862,6 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         std::string sval = printOperand(thisp, Operand, false);
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
             pdest = pdest.substr(1, pdest.length() -2);
-        if (generateRegion == ProcessHoist)
-            break;
         vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
         if (BitMask)
             vout += "((";
