@@ -997,12 +997,14 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         globalName = methodName;
     else {
         globalName = fname;
+        if (outputFile)
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
     if (trace_call)
         printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
+        if (outputFile)
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
     }
 #if 0
@@ -1025,6 +1027,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         std::string mname = globalName;
         if (regenItem)
             mname = std::string(aclassName) + "::" + mname;
+        if (outputFile)
         fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", regenItem).c_str());
     }
     nameToAddress["Vthis"] = thisp;
@@ -1048,6 +1051,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
                         if (tval)
                             nameToAddress[name] = tval;
                     }
+                    if (outputFile) {
                     fprintf(outputFile, "    ");
                     if (generateRegion == ProcessCPP) {
                         if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
@@ -1063,6 +1067,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
                             fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
                     }
                     fprintf(outputFile, "%s;\n", vout.c_str());
+                    }
                 }
             }
             if (trace_translate)
@@ -1070,12 +1075,14 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
             ins = next_ins;
         }
     }
+    if (outputFile) {
     if (hasGuard)
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
     if (generateRegion == ProcessCPP)
         fprintf(outputFile, "}\n");
     else if (!regenItem)
         fprintf(outputFile, "\n");
+    }
 }
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
@@ -1114,7 +1121,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
     FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
-    FILE *OutNull = fopen("/dev/null", "w");
     FILE *OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
     FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
@@ -1167,7 +1173,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     generateRegion = ProcessHoist;
     // Walk list of work items, generating code
     for (auto item : vtableWork)
-        processFunction(item.f, item.thisp, OutNull, "");
+        processFunction(item.f, item.thisp, NULL, "");
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)
@@ -1185,7 +1191,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     generateRegion = ProcessVerilog;
     fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
     for (auto item : vtableWork)
-        processFunction(item.f, NULL, OutNull, "");
+        processFunction(item.f, NULL, NULL, "");
     fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
     for (auto RI : referencedItems)
@@ -1195,7 +1201,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     generateRegion = ProcessCPP;
     generateCppData(Out, *Mod);
     for (auto item : vtableWork)
-        processFunction(item.f, NULL, OutNull, "");
+        processFunction(item.f, NULL, NULL, "");
     generateStructs(Out, "", generateClassBody); // generate class method bodies
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
     UnnamedStructIDs.clear();
