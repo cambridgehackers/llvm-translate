@@ -53,7 +53,6 @@ const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
-std::list<RULE_INFO *> ruleInfo;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
@@ -149,7 +148,7 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
-static void pushWork(Function *func, Function ***thisp)
+void pushWork(Function *func, void *thisp)
 {
     if (!func || generateRegion > ProcessHoist)
         return;
@@ -157,7 +156,7 @@ static void pushWork(Function *func, Function ***thisp)
         table->method[func] = getMethodName(func->getName());
         functionIndex[func] = table;
     }
-    vtableWork.push_back(VTABLE_WORK(func, thisp));
+    vtableWork.push_back(VTABLE_WORK(func, (Function ***)thisp));
 }
 
 /*
@@ -1178,11 +1177,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
-    // Walk the rule lists for all modules, generating work items
-    for (RULE_INFO *info : ruleInfo) {
-        printf("RULE_INFO: thisp %p, func %p\n", info->thisp, info->func);
-        pushWork(info->func, (Function ***)info->thisp);
-    }
     processRules(OutNull, OutNull);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)

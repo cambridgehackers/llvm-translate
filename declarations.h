@@ -74,7 +74,6 @@ extern int generateRegion;
 extern Module *globalMod;
 extern Function *currentFunction;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
-extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::map<std::string, void *> nameToAddress;
 
@@ -125,3 +124,4 @@ int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void constructVtableMap(Module *Mod);
+void pushWork(Function *func, void *thisp);

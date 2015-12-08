@@ -153,8 +153,8 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *enaFunc = fixupFunction(name, ENA[2]);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
-    ruleInfo.push_back(new RULE_INFO{thisp, enaFunc});
-    ruleInfo.push_back(new RULE_INFO{thisp, rdyFunc}); // must be after 'ENA', since hoisting copies guards
+    pushWork(enaFunc, thisp);
+    pushWork(rdyFunc, thisp); // must be after 'ENA', since hoisting copies guards
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
@@ -166,7 +166,7 @@ static Function *addFunction(void *thisp, std::string name, ClassMethodTable *ta
         exit(-1);
     }
     Function *func = EE->FindFunctionNamed(lname.c_str());
-    ruleInfo.push_back(new RULE_INFO{thisp, func});
+    pushWork(func, thisp);
     return func;
 }
 
