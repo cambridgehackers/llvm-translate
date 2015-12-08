@@ -131,17 +131,23 @@ bool call2runOnFunction(Function &F)
                 std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
                 if (lname[0] == '(' && lname[lname.length()-1] == ')')
                     lname = lname.substr(1, lname.length() - 2);
-                Value *val = Mod->getNamedValue(lname);
                 std::string cthisp = fetchOperand(NULL, II->getOperand(0), false);
-                if (val && cthisp == "Vthis") {
-                    //fprintf(stdout,"callProcess: lname %s single!!!! cthisp %s\n", lname.c_str(), cthisp.c_str());
-                    RemoveAllocaPass_runOnFunction(*dyn_cast<Function>(val));
-                    II->setOperand(II->getNumOperands()-1, val);
+                if (Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(lname)))
+                if (cthisp == "Vthis") {
+                    if (const StructType *STy = findThisArgumentType(func->getType()))
+                    if (checkExportMethod(STy, getMethodName(lname))) {
+                        fprintf(stdout,"callProcess: lname %s\n", lname.c_str());
+                        goto nextlab;
+                    }
+                    fprintf(stdout,"callProcess: lname %s single!!!!\n", lname.c_str());
+                    RemoveAllocaPass_runOnFunction(*func);
+                    II->setOperand(II->getNumOperands()-1, func);
                     InlineFunctionInfo IFI;
                     InlineFunction(CI, IFI, false);
                     changed = true;
                 }
             }
+nextlab:
             II = PI;
         }
     }

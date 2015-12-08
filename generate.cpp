@@ -53,7 +53,6 @@ std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 std::list<RULE_INFO *> ruleInfo;
-std::map<std::string, void *> nameMap;
 unsigned NextTypeID;
 int regen_methods;
 int generateRegion;
@@ -439,10 +438,10 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (LastIndexIsVector)
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
     if (trace_gep)
-        printf("[%s:%d] const %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
+        printf("[%s:%d] thisp %p referstr %s Total %ld\n", __FUNCTION__, __LINE__, thisp, referstr.c_str(), (unsigned long)Total);
     if (I == E)
         return referstr;
-    if ((tval = mapLookup(referstr.c_str())) || (tval = nameMap[referstr]))
+    if ((tval = mapLookup(referstr)))
         goto tvallab;
     ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
@@ -450,18 +449,24 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
      && (table = classCreate[findThisArgumentType(PTy)])
      && (referstr == "*(this)" || referstr == "*(Vthis)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
-        std::string lname;
         // Lookup method index in vtable
-        if (table && Total/sizeof(void *) < table->vtableCount)
-            lname = table->vtable[Total/sizeof(void *)];
-        else if (generateRegion != ProcessNone) {
+        std::string lname = lookupMethodName(table, Total/sizeof(void *));
+        if (lname == "" && generateRegion != ProcessNone) {
             printf("%s: gname %s: could not find %d. vtable %p max %d\n", __FUNCTION__, globalName.c_str(), (int)Total, table, table? table->vtableCount : -1);
             exit(-1);
         }
         std::string name = getMethodName(lname);
+        Function *func = EE->FindFunctionNamed(lname.c_str());
+        if (func)
+            tval = EE->getPointerToFunction(func);
         if (trace_gep)
-            printf("%s: Method invocation thisp %p referstr %s name %s lname %s\n", __FUNCTION__,
-                thisp, referstr.c_str(), name.c_str(), lname.c_str());
+            printf("%s: Method invocation thisp %p referstr %s name %s lname %s func %p tval %p\n", __FUNCTION__,
+                thisp, referstr.c_str(), name.c_str(), lname.c_str(), func, tval);
+        if (tval) {
+            cbuffer += "&";
+            Total = 0;
+            goto tvallab;
+        }
         if (referstr == "*(this)" || referstr == "*(Vthis)")
             referstr = "";
         else
@@ -652,8 +657,9 @@ std::string printCall(Function ***thisp, Instruction &I)
     if (trace_hoist)
         printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
     if (generateRegion == ProcessHoist) {
+    //printf("[%s:%d] cthisp %s func %p called_thisp %p\n", __FUNCTION__, __LINE__, cthisp.c_str(), func, called_thisp);
     if (!func) {
-        printf("%s: Hoist not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        printf("%s: Hoist not an instantiable call!!!! %s thisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
         return "";
     }
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
@@ -664,9 +670,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
         if ((rmethodString = getMethodName(func->getName())) != "")
-            for (unsigned int i = 0; table && i < table->vtableCount; i++)
-                if (getMethodName(table->vtable[i]) == rmethodString + "__RDY")
-                    RDYName = i;
+            RDYName = vtableFind(table, rmethodString + "__RDY");
     fname = func->getName();
     if (trace_hoist)
         printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
@@ -711,6 +715,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
+#if 0
     if (cthisp == "Vthis") {
         printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
         fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
@@ -720,6 +725,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         InlineFunctionInfo IFI;
         InlineFunction(&ICL, IFI, false);
     }
+#endif
     for (; AI != AE; ++AI) // force evaluation of all parameters
             fetchOperand(thisp, *AI, false);
     }
@@ -876,7 +882,7 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
         if (BitMask)
             vout += "((";
-        if (void *valp = nameMap[sval]) {
+        if (void *valp = nameToAddress[sval]) {
             //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
             sval = mapAddress(valp);
         }
@@ -995,7 +1001,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
     int regenItem = (regen_methods && (methodName = getMethodName(fname)) != "");
 
     NextAnonValueNumber = 0;
-    nameMap.clear();
+    nameToAddress.clear();
     if (trace_translate) {
         printf("FULL_AFTER_OPT: %s\n", fname.c_str());
         func->dump();
@@ -1038,7 +1044,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
             mname = std::string(aclassName) + "::" + mname;
         fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", regenItem).c_str());
     }
-    nameMap["Vthis"] = thisp;
+    nameToAddress["Vthis"] = thisp;
     for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
@@ -1055,9 +1061,9 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
                         std::string name = GetValueName(&*ins);
                         void *tval = mapLookup(vout.c_str()+1);
                         if (trace_translate)
-                            printf("%s: settingnameMap [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
+                            printf("%s: setting nameToAddress [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
                         if (tval)
-                            nameMap[name] = tval;
+                            nameToAddress[name] = tval;
                     }
                     fprintf(outputFile, "    ");
                     if (generateRegion == ProcessCPP) {
@@ -1097,9 +1103,8 @@ static void processRules(FILE *outputFile, FILE *outputNull, FILE *headerFile)
 {
     // Walk the rule lists for all modules, generating work items
     for (RULE_INFO *info : ruleInfo) {
-        printf("RULE_INFO: rule %s thisp %p, RDY %p ENA %p\n", info->name, info->thisp, info->RDY, info->ENA);
-        pushWork(info->ENA, (Function ***)info->thisp);
-        pushWork(info->RDY, (Function ***)info->thisp); // must be after 'ENA', since hoisting copies guards
+        printf("RULE_INFO: thisp %p, func %p\n", info->thisp, info->func);
+        pushWork(info->func, (Function ***)info->thisp);
     }
 
     // Walk list of work items, generating code

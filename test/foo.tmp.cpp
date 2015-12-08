@@ -48,8 +48,9 @@ int main(int argc, const char *argv[])
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zEcho.ind = &zEchoIndication;
     echoTest.echo = &zEcho;
+    echoTest.echo->echoReq(22);
     while (!stop_main_program) {
-        echoTest.run();
+        echoTest.echo->run();
     }
   printf("[%s:%d] ending\n", __FUNCTION__, __LINE__);
   return 0;

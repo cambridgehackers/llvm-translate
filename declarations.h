@@ -52,10 +52,8 @@ public:
 };
 
 typedef struct {
-    const char *name;
     void       *thisp;
-    Function   *RDY;
-    Function   *ENA;
+    Function   *func;
 } RULE_INFO;
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
@@ -75,10 +73,10 @@ extern unsigned NextTypeID;
 extern int generateRegion;
 extern Module *globalMod;
 extern Function *currentFunction;
-extern std::map<std::string, void *> nameMap;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::list<RULE_INFO *> ruleInfo;
 extern std::map<Function *, Function *> ruleRDYFunction;
+extern std::map<std::string, void *> nameToAddress;
 
 int validateAddress(int arg, void *p);
 std::string mapAddress(void *arg);
@@ -124,3 +122,6 @@ std::string hexAddress(void *arg);
 void recursiveDelete(Value *V);
 void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType);
 int inheritsModule(const StructType *STy);
+int vtableFind(const ClassMethodTable *table, std::string name);
+std::string lookupMethodName(const ClassMethodTable *table, int ind);
+int checkExportMethod(const StructType *STy, std::string aname);

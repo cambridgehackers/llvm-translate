@@ -73,7 +73,9 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     if (!returnType)
         return cloneTree(I, TI);
     Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
-    Instruction *new_thisp = cloneTree(orig_thisp, TI);
+    Value *new_thisp = I->getOperand(0);
+    if (orig_thisp)
+        new_thisp = cloneTree(orig_thisp, TI);
     Type *Params[] = {new_thisp->getType()};
     Type *castType = PointerType::get(
              PointerType::get(

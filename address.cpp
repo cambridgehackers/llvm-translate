@@ -59,7 +59,7 @@ struct MAPSEENcomp {
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static std::map<void *, std::string> addressToName;
-static std::map<std::string, void *> nameToAddress;
+std::map<std::string, void *> nameToAddress;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -152,7 +152,8 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     Function *enaFunc = fixupFunction(name, ENA[2]);
     classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
-    ruleInfo.push_back(new RULE_INFO{name, thisp, rdyFunc, enaFunc});
+    ruleInfo.push_back(new RULE_INFO{thisp, enaFunc});
+    ruleInfo.push_back(new RULE_INFO{thisp, rdyFunc}); // must be after 'ENA', since hoisting copies guards
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
@@ -363,6 +364,41 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     return ret;
 }
 
+int vtableFind(const ClassMethodTable *table, std::string name)
+{
+    for (unsigned int i = 0; table && i < table->vtableCount; i++)
+        if (getMethodName(table->vtable[i]) == name)
+            return i;
+    return -1;
+}
+
+std::string lookupMethodName(const ClassMethodTable *table, int ind)
+{
+    if (table && ind >= 0 && ind < (int)table->vtableCount)
+        return table->vtable[ind];
+    return "";
+}
+
+int checkExportMethod(const StructType *STy, std::string aname)
+{
+    if (!STy)
+        return 0;
+    std::string name = STy->structFieldMap;
+    std::string mname = "unused_data_to_flag_request_" + aname;
+ 
+    printf("[%s:%d] STy %p map %s\n", __FUNCTION__, __LINE__, STy, name.c_str());
+    unsigned int subs = 0;
+    while(subs < name.length()) {
+        unsigned int reqind = subs;
+        while(subs < name.length() && name[subs] != ',')
+            subs++;
+        if (mname == name.substr(reqind, subs - reqind))
+            return 1;
+        subs++;
+    }
+    return 0;
+}
+
 /*
  * Starting from all toplevel global, construct symbolic names for
  * all reachable addresses
@@ -401,6 +437,25 @@ void constructAddressMap(Module *Mod)
             mapType((char *)addr, Ty, name);
         }
     }
+#if 0
+    for (auto info : classCreate) {
+        if (const StructType *STy = info.first) {
+            std::string name = STy->structFieldMap;
+            printf("[%s:%d] STy %p map %s\n", __FUNCTION__, __LINE__, STy, name.c_str());
+            unsigned int subs = 0;
+            while(subs < name.length()) {
+                unsigned int reqind = subs;
+                while(subs < name.length() && name[subs] != ',')
+                    subs++;
+                if (name.substr(reqind, 28) == "unused_data_to_flag_request_") {
+                    reqind += 28;
+                    name = name.substr(reqind, subs - reqind);
+                }
+                subs++;
+            }
+        }
+    }
+#endif
     //if (trace_mapt)
         dumpMemoryRegions(4010);
 }
