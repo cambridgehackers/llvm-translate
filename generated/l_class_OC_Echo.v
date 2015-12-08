@@ -28,7 +28,6 @@ module l_class_OC_Echo (
         fifo_first,
         fifo_notEmpty);
    reg[31:0] pipetemp;
-  VERILOGunsigned VERILOG_long long unused_data_to_flag_request_echoReq;
     always @( posedge CLK) begin
       if (!nRST) begin
       end

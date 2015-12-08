@@ -656,6 +656,9 @@ std::string printCall(Function ***thisp, Instruction &I)
 
     if (trace_hoist)
         printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str());
+    if (CMT && generateRegion != ProcessHoist) {
+        pcalledFunction = printOperand(thisp, *AI, false);
+    }
     if (generateRegion == ProcessHoist) {
     //printf("[%s:%d] cthisp %s func %p called_thisp %p\n", __FUNCTION__, __LINE__, cthisp.c_str(), func, called_thisp);
     if (!func) {
@@ -715,24 +718,12 @@ std::string printCall(Function ***thisp, Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
-#if 0
-    if (cthisp == "Vthis") {
-        printf("HOIST:    single!!!! %s\n", func->getName().str().c_str());
-        fprintf(stderr, "[%s:%d] thisp %p func %p pcalledFunction %s\n", __FUNCTION__, __LINE__, thisp, func, pcalledFunction.c_str());
-        ICL.dump();
-        I.dump();
-        I.getOperand(0)->dump();
-        InlineFunctionInfo IFI;
-        InlineFunction(&ICL, IFI, false);
-    }
-#endif
     for (; AI != AE; ++AI) // force evaluation of all parameters
             fetchOperand(thisp, *AI, false);
     }
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
-        pcalledFunction = printOperand(thisp, *AI, false);
-        if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1])
+        if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
             pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
@@ -769,23 +760,21 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     }
     else {
+        std::string poststr;
         if (!inheritsModule(findThisArgumentType(currentFunction->getType()))) {
             //printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
             skip = 0;
         }
     if (CMT) {
-        pcalledFunction = printOperand(thisp, *AI, false);
-        std::string sep = "->";
+        skip = 1;
+        poststr = "->";
         if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1]) {
             pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
-            sep = ".";
+            poststr = ".";
         }
-        vout += pcalledFunction + sep + CMT->method[func];
-        skip = 1;
+        poststr += CMT->method[func];
     }
-    else
-        vout += pcalledFunction;
-    vout += "(";
+    vout += pcalledFunction + poststr + "(";
     if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
         printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
         skip = 0;

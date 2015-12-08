@@ -58,6 +58,7 @@ struct MAPSEENcomp {
 #define GIANT_SIZE 1024
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
+static int trace_mapt;// = 1;
 static std::map<void *, std::string> addressToName;
 std::map<std::string, void *> nameToAddress;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
@@ -437,25 +438,6 @@ void constructAddressMap(Module *Mod)
             mapType((char *)addr, Ty, name);
         }
     }
-#if 0
-    for (auto info : classCreate) {
-        if (const StructType *STy = info.first) {
-            std::string name = STy->structFieldMap;
-            printf("[%s:%d] STy %p map %s\n", __FUNCTION__, __LINE__, STy, name.c_str());
-            unsigned int subs = 0;
-            while(subs < name.length()) {
-                unsigned int reqind = subs;
-                while(subs < name.length() && name[subs] != ',')
-                    subs++;
-                if (name.substr(reqind, 28) == "unused_data_to_flag_request_") {
-                    reqind += 28;
-                    name = name.substr(reqind, subs - reqind);
-                }
-                subs++;
-            }
-        }
-    }
-#endif
-    //if (trace_mapt)
+    if (trace_mapt)
         dumpMemoryRegions(4010);
 }

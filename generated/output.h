@@ -33,7 +33,6 @@ public:
   class l_class_OC_Fifo1 fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
-  unsigned long long unused_data_to_flag_request_echoReq;
   bool echoReq__RDY(void);
   void echoReq(unsigned int Vv);
   void rule_respondexport(void);
