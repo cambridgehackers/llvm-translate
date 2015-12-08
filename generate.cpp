@@ -151,7 +151,7 @@ int inheritsModule(const StructType *STy)
 
 static void pushWork(Function *func, Function ***thisp)
 {
-    if (!func)
+    if (!func || generateRegion > ProcessHoist)
         return;
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())]) {
         table->method[func] = getMethodName(func->getName());
@@ -1085,21 +1085,10 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
  */
 static void processRules(FILE *outputFile, FILE *outputNull)
 {
-    // Walk the rule lists for all modules, generating work items
-    for (RULE_INFO *info : ruleInfo) {
-        printf("RULE_INFO: thisp %p, func %p\n", info->thisp, info->func);
-        pushWork(info->func, (Function ***)info->thisp);
-    }
-
     // Walk list of work items, generating code
-    while (vtableWork.begin() != vtableWork.end()) {
-        Function *func = vtableWork.begin()->f;
-        Function ***thisp = vtableWork.begin()->thisp;
-        if (generateRegion != ProcessHoist)
-            thisp = NULL;
-        processFunction(func, thisp, functionIndex[func] ? outputNull : outputFile, "");
-        vtableWork.pop_front();
-    }
+    for (auto item : vtableWork)
+        processFunction(item.f, (generateRegion == ProcessHoist) ? item.thisp : NULL,
+            functionIndex[item.f] ? outputNull : outputFile, "");
 }
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
@@ -1189,6 +1178,11 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     generateRegion = ProcessHoist;
+    // Walk the rule lists for all modules, generating work items
+    for (RULE_INFO *info : ruleInfo) {
+        printf("RULE_INFO: thisp %p, func %p\n", info->thisp, info->func);
+        pushWork(info->func, (Function ***)info->thisp);
+    }
     processRules(OutNull, OutNull);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
