@@ -45,6 +45,7 @@ public:
     }
 };
 
+static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
@@ -654,7 +655,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     std::string rmethodString;
     ClassMethodTable *CMT = functionIndex[func];
 
-    //if (trace_hoist)
+    if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
     if (CMT && generateRegion != ProcessHoist) {
         pcalledFunction = printOperand(thisp, *AI, false);
@@ -1005,7 +1006,8 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         globalName = fname;
         fprintf(outputFile, "//processing %s\n", globalName.c_str());
     }
-    printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
+    if (trace_call)
+        printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
@@ -1123,7 +1125,7 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                 if (table)
                     printContainedStructs(table->replaceType[Idx], OStr, ODir, cb);
             }
-            if (classCreate[STy])
+            if (classCreate[STy] && inheritsModule(STy))
                 cb(STy, OStr, ODir);
         }
     }

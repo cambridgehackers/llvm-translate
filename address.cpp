@@ -150,8 +150,8 @@ static Function *fixupFunction(std::string methodName, Function *func)
 
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     Function *enaFunc = fixupFunction(name, ENA[2]);
+    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
     ruleInfo.push_back(new RULE_INFO{thisp, enaFunc});
     ruleInfo.push_back(new RULE_INFO{thisp, rdyFunc}); // must be after 'ENA', since hoisting copies guards
@@ -398,26 +398,6 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
     if (table && ind >= 0 && ind < (int)table->vtableCount)
         return table->vtable[ind];
     return "";
-}
-
-int checkExportMethod(const StructType *STy, std::string aname)
-{
-    if (!STy)
-        return 0;
-    std::string name = STy->structFieldMap;
-    std::string mname = "unused_data_to_flag_request_" + aname;
- 
-    printf("[%s:%d] STy %p map %s\n", __FUNCTION__, __LINE__, STy, name.c_str());
-    unsigned int subs = 0;
-    while(subs < name.length()) {
-        unsigned int reqind = subs;
-        while(subs < name.length() && name[subs] != ',')
-            subs++;
-        if (mname == name.substr(reqind, subs - reqind))
-            return 1;
-        subs++;
-    }
-    return 0;
 }
 
 void constructVtableMap(Module *Mod)

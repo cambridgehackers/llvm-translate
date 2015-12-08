@@ -124,5 +124,4 @@ void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType);
 int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
-int checkExportMethod(const StructType *STy, std::string aname);
 void constructVtableMap(Module *Mod);

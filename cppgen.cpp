@@ -100,6 +100,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 void generateCppData(FILE *OStr, Module &Mod)
 {
     NextTypeID = 1;
+#if 0
     fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
     for (auto I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
         Type *Ty = I->getType()->getElementType();
@@ -123,4 +124,5 @@ void generateCppData(FILE *OStr, Module &Mod)
             fprintf(OStr, ";\n");
         }
     }
+#endif
 }

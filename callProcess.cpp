@@ -128,18 +128,25 @@ bool call2runOnFunction(Function &F)
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             if (CallInst *CI = dyn_cast<CallInst>(II)) {
-                std::string lname = fetchOperand(NULL, CI->getCalledValue(), false);
-                if (lname[0] == '(' && lname[lname.length()-1] == ')')
-                    lname = lname.substr(1, lname.length() - 2);
-                std::string cthisp = fetchOperand(NULL, II->getOperand(0), false);
-                if (Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(lname)))
-                if (cthisp == "Vthis") {
-                    if (const StructType *STy = findThisArgumentType(func->getType()))
-                    if (checkExportMethod(STy, getMethodName(lname))) {
-                        fprintf(stdout,"callProcess: lname %s\n", lname.c_str());
-                        goto nextlab;
+                std::string pcalledFunction = printOperand(NULL, CI->getCalledValue(), false);
+                if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
+                    pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
+                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
+                if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
+                    if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
+                        func = static_cast<Function *>(tval);
+                        pcalledFunction = func->getName();
                     }
-                    fprintf(stdout,"callProcess: lname %s single!!!!\n", lname.c_str());
+                }
+                std::string cthisp = printOperand(NULL, II->getOperand(0), false);
+                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
+                if (func && cthisp == "Vthis") {
+                    //if (const StructType *STy = findThisArgumentType(func->getType()))
+                    //if (checkExportMethod(STy, getMethodName(pcalledFunction))) {
+                        //fprintf(stdout,"callProcess: pcalledFunction %s\n", pcalledFunction.c_str());
+                        //goto nextlab;
+                    //}
+                    fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
                     RemoveAllocaPass_runOnFunction(*func);
                     II->setOperand(II->getNumOperands()-1, func);
                     InlineFunctionInfo IFI;

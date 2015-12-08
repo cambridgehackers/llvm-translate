@@ -1,40 +1,22 @@
-
-
-/* Global Variable Definitions and Initialization */
-class l_class_OC_EchoTest echoTest;
-unsigned int stop_main_program;
 //processing printf
-void l_class_OC_EchoIndication::echo(unsigned int v) {
-        printf((("Heard an echo: %d\n")), v);
-        stop_main_program = 1;
-}
 bool l_class_OC_Fifo1::enq__RDY(void) {
-    bool call =     this->notFull();
-        return call;
+        return ((full) ^ 1);
 }
 void l_class_OC_Fifo1::enq(unsigned int v) {
         element = v;
         full = 1;
 }
 bool l_class_OC_Fifo1::deq__RDY(void) {
-    bool call =     this->notEmpty();
-        return call;
+        return (full);
 }
 void l_class_OC_Fifo1::deq(void) {
         full = 0;
 }
 bool l_class_OC_Fifo1::first__RDY(void) {
-    bool call =     this->notEmpty();
-        return call;
+        return (full);
 }
 unsigned int l_class_OC_Fifo1::first(void) {
         return (element);
-}
-bool l_class_OC_Fifo1::notEmpty(void) {
-        return (full);
-}
-bool l_class_OC_Fifo1::notFull(void) {
-        return ((full) ^ 1);
 }
 bool l_class_OC_Echo::rule_respond__RDY(void) {
     bool tmp__1 =     fifo.deq__RDY();
