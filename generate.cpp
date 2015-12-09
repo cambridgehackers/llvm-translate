@@ -205,7 +205,7 @@ static std::string GetValueName(const Value *Operand)
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
         return globalName + "_" + VarName;
-    if (regen_methods)
+    if (generateRegion > ProcessHoist)
         return VarName;
     return "V" + VarName;
 }

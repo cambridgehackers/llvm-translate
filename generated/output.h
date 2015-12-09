@@ -11,7 +11,7 @@ public:
   unsigned int element;
   bool full;
   bool enq__RDY(void);
-  void enq(unsigned int Vv);
+  void enq(unsigned int v);
   bool deq__RDY(void);
   void deq(void);
   bool first__RDY(void);
@@ -25,7 +25,7 @@ public:
   unsigned int pipetemp;
   bool rule_respond__RDY(void);
   bool echoReq__RDY(void);
-  void echoReq(unsigned int Vv);
+  void echoReq(unsigned int v);
   void rule_respond(void);
   void run();
 };
