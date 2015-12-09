@@ -39,7 +39,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
             if (ClassMethodTable *table = classCreate[STy])
                 if (const Type *newType = table->replaceType[Idx])
                     element = newType;
-            fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+            fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);

@@ -91,7 +91,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                                 element = newType;
                         std::string ename = fieldName(STy, Idx);
                         if (ename != "")
-                            paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", ""));
+                            paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", "", false));
                     }
                     for (auto FI : table->method) {
                         Function *func = FI.second;
@@ -112,7 +112,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     }
                 }
                 else
-                    paramList.push_back(outp + printType(element, false, fname, "  ", ""));
+                    paramList.push_back(outp + printType(element, false, fname, "  ", "", false));
             }
         }
     }
@@ -159,7 +159,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
                 if (const StructType *STy = dyn_cast<StructType>(element))
                     generateModuleSignature(OStr, STy, fname);
                 else
-                    fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n").c_str());
+                    fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
             }
         }
     }

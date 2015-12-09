@@ -83,7 +83,7 @@ const char *intmapLookup(INTMAP_TYPE *map, int value);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
-std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
+std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr);
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
 std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);

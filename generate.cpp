@@ -215,17 +215,37 @@ const StructType *findThisArgumentType(const PointerType *PTy)
 /*
  * Output types
  */
-static std::string printTypeCpp(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
+std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
     std::string sep = "", cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
-
     switch (Ty->getTypeID()) {
     case Type::VoidTyID:
-        cbuffer += "void " + NameSoFar;
+        if (generateRegion == ProcessVerilog)
+            cbuffer += "VERILOG_void " + NameSoFar;
+        else
+            cbuffer += "void " + NameSoFar;
         break;
     case Type::IntegerTyID: {
         unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
         assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
+        if (generateRegion == ProcessVerilog) {
+        if (NumBits == 1)
+            cbuffer += "VERILOG_bool";
+        else if (NumBits <= 8) {
+            if (ptr)
+                cbuffer += sp + " VERILOG_char";
+            else
+                cbuffer += " reg";
+        }
+        else if (NumBits <= 16)
+            cbuffer += sp + " VERILOG_short";
+        else if (NumBits <= 32)
+            //cbuffer += sp + " VERILOG_int";
+            cbuffer += " reg" + verilogArrRange(Ty);
+        else if (NumBits <= 64)
+            cbuffer += sp + " VERILOG_long long";
+        }
+        else {
         if (NumBits == 1)
             cbuffer += "bool";
         else if (NumBits <= 8) {
@@ -243,100 +263,46 @@ static std::string printTypeCpp(const Type *Ty, bool isSigned, std::string NameS
         }
         cbuffer += " " + NameSoFar;
         break;
+        }
     case Type::FunctionTyID: {
         const FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            tstr += printTypeCpp(*I, /*isSigned=*/false, "", sep, "", false);
+            tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
-        if (FTy->isVarArg()) {
-            if (!FTy->getNumParams())
-                tstr += " int"; //dummy argument for empty vaarg functs
-            tstr += ", ...";
-        } else if (!FTy->getNumParams())
-            tstr += "void";
-        cbuffer += printTypeCpp(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
-        break;
-        }
-    case Type::StructTyID:
-        cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
-        break;
-    case Type::ArrayTyID: {
-        const ArrayType *ATy = cast<ArrayType>(Ty);
-        unsigned len = ATy->getNumElements();
-        if (len == 0) len = 1;
-        cbuffer += printTypeCpp(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
-        break;
-        }
-    case Type::PointerTyID: {
-        const PointerType *PTy = cast<PointerType>(Ty);
-        std::string ptrName = "*" + NameSoFar;
-        if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
-            ptrName = "(" + ptrName + ")";
-        cbuffer += printTypeCpp(PTy->getElementType(), false, ptrName, "", "", true);
-        break;
-        }
-    default:
-        llvm_unreachable("Unhandled case in printTypeCpp!");
-    }
-    cbuffer += postfix;
-    return cbuffer;
-}
-
-static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
-{
-    std::string sep = "", cbuffer = prefix, sp = (isSigned?"VERILOGsigned":"VERILOGunsigned");
-
-    switch (Ty->getTypeID()) {
-    case Type::VoidTyID:
-        cbuffer += "VERILOG_void " + NameSoFar;
-        break;
-    case Type::IntegerTyID: {
-        unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
-        assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
-        if (NumBits == 1)
-            cbuffer += "VERILOG_bool";
-        else if (NumBits <= 8) {
-            if (ptr)
-                cbuffer += sp + " VERILOG_char";
-            else
-                cbuffer += " reg";
-        }
-        else if (NumBits <= 16)
-            cbuffer += sp + " VERILOG_short";
-        else if (NumBits <= 32)
-            //cbuffer += sp + " VERILOG_int";
-            cbuffer += " reg" + verilogArrRange(Ty);
-        else if (NumBits <= 64)
-            cbuffer += sp + " VERILOG_long long";
-        cbuffer += " " + NameSoFar;
-        }
-        break;
-    case Type::FunctionTyID: {
-        const FunctionType *FTy = cast<FunctionType>(Ty);
-        std::string tstr = " (" + NameSoFar + ") (";
-        for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            tstr += printTypeVerilog(*I, /*isSigned=*/false, "", sep, "", false);
-            sep = ", ";
-        }
+        if (generateRegion == ProcessVerilog) {
         if (FTy->isVarArg()) {
             if (!FTy->getNumParams())
                 tstr += " VERILOG_int"; //dummy argument for empty vaarg functs
             tstr += ", ...";
         } else if (!FTy->getNumParams())
             tstr += "VERILOG_void";
-        cbuffer += printTypeVerilog(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
+        }
+        else {
+        if (FTy->isVarArg()) {
+            if (!FTy->getNumParams())
+                tstr += " int"; //dummy argument for empty vaarg functs
+            tstr += ", ...";
+        } else if (!FTy->getNumParams())
+            tstr += "void";
+        }
+        cbuffer += printType(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
         break;
         }
     case Type::StructTyID:
-        cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+        if (generateRegion == ProcessVerilog)
+            cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+        else
+            cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
         const ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
-        cbuffer += printTypeVerilog(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
+        if (generateRegion == ProcessVerilog) {
+        }
+        cbuffer += printType(ATy->getElementType(), false, "", "", "", false) + NameSoFar + "[" + utostr(len) + "]";
         break;
         }
     case Type::PointerTyID: {
@@ -344,21 +310,16 @@ static std::string printTypeVerilog(const Type *Ty, bool isSigned, std::string N
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
-        cbuffer += printTypeVerilog(PTy->getElementType(), false, ptrName, "", "", true);
+        cbuffer += printType(PTy->getElementType(), false, ptrName, "", "", true);
+        if (generateRegion == ProcessVerilog) {
+        }
         break;
         }
     default:
-        llvm_unreachable("Unhandled case in printTypeVerilog!");
+        llvm_unreachable("Unhandled case in printType!");
     }
     cbuffer += postfix;
     return cbuffer;
-}
-std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix)
-{
-    if (generateRegion == ProcessVerilog)
-        return printTypeVerilog(Ty, isSigned, NameSoFar, prefix, postfix, false);
-    else
-        return printTypeCpp(Ty, isSigned, NameSoFar, prefix, postfix, false);
 }
 
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
@@ -375,7 +336,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     if (F->isDeclaration()) {
         for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
             if (!skip) {
-                tstr += printType(*I, /*isSigned=*/false, "", sep, "");
+                tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
                 sep = ", ";
             }
             skip = 0;
@@ -384,7 +345,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
         for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
             if (!skip) {
                 std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "");
+                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "", false);
                 sep = ", ";
             }
             skip = 0;
@@ -392,7 +353,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     }
     if (sep == "")
         tstr += "void"; // ret() -> ret(void) in C.
-    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix);
+    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
 }
 
 /*
@@ -425,7 +386,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         }
     }
     if (LastIndexIsVector)
-        cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(");
+        cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(", false);
     if (trace_gep)
         printf("[%s:%d] thisp %p referstr %s Total %ld\n", __FUNCTION__, __LINE__, thisp, referstr.c_str(), (unsigned long)Total);
     if (I == E)
@@ -1007,7 +968,7 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
                         if (save_val) {
                             std::string resname = GetValueName(&*II);
                             if (generateRegion == ProcessCPP)
-                                resname = printType(II->getType(), false, resname, "", "");
+                                resname = printType(II->getType(), false, resname, "", "", false);
                             fprintf(OStr, "%s = ", resname.c_str());
                         }
                         fprintf(OStr, "%s;\n", vout.c_str());

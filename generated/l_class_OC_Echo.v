@@ -10,7 +10,7 @@ module l_class_OC_Echo (
     output echoReq__RDY,
     input rule_respond__ENA,
     output rule_respond__RDY,
-    output   VERILOGunsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
+    output   unsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
     output ind_echo__ENA,
     output [31:0]ind_echo_v);
     l_class_OC_Fifo1 fifo (
