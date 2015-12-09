@@ -199,9 +199,7 @@ static std::string GetValueName(const Value *Operand)
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
         return globalName + "_" + VarName;
-    if (generateRegion != ProcessNone)
-        return VarName;
-    return "V" + VarName;
+    return VarName;
 }
 
 const StructType *findThisArgumentType(const PointerType *PTy)
@@ -441,7 +439,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (table = classCreate[findThisArgumentType(PTy)])
-     && (referstr == "*(this)" || referstr == "*(Vthis)"
+     && (referstr == "*(this)"
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         // Lookup method index in vtable
         std::string lname = lookupMethodName(table, Total/sizeof(void *));
@@ -461,7 +459,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             Total = 0;
             goto tvallab;
         }
-        if (referstr == "*(this)" || referstr == "*(Vthis)")
+        if (referstr == "*(this)")
             referstr = "";
         else
             referstr = "(" + referstr + ").";
@@ -976,7 +974,7 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile)
     currentFunction = func;
 
     nameToAddress.clear();
-    nameToAddress["Vthis"] = thisp;
+    nameToAddress["this"] = thisp;
     NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());

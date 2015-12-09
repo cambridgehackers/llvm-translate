@@ -140,7 +140,7 @@ bool call2runOnFunction(Function &F)
                 }
                 std::string cthisp = printOperand(NULL, II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
-                if (func && cthisp == "Vthis") {
+                if (func && cthisp == "this") {
                     fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
                     RemoveAllocaPass_runOnFunction(*func);
                     II->setOperand(II->getNumOperands()-1, func);
