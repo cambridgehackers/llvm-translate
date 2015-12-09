@@ -32,27 +32,26 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
+        if (ClassMethodTable *table = classCreate[STy])
+            if (const Type *newType = table->replaceType[Idx])
+                element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname == "unused_data_to_force_inheritance")
             continue;
-        if (fname != "") {
-            if (ClassMethodTable *table = classCreate[STy])
-                if (const Type *newType = table->replaceType[Idx])
-                    element = newType;
+        if (fname != "")
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
-        }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);
     }
 }
 
-static int hasRun(const StructType *STy, int recurse)
+static int hasRun(const StructType *STy)
 {
     if (STy && classCreate[STy]) {
         if (classCreate[STy]->rules.size())
             return 1;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (recurse && hasRun(dyn_cast<StructType>(*I), recurse))
+            if (hasRun(dyn_cast<StructType>(*I)))
                 return 1;
     }
     return 0;
@@ -65,7 +64,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
     generateClassElements(STy, OStr);
     for (auto FI : table->method)
         fprintf(OStr, "  %s", printFunctionSignature(FI.second, FI.first, false, ";\n", 1).c_str());
-    if (hasRun(STy, 1))
+    if (hasRun(STy))
         fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");
 }
@@ -80,17 +79,16 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
         processFunction(func, NULL, OStr);
         fprintf(OStr, "}\n");
     }
-    if (hasRun(STy, 1)) {
+    if (hasRun(STy)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-        if (hasRun(STy, 0))
-             for (auto item : table->rules)
-                 fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
+        for (auto item : table->rules)
+            fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
             const PointerType *PTy = dyn_cast<PointerType>(*I);
             if (hasRun(!PTy ? dyn_cast<StructType>(*I)
-                            : dyn_cast<StructType>(PTy->getElementType()), 1))
+                            : dyn_cast<StructType>(PTy->getElementType())))
                 fprintf(OStr, "    %s%srun();\n", fname.c_str(), PTy ? "->" : ".");
         }
         fprintf(OStr, "}\n");

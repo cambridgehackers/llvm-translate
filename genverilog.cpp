@@ -75,45 +75,44 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
+        if (ClassMethodTable *table = classCreate[STy])
+            if (const Type *newType = table->replaceType[Idx])
+                element = newType;
         std::string fname = fieldName(STy, Idx);
-        if (fname != "") {
-            if (ClassMethodTable *table = classCreate[STy])
-                if (const Type *newType = table->replaceType[Idx])
-                    element = newType;
-            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
-                element = PTy->getElementType();
-                if (const StructType *STy = dyn_cast<StructType>(element)) {
-                    if (ClassMethodTable *table = classCreate[STy]) {
-                    int Idx = 0;
-                    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                        const Type *element = *I;
-                            if (const Type *newType = table->replaceType[Idx])
-                                element = newType;
-                        std::string ename = fieldName(STy, Idx);
-                        if (ename != "")
-                            paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", "", false));
-                    }
-                    for (auto FI : table->method) {
-                        Function *func = FI.second;
-                        std::string mname = fname + "_" + FI.first;
-                        const Type *retTy = func->getReturnType();
-                        int hasRet = (retTy != Type::getVoidTy(func->getContext()));
-                        if (hasRet)
-                            paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
-                        else
-                            paramList.push_back(outp + mname + "__ENA");
-                        int skip = 1;
-                        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                            if (!skip)
-                                paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
-                            skip = 0;
-                        }
-                    }
+        if (fname != "")
+        if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
+            element = PTy->getElementType();
+            if (const StructType *STy = dyn_cast<StructType>(element)) {
+                if (ClassMethodTable *table = classCreate[STy]) {
+                int Idx = 0;
+                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+                    const Type *element = *I;
+                        if (const Type *newType = table->replaceType[Idx])
+                            element = newType;
+                    std::string ename = fieldName(STy, Idx);
+                    if (ename != "")
+                        paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", "", false));
+                }
+                for (auto FI : table->method) {
+                    Function *func = FI.second;
+                    std::string mname = fname + "_" + FI.first;
+                    const Type *retTy = func->getReturnType();
+                    int hasRet = (retTy != Type::getVoidTy(func->getContext()));
+                    if (hasRet)
+                        paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
+                    else
+                        paramList.push_back(outp + mname + "__ENA");
+                    int skip = 1;
+                    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                        if (!skip)
+                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
+                        skip = 0;
                     }
                 }
-                else
-                    paramList.push_back(outp + printType(element, false, fname, "  ", "", false));
+                }
             }
+            else
+                paramList.push_back(outp + printType(element, false, fname, "  ", "", false));
         }
     }
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
@@ -150,17 +149,16 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
+        if (ClassMethodTable *table = classCreate[STy])
+            if (const Type *newType = table->replaceType[Idx])
+                element = newType;
         std::string fname = fieldName(STy, Idx);
-        if (fname != "") {
-            if (ClassMethodTable *table = classCreate[STy])
-                if (const Type *newType = table->replaceType[Idx])
-                    element = newType;
-            if (!dyn_cast<PointerType>(element)) {
-                if (const StructType *STy = dyn_cast<StructType>(element))
-                    generateModuleSignature(OStr, STy, fname);
-                else
-                    fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
-            }
+        if (fname != "")
+        if (!dyn_cast<PointerType>(element)) {
+            if (const StructType *STy = dyn_cast<StructType>(element))
+                generateModuleSignature(OStr, STy, fname);
+            else
+                fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
         }
     }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n      end\n      else begin\n");
