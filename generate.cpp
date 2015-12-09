@@ -1091,8 +1091,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
     FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
-    FILE *OutVInstance = fopen((OutDirectory + "/vinst.v").c_str(), "w");
-    FILE *OutVMain = fopen((OutDirectory + "/main.v").c_str(), "w");
 
     // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
@@ -1159,11 +1157,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;
-    fprintf(OutVMain, "module top(input CLK, input nRST);\n  always @( posedge CLK) begin\n    if (!nRST) then begin\n    end\n    else begin\n");
-    fprintf(OutVMain, "    end; // nRST\n  end; // always @ (posedge CLK)\nendmodule \n\n");
     generateStructs(NULL, OutDirectory, generateModuleDef);
-    for (auto RI : referencedItems)
-        generateModuleSignature(OutVInstance, RI.second, RI.first);
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
