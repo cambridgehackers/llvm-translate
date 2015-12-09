@@ -965,7 +965,6 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
  */
 void processFunction(Function *func, Function ***thisp, FILE *OStr)
 {
-    int hasGuard = 0;
     std::string fname = func->getName();
     globalName = getMethodName(fname);
     if (globalName == "")
@@ -977,11 +976,6 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
     NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
-    if (generateRegion == ProcessVerilog && OStr
-     && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
-        hasGuard = 1;
-        fprintf(OStr, "    if (%s__ENA) begin\n", globalName.c_str());
-    }
 #if 0
     /* connect up argument formal param names with actual values */
     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
@@ -1026,8 +1020,6 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
             II = INEXT;
         }
     }
-    if (hasGuard)
-        fprintf(OStr, "    end; // if (%s__ENA) \n", globalName.c_str());
 }
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
@@ -1046,9 +1038,10 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                printContainedStructs(*I, OStr, ODir, cb);
-                if (table)
-                    printContainedStructs(table->replaceType[Idx], OStr, ODir, cb);
+                const Type *element = *I;
+                if (table && table->replaceType[Idx])
+                    element = table->replaceType[Idx];
+                printContainedStructs(element, OStr, ODir, cb);
             }
             if (classCreate[STy] && inheritsModule(STy))
                 cb(STy, OStr, ODir);
