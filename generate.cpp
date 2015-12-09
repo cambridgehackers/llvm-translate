@@ -970,20 +970,19 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-static std::map<const Function *, int> funcSeen;
 void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName)
 {
-    currentFunction = func;
     int hasGuard = 0;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    std::string methodName = getMethodName(fname);
-    globalName = fname;
-    if (methodName != "")
-        globalName = methodName;
+    globalName = getMethodName(fname);
+    if (globalName == "")
+        globalName = fname;
+    currentFunction = func;
 
-    NextAnonValueNumber = 0;
     nameToAddress.clear();
+    nameToAddress["Vthis"] = thisp;
+    NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
@@ -1000,17 +999,10 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
     }
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    if (generateRegion == ProcessCPP) {
-        funcSeen[func] = 1;
-        if (outputFile)
-        fprintf(outputFile, "%s", printFunctionSignature(func, std::string(aclassName) + "::" + globalName, false, " {\n", 1).c_str());
-    }
-    nameToAddress["Vthis"] = thisp;
     for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
         if (trace_translate && BB->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BB->getName().str().c_str());
         for (auto ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
-
             BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
             if (next_ins == ins_end || !isInlinableInst(*ins)) {
                 if (trace_translate && generateRegion == ProcessCPP)
