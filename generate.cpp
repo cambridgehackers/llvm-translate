@@ -976,10 +976,9 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
 {
     currentFunction = func;
     int hasGuard = 0;
-    std::string methodName;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
-    int regenItem = (regen_methods && (methodName = getMethodName(fname)) != "");
+    std::string methodName = getMethodName(fname);
 
     NextAnonValueNumber = 0;
     nameToAddress.clear();
@@ -992,15 +991,12 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         printf("SKIPPING %s\n", fname.c_str());
         return;
     }
-    if (regenItem)
+    if (methodName != "")
         globalName = methodName;
-    else {
+    else
         globalName = fname;
-        if (outputFile)
-        fprintf(outputFile, "//processing %s\n", globalName.c_str());
-    }
     if (trace_call)
-        printf("PROCESSING %s %d\n", globalName.c_str(), regenItem);
+        printf("PROCESSING %s\n", globalName.c_str());
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
         if (outputFile)
@@ -1016,18 +1012,9 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
     if (generateRegion == ProcessCPP) {
-        int status;
-        const char *demang = abi::__cxa_demangle(globalName.c_str(), 0, 0, &status);
-        if (!regenItem && ((demang && strstr(demang, "::~"))
-         || func->isDeclaration() || globalName == "_Z16run_main_programv" || globalName == "main"
-         || globalName == "__dtor_echoTest" || funcSeen[func]))
-            return;
         funcSeen[func] = 1;
-        std::string mname = globalName;
-        if (regenItem)
-            mname = std::string(aclassName) + "::" + mname;
         if (outputFile)
-        fprintf(outputFile, "%s", printFunctionSignature(func, mname, false, " {\n", regenItem).c_str());
+        fprintf(outputFile, "%s", printFunctionSignature(func, std::string(aclassName) + "::" + globalName, false, " {\n", 1).c_str());
     }
     nameToAddress["Vthis"] = thisp;
     for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
