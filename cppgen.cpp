@@ -78,6 +78,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     for (auto FI : table->method) {
         regen_methods = 3;
         processFunction(FI.first, NULL, OStr, name);
+        fprintf(OStr, "}\n");
         regen_methods = 0;
     }
     if (hasRun(STy, 1)) {

@@ -979,22 +979,12 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
     std::string methodName = getMethodName(fname);
+    globalName = fname;
+    if (methodName != "")
+        globalName = methodName;
 
     NextAnonValueNumber = 0;
     nameToAddress.clear();
-    if (trace_translate) {
-        printf("FULL_AFTER_OPT: %s\n", fname.c_str());
-        func->dump();
-        printf("TRANSLATE:\n");
-    }
-    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
-        printf("SKIPPING %s\n", fname.c_str());
-        return;
-    }
-    if (methodName != "")
-        globalName = methodName;
-    else
-        globalName = fname;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
     if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
@@ -1061,12 +1051,8 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
             ins = next_ins;
         }
     }
-    if (outputFile) {
-    if (hasGuard)
+    if (hasGuard && outputFile)
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
-    if (generateRegion == ProcessCPP)
-        fprintf(outputFile, "}\n");
-    }
 }
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
