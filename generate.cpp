@@ -146,7 +146,7 @@ void pushWork(Function *func, void *thisp)
     if (!func || generateRegion != ProcessNone)
         return;
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
-        table->method[func] = getMethodName(func->getName());
+        table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(VTABLE_WORK{func, (Function ***)thisp});
 }
 
@@ -715,7 +715,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
-        prefix = pcalledFunction + "_" + CMT->method[func];
+        prefix = pcalledFunction + "_" + getMethodName(func->getName());
         vout += prefix;
         skip = 1;
         referencedItems[pcalledFunction] = findThisArgumentType(func->getType());
@@ -755,7 +755,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
             poststr = ".";
         }
-        poststr += CMT->method[func];
+        poststr += getMethodName(func->getName());
     }
     vout += pcalledFunction + poststr + "(";
     if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {

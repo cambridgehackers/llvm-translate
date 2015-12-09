@@ -10,12 +10,12 @@ class l_class_OC_Fifo1 {
 public:
   unsigned int element;
   bool full;
-  bool enq__RDY(void);
-  void enq(unsigned int v);
-  bool deq__RDY(void);
   void deq(void);
-  bool first__RDY(void);
+  bool deq__RDY(void);
+  void enq(unsigned int v);
+  bool enq__RDY(void);
   unsigned int first(void);
+  bool first__RDY(void);
 };
 
 class l_class_OC_Echo {
@@ -23,9 +23,9 @@ public:
   class l_class_OC_Fifo1 fifo;
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
-  void rule_respond(void);
-  bool echoReq__RDY(void);
   void echoReq(unsigned int v);
+  bool echoReq__RDY(void);
+  void rule_respond(void);
   bool rule_respond__RDY(void);
   void run();
 };

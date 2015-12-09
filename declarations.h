@@ -42,7 +42,7 @@ typedef struct {
 
 class ClassMethodTable {
 public:
-    std::map<Function *, std::string> method;
+    std::map<std::string, Function *> method;
     std::map<int, Type *>             replaceType;
     std::map<int, bool>               allocateLocally;
     std::list<std::string>            rules;

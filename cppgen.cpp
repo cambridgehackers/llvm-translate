@@ -64,8 +64,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
     fprintf(OStr, "class %s {\npublic:\n", name.c_str());
     generateClassElements(STy, OStr);
     for (auto FI : table->method)
-        fprintf(OStr, "  %s", printFunctionSignature(FI.first,
-            getMethodName(FI.first->getName()), false, ";\n", 1).c_str());
+        fprintf(OStr, "  %s", printFunctionSignature(FI.second, FI.first, false, ";\n", 1).c_str());
     if (hasRun(STy, 1))
         fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");
@@ -76,8 +75,8 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     for (auto FI : table->method) {
-        Function *func = FI.first;
-        fprintf(OStr, "%s", printFunctionSignature(func, name + "::" + getMethodName(func->getName()), false, " {\n", 1).c_str());
+        Function *func = FI.second;
+        fprintf(OStr, "%s", printFunctionSignature(func, name + "::" + FI.first, false, " {\n", 1).c_str());
         processFunction(func, NULL, OStr);
         fprintf(OStr, "}\n");
     }

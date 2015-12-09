@@ -51,8 +51,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     paramList.push_back(inp + "CLK");
     paramList.push_back(inp + "nRST");
     for (auto FI : table->method) {
-        Function *func = FI.first;
-        std::string mname = FI.second;
+        Function *func = FI.second;
+        std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
         int hasRet = (retTy != Type::getVoidTy(func->getContext()));
         if (hasRet) {
@@ -94,8 +94,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                             paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", ""));
                     }
                     for (auto FI : table->method) {
-                        Function *func = FI.first;
-                        std::string mname = fname + "_" + FI.second;
+                        Function *func = FI.second;
+                        std::string mname = fname + "_" + FI.first;
                         const Type *retTy = func->getReturnType();
                         int hasRet = (retTy != Type::getVoidTy(func->getContext()));
                         if (hasRet)
@@ -165,8 +165,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n      end\n      else begin\n");
     for (auto FI : table->method) {
-        Function *func = FI.first;
-        std::string mname = FI.second;
+        Function *func = FI.second;
+        std::string mname = FI.first;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
         fprintf(OStr, "        // Method: %s\n", mname.c_str());
         if (!hasRet)
@@ -185,8 +185,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
     fprintf(BStr, "interface %s;\n", ucName(name).c_str());
     for (auto FI : table->method) {
-        Function *func = FI.first;
-        std::string mname = FI.second;
+        Function *func = FI.second;
+        std::string mname = FI.first;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
         if (endswith(mname, "__RDY"))
             continue;
@@ -207,8 +207,8 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
     std::string sched = "", sep = "";
     for (auto FI : table->method) {
-        Function *func = FI.first;
-        std::string mname = FI.second;
+        Function *func = FI.second;
+        std::string mname = FI.first;
         if (endswith(mname, "__RDY"))
             continue;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
