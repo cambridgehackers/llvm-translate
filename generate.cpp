@@ -54,7 +54,7 @@ std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 unsigned NextTypeID;
-int generateRegion;
+int generateRegion = ProcessNone;
 Function *currentFunction;
 
 static std::list<VTABLE_WORK> vtableWork;
@@ -149,7 +149,7 @@ int inheritsModule(const StructType *STy)
 
 void pushWork(Function *func, void *thisp)
 {
-    if (!func || generateRegion > ProcessHoist)
+    if (!func || generateRegion != ProcessNone)
         return;
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())]) {
         table->method[func] = getMethodName(func->getName());
@@ -204,7 +204,7 @@ static std::string GetValueName(const Value *Operand)
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
         return globalName + "_" + VarName;
-    if (generateRegion > ProcessHoist)
+    if (generateRegion != ProcessNone)
         return VarName;
     return "V" + VarName;
 }
@@ -470,7 +470,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
             referstr = "";
         else
             referstr = "(" + referstr + ").";
-        referstr += CBEMangle(generateRegion <= ProcessHoist ? lname : name);
+        referstr += CBEMangle(generateRegion == ProcessNone ? lname : name);
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
@@ -640,7 +640,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         }
     }
     pushWork(func, called_thisp);
-    int skip = generateRegion != ProcessHoist;
+    int skip = generateRegion != ProcessNone;
     int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string prefix;
     PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
@@ -659,10 +659,10 @@ std::string printCall(Function ***thisp, Instruction &I)
         printf("%s: not an instantiable call!!!! %s thisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
         exit(-1);
     }
-    if (CMT && generateRegion != ProcessHoist) {
+    if (CMT && generateRegion != ProcessNone) {
         pcalledFunction = printOperand(thisp, *AI, false);
     }
-    if (generateRegion == ProcessHoist) {
+    if (generateRegion == ProcessNone) {
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
     //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
     if (oldOp) {
@@ -1080,9 +1080,6 @@ static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
 
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
-    FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
-    FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
-
     // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
     const char **p = delete_names;
@@ -1094,6 +1091,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
             }
             Declare->eraseFromParent();
         }
+
     // Construct the vtable map for classes
     constructVtableMap(Mod);
 
@@ -1104,7 +1102,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         if (Function *Declare = Mod->getFunction(*p++))
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 callMemrunOnFunction(cast<CallInst>(*I));
-   // Add StructType parameter to exportSymbol calls
+
+    // Add StructType parameter to exportSymbol calls
     if (Function *Declare = Mod->getFunction("exportSymbol"))
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
             CallInst *II = cast<CallInst>(*I);
@@ -1116,12 +1115,11 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         printf("'main' function not found in module.\n");
         exit(1);
     }
-    generateRegion = ProcessNone;
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
-    // Construct the address -> symbolic name map
+    // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
 
     // now inline intra-class method call bodies
@@ -1129,7 +1127,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
-    generateRegion = ProcessHoist;
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
         processFunction(item.f, item.thisp, NULL);
@@ -1152,9 +1149,9 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
-    generateCppData(Out, *Mod);
+    FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
     generateStructs(Out, "", generateClassBody); // generate class method bodies
+    FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
     generateStructs(OutHeader, "", generateClassDef); // generate class definitions
-    UnnamedStructIDs.clear();
     return false;
 }

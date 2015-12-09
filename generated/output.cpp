@@ -17,10 +17,10 @@ bool l_class_OC_Fifo1::first__RDY(void) {
 unsigned int l_class_OC_Fifo1::first(void) {
         return (element);
 }
-bool l_class_OC_Echo::rule_respond__RDY(void) {
-    bool tmp__1 =     fifo.deq__RDY();
-    bool tmp__2 =     fifo.first__RDY();
-        return (tmp__1 & tmp__2);
+void l_class_OC_Echo::rule_respond(void) {
+    unsigned int call =     fifo.first();
+        fifo.deq();
+        (ind)->echo(call);
 }
 bool l_class_OC_Echo::echoReq__RDY(void) {
     bool tmp__1 =     fifo.enq__RDY();
@@ -29,10 +29,10 @@ bool l_class_OC_Echo::echoReq__RDY(void) {
 void l_class_OC_Echo::echoReq(unsigned int v) {
         fifo.enq(v);
 }
-void l_class_OC_Echo::rule_respond(void) {
-    unsigned int call =     fifo.first();
-        fifo.deq();
-        (ind)->echo(call);
+bool l_class_OC_Echo::rule_respond__RDY(void) {
+    bool tmp__1 =     fifo.deq__RDY();
+    bool tmp__2 =     fifo.first__RDY();
+        return (tmp__1 & tmp__2);
 }
 void l_class_OC_Echo::run()
 {

@@ -58,7 +58,7 @@ typedef struct {
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
-enum {ProcessNone, ProcessHoist, ProcessVerilog, ProcessCPP};
+enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
 extern ExecutionEngine *EE;
 extern int trace_translate;
@@ -68,7 +68,6 @@ extern std::string globalName;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern const Function *EntryFn;
-extern unsigned NextTypeID;
 extern int generateRegion;
 extern Module *globalMod;
 extern Function *currentFunction;
@@ -83,8 +82,6 @@ void constructAddressMap(Module *Mod);
 const char *intmapLookup(INTMAP_TYPE *map, int value);
 std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
-
-void generateCppData(FILE *OStr, Module &Mod);
 
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix);
 std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);

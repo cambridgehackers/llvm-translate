@@ -97,33 +97,3 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
         fprintf(OStr, "}\n");
     }
 }
-
-void generateCppData(FILE *OStr, Module &Mod)
-{
-    NextTypeID = 1;
-#if 0
-    fprintf(OStr, "\n\n/* Global Variable Definitions and Initialization */\n");
-    for (auto I = Mod.global_begin(), E = Mod.global_end(); I != E; ++I) {
-        Type *Ty = I->getType()->getElementType();
-        ArrayType *ATy = dyn_cast<ArrayType>(Ty);
-        ERRORIF (I->hasWeakLinkage() || I->hasDLLImportStorageClass() || I->hasDLLExportStorageClass()
-          || I->isThreadLocal() || I->hasHiddenVisibility() || I->hasExternalWeakLinkage());
-        if (!I->isDeclaration() && I->getSection() != std::string("llvm.metadata")
-         && !I->hasAppendingLinkage() && !I->use_empty() && I->getInitializer()->isNullValue()
-         && I->getName() != "llvm.global_ctors" && I->getName() != "llvm.global_dtors"
-         && (!ATy || !dyn_cast<PointerType>(ATy->getElementType()))) {
-            if (I->hasLocalLinkage())
-                fprintf(OStr, "static ");
-            if (const GlobalValue *GV = dyn_cast<GlobalValue>(I))
-                fprintf(OStr, "%s", printType(Ty, false, CBEMangle(GV->getName().str()), "", "").c_str());
-            else {
-                printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-                exit(-1);
-            }
-            if (!I->getInitializer()->isNullValue())
-                fprintf(OStr, " = %s", printOperand(NULL, I->getInitializer(), false).c_str());
-            fprintf(OStr, ";\n");
-        }
-    }
-#endif
-}
