@@ -58,7 +58,6 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static std::map<std::string, const StructType *> referencedItems;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
-static std::map<Function *,ClassMethodTable *> functionIndex;
 static std::string processInstruction(Function ***thisp, Instruction &I);
 
 INTMAP_TYPE predText[] = {
@@ -146,10 +145,8 @@ void pushWork(Function *func, void *thisp)
 {
     if (!func || generateRegion != ProcessNone)
         return;
-    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())]) {
+    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
         table->method[func] = getMethodName(func->getName());
-        functionIndex[func] = table;
-    }
     vtableWork.push_back(VTABLE_WORK{func, (Function ***)thisp});
 }
 
@@ -644,7 +641,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     int RDYName = -1;
     std::string rmethodString;
-    ClassMethodTable *CMT = functionIndex[func];
+    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
 
     if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
