@@ -641,7 +641,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         }
     }
     pushWork(func, called_thisp);
-    int skip = regen_methods;
+    int skip = generateRegion != ProcessHoist;
     int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string prefix;
     PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
@@ -735,8 +735,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     else {
         vout += pcalledFunction;
-        if (regen_methods)
-            return vout;
+        return vout;
     }
     if (prefix == "")
         vout += "(";
@@ -1080,8 +1079,6 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::s
         fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
     if (generateRegion == ProcessCPP)
         fprintf(outputFile, "}\n");
-    else if (!regenItem)
-        fprintf(outputFile, "\n");
     }
 }
 
