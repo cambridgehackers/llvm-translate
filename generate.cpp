@@ -1000,14 +1000,14 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
                 if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*II, II->getOpcode(), II->getOpcodeName());
                 std::string vout = processInstruction(thisp, *II);
-                bool save_val = (!isDirectAlloca(&*II) && II->getType() != Type::getVoidTy(BI->getContext())
-                         && II->use_begin() != II->use_end());
+                bool save_val = (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
+                            && II->getType() != Type::getVoidTy(BI->getContext()));
                 if (vout != "") {
                     if (vout[0] == '&' && save_val) {
                         std::string name = GetValueName(&*II);
                         void *tval = mapLookup(vout.c_str()+1);
                         if (trace_translate)
-                            printf("%s: setting nameToAddress [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
+                            printf("%s: nameToAddress [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
                         if (tval)
                             nameToAddress[name] = tval;
                     }
@@ -1015,12 +1015,11 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
                         fprintf(OStr, "        ");
                         if (save_val) {
                             std::string resname = GetValueName(&*II);
-                        if (generateRegion == ProcessCPP)
-                            fprintf(OStr, "%s", printType(II->getType(), false, resname, "", " = ").c_str());
-                        else
+                            if (generateRegion == ProcessCPP)
+                                resname = printType(II->getType(), false, resname, "", "");
                             fprintf(OStr, "%s = ", resname.c_str());
                         }
-                    fprintf(OStr, "%s;\n", vout.c_str());
+                        fprintf(OStr, "%s;\n", vout.c_str());
                     }
                 }
             }
