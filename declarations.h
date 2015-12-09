@@ -94,7 +94,7 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 
-void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName);
+void processFunction(Function *func, Function ***thisp, FILE *outputFile);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);

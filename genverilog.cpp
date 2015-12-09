@@ -118,7 +118,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     }
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//RDY:");
-        processFunction(*PI, NULL, OStr, "");
+        processFunction(*PI, NULL, OStr);
     }
     for (auto PI = enaList.begin(); PI != enaList.end(); PI++)
         fprintf(OStr, "//RULE:   %s\n", PI->c_str());
@@ -171,7 +171,7 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
         fprintf(OStr, "        // Method: %s\n", mname.c_str());
         if (!hasRet)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
-        processFunction(func, NULL, OStr, "");
+        processFunction(func, NULL, OStr);
         if (!hasRet)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");

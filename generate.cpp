@@ -970,7 +970,7 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-void processFunction(Function *func, Function ***thisp, FILE *outputFile, std::string aclassName)
+void processFunction(Function *func, Function ***thisp, FILE *outputFile)
 {
     int hasGuard = 0;
     int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
@@ -1132,7 +1132,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     generateRegion = ProcessHoist;
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
-        processFunction(item.f, item.thisp, NULL, "");
+        processFunction(item.f, item.thisp, NULL);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)

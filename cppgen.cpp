@@ -78,7 +78,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     for (auto FI : table->method) {
         Function *func = FI.first;
         fprintf(OStr, "%s", printFunctionSignature(func, name + "::" + getMethodName(func->getName()), false, " {\n", 1).c_str());
-        processFunction(func, NULL, OStr, "");
+        processFunction(func, NULL, OStr);
         fprintf(OStr, "}\n");
     }
     if (hasRun(STy, 1)) {
