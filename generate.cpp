@@ -992,19 +992,20 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile)
     }
 #endif
     /* Generate Verilog for all instructions.  Record function calls for post processing */
-    for (auto BB = func->begin(), E = func->end(); BB != E; ++BB) {
-        if (trace_translate && BB->hasName())         // Print out the label if it exists...
-            printf("LLLLL: %s\n", BB->getName().str().c_str());
-        for (auto ins = BB->begin(), ins_end = BB->end(); ins != ins_end;) {
-            BasicBlock::iterator next_ins = std::next(BasicBlock::iterator(ins));
-            if (next_ins == ins_end || !isInlinableInst(*ins)) {
+    for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
+        if (trace_translate && BI->hasName())         // Print out the label if it exists...
+            printf("LLLLL: %s\n", BI->getName().str().c_str());
+        for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
+            auto INEXT = std::next(BasicBlock::iterator(II));
+            if (INEXT == IE || !isInlinableInst(*II)) {
                 if (trace_translate && generateRegion == ProcessCPP)
-                    printf("/*before %p opcode %d.=%s*/\n", &*ins, ins->getOpcode(), ins->getOpcodeName());
-                std::string vout = processInstruction(thisp, *ins);
+                    printf("/*before %p opcode %d.=%s*/\n", &*II, II->getOpcode(), II->getOpcodeName());
+                std::string vout = processInstruction(thisp, *II);
+                bool save_val = (!isDirectAlloca(&*II) && II->getType() != Type::getVoidTy(BI->getContext())
+                         && II->use_begin() != II->use_end());
                 if (vout != "") {
-                    if (vout[0] == '&' && !isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                     && ins->use_begin() != ins->use_end()) {
-                        std::string name = GetValueName(&*ins);
+                    if (vout[0] == '&' && save_val) {
+                        std::string name = GetValueName(&*II);
                         void *tval = mapLookup(vout.c_str()+1);
                         if (trace_translate)
                             printf("%s: setting nameToAddress [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
@@ -1014,25 +1015,21 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile)
                     if (outputFile) {
                     fprintf(outputFile, "    ");
                     if (generateRegion == ProcessCPP) {
-                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                         && ins->use_begin() != ins->use_end())
-                            fprintf(outputFile, "%s", printType(ins->getType(), false, GetValueName(&*ins), "", " = ").c_str());
+                        if (save_val)
+                            fprintf(outputFile, "%s", printType(II->getType(), false, GetValueName(&*II), "", " = ").c_str());
                         fprintf(outputFile, "    ");
                     }
                     else {
                         if (!hasRet)
                             fprintf(outputFile, "    ");
-                        if (!isDirectAlloca(&*ins) && ins->getType() != Type::getVoidTy(BB->getContext())
-                         && ins->use_begin() != ins->use_end())
-                            fprintf(outputFile, "%s = ", GetValueName(&*ins).c_str());
+                        if (save_val)
+                            fprintf(outputFile, "%s = ", GetValueName(&*II).c_str());
                     }
                     fprintf(outputFile, "%s;\n", vout.c_str());
                     }
                 }
             }
-            if (trace_translate)
-                printf("\n");
-            ins = next_ins;
+            II = INEXT;
         }
     }
     if (hasGuard && outputFile)
