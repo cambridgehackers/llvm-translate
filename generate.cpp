@@ -35,15 +35,10 @@ using namespace llvm;
 
 #include "declarations.h"
 
-class VTABLE_WORK {
-public:
+typedef struct {
     Function *f;      // Since passes modify instructions, this cannot be 'const'
     Function ***thisp;
-    VTABLE_WORK(Function *a, Function ***b) {
-       f = a;
-       thisp = b;
-    }
-};
+} VTABLE_WORK;
 
 static int trace_call;//=1;
 int trace_translate ;//= 1;
@@ -155,7 +150,7 @@ void pushWork(Function *func, void *thisp)
         table->method[func] = getMethodName(func->getName());
         functionIndex[func] = table;
     }
-    vtableWork.push_back(VTABLE_WORK(func, (Function ***)thisp));
+    vtableWork.push_back(VTABLE_WORK{func, (Function ***)thisp});
 }
 
 /*
