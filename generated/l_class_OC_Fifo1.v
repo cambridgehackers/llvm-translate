@@ -1,6 +1,6 @@
-//RDY:        enq__RDY = ((full) ^ 1);
-//RDY:        deq__RDY = (full);
-//RDY:        first__RDY = (full);
+//RDY:            enq__RDY = ((full) ^ 1);
+//RDY:            deq__RDY = (full);
+//RDY:            first__RDY = (full);
 //RULE:   enq__ENA
 //RULE:   deq__ENA
 module l_class_OC_Fifo1 (
@@ -20,7 +20,7 @@ module l_class_OC_Fifo1 (
       end
       else begin
         // Method: enq__RDY
-        enq__RDY = ((full) ^ 1);
+            enq__RDY = ((full) ^ 1);
 
         // Method: enq
         if (enq__ENA) begin
@@ -29,7 +29,7 @@ module l_class_OC_Fifo1 (
         end; // End of enq
 
         // Method: deq__RDY
-        deq__RDY = (full);
+            deq__RDY = (full);
 
         // Method: deq
         if (deq__ENA) begin
@@ -37,10 +37,10 @@ module l_class_OC_Fifo1 (
         end; // End of deq
 
         // Method: first__RDY
-        first__RDY = (full);
+            first__RDY = (full);
 
         // Method: first
-        first = (element);
+            first = (element);
 
       end; // nRST
     end; // always @ (posedge CLK)

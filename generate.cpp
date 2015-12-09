@@ -963,10 +963,9 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-void processFunction(Function *func, Function ***thisp, FILE *outputFile)
+void processFunction(Function *func, Function ***thisp, FILE *OStr)
 {
     int hasGuard = 0;
-    int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string fname = func->getName();
     globalName = getMethodName(fname);
     if (globalName == "")
@@ -978,10 +977,10 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile)
     NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
-    if (generateRegion == ProcessVerilog && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
+    if (generateRegion == ProcessVerilog && OStr
+     && !strncmp(&globalName.c_str()[globalName.length() - 6], "3ENAEv", 9)) {
         hasGuard = 1;
-        if (outputFile)
-        fprintf(outputFile, "    if (%s__ENA) begin\n", globalName.c_str());
+        fprintf(OStr, "    if (%s__ENA) begin\n", globalName.c_str());
     }
 #if 0
     /* connect up argument formal param names with actual values */
@@ -1012,28 +1011,24 @@ void processFunction(Function *func, Function ***thisp, FILE *outputFile)
                         if (tval)
                             nameToAddress[name] = tval;
                     }
-                    if (outputFile) {
-                    fprintf(outputFile, "    ");
-                    if (generateRegion == ProcessCPP) {
-                        if (save_val)
-                            fprintf(outputFile, "%s", printType(II->getType(), false, GetValueName(&*II), "", " = ").c_str());
-                        fprintf(outputFile, "    ");
-                    }
-                    else {
-                        if (!hasRet)
-                            fprintf(outputFile, "    ");
-                        if (save_val)
-                            fprintf(outputFile, "%s = ", GetValueName(&*II).c_str());
-                    }
-                    fprintf(outputFile, "%s;\n", vout.c_str());
+                    if (OStr) {
+                        fprintf(OStr, "        ");
+                        if (save_val) {
+                            std::string resname = GetValueName(&*II);
+                        if (generateRegion == ProcessCPP)
+                            fprintf(OStr, "%s", printType(II->getType(), false, resname, "", " = ").c_str());
+                        else
+                            fprintf(OStr, "%s = ", resname.c_str());
+                        }
+                    fprintf(OStr, "%s;\n", vout.c_str());
                     }
                 }
             }
             II = INEXT;
         }
     }
-    if (hasGuard && outputFile)
-        fprintf(outputFile, "    end; // if (%s__ENA) \n", globalName.c_str());
+    if (hasGuard)
+        fprintf(OStr, "    end; // if (%s__ENA) \n", globalName.c_str());
 }
 
 static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
