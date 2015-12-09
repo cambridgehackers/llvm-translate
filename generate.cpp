@@ -54,7 +54,6 @@ std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 unsigned NextTypeID;
-int regen_methods;
 int generateRegion;
 Function *currentFunction;
 

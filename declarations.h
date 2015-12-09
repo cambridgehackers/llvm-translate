@@ -68,7 +68,6 @@ extern std::string globalName;
 extern INTMAP_TYPE predText[];
 extern INTMAP_TYPE opcodeMap[];
 extern const Function *EntryFn;
-extern int regen_methods;
 extern unsigned NextTypeID;
 extern int generateRegion;
 extern Module *globalMod;

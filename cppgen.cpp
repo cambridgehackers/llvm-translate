@@ -76,10 +76,8 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     for (auto FI : table->method) {
-        regen_methods = 3;
         processFunction(FI.first, NULL, OStr, name);
         fprintf(OStr, "}\n");
-        regen_methods = 0;
     }
     if (hasRun(STy, 1)) {
         fprintf(OStr, "void %s::run()\n{\n", name.c_str());
