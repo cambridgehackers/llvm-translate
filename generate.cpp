@@ -134,14 +134,6 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
-static void *convertHex(std::string name)
-{
-    char *endptr = NULL;
-    if (!strncmp(name.c_str(), "0x", 2))
-        return (void *)strtol(name.c_str()+2, &endptr, 16);
-    return NULL;
-}
-
 static void call2runOnFunction(Function &F)
 {
     bool changed = false;
@@ -196,12 +188,6 @@ static void call2runOnFunction(Function &F)
                 if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
                     pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
                 Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
-                if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-                    if (void *tval = convertHex(pcalledFunction.c_str()+1)) {
-                        func = static_cast<Function *>(tval);
-                        pcalledFunction = func->getName();
-                    }
-                }
                 std::string cthisp = printOperand(II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
                 if (func && cthisp == "this") {
@@ -435,12 +421,6 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
 }
 
-static std::string longToHex(unsigned long long val)
-{
-    char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "0x%llx", val);
-    return temp;
-}
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -476,8 +456,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         printf("[%s:%d] referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
     if (I == E)
         return referstr;
-    if ((tval = convertHex(referstr)))
-        goto tvallab;
     ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
@@ -539,20 +517,11 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         }
         referstr = "";
     }
-    cbuffer += referstr;
-    goto exitlab;
-tvallab:
-    cbuffer += longToHex(Total + (unsigned long)tval);
-exitlab:
-    cbuffer += ")";
-    if (!strncmp(cbuffer.c_str(), "(0x", 3))
-        cbuffer = cbuffer.substr(1, cbuffer.length()-2);
-    if (trace_gep) {
-        printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
-        if (void **pint = (void **)convertHex(cbuffer))
-            printf(" [%p]= %p", pint, *pint);
-        printf("\n");
-    }
+    cbuffer += referstr + ")";
+    //if (!strncmp(cbuffer.c_str(), "(0x", 3))
+        //cbuffer = cbuffer.substr(1, cbuffer.length()-2);
+    if (trace_gep)
+        printf("%s: return %s\n", __FUNCTION__, cbuffer.c_str());
     return cbuffer;
 }
 
@@ -637,8 +606,6 @@ static std::string printCall(Instruction &I)
     Value *Callee = ICL.getCalledValue();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    std::string cthisp = printOperand(*AI, false);
-    Function ***called_thisp = (Function ***)convertHex(cthisp.c_str());
     std::string pcalledFunction = printOperand(Callee, false);
     if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
         pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
@@ -658,9 +625,9 @@ static std::string printCall(Instruction &I)
     std::string rmethodString;
 
     if (trace_call)
-        printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
+        printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
     if (!func) {
-        printf("%s: not an instantiable call!!!! %s cthisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
+        printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
