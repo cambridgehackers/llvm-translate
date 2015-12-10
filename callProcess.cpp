@@ -154,38 +154,3 @@ bool call2runOnFunction(Function &F)
     }
     return changed;
 }
-
-bool instRunOnFunction(Function &F)
-{
-    bool changed = false;
-    Module *Mod = F.getParent();
-    std::string fname = F.getName();
-//printf("instRunOnFunction: %s\n", fname.c_str());
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
-            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Store && II->getOperand(0)->getValueID() == Value::ConstantExprVal) {
-                if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((II->getOperand(0))))
-                if (vinit->getOpcode() == Instruction::BitCast)
-                if (const ConstantExpr *gep = dyn_cast<ConstantExpr>((vinit->getOperand(0))))
-                if (gep->getOpcode() == Instruction::GetElementPtr)
-                if (GlobalVariable *GV = dyn_cast<GlobalVariable>(gep->getOperand(0)))
-                if (const StructType *STy = vtableMap[GV]) {
-                    printf("[%s:%d] STy %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str());
-                    Type *Params[] = {Type::getInt64Ty(Mod->getContext())};
-                    FunctionType *fty = FunctionType::get(Type::getVoidTy(Mod->getContext()),
-                        ArrayRef<Type*>(Params, 1), false);
-                    Function *F = dyn_cast<Function>(Mod->getOrInsertFunction("accessVtable", fty));
-                    F->setCallingConv(GlobalValue::LinkOnceODRLinkage);
-                    F->setDoesNotAlias(0);
-                    IRBuilder<> builder(II->getParent());
-                    builder.SetInsertPoint(II);
-                    builder.CreateCall(F, {builder.getInt64((unsigned long)STy)});
-                    changed = true;
-                }
-            }
-            II = PI;
-        }
-    }
-    return changed;
-}
