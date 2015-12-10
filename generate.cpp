@@ -493,10 +493,8 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     cbuffer += amper;
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I)) {
-            if (expose) {
-                cbuffer += referstr;
-                cbuffer += "JJ.";
-            }
+            if (expose)
+                cbuffer += referstr + ".";
             else {
                 referstr += "->";
                 if (referstr == "this->")
@@ -518,8 +516,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         referstr = "";
     }
     cbuffer += referstr + ")";
-    //if (!strncmp(cbuffer.c_str(), "(0x", 3))
-        //cbuffer = cbuffer.substr(1, cbuffer.length()-2);
     if (trace_gep)
         printf("%s: return %s\n", __FUNCTION__, cbuffer.c_str());
     return cbuffer;
