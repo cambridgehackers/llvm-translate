@@ -88,7 +88,6 @@ void processFunction(Function *func, FILE *outputFile);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
-bool call2runOnFunction(Function &F);
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
 void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname);
 const Metadata *fetchType(const Metadata *arg);

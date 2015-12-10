@@ -32,56 +32,6 @@ using namespace llvm;
 #include "declarations.h"
 
 /*
- * Remove alloca and calls to 'llvm.dbg.declare()' that were added
- * when compiling with '-g'
- */
-static bool RemoveAllocaPass_runOnFunction(Function &F)
-{
-    bool changed = false;
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto I = BB->getFirstInsertionPt(), E = BB->end(); I != E;) {
-            auto PI = std::next(BasicBlock::iterator(I));
-            int opcode = I->getOpcode();
-            switch (opcode) {
-            case Instruction::Alloca: {
-                Value *retv = (Value *)I;
-                std::string name = I->getName();
-                int ind = name.find("block");
-//printf("       ALLOCA %s;", name.c_str());
-                if (I->hasName() && ind == -1 && endswith(name, ".addr")) {
-                    Value *newt = NULL;
-                    auto PN = PI;
-                    while (PN != E) {
-                        auto PNN = std::next(BasicBlock::iterator(PN));
-                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
-                            newt = PN->getOperand(0); // Remember value we were storing in temp
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Store instruction
-                        }
-                        else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
-                            PN->replaceAllUsesWith(newt); // replace with stored value
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Load instruction
-                        }
-                        PN = PNN;
-                    }
-//printf("del1");
-                    I->eraseFromParent(); // delete Alloca instruction
-                    changed = true;
-                }
-//printf("\n");
-                break;
-                }
-            };
-            I = PI;
-        }
-    }
-    return changed;
-}
-
-/*
  * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
@@ -111,46 +61,4 @@ void callMemrunOnFunction(CallInst *II)
        {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
        "llvm_translate_malloc"));
     II->eraseFromParent();
-}
-
-bool call2runOnFunction(Function &F)
-{
-    bool changed = false;
-    Module *Mod = F.getParent();
-    std::string fname = F.getName();
-//printf("CallProcessPass2: %s\n", fname.c_str());
-    if (fname.length() > 5 && fname.substr(0,5) == "_ZNSt") {
-        printf("SKIPPING %s\n", fname.c_str());
-        return changed;
-    }
-    changed = RemoveAllocaPass_runOnFunction(F);
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
-            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (CallInst *CI = dyn_cast<CallInst>(II)) {
-                std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
-                if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-                    pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
-                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
-                if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-                    if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
-                        func = static_cast<Function *>(tval);
-                        pcalledFunction = func->getName();
-                    }
-                }
-                std::string cthisp = printOperand(II->getOperand(0), false);
-                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
-                if (func && cthisp == "this") {
-                    fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
-                    call2runOnFunction(*func);
-                    II->setOperand(II->getNumOperands()-1, func);
-                    InlineFunctionInfo IFI;
-                    InlineFunction(CI, IFI, false);
-                    changed = true;
-                }
-            }
-            II = PI;
-        }
-    }
-    return changed;
 }
