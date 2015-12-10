@@ -486,20 +486,11 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
         // Lookup method index in vtable
         std::string lname = lookupMethodName(table, Total/sizeof(void *));
-        if (lname == "" && generateRegion != ProcessNone) {
-            printf("%s: gname %s: could not find %d. vtable %p max %d\n", __FUNCTION__, globalName.c_str(), (int)Total, table, table? table->vtableCount : -1);
-            exit(-1);
-        }
         std::string name = getMethodName(lname);
-        Function *func = EE->FindFunctionNamed(lname.c_str());
         if (trace_gep)
-            printf("%s: Method invocation referstr %s name %s lname %s func %p tval %p\n", __FUNCTION__,
-                referstr.c_str(), name.c_str(), lname.c_str(), func, tval);
-        if (!func) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(-1);
-        }
-        referstr = CBEMangle(generateRegion == ProcessNone ? lname : name);
+            printf("%s: Method invocation referstr %s name %s lname %s tval %p\n", __FUNCTION__,
+                referstr.c_str(), name.c_str(), lname.c_str(), tval);
+        referstr = generateRegion == ProcessNone ? lname : name;
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
