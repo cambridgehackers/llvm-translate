@@ -614,12 +614,26 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     if (generateRegion == ProcessNone) {
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
+    const StructType *STy = findThisArgumentType(func->getType());
     //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+    for (auto info : classCreate) {
+        if (const StructType *iSTy = info.first)
+        if (ClassMethodTable *table = info.second)
+        //if (table->vtable && STy)
+        if (oldOp && derivedStruct(iSTy, STy)) {
+            if (oldOp->getOpcode() == Instruction::Load)
+            if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
+            if (gep->getNumOperands() >= 2)
+            if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
+                pushWork(EE->FindFunctionNamed(
+                    lookupMethodName(table, CI->getZExtValue()).c_str()), called_thisp);
+        }
+    }
     if (oldOp) {
         I.setOperand(I.getNumOperands()-1, func);
         recursiveDelete(oldOp);
     }
-    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
+    if (ClassMethodTable *table = classCreate[STy])
         if ((rmethodString = getMethodName(func->getName())) != "")
             RDYName = vtableFind(table, rmethodString + "__RDY");
     fname = func->getName();
@@ -1062,7 +1076,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
-        processFunction(item.f, item.thisp, NULL);
+        processFunction(item.f, NULL, NULL);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)

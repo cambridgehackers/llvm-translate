@@ -246,22 +246,26 @@ void *mapLookup(std::string name)
     return nameToAddress[name];
 }
 
+int derivedStruct(const StructType *STyA, const StructType *STyB)
+{
+    int Idx = 0;
+    if (STyA && STyB)
+    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
+        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB) {
+            //printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
+            //STyA->dump();
+            //STyB->dump();
+            return 1;
+        }
+    }
+    return 0;
+}
 static int checkDerived(const Type *A, const Type *B)
 {
     if (const PointerType *PTyA = cast<PointerType>(A))
     if (const PointerType *PTyB = cast<PointerType>(B))
-    if (const StructType *STyA = dyn_cast<StructType>(PTyA->getElementType()))
-    if (const StructType *STyB = dyn_cast<StructType>(PTyB->getElementType())) {
-        int Idx = 0;
-        for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
-            if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB) {
-printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
-                STyA->dump();
-                STyB->dump();
-                return 1;
-            }
-        }
-    }
+        return derivedStruct(dyn_cast<StructType>(PTyA->getElementType()),
+                             dyn_cast<StructType>(PTyB->getElementType()));
     return 0;
 }
 
