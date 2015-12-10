@@ -48,7 +48,7 @@ const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
-unsigned NextTypeID;
+static unsigned NextTypeID;
 int generateRegion = ProcessNone;
 Function *currentFunction;
 
@@ -56,7 +56,6 @@ static std::list<VTABLE_WORK> vtableWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
-static std::map<std::string, const StructType *> referencedItems;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Function ***thisp, Instruction &I);
 
@@ -174,7 +173,7 @@ static std::string GetValueName(const Value *Operand)
     if (GA && (V = GA->getAliasee()))
         Operand = V;
     if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand))
-        return CBEMangle(GV->getName().str());
+        return CBEMangle(GV->getName());
     std::string Name = Operand->getName();
     if (Name.empty()) { // Assign unique names to local temporaries.
         unsigned &No = AnonValueNumbers[Operand];
@@ -679,7 +678,6 @@ std::string printCall(Function ***thisp, Instruction &I)
         prefix = pcalledFunction + "_" + getMethodName(func->getName());
         vout += prefix;
         skip = 1;
-        referencedItems[pcalledFunction] = findThisArgumentType(func->getType());
         if (!hasRet)
             vout += "__ENA = 1";
     }
