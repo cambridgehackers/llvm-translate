@@ -120,5 +120,5 @@ int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void constructVtableMap(Module *Mod);
-void pushWork(Function *func, void *thisp);
+void pushWork(Function *func);
 int derivedStruct(const StructType *STyA, const StructType *STyB);

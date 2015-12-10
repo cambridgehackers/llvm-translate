@@ -35,11 +35,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-typedef struct {
-    Function *f;      // Since passes modify instructions, this cannot be 'const'
-    Function ***thisp;
-} VTABLE_WORK;
-
 static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
@@ -52,7 +47,7 @@ static unsigned NextTypeID;
 int generateRegion = ProcessNone;
 Function *currentFunction;
 
-static std::list<VTABLE_WORK> vtableWork;
+static std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
@@ -140,13 +135,13 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
-void pushWork(Function *func, void *thisp)
+void pushWork(Function *func)
 {
     if (!func || generateRegion != ProcessNone)
         return;
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
         table->method[getMethodName(func->getName())] = func;
-    vtableWork.push_back(VTABLE_WORK{func, (Function ***)thisp});
+    vtableWork.push_back(func);
 }
 
 /*
@@ -589,7 +584,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             //printf("[%s:%d] tval %p pcalledF %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
         }
     }
-    pushWork(func, called_thisp);
+    pushWork(func);
     int skip = generateRegion != ProcessNone;
     int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string prefix;
@@ -626,7 +621,7 @@ std::string printCall(Function ***thisp, Instruction &I)
             if (gep->getNumOperands() >= 2)
             if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
                 pushWork(EE->FindFunctionNamed(
-                    lookupMethodName(table, CI->getZExtValue()).c_str()), called_thisp);
+                    lookupMethodName(table, CI->getZExtValue()).c_str()));
         }
     }
     if (oldOp) {
@@ -1076,7 +1071,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
-        processFunction(item.f, NULL, NULL);
+        processFunction(item, NULL, NULL);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)
