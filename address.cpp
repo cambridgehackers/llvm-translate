@@ -291,7 +291,7 @@ static void myReplaceAllUsesWith(Value *Old, Value *New)
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 
-void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
+static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
         if (FB->getName().substr(0, 21) != "unused_block_function")
@@ -349,8 +349,11 @@ static void mapType(char *addr, Type *Ty, std::string aname)
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
                         classCreate[STy]->replaceType[Idx] = info.type;
-                        if (STy == info.STy)
+                        if (STy == info.STy) {
                             classCreate[STy]->allocateLocally[Idx] = true;
+                            inlineReferences(STy, Idx, info.type);
+                            classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
+                        }
                     }
             }
             if (fname != "")

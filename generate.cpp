@@ -1118,25 +1118,13 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
 
-    // Construct the address -> symbolic name map using actual data allocated/initialized
-    constructAddressMap(Mod);
-
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
         processFunction(item, NULL);
-    for (auto info : classCreate) {
-        if (const StructType *STy = info.first)
-        if (ClassMethodTable *table = info.second)
-        for (auto rtype : info.second->replaceType) {
-            int Idx = rtype.first;
-            //printf("[%s:%d] STy %p Idx %d type %p\n", __FUNCTION__, __LINE__, STy, Idx, rtype.second);
-            if (table->allocateLocally[Idx]) {
-                inlineReferences(STy, Idx, rtype.second);
-                table->replaceType[Idx] = cast<PointerType>(rtype.second)->getElementType();
-            }
-        }
-    }
+
+    // Construct the address -> symbolic name map using actual data allocated/initialized
+    constructAddressMap(Mod);
 
     // Generate verilog for all rules
     generateRegion = ProcessVerilog;

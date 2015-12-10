@@ -106,7 +106,6 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 void callMemrunOnFunction(CallInst *II);
 std::string hexAddress(void *arg);
 void recursiveDelete(Value *V);
-void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType);
 int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
