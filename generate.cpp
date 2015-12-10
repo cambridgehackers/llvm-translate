@@ -541,13 +541,7 @@ std::string printOperand(Value *Operand, bool Indirect)
             prefix = "";
             p = p.substr(1);
         }
-        int addparen = p[0] != '(' || p[p.length()-1] != ')';
-        cbuffer += prefix;
-        if (addparen)
-            cbuffer += "(";
-        cbuffer += p;
-        if (addparen)
-            cbuffer += ")";
+        cbuffer += prefix + "(" + p + ")";
     }
     else {
         cbuffer += prefix;
@@ -607,14 +601,7 @@ static std::string printCall(Instruction &I)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     pushWork(func);
     int skip = generateRegion != ProcessNone;
-    int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
     std::string prefix;
-    PointerType  *PTy = (func) ? cast<PointerType>(func->getType()) : cast<PointerType>(Callee->getType());
-    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    unsigned len = FTy->getNumParams();
-    ERRORIF(FTy->isVarArg() && !len);
-    ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-    ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     int RDYName = -1;
     std::string rmethodString;
 
@@ -624,6 +611,12 @@ static std::string printCall(Instruction &I)
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
+    PointerType  *PTy = cast<PointerType>(func->getType());
+    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+    unsigned len = FTy->getNumParams();
+    ERRORIF(FTy->isVarArg() && !len);
+    ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
+    ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     if (CMT && generateRegion != ProcessNone) {
         pcalledFunction = printOperand(*AI, false);
@@ -708,7 +701,7 @@ static std::string printCall(Instruction &I)
         prefix = pcalledFunction + "_" + getMethodName(func->getName());
         vout += prefix;
         skip = 1;
-        if (!hasRet)
+        if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
     }
     else {
