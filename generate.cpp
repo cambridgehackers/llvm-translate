@@ -135,6 +135,14 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
+static void *convertHex(std::string name)
+{
+    char *endptr = NULL;
+    if (!strncmp(name.c_str(), "0x", 2))
+        return (void *)strtol(name.c_str()+2, &endptr, 16);
+    return NULL;
+}
+
 static void call2runOnFunction(Function &F)
 {
     bool changed = false;
@@ -190,7 +198,7 @@ static void call2runOnFunction(Function &F)
                     pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
                 Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
                 if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-                    if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
+                    if (void *tval = convertHex(pcalledFunction.c_str()+1)) {
                         func = static_cast<Function *>(tval);
                         pcalledFunction = func->getName();
                     }
@@ -463,7 +471,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         printf("[%s:%d] referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
     if (I == E)
         return referstr;
-    if ((tval = mapLookup(referstr)))
+    if ((tval = convertHex(referstr)))
         goto tvallab;
     ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
@@ -554,7 +562,7 @@ exitlab:
         cbuffer = cbuffer.substr(1, cbuffer.length()-2);
     if (trace_gep) {
         printf("[%s:%d] return %s; ", __FUNCTION__, __LINE__, cbuffer.c_str());
-        if (void **pint = (void **)mapLookup(cbuffer))
+        if (void **pint = (void **)convertHex(cbuffer))
             printf(" [%p]= %p", pint, *pint);
         printf("\n");
     }
@@ -627,11 +635,15 @@ static std::string fetchOperand(Value *Operand, bool Indirect)
         cbuffer += ")";
     return cbuffer;
 }
+
 std::string printOperand(Value *Operand, bool Indirect)
 {
     std::string p = fetchOperand(Operand, Indirect);
-    if (void *tval = mapLookup(p.c_str()))
-        return (Indirect ? "" : "&") + mapAddress(tval);
+    char temp[MAX_CHAR_BUFFER];
+    if (void *tval = convertHex(p.c_str())) {
+        sprintf(temp, "%p", tval);
+        return (Indirect ? "" : "&") + std::string(temp);
+    }
     return p;
 }
 
@@ -649,10 +661,10 @@ static std::string printCall(Instruction &I)
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
     std::string cthisp = fetchOperand(*AI, false);
-    Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
+    Function ***called_thisp = (Function ***)convertHex(cthisp.c_str());
     std::string pcalledFunction = printOperand(Callee, false);
     if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-        if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
+        if (void *tval = convertHex(pcalledFunction.c_str()+1)) {
             func = static_cast<Function *>(tval);
             pcalledFunction = func->getName();
             //printf("[%s:%d] tval %p pcalledF %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());

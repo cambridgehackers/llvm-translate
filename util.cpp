@@ -66,8 +66,7 @@ int i;
         if (temp == 0x5a5a5a5a5a5a5a5a)
             printf("_ ");
         else
-            //printf("0x%lx ", temp);
-            printf("%s ", mapAddress((void *)temp).c_str());
+            printf("0x%lx ", temp);
         p += sizeof(uint64_t);
         i += sizeof(uint64_t);
         len -= sizeof(uint64_t);

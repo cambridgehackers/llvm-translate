@@ -183,7 +183,7 @@ static void dumpMemoryRegions(int arg)
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("%p %s %s", info.p, gname.c_str(), mapAddress(info.p).c_str());
+        printf("%p %s", info.p, gname.c_str());
         if (info.STy)
             printf(" STy %s", info.STy->getName().str().c_str());
         printf("\n");
@@ -215,24 +215,6 @@ int validateAddress(int arg, void *p)
         printf("%p %s size 0x%lx\n", info.p, cp, info.size);
     }
     return 1;
-}
-
-/*
- * Build up reverse address map from all data items after running constructors
- */
-std::string mapAddress(void *arg)
-{
-    char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "%p", arg);
-    return temp;
-}
-
-void *mapLookup(std::string name)
-{
-    char *endptr = NULL;
-    if (!strncmp(name.c_str(), "0x", 2))
-        return (void *)strtol(name.c_str()+2, &endptr, 16);
-    return NULL;
 }
 
 int derivedStruct(const StructType *STyA, const StructType *STyB)

@@ -69,20 +69,13 @@ extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 
 int validateAddress(int arg, void *p);
-std::string mapAddress(void *arg);
 void constructAddressMap(Module *Mod);
-
-const char *intmapLookup(INTMAP_TYPE *map, int value);
 std::string fieldName(const StructType *STy, uint64_t ind);
-void *mapLookup(std::string name);
-
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr);
 std::string printOperand(Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
-
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
-
 void processFunction(Function *func, FILE *outputFile);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
