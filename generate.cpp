@@ -143,6 +143,8 @@ void pushWork(Function *func)
     if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
         table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);
+    // inline intra-class method call bodies
+    call2runOnFunction(*func);
 }
 
 /*
@@ -1048,10 +1050,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
-
-    // now inline intra-class method call bodies
-    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        call2runOnFunction(*FB);
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
