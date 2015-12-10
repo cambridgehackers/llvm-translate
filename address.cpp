@@ -145,20 +145,19 @@ static Function *fixupFunction(std::string methodName, Function *func)
         fnew->dump();
     }
     func->setName("unused_block_function");
+    pushWork(fnew);
     return fnew;
 }
 
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
     Function *enaFunc = fixupFunction(name, ENA[2]);
-    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
+    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]); // must be after 'ENA', since hoisting copies guards
     classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
-    pushWork(enaFunc);
-    pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 
-static Function *addFunction(void *thisp, std::string name, ClassMethodTable *table)
+static Function *addFunction(std::string name, ClassMethodTable *table)
 {
     std::string lname = lookupMethodName(table, vtableFind(table, name));
     if (lname == "") {
@@ -173,8 +172,8 @@ static Function *addFunction(void *thisp, std::string name, ClassMethodTable *ta
 extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
 {
     ClassMethodTable *table = classCreate[STy];
-    Function *enaFunc = addFunction(thisp, name, table);
-    Function *rdyFunc = addFunction(thisp, std::string(name) + "__RDY", table); // must be after 'ENA'
+    Function *enaFunc = addFunction(name, table);
+    Function *rdyFunc = addFunction(std::string(name) + "__RDY", table); // must be after 'ENA'
     ruleRDYFunction[enaFunc] = rdyFunc;
 }
 

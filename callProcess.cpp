@@ -128,7 +128,7 @@ bool call2runOnFunction(Function &F)
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             if (CallInst *CI = dyn_cast<CallInst>(II)) {
-                std::string pcalledFunction = printOperand(NULL, CI->getCalledValue(), false);
+                std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
                 if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
                     pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
                 Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
@@ -138,7 +138,7 @@ bool call2runOnFunction(Function &F)
                         pcalledFunction = func->getName();
                     }
                 }
-                std::string cthisp = printOperand(NULL, II->getOperand(0), false);
+                std::string cthisp = printOperand(II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
                 if (func && cthisp == "this") {
                     fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());

@@ -51,11 +51,6 @@ public:
     ClassMethodTable(): vtableCount(0), vtable(NULL) {}
 };
 
-typedef struct {
-    void       *thisp;
-    Function   *func;
-} RULE_INFO;
-
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
@@ -84,14 +79,13 @@ std::string fieldName(const StructType *STy, uint64_t ind);
 void *mapLookup(std::string name);
 
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr);
-std::string printOperand(Function ***thisp, Value *Operand, bool Indirect);
+std::string printOperand(Value *Operand, bool Indirect);
 std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip);
-std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect);
 
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
 
-void processFunction(Function *func, Function ***thisp, FILE *outputFile);
+void processFunction(Function *func, FILE *outputFile);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);

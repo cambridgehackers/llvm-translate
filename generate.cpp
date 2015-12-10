@@ -52,7 +52,8 @@ static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
-static std::string processInstruction(Function ***thisp, Instruction &I);
+static std::string processInstruction(Instruction &I);
+static std::string fetchOperand(Value *Operand, bool Indirect);
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -354,7 +355,7 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
  */
-static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_iterator I, gep_type_iterator E)
+static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     std::string cbuffer = "(", sep = " ", amper = "&";
     PointerType *PTy;
@@ -365,7 +366,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     const DataLayout *TD = EE->getDataLayout();
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
-    std::string referstr = fetchOperand(thisp, Ptr, false);
+    std::string referstr = fetchOperand(Ptr, false);
     if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
        referstr = referstr.substr(1, referstr.length() - 2).c_str();
 
@@ -382,7 +383,7 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
     if (LastIndexIsVector)
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(", false);
     if (trace_gep)
-        printf("[%s:%d] thisp %p referstr %s Total %ld\n", __FUNCTION__, __LINE__, thisp, referstr.c_str(), (unsigned long)Total);
+        printf("[%s:%d] referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
     if (I == E)
         return referstr;
     if ((tval = mapLookup(referstr)))
@@ -404,8 +405,8 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         if (func)
             tval = EE->getPointerToFunction(func);
         if (trace_gep)
-            printf("%s: Method invocation thisp %p referstr %s name %s lname %s func %p tval %p\n", __FUNCTION__,
-                thisp, referstr.c_str(), name.c_str(), lname.c_str(), func, tval);
+            printf("%s: Method invocation referstr %s name %s lname %s func %p tval %p\n", __FUNCTION__,
+                referstr.c_str(), name.c_str(), lname.c_str(), func, tval);
         if (tval) {
             cbuffer += "&";
             Total = 0;
@@ -454,12 +455,12 @@ static std::string printGEPExpression(Function ***thisp, Value *Ptr, gep_type_it
         }
         else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
             cbuffer += referstr;
-            cbuffer += "[" + fetchOperand(thisp, I.getOperand(), false) + "]";
+            cbuffer += "[" + fetchOperand(I.getOperand(), false) + "]";
         }
         else {
             cbuffer += referstr;
             if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
-                cbuffer += ")+(" + printOperand(thisp, I.getOperand(), false);
+                cbuffer += ")+(" + printOperand(I.getOperand(), false);
             cbuffer += "))";
         }
         referstr = "";
@@ -482,7 +483,7 @@ exitlab:
     }
     return cbuffer;
 }
-std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
+static std::string fetchOperand(Value *Operand, bool Indirect)
 {
     std::string cbuffer;
     Instruction *I = dyn_cast<Instruction>(Operand);
@@ -497,7 +498,7 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
     if (isAddressImplicit)
         prefix = "(&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
-        std::string p = processInstruction(thisp, *I);
+        std::string p = processInstruction(*I);
         if (p[0] == '(' && p[p.length()-1] == ')')
             p = p.substr(1,p.length()-2);
         if (prefix == "*" && p[0] == '&') {
@@ -529,7 +530,7 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
                 int op = CE->getOpcode();
                 assert (op == Instruction::GetElementPtr);
                 // used for character string args to printf()
-                cbuffer += printGEPExpression(thisp, CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)) +  ")";
+                cbuffer += printGEPExpression(CE->getOperand(0), gep_type_begin(CPV), gep_type_end(CPV)) +  ")";
             }
             else if (ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
                 char temp[100];
@@ -553,15 +554,15 @@ std::string fetchOperand(Function ***thisp, Value *Operand, bool Indirect)
         cbuffer += ")";
     return cbuffer;
 }
-std::string printOperand(Function ***thisp, Value *Operand, bool Indirect)
+std::string printOperand(Value *Operand, bool Indirect)
 {
-    std::string p = fetchOperand(thisp, Operand, Indirect);
+    std::string p = fetchOperand(Operand, Indirect);
     if (void *tval = mapLookup(p.c_str()))
         return (Indirect ? "" : "&") + mapAddress(tval);
     return p;
 }
 
-std::string printCall(Function ***thisp, Instruction &I)
+static std::string printCall(Instruction &I)
 {
     std::string vout, methodString, fname, methodName;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
@@ -574,9 +575,9 @@ std::string printCall(Function ***thisp, Instruction &I)
     Value *Callee = ICL.getCalledValue();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    std::string cthisp = fetchOperand(thisp, *AI, false);
+    std::string cthisp = fetchOperand(*AI, false);
     Function ***called_thisp = (Function ***)mapLookup(cthisp.c_str());
-    std::string pcalledFunction = printOperand(thisp, Callee, false);
+    std::string pcalledFunction = printOperand(Callee, false);
     if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
         if (void *tval = mapLookup(pcalledFunction.c_str()+1)) {
             func = static_cast<Function *>(tval);
@@ -599,13 +600,13 @@ std::string printCall(Function ***thisp, Instruction &I)
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
 
     if (trace_call)
-        printf("CALL: CALLER %d %s pRDY %p thisp %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, thisp, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
+        printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
     if (!func) {
-        printf("%s: not an instantiable call!!!! %s thisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
+        printf("%s: not an instantiable call!!!! %s cthisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
         exit(-1);
     }
     if (CMT && generateRegion != ProcessNone) {
-        pcalledFunction = printOperand(thisp, *AI, false);
+        pcalledFunction = printOperand(*AI, false);
     }
     if (generateRegion == ProcessNone) {
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
@@ -676,7 +677,7 @@ std::string printCall(Function ***thisp, Instruction &I)
         }
     }
     for (; AI != AE; ++AI) // force evaluation of all parameters
-            fetchOperand(thisp, *AI, false);
+            fetchOperand(*AI, false);
     }
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
@@ -700,7 +701,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     for (; AI != AE; ++AI, ++ArgNo, FAI++) {
         if (!skip) {
             vout += sep;
-            std::string p = printOperand(thisp, *AI, false);
+            std::string p = printOperand(*AI, false);
             if (prefix != "")
                 vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
             else
@@ -732,7 +733,7 @@ std::string printCall(Function ***thisp, Instruction &I)
     }
     for (; AI != AE; ++AI, ++ArgNo) {
         if (!skip) {
-            vout += sep + printOperand(thisp, *AI, false);
+            vout += sep + printOperand(*AI, false);
             sep = ", ";
         }
         skip = 0;
@@ -746,20 +747,20 @@ std::string printCall(Function ***thisp, Instruction &I)
 /*
  * Output instructions
  */
-static std::string processInstruction(Function ***thisp, Instruction &I)
+static std::string processInstruction(Instruction &I)
 {
     std::string vout;
     int opcode = I.getOpcode();
-//printf("[%s:%d] op %s thisp %p\n", __FUNCTION__, __LINE__, I.getOpcodeName(), thisp);
+//printf("[%s:%d] op %s\n", __FUNCTION__, __LINE__, I.getOpcodeName());
     switch(opcode) {
     case Instruction::GetElementPtr: {
         GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
-        return printGEPExpression(thisp, IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
+        return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
         }
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
-        return fetchOperand(thisp, I.getOperand(0), true);
+        return fetchOperand(I.getOperand(0), true);
         }
     // Terminators
     case Instruction::Ret:
@@ -769,7 +770,7 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
             else
                 vout += "return ";
             if (I.getNumOperands())
-                vout += printOperand(thisp, I.getOperand(0), false);
+                vout += printOperand(I.getOperand(0), false);
         }
         break;
     case Instruction::Unreachable:
@@ -786,9 +787,9 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
     case Instruction::And: case Instruction::Or: case Instruction::Xor:
         assert(!I.getType()->isPointerTy());
         if (BinaryOperator::isNeg(&I))
-            vout += "-(" + printOperand(thisp, BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+            vout += "-(" + printOperand(BinaryOperator::getNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         else if (BinaryOperator::isFNeg(&I))
-            vout += "-(" + printOperand(thisp, BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
+            vout += "-(" + printOperand(BinaryOperator::getFNegArgument(cast<BinaryOperator>(&I)), false) + ")";
         else if (I.getOpcode() == Instruction::FRem) {
             if (I.getType() == Type::getFloatTy(I.getContext()))
                 vout += "fmodf(";
@@ -796,25 +797,25 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
                 vout += "fmod(";
             else  // all 3 flavors of long double
                 vout += "fmodl(";
-            vout += printOperand(thisp, I.getOperand(0), false) + ", "
-                 + printOperand(thisp, I.getOperand(1), false) + ")";
+            vout += printOperand(I.getOperand(0), false) + ", "
+                 + printOperand(I.getOperand(1), false) + ")";
         } else
-            vout += printOperand(thisp, I.getOperand(0), false)
+            vout += printOperand(I.getOperand(0), false)
                  + " " + intmapLookup(opcodeMap, I.getOpcode()) + " "
-                 + printOperand(thisp, I.getOperand(1), false);
+                 + printOperand(I.getOperand(1), false);
         break;
 
     // Memory instructions...
     case Instruction::Store: {
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
-        std::string pdest = printOperand(thisp, IS.getPointerOperand(), true);
+        std::string pdest = printOperand(IS.getPointerOperand(), true);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        std::string sval = printOperand(thisp, Operand, false);
+        std::string sval = printOperand(Operand, false);
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
             pdest = pdest.substr(1, pdest.length() -2);
         vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
@@ -826,7 +827,7 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
         }
         vout += sval;
         if (BitMask)
-            vout += ") & " + printOperand(thisp, BitMask, false) + ")";
+            vout += ") & " + printOperand(BitMask, false) + ")";
         break;
         }
 
@@ -838,19 +839,19 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
-        vout += fetchOperand(thisp, I.getOperand(0), false);
+        vout += fetchOperand(I.getOperand(0), false);
         break;
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        vout += printOperand(thisp, I.getOperand(0), false)
+        vout += printOperand(I.getOperand(0), false)
              + " " + intmapLookup(predText, CI.getPredicate()) + " "
-             + printOperand(thisp, I.getOperand(1), false);
+             + printOperand(I.getOperand(1), false);
         break;
         }
     case Instruction::Call:
-        vout += printCall(thisp, I);
+        vout += printCall(I);
         break;
 #if 0
     case Instruction::Br:
@@ -928,7 +929,7 @@ static std::string processInstruction(Function ***thisp, Instruction &I)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-void processFunction(Function *func, Function ***thisp, FILE *OStr)
+void processFunction(Function *func, FILE *OStr)
 {
     std::string fname = func->getName();
     globalName = getMethodName(fname);
@@ -937,7 +938,7 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
     currentFunction = func;
 
     nameToAddress.clear();
-    nameToAddress["this"] = thisp;
+    //nameToAddress["this"] = NULL;
     NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
@@ -958,7 +959,7 @@ void processFunction(Function *func, Function ***thisp, FILE *OStr)
             if (INEXT == IE || !isInlinableInst(*II)) {
                 if (trace_translate && generateRegion == ProcessCPP)
                     printf("/*before %p opcode %d.=%s*/\n", &*II, II->getOpcode(), II->getOpcodeName());
-                std::string vout = processInstruction(thisp, *II);
+                std::string vout = processInstruction(*II);
                 bool save_val = (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
                             && II->getType() != Type::getVoidTy(BI->getContext()));
                 if (vout != "") {
@@ -1071,7 +1072,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
     for (auto item : vtableWork)
-        processFunction(item, NULL, NULL);
+        processFunction(item, NULL);
     for (auto info : classCreate) {
         if (const StructType *STy = info.first)
         if (ClassMethodTable *table = info.second)
