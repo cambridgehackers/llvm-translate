@@ -522,6 +522,8 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
 std::string printOperand(Value *Operand, bool Indirect)
 {
     std::string cbuffer;
+    if (!Operand)
+        return "";
     Instruction *I = dyn_cast<Instruction>(Operand);
     bool isAddressImplicit = isAddressExposed(Operand);
     std::string prefix;
@@ -1051,8 +1053,26 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
-    for (auto item : vtableWork)
-        processFunction(item, NULL);
+    for (auto func : vtableWork) {
+        currentFunction = func;
+        for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
+            for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
+                auto INEXT = std::next(BasicBlock::iterator(II));
+                if (INEXT == IE || !isInlinableInst(*II)) {
+                    switch(II->getOpcode()) {
+                    case Instruction::Call:
+                        printCall(*II);
+                        break;
+                    default:
+                        for (unsigned int ind = 0; ind < II->getNumOperands(); ind++)
+                            printOperand(II->getOperand(ind), true);
+                        break;
+                    }
+                }
+                II = INEXT;
+            }
+        }
+    }
 
     // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
