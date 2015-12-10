@@ -68,7 +68,6 @@ extern Module *globalMod;
 extern Function *currentFunction;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
-extern std::map<std::string, void *> nameToAddress;
 
 int validateAddress(int arg, void *p);
 std::string mapAddress(void *arg);

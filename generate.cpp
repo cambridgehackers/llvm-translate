@@ -821,10 +821,6 @@ static std::string processInstruction(Instruction &I)
         vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
         if (BitMask)
             vout += "((";
-        if (void *valp = nameToAddress[sval]) {
-            //printf("[%s:%d] storeval %s found %p\n", __FUNCTION__, __LINE__, sval.c_str(), valp);
-            sval = mapAddress(valp);
-        }
         vout += sval;
         if (BitMask)
             vout += ") & " + printOperand(BitMask, false) + ")";
@@ -937,8 +933,6 @@ void processFunction(Function *func, FILE *OStr)
         globalName = fname;
     currentFunction = func;
 
-    nameToAddress.clear();
-    //nameToAddress["this"] = NULL;
     NextAnonValueNumber = 0;
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
@@ -962,25 +956,15 @@ void processFunction(Function *func, FILE *OStr)
                 std::string vout = processInstruction(*II);
                 bool save_val = (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
                             && II->getType() != Type::getVoidTy(BI->getContext()));
-                if (vout != "") {
-                    if (vout[0] == '&' && save_val) {
-                        std::string name = GetValueName(&*II);
-                        void *tval = mapLookup(vout.c_str()+1);
-                        if (trace_translate)
-                            printf("%s: nameToAddress [%s]=%p\n", __FUNCTION__, name.c_str(), tval);
-                        if (tval)
-                            nameToAddress[name] = tval;
+                if (vout != "" && OStr) {
+                    fprintf(OStr, "        ");
+                    if (save_val) {
+                        std::string resname = GetValueName(&*II);
+                        if (generateRegion == ProcessCPP)
+                            resname = printType(II->getType(), false, resname, "", "", false);
+                        fprintf(OStr, "%s = ", resname.c_str());
                     }
-                    if (OStr) {
-                        fprintf(OStr, "        ");
-                        if (save_val) {
-                            std::string resname = GetValueName(&*II);
-                            if (generateRegion == ProcessCPP)
-                                resname = printType(II->getType(), false, resname, "", "", false);
-                            fprintf(OStr, "%s = ", resname.c_str());
-                        }
-                        fprintf(OStr, "%s;\n", vout.c_str());
-                    }
+                    fprintf(OStr, "%s;\n", vout.c_str());
                 }
             }
             II = INEXT;

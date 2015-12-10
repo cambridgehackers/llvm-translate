@@ -60,7 +60,6 @@ static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static int trace_mapt;// = 1;
 static std::map<void *, std::string> addressToName;
-std::map<std::string, void *> nameToAddress;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -242,7 +241,7 @@ void *mapLookup(std::string name)
     char *endptr = NULL;
     if (!strncmp(name.c_str(), "0x", 2))
         return (void *)strtol(name.c_str()+2, &endptr, 16);
-    return nameToAddress[name];
+    return NULL;
 }
 
 int derivedStruct(const StructType *STyA, const StructType *STyB)
@@ -329,7 +328,6 @@ static void mapType(char *addr, Type *Ty, std::string aname)
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
     addressToName[addr] = aname;
-    nameToAddress[aname] = addr;
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
