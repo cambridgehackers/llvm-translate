@@ -436,6 +436,12 @@ std::string printFunctionSignature(const Function *F, std::string altname, bool 
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
 }
 
+static std::string longToHex(unsigned long long val)
+{
+    char temp[MAX_CHAR_BUFFER];
+    sprintf(temp, "0x%llx", val);
+    return temp;
+}
 /*
  * GEP and Load instructions interpreter functions
  * (just execute using the memory areas allocated by the constructors)
@@ -553,9 +559,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     cbuffer += referstr;
     goto exitlab;
 tvallab:
-    char temp2[1000];
-    sprintf(temp2, "0x%llx", (long long)Total + (long)tval);
-    cbuffer += temp2;
+    cbuffer += longToHex(Total + (unsigned long)tval);
 exitlab:
     cbuffer += ")";
     if (!strncmp(cbuffer.c_str(), "(0x", 3))
@@ -639,11 +643,8 @@ static std::string fetchOperand(Value *Operand, bool Indirect)
 std::string printOperand(Value *Operand, bool Indirect)
 {
     std::string p = fetchOperand(Operand, Indirect);
-    char temp[MAX_CHAR_BUFFER];
-    if (void *tval = convertHex(p.c_str())) {
-        sprintf(temp, "%p", tval);
-        return (Indirect ? "" : "&") + std::string(temp);
-    }
+    if (void *tval = convertHex(p.c_str()))
+        return (Indirect ? "" : "&") + longToHex((unsigned long)tval);
     return p;
 }
 
