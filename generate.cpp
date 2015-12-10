@@ -583,28 +583,25 @@ std::string printOperand(Value *Operand, bool Indirect)
 
 static std::string printCall(Instruction &I)
 {
-    std::string vout, methodString, fname, methodName;
+    std::string vout, methodString, fname, methodName, prefix, rmethodString;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     CallInst &ICL = static_cast<CallInst&>(I);
     unsigned ArgNo = 0;
     const char *sep = "";
+    CallSite CS(&I);
+    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+    int skip = generateRegion != ProcessNone;
+    int RDYName = -1;
+
+    std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
+    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
+        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
     Function *func = ICL.getCalledFunction();
     ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
     ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
-    Value *Callee = ICL.getCalledValue();
-    CallSite CS(&I);
-    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    std::string pcalledFunction = printOperand(Callee, false);
-    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     pushWork(func);
-    int skip = generateRegion != ProcessNone;
-    std::string prefix;
-    int RDYName = -1;
-    std::string rmethodString;
-
     if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
     if (!func) {
@@ -615,8 +612,6 @@ static std::string printCall(Instruction &I)
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     unsigned len = FTy->getNumParams();
     ERRORIF(FTy->isVarArg() && !len);
-    ConstantExpr *CE = dyn_cast<ConstantExpr>(Callee);
-    ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     if (CMT && generateRegion != ProcessNone) {
         pcalledFunction = printOperand(*AI, false);
@@ -689,7 +684,7 @@ static std::string printCall(Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
-    for (; AI != AE; ++AI) // force evaluation of all parameters
+        for (; AI != AE; ++AI) // force evaluation of all parameters
             printOperand(*AI, false);
     }
     else if (generateRegion == ProcessVerilog) {
