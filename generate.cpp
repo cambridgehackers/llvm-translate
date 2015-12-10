@@ -582,17 +582,13 @@ static std::string fetchOperand(Value *Operand, bool Indirect)
             prefix = "";
             p = p.substr(1);
         }
-        if (prefix == "*" && !strncmp(p.c_str(), "0x", 2))
-            cbuffer += hexAddress(*(void **)mapLookup(p));
-        else {
-            int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
-            cbuffer += prefix;
-            if (addparen)
-                cbuffer += "(";
-            cbuffer += p;
-            if (addparen)
-                cbuffer += ")";
-        }
+        int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
+        cbuffer += prefix;
+        if (addparen)
+            cbuffer += "(";
+        cbuffer += p;
+        if (addparen)
+            cbuffer += ")";
     }
     else {
         cbuffer += prefix;
