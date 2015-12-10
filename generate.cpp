@@ -459,9 +459,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-     && (table = classCreate[findThisArgumentType(PTy)])
-     && (referstr == "*(this)"
-        || referstr.length() < 2 || referstr.substr(0,2) != "0x")) {
+     && (table = classCreate[findThisArgumentType(PTy)])) {
         // Lookup method index in vtable
         std::string lname = lookupMethodName(table, Total/sizeof(void *));
         std::string name = getMethodName(lname);
@@ -543,7 +541,7 @@ std::string printOperand(Value *Operand, bool Indirect)
             prefix = "";
             p = p.substr(1);
         }
-        int addparen = strncmp(p.c_str(), "0x", 2) && (p[0] != '(' || p[p.length()-1] != ')');
+        int addparen = p[0] != '(' || p[p.length()-1] != ')';
         cbuffer += prefix;
         if (addparen)
             cbuffer += "(";
