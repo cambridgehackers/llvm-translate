@@ -999,6 +999,7 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                     element = table->replaceType[Idx];
                 printContainedStructs(element, OStr, ODir, cb);
             }
+printf("[%s:%d] STy %p %s used %d\n", __FUNCTION__, __LINE__, STy, STy->getName().str().c_str(), structVtableUsed[STy]);
             if (classCreate[STy] && inheritsModule(STy))
                 cb(STy, OStr, ODir);
         }
@@ -1048,6 +1049,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         printf("'main' function not found in module.\n");
         exit(1);
     }
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+        instRunOnFunction(*FB);
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);

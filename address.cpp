@@ -61,6 +61,8 @@ static int trace_fixup;// = 1;
 static int trace_mapt;// = 1;
 static std::map<void *, std::string> addressToName;
 std::map<std::string, void *> nameToAddress;
+std::map<GlobalVariable *, const StructType *> vtableMap;
+std::map<const StructType *, int> structVtableUsed;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -76,6 +78,12 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
         printf("[%s:%d] %ld = %p type %p sty %p\n", __FUNCTION__, __LINE__, size, ptr, type, STy);
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
+}
+extern "C" void accessVtable(const StructType *STy)
+{
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//STy->dump();
+    structVtableUsed[STy] = 1;
 }
 
 void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -419,6 +427,7 @@ void constructVtableMap(Module *Mod)
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const StructType *STy = findThisArgumentType(func->getType())) {
+                    vtableMap[MI] = STy;
                     if (!classCreate[STy]->vtable)
                         classCreate[STy]->vtable = new std::string[numElements];
                     classCreate[STy]->vtable[classCreate[STy]->vtableCount++] = func->getName();

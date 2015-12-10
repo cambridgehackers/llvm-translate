@@ -74,6 +74,8 @@ extern Function *currentFunction;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::map<std::string, void *> nameToAddress;
+extern std::map<GlobalVariable *, const StructType *> vtableMap;
+extern std::map<const StructType *, int> structVtableUsed;
 
 int validateAddress(int arg, void *p);
 std::string mapAddress(void *arg);
@@ -121,3 +123,4 @@ int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void constructVtableMap(Module *Mod);
 void pushWork(Function *func, void *thisp);
+bool instRunOnFunction(Function &F);
