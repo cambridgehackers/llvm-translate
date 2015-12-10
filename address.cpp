@@ -59,7 +59,6 @@ struct MAPSEENcomp {
 static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static int trace_mapt;// = 1;
-static std::map<void *, std::string> addressToName;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -218,22 +217,14 @@ int validateAddress(int arg, void *p)
     return 1;
 }
 
-std::string hexAddress(void *arg)
-{
-    char temp[MAX_CHAR_BUFFER];
-    sprintf(temp, "%p", arg);
-    return temp;
-}
-
 /*
  * Build up reverse address map from all data items after running constructors
  */
 std::string mapAddress(void *arg)
 {
-    std::string val = addressToName[arg];
-    if (val != "")
-        return val;
-    return hexAddress(arg);
+    char temp[MAX_CHAR_BUFFER];
+    sprintf(temp, "%p", arg);
+    return temp;
 }
 
 void *mapLookup(std::string name)
@@ -327,7 +318,6 @@ static void mapType(char *addr, Type *Ty, std::string aname)
     //printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
-    addressToName[addr] = aname;
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
@@ -406,7 +396,6 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
 
 void constructVtableMap(Module *Mod)
 {
-    addressToName.clear();
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         findThisArgumentType(FB->getType());
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
