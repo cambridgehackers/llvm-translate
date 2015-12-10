@@ -37,7 +37,7 @@ using namespace llvm;
 
 static int trace_call;//=1;
 int trace_translate ;//= 1;
-static int trace_gep;// = 1;
+static int trace_gep;//= 1;
 static int trace_hoist;// = 1;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
@@ -52,7 +52,6 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-static std::string fetchOperand(Value *Operand, bool Indirect);
 
 INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -457,7 +456,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     const DataLayout *TD = EE->getDataLayout();
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
-    std::string referstr = fetchOperand(Ptr, false);
+    std::string referstr = printOperand(Ptr, false);
     if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
        referstr = referstr.substr(1, referstr.length() - 2).c_str();
 
@@ -493,21 +492,14 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         }
         std::string name = getMethodName(lname);
         Function *func = EE->FindFunctionNamed(lname.c_str());
-        if (func)
-            tval = EE->getPointerToFunction(func);
         if (trace_gep)
             printf("%s: Method invocation referstr %s name %s lname %s func %p tval %p\n", __FUNCTION__,
                 referstr.c_str(), name.c_str(), lname.c_str(), func, tval);
-        if (tval) {
-            cbuffer += "&";
-            Total = 0;
-            goto tvallab;
+        if (!func) {
+            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+            exit(-1);
         }
-        if (referstr == "*(this)")
-            referstr = "";
-        else
-            referstr = "(" + referstr + ").";
-        referstr += CBEMangle(generateRegion == ProcessNone ? lname : name);
+        referstr = CBEMangle(generateRegion == ProcessNone ? lname : name);
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
@@ -546,7 +538,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         }
         else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
             cbuffer += referstr;
-            cbuffer += "[" + fetchOperand(I.getOperand(), false) + "]";
+            cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
         }
         else {
             cbuffer += referstr;
@@ -572,7 +564,8 @@ exitlab:
     }
     return cbuffer;
 }
-static std::string fetchOperand(Value *Operand, bool Indirect)
+
+std::string printOperand(Value *Operand, bool Indirect)
 {
     std::string cbuffer;
     Instruction *I = dyn_cast<Instruction>(Operand);
@@ -640,14 +633,6 @@ static std::string fetchOperand(Value *Operand, bool Indirect)
     return cbuffer;
 }
 
-std::string printOperand(Value *Operand, bool Indirect)
-{
-    std::string p = fetchOperand(Operand, Indirect);
-    if (void *tval = convertHex(p.c_str()))
-        return (Indirect ? "" : "&") + longToHex((unsigned long)tval);
-    return p;
-}
-
 static std::string printCall(Instruction &I)
 {
     std::string vout, methodString, fname, methodName;
@@ -661,16 +646,13 @@ static std::string printCall(Instruction &I)
     Value *Callee = ICL.getCalledValue();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    std::string cthisp = fetchOperand(*AI, false);
+    std::string cthisp = printOperand(*AI, false);
     Function ***called_thisp = (Function ***)convertHex(cthisp.c_str());
     std::string pcalledFunction = printOperand(Callee, false);
-    if (!strncmp(pcalledFunction.c_str(), "&0x", 3) && !func) {
-        if (void *tval = convertHex(pcalledFunction.c_str()+1)) {
-            func = static_cast<Function *>(tval);
-            pcalledFunction = func->getName();
-            //printf("[%s:%d] tval %p pcalledF %s\n", __FUNCTION__, __LINE__, tval, pcalledFunction.c_str());
-        }
-    }
+    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
+        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
+    if (!func)
+        func = EE->FindFunctionNamed(pcalledFunction.c_str());
     pushWork(func);
     int skip = generateRegion != ProcessNone;
     int hasRet = !func || (func->getReturnType() != Type::getVoidTy(func->getContext()));
@@ -683,7 +665,6 @@ static std::string printCall(Instruction &I)
     ERRORIF (CE && CE->isCast() && (dyn_cast<Function>(CE->getOperand(0))));
     int RDYName = -1;
     std::string rmethodString;
-    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
 
     if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s' cthisp %s called_thisp %p\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str(), cthisp.c_str(), called_thisp);
@@ -691,6 +672,7 @@ static std::string printCall(Instruction &I)
         printf("%s: not an instantiable call!!!! %s cthisp %s\n", __FUNCTION__, pcalledFunction.c_str(), cthisp.c_str());
         exit(-1);
     }
+    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     if (CMT && generateRegion != ProcessNone) {
         pcalledFunction = printOperand(*AI, false);
     }
@@ -763,7 +745,7 @@ static std::string printCall(Instruction &I)
         }
     }
     for (; AI != AE; ++AI) // force evaluation of all parameters
-            fetchOperand(*AI, false);
+            printOperand(*AI, false);
     }
     else if (generateRegion == ProcessVerilog) {
     if (CMT) {
@@ -846,7 +828,7 @@ static std::string processInstruction(Instruction &I)
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
-        return fetchOperand(I.getOperand(0), true);
+        return printOperand(I.getOperand(0), true);
         }
     // Terminators
     case Instruction::Ret:
@@ -921,7 +903,7 @@ static std::string processInstruction(Instruction &I)
     case Instruction::IntToPtr: case Instruction::PtrToInt:
     case Instruction::AddrSpaceCast:
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
-        vout += fetchOperand(I.getOperand(0), false);
+        vout += printOperand(I.getOperand(0), false);
         break;
 
     // Other instructions...
