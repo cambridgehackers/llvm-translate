@@ -39,7 +39,6 @@ static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;// = 1;
 static int trace_hoist;// = 1;
-const Function *EntryFn;
 std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
@@ -1115,11 +1114,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
             II->setOperand(2, ConstantInt::get(Type::getInt64Ty(II->getContext()),
                 (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
         }
-    EntryFn = Mod->getFunction("main");
-    if (!EntryFn) {
-        printf("'main' function not found in module.\n");
-        exit(1);
-    }
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);

@@ -42,6 +42,7 @@ int trace_full;// = 1;
 static int dump_interpret;// = 1;
 ExecutionEngine *EE;
 Module *globalMod;
+static const Function *EntryFn;
 
 /*
  * Read/load llvm input files
@@ -114,6 +115,11 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     std::vector<std::string> InputArgv;
     InputArgv.push_back("param1");
     InputArgv.push_back("param2");
+    EntryFn = Mod->getFunction("main");
+    if (!EntryFn) {
+        printf("'main' function not found in module.\n");
+        exit(1);
+    }
     //char *envp[] = {NULL};
     //int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
 //printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
