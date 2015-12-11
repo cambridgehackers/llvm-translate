@@ -727,8 +727,6 @@ static std::string printCall(Instruction &I)
         vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
-        if (prefix == "")
-            vout += "(";
     }
     else {
         if (!inheritsModule(findThisArgumentType(currentFunction->getType()))) {
@@ -745,17 +743,11 @@ static std::string printCall(Instruction &I)
         if (!skip) {
             vout += sep;
             std::string p = printOperand(*AI, false);
-            if (generateRegion == ProcessVerilog) {
-                if (prefix != "")
-                    vout += ";\n            " + prefix + "_" + FAI->getName().str() + " = ";
-                else
-                    sep = ", ";
-                vout += p;
-            }
-            else {
-                vout += p;
+            if (generateRegion == ProcessVerilog)
+                vout += ";\n            " + prefix + "_" + FAI->getName().str() + " = ";
+            else
                 sep = ", ";
-            }
+            vout += p;
         }
         skip = 0;
     }
