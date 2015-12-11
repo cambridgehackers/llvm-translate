@@ -245,19 +245,19 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
     std::string fname = F.getName();
 //printf("CallProcessPass2: %s\n", fname.c_str());
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto I = BB->getFirstInsertionPt(), E = BB->end(); I != E;) {
-            auto PI = std::next(BasicBlock::iterator(I));
-            int opcode = I->getOpcode();
+        for (auto II = BB->getFirstInsertionPt(), IE = BB->end(); II != IE;) {
+            auto PI = std::next(BasicBlock::iterator(II));
+            int opcode = II->getOpcode();
             switch (opcode) {
             case Instruction::Alloca: {
-                Value *retv = (Value *)I;
-                std::string name = I->getName();
+                Value *retv = (Value *)II;
+                std::string name = II->getName();
                 int ind = name.find("block");
 //printf("       ALLOCA %s;", name.c_str());
-                if (I->hasName() && ind == -1 && endswith(name, ".addr")) {
+                if (II->hasName() && ind == -1 && endswith(name, ".addr")) {
                     Value *newt = NULL;
                     auto PN = PI;
-                    while (PN != E) {
+                    while (PN != IE) {
                         auto PNN = std::next(BasicBlock::iterator(PN));
                         if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
                             newt = PN->getOperand(0); // Remember value we were storing in temp
@@ -274,20 +274,14 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                         PN = PNN;
                     }
 //printf("del1");
-                    I->eraseFromParent(); // delete Alloca instruction
+                    II->eraseFromParent(); // delete Alloca instruction
                     changed = true;
                 }
 //printf("\n");
                 break;
                 }
-            };
-            I = PI;
-        }
-    }
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
-            BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
-            if (CallInst *CI = dyn_cast<CallInst>(II)) {
+            case Instruction::Call: {
+                CallInst *CI = dyn_cast<CallInst>(II);
                 std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
                 if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
                     pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
@@ -302,7 +296,9 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                     InlineFunction(CI, IFI, false);
                     changed = true;
                 }
-            }
+                break;
+                }
+            };
             II = PI;
         }
     }
