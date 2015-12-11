@@ -58,13 +58,6 @@ enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 extern ExecutionEngine *EE;
 extern int trace_translate;
 extern int trace_full;
-extern std::string globalName;
-
-extern INTMAP_TYPE predText[];
-extern INTMAP_TYPE opcodeMap[];
-extern int generateRegion;
-extern Module *globalMod;
-extern Function *currentFunction;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 
@@ -81,7 +74,6 @@ std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
-void mapDwarfType(int derived, const Metadata *aMeta, char *addr, int aoffset, std::string aname);
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
 Function *lookup_function(std::string className, std::string methodName);
@@ -98,7 +90,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 const StructType *findThisArgumentType(const PointerType *PTy);
 void callMemrunOnFunction(CallInst *II);
 void recursiveDelete(Value *V);
-int inheritsModule(const StructType *STy);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void constructVtableMap(Module *Mod);

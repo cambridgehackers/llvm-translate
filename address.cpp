@@ -261,9 +261,9 @@ static void myReplaceAllUsesWith(Value *Old, Value *New)
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 
-static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
+static void inlineReferences(Module *Mod, const StructType *STy, uint64_t Idx, Type *newType)
 {
-    for (auto FB = globalMod->begin(), FE = globalMod->end(); FB != FE; ++FB) {
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB) {
         if (FB->getName().substr(0, 21) != "unused_block_function")
         for (auto BB = FB->begin(), BE = FB->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
@@ -287,7 +287,7 @@ static void inlineReferences(const StructType *STy, uint64_t Idx, Type *newType)
     }
 }
 
-static void mapType(char *addr, Type *Ty, std::string aname)
+static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
     if (!addr || addr == BOGUS_POINTER
@@ -320,20 +320,20 @@ static void mapType(char *addr, Type *Ty, std::string aname)
                         classCreate[STy]->replaceType[Idx] = info.type;
                         if (STy == info.STy) {
                             classCreate[STy]->allocateLocally[Idx] = true;
-                            inlineReferences(STy, Idx, info.type);
+                            inlineReferences(Mod, STy, Idx, info.type);
                             classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
                         }
                     }
             }
             if (fname != "")
-                mapType(eaddr, element, aname + "$$" + fname);
+                mapType(Mod, eaddr, element, aname + "$$" + fname);
             else if (dyn_cast<StructType>(element))
-                mapType(eaddr, element, aname);
+                mapType(Mod, eaddr, element, aname);
         }
         break;
         }
     case Type::PointerTyID:
-        mapType(*(char **)addr, cast<PointerType>(Ty)->getElementType(), aname);
+        mapType(Mod, *(char **)addr, cast<PointerType>(Ty)->getElementType(), aname);
         break;
     default:
         break;
@@ -414,7 +414,7 @@ void constructAddressMap(Module *Mod)
             Type *Ty = MI->getType()->getElementType();
             memoryRegion.push_back(MEMORY_REGION{addr,
                 EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
-            mapType((char *)addr, Ty, name);
+            mapType(Mod, (char *)addr, Ty, name);
         }
     }
     if (trace_mapt)

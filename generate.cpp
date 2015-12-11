@@ -39,12 +39,12 @@ static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;//= 1;
 static int trace_hoist;// = 1;
-std::string globalName;
+static std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
-int generateRegion = ProcessNone;
-Function *currentFunction;
+static int generateRegion = ProcessNone;
+static Function *currentFunction;
 
 static std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
@@ -53,7 +53,7 @@ static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
 
-INTMAP_TYPE predText[] = {
+static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
     {FCmpInst::FCMP_OGT, "ogt"}, {FCmpInst::FCMP_OGE, "oge"},
     {FCmpInst::FCMP_OLT, "olt"}, {FCmpInst::FCMP_OLE, "ole"},
@@ -67,7 +67,7 @@ INTMAP_TYPE predText[] = {
     {ICmpInst::ICMP_SLT, "<"}, {ICmpInst::ICMP_SLE, "<="},
     {ICmpInst::ICMP_UGT, ">"}, {ICmpInst::ICMP_UGE, ">="},
     {ICmpInst::ICMP_ULT, "<"}, {ICmpInst::ICMP_ULE, "<="}, {}};
-INTMAP_TYPE opcodeMap[] = {
+static INTMAP_TYPE opcodeMap[] = {
     {Instruction::Add, "+"}, {Instruction::FAdd, "+"},
     {Instruction::Sub, "-"}, {Instruction::FSub, "-"},
     {Instruction::Mul, "*"}, {Instruction::FMul, "*"},
@@ -121,7 +121,7 @@ static bool isAddressExposed(const Value *V)
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 
-int inheritsModule(const StructType *STy)
+static int inheritsModule(const StructType *STy)
 {
     if (STy) {
         std::string sname = STy->getName();

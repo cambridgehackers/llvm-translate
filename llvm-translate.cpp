@@ -41,7 +41,6 @@ cl::opt<std::string> OutputDir("odir", cl::init(""), cl::desc("<output directory
 int trace_full;// = 1;
 static int dump_interpret;// = 1;
 ExecutionEngine *EE;
-Module *globalMod;
 static const Function *EntryFn;
 
 /*
@@ -99,7 +98,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     EE = builder.create();
     assert(EE);
 
-    globalMod = Mod;
     if (OutputDir == "") {
         printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
         exit(-1);
