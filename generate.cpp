@@ -741,17 +741,17 @@ static std::string printCall(Instruction &I)
     }
     for (; AI != AE; ++AI, ++ArgNo, FAI++) {
         if (!skip) {
-            vout += sep;
             std::string p = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog)
                 vout += ";\n            " + prefix + "_" + FAI->getName().str() + " = ";
             else
-                sep = ", ";
+                vout += sep;
             vout += p;
+            sep = ", ";
         }
         skip = 0;
     }
-    if (prefix == "")
+    if (generateRegion != ProcessVerilog)
         vout += ")";
     return vout;
 }
