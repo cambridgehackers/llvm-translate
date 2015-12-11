@@ -134,8 +134,15 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
-static void processHoist(Function *currentFunction, Instruction &I)
+static void processHoist(Function *currentFunction)
 {
+        for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
+            for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
+                auto INEXT = std::next(BasicBlock::iterator(II));
+                if (II->getOpcode() == Instruction::Call)
+{
+                    //processHoist(currentFunction, *II);
+Instruction &I = *II;
     std::string vout, methodString, fname, methodName, prefix, rmethodString;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     CallInst &ICL = static_cast<CallInst&>(I);
@@ -226,6 +233,10 @@ static void processHoist(Function *currentFunction, Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
+}
+                II = INEXT;
+            }
+        }
 }
 static void call2runOnFunction(Function *currentFunction, Function &F)
 {
@@ -1069,16 +1080,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
     // Walk list of work items, cleaning up function references and adding to vtableWork
-    for (auto func : vtableWork) {
-        for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
-            for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
-                auto INEXT = std::next(BasicBlock::iterator(II));
-                if (II->getOpcode() == Instruction::Call)
-                    processHoist(func, *II);
-                II = INEXT;
-            }
-        }
-    }
+    for (auto func : vtableWork)
+        processHoist(func);
 
     // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
