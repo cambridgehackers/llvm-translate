@@ -134,8 +134,11 @@ static int inheritsModule(const StructType *STy)
     return 0;
 }
 
-static void addGuard(Instruction *argI, int RDYName, Function *parentRDYName)
+static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
 {
+    Function *parentRDYName = ruleRDYFunction[currentFunction];
+    if (!parentRDYName || RDYName < 0)
+        return;
     TerminatorInst *TI = parentRDYName->begin()->getTerminator();
     Instruction *newI = copyFunction(TI, argI, RDYName, Type::getInt1Ty(TI->getContext()));
     if (CallInst *nc = dyn_cast<CallInst>(newI))
@@ -161,11 +164,7 @@ static void processHoist(Function *currentFunction)
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
             if (II->getOpcode() == Instruction::Call) {
-                Instruction &I = *II;
-                std::string rmethodString;
-                Function *parentRDYName = ruleRDYFunction[currentFunction];
-                CallInst &ICL = static_cast<CallInst&>(I);
-                int RDYName = -1;
+                CallInst &ICL = static_cast<CallInst&>(*II);
             
                 std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
                 if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
@@ -176,7 +175,7 @@ static void processHoist(Function *currentFunction)
                 if (!func)
                     func = EE->FindFunctionNamed(pcalledFunction.c_str());
                 if (trace_call)
-                    printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
+                    printf("CALL: CALLER %d %s func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), func, pcalledFunction.c_str());
                 if (!func) {
                     printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
                     exit(-1);
@@ -185,9 +184,10 @@ static void processHoist(Function *currentFunction)
                 PointerType  *PTy = cast<PointerType>(func->getType());
                 FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
                 ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
-                Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
+                Instruction *oldOp = dyn_cast<Instruction>(II->getOperand(II->getNumOperands()-1));
                 const StructType *STy = findThisArgumentType(func->getType());
                 //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+                // also pushWork for all possible derivable types from the current method invocation
                 for (auto info : classCreate)
                     if (const StructType *iSTy = info.first)
                     if (ClassMethodTable *table = info.second)
@@ -198,40 +198,36 @@ static void processHoist(Function *currentFunction)
                     if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
                         pushWork(EE->FindFunctionNamed(lookupMethodName(table, CI->getZExtValue()).c_str()));
                 if (oldOp) {
-                    I.setOperand(I.getNumOperands()-1, func);
+                    II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
                 }
-                if (ClassMethodTable *table = classCreate[STy])
-                    if ((rmethodString = getMethodName(func->getName())) != "")
-                        RDYName = vtableFind(table, rmethodString + "__RDY");
                 if (trace_hoist)
-                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, I.getType()->getTypeID(), pcalledFunction.c_str());
+                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, II->getType()->getTypeID(), pcalledFunction.c_str());
                 if (func->isDeclaration() && pcalledFunction == "_Z14PIPELINEMARKER") {
-                    /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-                    Function *F = I.getParent()->getParent();
+                    /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
+                    Function *F = II->getParent()->getParent();
                     Module *Mod = F->getParent();
                     std::string Fname = F->getName().str();
                     std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
                     Function *otherBody = Mod->getFunction(otherName);
                     TerminatorInst *TI = otherBody->begin()->getTerminator();
-                    prepareClone(TI, &I);
-                    Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
-                    Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+                    prepareClone(TI, II);
+                    Instruction *IT = dyn_cast<Instruction>(II->getOperand(1));
+                    Instruction *IC = dyn_cast<Instruction>(II->getOperand(0));
                     Instruction *newIC = cloneTree(IC, TI);
                     Instruction *newIT = cloneTree(IT, TI);
                     printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
                     IRBuilder<> builder(TI->getParent());
                     builder.SetInsertPoint(TI);
                     builder.CreateStore(newIC, newIT);
-                    IRBuilder<> oldbuilder(I.getParent());
-                    oldbuilder.SetInsertPoint(&I);
+                    IRBuilder<> oldbuilder(II->getParent());
+                    oldbuilder.SetInsertPoint(II);
                     Value *newLoad = oldbuilder.CreateLoad(IT);
-                    I.replaceAllUsesWith(newLoad);
-                    I.eraseFromParent();
+                    II->replaceAllUsesWith(newLoad);
+                    II->eraseFromParent();
                     return;
                 }
-                if (RDYName >= 0 && parentRDYName)
-                    addGuard(&I, RDYName, parentRDYName);
+                addGuard(II, vtableFind(classCreate[STy], getMethodName(func->getName()) + "__RDY"), currentFunction);
             }
             II = INEXT;
         }
@@ -312,6 +308,7 @@ void pushWork(Function *func)
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     call2runOnFunction(func, *func);
+    // promote guards from contained calls to be guards for this function
     processHoist(func);
 }
 
@@ -530,7 +527,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     std::string cbuffer = "(", sep = " ", amper = "&";
     PointerType *PTy;
     ConstantDataArray *CPA;
-    void *tval = NULL;
     uint64_t Total = 0;
     VectorType *LastIndexIsVector = 0;
     const DataLayout *TD = EE->getDataLayout();
@@ -561,12 +557,9 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (table = classCreate[findThisArgumentType(PTy)])) {
         // Lookup method index in vtable
-        std::string lname = lookupMethodName(table, Total/sizeof(void *));
-        std::string name = getMethodName(lname);
+        referstr = lookupMethodName(table, Total/sizeof(void *));
         if (trace_gep)
-            printf("%s: Method invocation referstr %s name %s lname %s tval %p\n", __FUNCTION__,
-                referstr.c_str(), name.c_str(), lname.c_str(), tval);
-        referstr = generateRegion == ProcessNone ? lname : name;
+            printf("%s: Method invocation referstr %s\n", __FUNCTION__, referstr.c_str());
         I = E; // skip post processing
     }
     else if (FirstOp && FirstOp->isNullValue()) {
@@ -906,7 +899,8 @@ static std::string processInstruction(Instruction &I)
         break;
 #endif
     default:
-        printf("COther opcode %d.=%s\n", opcode, I.getOpcodeName());
+        printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
+        I.getParent()->getParent()->dump();
         exit(1);
         break;
     }
