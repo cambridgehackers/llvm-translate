@@ -56,6 +56,41 @@ static int hasRun(const StructType *STy)
     }
     return 0;
 }
+
+static std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
+{
+    std::string sep = "", statstr = "", tstr;
+    FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+    ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
+    if (F->hasLocalLinkage()) statstr = "static ";
+    if (altname != "")
+        tstr += altname;
+    else
+        tstr += F->getName();
+    tstr += '(';
+    if (F->isDeclaration()) {
+        for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
+            if (!skip) {
+                tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
+                sep = ", ";
+            }
+            skip = 0;
+        }
+    } else if (!F->arg_empty()) {
+        for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+            if (!skip) {
+                std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
+                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "", false);
+                sep = ", ";
+            }
+            skip = 0;
+        }
+    }
+    if (sep == "")
+        tstr += "void"; // ret() -> ret(void) in C.
+    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
+}
+
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     ClassMethodTable *table = classCreate[STy];

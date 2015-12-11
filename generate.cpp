@@ -158,7 +158,7 @@ static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
-static void processHoist(Function *currentFunction)
+static void processPromote(Function *currentFunction)
 {
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
@@ -309,7 +309,7 @@ void pushWork(Function *func)
     // inline intra-class method call bodies
     call2runOnFunction(func, *func);
     // promote guards from contained calls to be guards for this function
-    processHoist(func);
+    processPromote(func);
 }
 
 /*
@@ -329,7 +329,7 @@ std::string getStructName(const StructType *STy)
     }
 }
 
-static std::string GetValueName(const Value *Operand)
+std::string GetValueName(const Value *Operand)
 {
     const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand);
     const Value *V;
@@ -482,40 +482,6 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
     }
     cbuffer += postfix;
     return cbuffer;
-}
-
-std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
-{
-    std::string sep = "", statstr = "", tstr;
-    FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-    ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
-    if (F->hasLocalLinkage()) statstr = "static ";
-    if (altname != "")
-        tstr += altname;
-    else
-        tstr += F->getName();
-    tstr += '(';
-    if (F->isDeclaration()) {
-        for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-            if (!skip) {
-                tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
-                sep = ", ";
-            }
-            skip = 0;
-        }
-    } else if (!F->arg_empty()) {
-        for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-            if (!skip) {
-                std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "", false);
-                sep = ", ";
-            }
-            skip = 0;
-        }
-    }
-    if (sep == "")
-        tstr += "void"; // ret() -> ret(void) in C.
-    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
 }
 
 /*
