@@ -693,7 +693,7 @@ static std::string printCall(Instruction &I)
     const char *sep = "";
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    int skip = generateRegion != ProcessNone;
+    int skip = 1;
 
     std::string pcalledFunction = printOperand(*AI, false);
     if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
@@ -703,24 +703,26 @@ static std::string printCall(Instruction &I)
     ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
-    pushWork(func);
     if (trace_call)
         printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
+    pushWork(func);
     PointerType  *PTy = cast<PointerType>(func->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     unsigned len = FTy->getNumParams();
     ERRORIF(FTy->isVarArg() && !len);
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     ERRORIF(!CMT);
-    skip = 1;
     Function::const_arg_iterator FAI = func->arg_begin();
+    poststr = "->";
+    if (pcalledFunction[0] == '&') {
+        pcalledFunction = pcalledFunction.substr(1);
+        poststr = ".";
+    }
     if (generateRegion == ProcessVerilog) {
-        if (pcalledFunction[0] == '&')
-            pcalledFunction = pcalledFunction.substr(1);
         prefix = pcalledFunction + "_" + getMethodName(func->getName());
         vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
@@ -733,13 +735,7 @@ static std::string printCall(Instruction &I)
             //printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
             skip = 0;
         }
-        poststr = "->";
-        if (pcalledFunction[0] == '&') {
-            pcalledFunction = pcalledFunction.substr(1);
-            poststr = ".";
-        }
-        poststr += getMethodName(func->getName());
-        vout += pcalledFunction + poststr + "(";
+        vout += pcalledFunction + poststr + getMethodName(func->getName()) + "(";
         if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
             printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
             skip = 0;
@@ -751,7 +747,7 @@ static std::string printCall(Instruction &I)
             std::string p = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
                 if (prefix != "")
-                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
+                    vout += ";\n            " + prefix + "_" + FAI->getName().str() + " = ";
                 else
                     sep = ", ";
                 vout += p;
