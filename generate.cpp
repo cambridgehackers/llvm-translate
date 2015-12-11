@@ -134,6 +134,25 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
+static void addGuard(Instruction *argI, int RDYName, Function *parentRDYName)
+{
+    TerminatorInst *TI = parentRDYName->begin()->getTerminator();
+    Instruction *newI = copyFunction(TI, argI, RDYName, Type::getInt1Ty(TI->getContext()));
+    if (CallInst *nc = dyn_cast<CallInst>(newI))
+        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+    Value *cond = TI->getOperand(0);
+    const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+    if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+        TI->setOperand(0, newI);
+    else {
+        // 'And' return value into condition
+        Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+        cond->replaceAllUsesWith(newBool);
+        // we must set this after the 'replaceAllUsesWith'
+        newBool->setOperand(0, cond);
+    }
+}
+
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
 static void processHoist(Function *currentFunction)
@@ -156,31 +175,28 @@ static void processHoist(Function *currentFunction)
                 ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
                 if (!func)
                     func = EE->FindFunctionNamed(pcalledFunction.c_str());
-                pushWork(func);
                 if (trace_call)
                     printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
                 if (!func) {
                     printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
                     exit(-1);
                 }
+                pushWork(func);
                 PointerType  *PTy = cast<PointerType>(func->getType());
                 FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
                 ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
                 Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
                 const StructType *STy = findThisArgumentType(func->getType());
                 //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
-                for (auto info : classCreate) {
+                for (auto info : classCreate)
                     if (const StructType *iSTy = info.first)
                     if (ClassMethodTable *table = info.second)
-                    if (oldOp && derivedStruct(iSTy, STy)) {
-                        if (oldOp->getOpcode() == Instruction::Load)
-                        if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
-                        if (gep->getNumOperands() >= 2)
-                        if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
-                            pushWork(EE->FindFunctionNamed(
-                                lookupMethodName(table, CI->getZExtValue()).c_str()));
-                    }
-                }
+                    if (oldOp && derivedStruct(iSTy, STy))
+                    if (oldOp->getOpcode() == Instruction::Load)
+                    if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
+                    if (gep->getNumOperands() >= 2)
+                    if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
+                        pushWork(EE->FindFunctionNamed(lookupMethodName(table, CI->getZExtValue()).c_str()));
                 if (oldOp) {
                     I.setOperand(I.getNumOperands()-1, func);
                     recursiveDelete(oldOp);
@@ -214,23 +230,8 @@ static void processHoist(Function *currentFunction)
                     I.eraseFromParent();
                     return;
                 }
-                if (RDYName >= 0 && parentRDYName) {
-                    TerminatorInst *TI = parentRDYName->begin()->getTerminator();
-                    Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
-                    if (CallInst *nc = dyn_cast<CallInst>(newI))
-                        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
-                    Value *cond = TI->getOperand(0);
-                    const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
-                    if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-                        TI->setOperand(0, newI);
-                    else {
-                        // 'And' return value into condition
-                        Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-                        cond->replaceAllUsesWith(newBool);
-                        // we must set this after the 'replaceAllUsesWith'
-                        newBool->setOperand(0, cond);
-                    }
-                }
+                if (RDYName >= 0 && parentRDYName)
+                    addGuard(&I, RDYName, parentRDYName);
             }
             II = INEXT;
         }
@@ -243,7 +244,7 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
     std::string fname = F.getName();
 //printf("CallProcessPass2: %s\n", fname.c_str());
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->getFirstInsertionPt(), IE = BB->end(); II != IE;) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
             int opcode = II->getOpcode();
             switch (opcode) {
@@ -702,10 +703,7 @@ static std::string printCall(Instruction &I)
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
-    pushWork(func);
     Function::const_arg_iterator FAI = func->arg_begin();
-    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
-    ERRORIF(!CMT);
     std::string prefix = "->";
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
