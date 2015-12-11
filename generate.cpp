@@ -603,7 +603,6 @@ static void printCallHoist(Instruction &I)
         printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-return;
         exit(-1);
     }
     PointerType  *PTy = cast<PointerType>(func->getType());
@@ -710,8 +709,11 @@ static std::string printCall(Instruction &I)
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     if (CMT)
         pcalledFunction = printOperand(*AI, false);
+    else {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        exit(-1);
+    }
     if (generateRegion == ProcessVerilog) {
-    if (CMT) {
         if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
             pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
         if (pcalledFunction[0] == '&')
@@ -721,26 +723,21 @@ static std::string printCall(Instruction &I)
         skip = 1;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
-    }
-    else {
-        vout += pcalledFunction;
-        return vout;
-    }
-    if (prefix == "")
-        vout += "(";
-    Function::const_arg_iterator FAI = func->arg_begin();
-    for (; AI != AE; ++AI, ++ArgNo, FAI++) {
-        if (!skip) {
-            vout += sep;
-            std::string p = printOperand(*AI, false);
-            if (prefix != "")
-                vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
-            else
-                sep = ", ";
-            vout += p;
+        if (prefix == "")
+            vout += "(";
+        Function::const_arg_iterator FAI = func->arg_begin();
+        for (; AI != AE; ++AI, ++ArgNo, FAI++) {
+            if (!skip) {
+                vout += sep;
+                std::string p = printOperand(*AI, false);
+                if (prefix != "")
+                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
+                else
+                    sep = ", ";
+                vout += p;
+            }
+            skip = 0;
         }
-        skip = 0;
-    }
     }
     else {
         std::string poststr;
@@ -748,7 +745,6 @@ static std::string printCall(Instruction &I)
             //printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
             skip = 0;
         }
-    if (CMT) {
         skip = 1;
         poststr = "->";
         if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1]) {
@@ -756,19 +752,18 @@ static std::string printCall(Instruction &I)
             poststr = ".";
         }
         poststr += getMethodName(func->getName());
-    }
-    vout += pcalledFunction + poststr + "(";
-    if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
-        printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
-        skip = 0;
-    }
-    for (; AI != AE; ++AI, ++ArgNo) {
-        if (!skip) {
-            vout += sep + printOperand(*AI, false);
-            sep = ", ";
+        vout += pcalledFunction + poststr + "(";
+        if (len && FTy->getParamType(0)->getTypeID() != Type::PointerTyID) {
+            printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
+            skip = 0;
         }
-        skip = 0;
-    }
+        for (; AI != AE; ++AI, ++ArgNo) {
+            if (!skip) {
+                vout += sep + printOperand(*AI, false);
+                sep = ", ";
+            }
+            skip = 0;
+        }
     }
     if (prefix == "")
         vout += ")";
