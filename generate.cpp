@@ -143,7 +143,7 @@ static void processHoist(Function *currentFunction)
             auto INEXT = std::next(BasicBlock::iterator(II));
             if (II->getOpcode() == Instruction::Call) {
                 Instruction &I = *II;
-                std::string vout, methodString, fname, methodName, prefix, rmethodString;
+                std::string rmethodString;
                 Function *parentRDYName = ruleRDYFunction[currentFunction];
                 CallInst &ICL = static_cast<CallInst&>(I);
                 int RDYName = -1;
@@ -165,8 +165,7 @@ static void processHoist(Function *currentFunction)
                 }
                 PointerType  *PTy = cast<PointerType>(func->getType());
                 FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-                unsigned len = FTy->getNumParams();
-                ERRORIF(FTy->isVarArg() && !len);
+                ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
                 Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
                 const StructType *STy = findThisArgumentType(func->getType());
                 //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
@@ -189,10 +188,9 @@ static void processHoist(Function *currentFunction)
                 if (ClassMethodTable *table = classCreate[STy])
                     if ((rmethodString = getMethodName(func->getName())) != "")
                         RDYName = vtableFind(table, rmethodString + "__RDY");
-                fname = func->getName();
                 if (trace_hoist)
-                    printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
-                if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
+                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, I.getType()->getTypeID(), pcalledFunction.c_str());
+                if (func->isDeclaration() && pcalledFunction == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
                     Function *F = I.getParent()->getParent();
                     Module *Mod = F->getParent();
@@ -696,8 +694,6 @@ static std::string printCall(Instruction &I)
     if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
         pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
     Function *func = ICL.getCalledFunction();
-    ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
-    ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
@@ -707,12 +703,9 @@ static std::string printCall(Instruction &I)
         exit(-1);
     }
     pushWork(func);
-    PointerType  *PTy = cast<PointerType>(func->getType());
-    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+    Function::const_arg_iterator FAI = func->arg_begin();
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
     ERRORIF(!CMT);
-    Function::const_arg_iterator FAI = func->arg_begin();
     std::string prefix = "->";
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
