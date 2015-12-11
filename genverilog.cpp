@@ -141,20 +141,15 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
 
-printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table);
-    if (!inheritsModule(STy))
-        return;
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
-        if (ClassMethodTable *table = classCreate[STy])
-            if (const Type *newType = table->replaceType[Idx])
-                element = newType;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
         std::string fname = fieldName(STy, Idx);
-        if (fname != "")
-        if (!dyn_cast<PointerType>(element)) {
+        if (fname != "" && !dyn_cast<PointerType>(element)) {
             if (const StructType *STy = dyn_cast<StructType>(element))
                 generateModuleSignature(OStr, STy, fname);
             else
@@ -165,18 +160,19 @@ printf("[%s:%d] name %s table %p\n", __FUNCTION__, __LINE__, name.c_str(), table
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         fprintf(OStr, "        // Method: %s\n", mname.c_str());
-        if (!hasRet)
+        if (isAction)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         processFunction(func, OStr);
-        if (!hasRet)
+        if (isAction)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
     fprintf(OStr, "      end; // nRST\n");
     fprintf(OStr, "    end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
+
     /*
      * Now generate importBVI for use of module from Bluespec
      */

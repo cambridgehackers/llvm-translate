@@ -223,14 +223,9 @@ int derivedStruct(const StructType *STyA, const StructType *STyB)
 {
     int Idx = 0;
     if (STyA && STyB)
-    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++) {
-        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB) {
-            //printf("[%s:%d] inherit %p A %p B %p\n", __FUNCTION__, __LINE__, *I, STyA, STyB);
-            //STyA->dump();
-            //STyB->dump();
+    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++)
+        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB)
             return 1;
-        }
-    }
     return 0;
 }
 static int checkDerived(const Type *A, const Type *B)
@@ -406,7 +401,7 @@ void constructVtableMap(Module *Mod)
 }
 
 /*
- * Starting from all toplevel global, construct symbolic names for
+ * Starting from all toplevel global variables, construct symbolic names for
  * all reachable addresses
  */
 void constructAddressMap(Module *Mod)
