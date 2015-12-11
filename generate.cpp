@@ -695,7 +695,7 @@ static std::string printCall(Instruction &I)
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
     int skip = generateRegion != ProcessNone;
 
-    std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
+    std::string pcalledFunction = printOperand(*AI, false);
     if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
         pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
     Function *func = ICL.getCalledFunction();
@@ -715,14 +715,7 @@ static std::string printCall(Instruction &I)
     unsigned len = FTy->getNumParams();
     ERRORIF(FTy->isVarArg() && !len);
     ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
-    if (CMT)
-        pcalledFunction = printOperand(*AI, false);
-    else {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-        exit(-1);
-    }
-    if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
-        pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
+    ERRORIF(!CMT);
     skip = 1;
     Function::const_arg_iterator FAI = func->arg_begin();
     if (generateRegion == ProcessVerilog) {
