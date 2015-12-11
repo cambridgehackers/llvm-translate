@@ -46,8 +46,8 @@ void l_class_OC_Echo::rule_respond(void) {
         (ind)->echo(call);
 }
 bool l_class_OC_Echo::rule_respond__RDY(void) {
-        bool tmp__1 = fifo.deq__RDY();
-        bool tmp__2 = fifo.first__RDY();
+        bool tmp__1 = fifo.first__RDY();
+        bool tmp__2 = fifo.deq__RDY();
         return (tmp__1 & tmp__2);
 }
 void l_class_OC_Echo::run()

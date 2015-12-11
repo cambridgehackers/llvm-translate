@@ -583,16 +583,11 @@ std::string printOperand(Value *Operand, bool Indirect)
     return cbuffer;
 }
 
-static std::string printCall(Instruction &I)
+static void printCallHoist(Instruction &I)
 {
     std::string vout, methodString, fname, methodName, prefix, rmethodString;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     CallInst &ICL = static_cast<CallInst&>(I);
-    unsigned ArgNo = 0;
-    const char *sep = "";
-    CallSite CS(&I);
-    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    int skip = generateRegion != ProcessNone;
     int RDYName = -1;
 
     std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
@@ -608,24 +603,19 @@ static std::string printCall(Instruction &I)
         printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+return;
         exit(-1);
     }
     PointerType  *PTy = cast<PointerType>(func->getType());
     FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
     unsigned len = FTy->getNumParams();
     ERRORIF(FTy->isVarArg() && !len);
-    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
-    if (CMT && generateRegion != ProcessNone) {
-        pcalledFunction = printOperand(*AI, false);
-    }
-    if (generateRegion == ProcessNone) {
     Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
     const StructType *STy = findThisArgumentType(func->getType());
     //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
     for (auto info : classCreate) {
         if (const StructType *iSTy = info.first)
         if (ClassMethodTable *table = info.second)
-        //if (table->vtable && STy)
         if (oldOp && derivedStruct(iSTy, STy)) {
             if (oldOp->getOpcode() == Instruction::Load)
             if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
@@ -667,7 +657,7 @@ static std::string printCall(Instruction &I)
         Value *newLoad = oldbuilder.CreateLoad(IT);
         I.replaceAllUsesWith(newLoad);
         I.eraseFromParent();
-        return "";
+        return;
     }
     if (RDYName >= 0 && parentRDYName) {
         TerminatorInst *TI = parentRDYName->begin()->getTerminator();
@@ -686,10 +676,41 @@ static std::string printCall(Instruction &I)
             newBool->setOperand(0, cond);
         }
     }
-        for (; AI != AE; ++AI) // force evaluation of all parameters
-            printOperand(*AI, false);
+}
+static std::string printCall(Instruction &I)
+{
+    std::string vout, methodString, fname, methodName, prefix, rmethodString;
+    Function *parentRDYName = ruleRDYFunction[currentFunction];
+    CallInst &ICL = static_cast<CallInst&>(I);
+    unsigned ArgNo = 0;
+    const char *sep = "";
+    CallSite CS(&I);
+    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+    int skip = generateRegion != ProcessNone;
+
+    std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
+    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
+        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
+    Function *func = ICL.getCalledFunction();
+    ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+    ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+    if (!func)
+        func = EE->FindFunctionNamed(pcalledFunction.c_str());
+    pushWork(func);
+    if (trace_call)
+        printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
+    if (!func) {
+        printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+        exit(-1);
     }
-    else if (generateRegion == ProcessVerilog) {
+    PointerType  *PTy = cast<PointerType>(func->getType());
+    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+    unsigned len = FTy->getNumParams();
+    ERRORIF(FTy->isVarArg() && !len);
+    ClassMethodTable *CMT = classCreate[findThisArgumentType(func->getType())];
+    if (CMT)
+        pcalledFunction = printOperand(*AI, false);
+    if (generateRegion == ProcessVerilog) {
     if (CMT) {
         if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
             pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
@@ -1058,17 +1079,8 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
         for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
             for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
                 auto INEXT = std::next(BasicBlock::iterator(II));
-                if (INEXT == IE || !isInlinableInst(*II)) {
-                    switch(II->getOpcode()) {
-                    case Instruction::Call:
-                        printCall(*II);
-                        break;
-                    default:
-                        for (unsigned int ind = 0; ind < II->getNumOperands(); ind++)
-                            printOperand(II->getOperand(ind), true);
-                        break;
-                    }
-                }
+                if (II->getOpcode() == Instruction::Call)
+                    printCallHoist(*II);
                 II = INEXT;
             }
         }

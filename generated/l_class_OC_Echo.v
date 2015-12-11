@@ -1,5 +1,5 @@
 //RDY:            echoReq__RDY = (fifo_enq__RDY);
-//RDY:            rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
+//RDY:            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
 //RULE:   echoReq__ENA
 //RULE:   rule_respond__ENA
 module l_class_OC_Echo (
@@ -45,7 +45,7 @@ module l_class_OC_Echo (
         end; // End of rule_respond
 
         // Method: rule_respond__RDY
-            rule_respond__RDY = (fifo_deq__RDY) & (fifo_first__RDY);
+            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
 
       end; // nRST
     end; // always @ (posedge CLK)
