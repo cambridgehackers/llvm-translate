@@ -686,7 +686,7 @@ std::string printOperand(Value *Operand, bool Indirect)
 
 static std::string printCall(Instruction &I)
 {
-    std::string vout, methodString, fname, methodName, prefix, rmethodString;
+    std::string vout, methodString, fname, methodName, prefix, rmethodString, poststr;
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     CallInst &ICL = static_cast<CallInst&>(I);
     unsigned ArgNo = 0;
@@ -721,42 +721,28 @@ static std::string printCall(Instruction &I)
         printf("[%s:%d]\n", __FUNCTION__, __LINE__);
         exit(-1);
     }
+    if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
+        pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
+    skip = 1;
+    Function::const_arg_iterator FAI = func->arg_begin();
     if (generateRegion == ProcessVerilog) {
-        if (pcalledFunction.substr(0,1) == "(" && pcalledFunction[pcalledFunction.length()-1] == ')')
-            pcalledFunction = pcalledFunction.substr(1,pcalledFunction.length()-2);
         if (pcalledFunction[0] == '&')
             pcalledFunction = pcalledFunction.substr(1);
         prefix = pcalledFunction + "_" + getMethodName(func->getName());
         vout += prefix;
-        skip = 1;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
         if (prefix == "")
             vout += "(";
-        Function::const_arg_iterator FAI = func->arg_begin();
-        for (; AI != AE; ++AI, ++ArgNo, FAI++) {
-            if (!skip) {
-                vout += sep;
-                std::string p = printOperand(*AI, false);
-                if (prefix != "")
-                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
-                else
-                    sep = ", ";
-                vout += p;
-            }
-            skip = 0;
-        }
     }
     else {
-        std::string poststr;
         if (!inheritsModule(findThisArgumentType(currentFunction->getType()))) {
             //printf("[%s:%d] %s -> %s %p skip %d\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, skip);
             skip = 0;
         }
-        skip = 1;
         poststr = "->";
-        if (pcalledFunction.substr(0,2) == "(&" && pcalledFunction[pcalledFunction.length()-1]) {
-            pcalledFunction = pcalledFunction.substr(2,pcalledFunction.length()-3);
+        if (pcalledFunction[0] == '&') {
+            pcalledFunction = pcalledFunction.substr(1);
             poststr = ".";
         }
         poststr += getMethodName(func->getName());
@@ -765,13 +751,24 @@ static std::string printCall(Instruction &I)
             printf("[%s:%d] clear skip\n", __FUNCTION__, __LINE__);
             skip = 0;
         }
-        for (; AI != AE; ++AI, ++ArgNo) {
-            if (!skip) {
-                vout += sep + printOperand(*AI, false);
+    }
+    for (; AI != AE; ++AI, ++ArgNo, FAI++) {
+        if (!skip) {
+            vout += sep;
+            std::string p = printOperand(*AI, false);
+            if (generateRegion == ProcessVerilog) {
+                if (prefix != "")
+                    vout += (";\n            " + prefix + "_" + FAI->getName().str() + " = ");
+                else
+                    sep = ", ";
+                vout += p;
+            }
+            else {
+                vout += p;
                 sep = ", ";
             }
-            skip = 0;
         }
+        skip = 0;
     }
     if (prefix == "")
         vout += ")";
