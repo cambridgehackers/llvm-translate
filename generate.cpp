@@ -134,109 +134,109 @@ int inheritsModule(const StructType *STy)
     return 0;
 }
 
+// Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
+// Walk list of work items, cleaning up function references and adding to vtableWork
 static void processHoist(Function *currentFunction)
 {
-        for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
-            for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
-                auto INEXT = std::next(BasicBlock::iterator(II));
-                if (II->getOpcode() == Instruction::Call)
-{
-                    //processHoist(currentFunction, *II);
-Instruction &I = *II;
-    std::string vout, methodString, fname, methodName, prefix, rmethodString;
-    Function *parentRDYName = ruleRDYFunction[currentFunction];
-    CallInst &ICL = static_cast<CallInst&>(I);
-    int RDYName = -1;
-
-    std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
-    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
-    Function *func = ICL.getCalledFunction();
-    ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
-    ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
-    if (!func)
-        func = EE->FindFunctionNamed(pcalledFunction.c_str());
-    pushWork(func);
-    if (trace_call)
-        printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
-    if (!func) {
-        printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-        exit(-1);
-    }
-    PointerType  *PTy = cast<PointerType>(func->getType());
-    FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-    unsigned len = FTy->getNumParams();
-    ERRORIF(FTy->isVarArg() && !len);
-    Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
-    const StructType *STy = findThisArgumentType(func->getType());
-    //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
-    for (auto info : classCreate) {
-        if (const StructType *iSTy = info.first)
-        if (ClassMethodTable *table = info.second)
-        if (oldOp && derivedStruct(iSTy, STy)) {
-            if (oldOp->getOpcode() == Instruction::Load)
-            if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
-            if (gep->getNumOperands() >= 2)
-            if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
-                pushWork(EE->FindFunctionNamed(
-                    lookupMethodName(table, CI->getZExtValue()).c_str()));
-        }
-    }
-    if (oldOp) {
-        I.setOperand(I.getNumOperands()-1, func);
-        recursiveDelete(oldOp);
-    }
-    if (ClassMethodTable *table = classCreate[STy])
-        if ((rmethodString = getMethodName(func->getName())) != "")
-            RDYName = vtableFind(table, rmethodString + "__RDY");
-    fname = func->getName();
-    if (trace_hoist)
-        printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
-    if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
-        /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
-        Function *F = I.getParent()->getParent();
-        Module *Mod = F->getParent();
-        std::string Fname = F->getName().str();
-        std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
-        Function *otherBody = Mod->getFunction(otherName);
-        TerminatorInst *TI = otherBody->begin()->getTerminator();
-        prepareClone(TI, &I);
-        Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
-        Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
-        Instruction *newIC = cloneTree(IC, TI);
-        Instruction *newIT = cloneTree(IT, TI);
-        printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
-        IRBuilder<> builder(TI->getParent());
-        builder.SetInsertPoint(TI);
-        builder.CreateStore(newIC, newIT);
-        IRBuilder<> oldbuilder(I.getParent());
-        oldbuilder.SetInsertPoint(&I);
-        Value *newLoad = oldbuilder.CreateLoad(IT);
-        I.replaceAllUsesWith(newLoad);
-        I.eraseFromParent();
-        return;
-    }
-    if (RDYName >= 0 && parentRDYName) {
-        TerminatorInst *TI = parentRDYName->begin()->getTerminator();
-        Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
-        if (CallInst *nc = dyn_cast<CallInst>(newI))
-            nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
-        Value *cond = TI->getOperand(0);
-        const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
-        if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-            TI->setOperand(0, newI);
-        else {
-            // 'And' return value into condition
-            Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
-            cond->replaceAllUsesWith(newBool);
-            // we must set this after the 'replaceAllUsesWith'
-            newBool->setOperand(0, cond);
-        }
-    }
-}
-                II = INEXT;
+    for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
+        for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
+            auto INEXT = std::next(BasicBlock::iterator(II));
+            if (II->getOpcode() == Instruction::Call) {
+                Instruction &I = *II;
+                std::string vout, methodString, fname, methodName, prefix, rmethodString;
+                Function *parentRDYName = ruleRDYFunction[currentFunction];
+                CallInst &ICL = static_cast<CallInst&>(I);
+                int RDYName = -1;
+            
+                std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
+                if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
+                    pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
+                Function *func = ICL.getCalledFunction();
+                ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+                ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+                if (!func)
+                    func = EE->FindFunctionNamed(pcalledFunction.c_str());
+                pushWork(func);
+                if (trace_call)
+                    printf("CALL: CALLER %d %s pRDY %p func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), parentRDYName, func, pcalledFunction.c_str());
+                if (!func) {
+                    printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+                    exit(-1);
+                }
+                PointerType  *PTy = cast<PointerType>(func->getType());
+                FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+                unsigned len = FTy->getNumParams();
+                ERRORIF(FTy->isVarArg() && !len);
+                Instruction *oldOp = dyn_cast<Instruction>(I.getOperand(I.getNumOperands()-1));
+                const StructType *STy = findThisArgumentType(func->getType());
+                //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+                for (auto info : classCreate) {
+                    if (const StructType *iSTy = info.first)
+                    if (ClassMethodTable *table = info.second)
+                    if (oldOp && derivedStruct(iSTy, STy)) {
+                        if (oldOp->getOpcode() == Instruction::Load)
+                        if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
+                        if (gep->getNumOperands() >= 2)
+                        if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
+                            pushWork(EE->FindFunctionNamed(
+                                lookupMethodName(table, CI->getZExtValue()).c_str()));
+                    }
+                }
+                if (oldOp) {
+                    I.setOperand(I.getNumOperands()-1, func);
+                    recursiveDelete(oldOp);
+                }
+                if (ClassMethodTable *table = classCreate[STy])
+                    if ((rmethodString = getMethodName(func->getName())) != "")
+                        RDYName = vtableFind(table, rmethodString + "__RDY");
+                fname = func->getName();
+                if (trace_hoist)
+                    printf("HOIST:    CALL %p typeid %d fname %s\n", func, I.getType()->getTypeID(), fname.c_str());
+                if (func->isDeclaration() && !strncmp(fname.c_str(), "_Z14PIPELINEMARKER", 18)) {
+                    /* for now, just remove the Call.  Later we will push processing of I.getOperand(0) into another block */
+                    Function *F = I.getParent()->getParent();
+                    Module *Mod = F->getParent();
+                    std::string Fname = F->getName().str();
+                    std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
+                    Function *otherBody = Mod->getFunction(otherName);
+                    TerminatorInst *TI = otherBody->begin()->getTerminator();
+                    prepareClone(TI, &I);
+                    Instruction *IT = dyn_cast<Instruction>(I.getOperand(1));
+                    Instruction *IC = dyn_cast<Instruction>(I.getOperand(0));
+                    Instruction *newIC = cloneTree(IC, TI);
+                    Instruction *newIT = cloneTree(IT, TI);
+                    printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+                    IRBuilder<> builder(TI->getParent());
+                    builder.SetInsertPoint(TI);
+                    builder.CreateStore(newIC, newIT);
+                    IRBuilder<> oldbuilder(I.getParent());
+                    oldbuilder.SetInsertPoint(&I);
+                    Value *newLoad = oldbuilder.CreateLoad(IT);
+                    I.replaceAllUsesWith(newLoad);
+                    I.eraseFromParent();
+                    return;
+                }
+                if (RDYName >= 0 && parentRDYName) {
+                    TerminatorInst *TI = parentRDYName->begin()->getTerminator();
+                    Instruction *newI = copyFunction(TI, &I, RDYName, Type::getInt1Ty(TI->getContext()));
+                    if (CallInst *nc = dyn_cast<CallInst>(newI))
+                        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+                    Value *cond = TI->getOperand(0);
+                    const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+                    if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+                        TI->setOperand(0, newI);
+                    else {
+                        // 'And' return value into condition
+                        Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+                        cond->replaceAllUsesWith(newBool);
+                        // we must set this after the 'replaceAllUsesWith'
+                        newBool->setOperand(0, cond);
+                    }
+                }
             }
+            II = INEXT;
         }
+    }
 }
 static void call2runOnFunction(Function *currentFunction, Function &F)
 {
@@ -317,6 +317,7 @@ void pushWork(Function *func)
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     call2runOnFunction(func, *func);
+    processHoist(func);
 }
 
 /*
@@ -1077,11 +1078,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // run Constructors
     EE->runStaticConstructorsDestructors(false);
-
-    // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
-    // Walk list of work items, cleaning up function references and adding to vtableWork
-    for (auto func : vtableWork)
-        processHoist(func);
 
     // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
