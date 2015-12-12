@@ -683,8 +683,11 @@ static std::string printCall(Instruction &I)
     for (; AI != AE; ++AI, FAI++) {
         if (!skip) {
             std::string p = printOperand(*AI, false);
-            if (generateRegion == ProcessVerilog)
-                vout += ";\n            " + prefix + "_" + FAI->getName().str() + " = ";
+            if (generateRegion == ProcessVerilog) {
+                std::string p = prefix + "_" + FAI->getName().str();
+                writeList.push_back(p);
+                vout += ";\n            " + p + " = ";
+            }
             else
                 vout += sep;
             vout += p;
@@ -719,7 +722,8 @@ static std::string processInstruction(Instruction &I)
         std::string p = printOperand(I.getOperand(0), true);
         if (p[0] == '(' && p[p.length()-1] == ')')
             p = p.substr(1, p.length()-2);
-        readList.push_back(p);
+        if (I.getType()->getTypeID() != Type::PointerTyID)
+            readList.push_back(p);
         return p;
         }
 

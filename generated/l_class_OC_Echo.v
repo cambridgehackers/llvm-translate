@@ -33,6 +33,7 @@ module l_class_OC_Echo (
         fifo_enq__ENA = 1;
             fifo_enq_v = echoReq_v;
 //READ echoReq: :echoReq_v
+//WRITE echoReq: :fifo_enq_v
         end; // End of echoReq
 
         // Method: echoReq__RDY
@@ -43,7 +44,7 @@ module l_class_OC_Echo (
         fifo_deq__ENA = 1;
         ind_echo__ENA = 1;
             ind_echo_v = (fifo_first);
-//READ rule_respond: :ind
+//WRITE rule_respond: :ind_echo_v
         end; // End of rule_respond
 
         // Method: rule_respond__RDY
