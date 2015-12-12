@@ -676,21 +676,22 @@ static std::string printCall(Instruction &I)
         vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
+        else
+            readList.push_back(prefix);
     }
-    else {
+    else
         vout += pcalledFunction + prefix + getMethodName(func->getName()) + "(";
-    }
     for (; AI != AE; ++AI, FAI++) {
         if (!skip) {
-            std::string p = printOperand(*AI, false);
+            std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string p = prefix + "_" + FAI->getName().str();
-                writeList.push_back(p);
-                vout += ";\n            " + p + " = ";
+                std::string pre = prefix + "_" + FAI->getName().str();
+                writeList.push_back(pre);
+                vout += ";\n            " + pre + " = ";
             }
             else
                 vout += sep;
-            vout += p;
+            vout += parg;
             sep = ", ";
         }
         skip = 0;
