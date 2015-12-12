@@ -32,6 +32,7 @@ module l_class_OC_Echo (
         if (echoReq__ENA) begin
         fifo_enq__ENA = 1;
             fifo_enq_v = echoReq_v;
+//READ echoReq: :echoReq_v
         end; // End of echoReq
 
         // Method: echoReq__RDY

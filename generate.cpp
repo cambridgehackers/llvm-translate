@@ -358,7 +358,9 @@ std::string GetValueName(const Value *Operand)
         }
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
-        return globalName + "_" + VarName;
+        VarName = globalName + "_" + VarName;
+    if (VarName != "this")
+        readList.push_back(VarName);
     return VarName;
 }
 
@@ -704,6 +706,9 @@ static std::string processInstruction(Instruction &I)
     int opcode = I.getOpcode();
 //printf("[%s:%d] op %s\n", __FUNCTION__, __LINE__, I.getOpcodeName());
     switch(opcode) {
+    case Instruction::Call:
+        vout += printCall(I);
+        break;
     case Instruction::GetElementPtr: {
         GetElementPtrInst &IG = static_cast<GetElementPtrInst&>(I);
         return printGEPExpression(IG.getPointerOperand(), gep_type_begin(IG), gep_type_end(IG));
@@ -717,6 +722,30 @@ static std::string processInstruction(Instruction &I)
         readList.push_back(p);
         return p;
         }
+
+    // Memory instructions...
+    case Instruction::Store: {
+        StoreInst &IS = static_cast<StoreInst&>(I);
+        ERRORIF (IS.isVolatile());
+        std::string pdest = printOperand(IS.getPointerOperand(), true);
+        Value *Operand = I.getOperand(0);
+        Constant *BitMask = 0;
+        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
+        if (ITy && !ITy->isPowerOf2ByteWidth())
+            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
+        std::string sval = printOperand(Operand, false);
+        if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
+            pdest = pdest.substr(1, pdest.length() -2);
+        writeList.push_back(pdest);
+        vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
+        if (BitMask)
+            vout += "((";
+        vout += sval;
+        if (BitMask)
+            vout += ") & " + printOperand(BitMask, false) + ")";
+        break;
+        }
+
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
@@ -760,29 +789,6 @@ static std::string processInstruction(Instruction &I)
                  + printOperand(I.getOperand(1), false);
         break;
 
-    // Memory instructions...
-    case Instruction::Store: {
-        StoreInst &IS = static_cast<StoreInst&>(I);
-        ERRORIF (IS.isVolatile());
-        std::string pdest = printOperand(IS.getPointerOperand(), true);
-        Value *Operand = I.getOperand(0);
-        Constant *BitMask = 0;
-        IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
-        if (ITy && !ITy->isPowerOf2ByteWidth())
-            BitMask = ConstantInt::get(ITy, ITy->getBitMask());
-        std::string sval = printOperand(Operand, false);
-        if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
-            pdest = pdest.substr(1, pdest.length() -2);
-        writeList.push_back(pdest);
-        vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
-        if (BitMask)
-            vout += "((";
-        vout += sval;
-        if (BitMask)
-            vout += ") & " + printOperand(BitMask, false) + ")";
-        break;
-        }
-
     // Convert instructions...
     case Instruction::SExt:
     case Instruction::FPTrunc: case Instruction::FPExt:
@@ -802,9 +808,6 @@ static std::string processInstruction(Instruction &I)
              + printOperand(I.getOperand(1), false);
         break;
         }
-    case Instruction::Call:
-        vout += printCall(I);
-        break;
 #if 0
     case Instruction::Br:
         {

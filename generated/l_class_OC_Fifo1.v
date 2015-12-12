@@ -32,6 +32,7 @@ module l_class_OC_Fifo1 (
         if (enq__ENA) begin
         element <= enq_v;
         full <= 1;
+//READ enq: :enq_v
 //WRITE enq: :element:full
         end; // End of enq
 
