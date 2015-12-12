@@ -75,9 +75,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
-        if (ClassMethodTable *table = classCreate[STy])
-            if (const Type *newType = table->replaceType[Idx])
-                element = newType;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "")
         if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
@@ -169,8 +168,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
-    fprintf(OStr, "      end; // nRST\n");
-    fprintf(OStr, "    end; // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "      end; // nRST\n    end; // always @ (posedge CLK)\nendmodule \n\n");
     fclose(OStr);
 
     /*
@@ -196,8 +194,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         fprintf(BStr, ");\n");
     }
-    fprintf(BStr, "endinterface\n");
-    fprintf(BStr, "import \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
+    fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
     fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
     std::string sched = "", sep = "";
     for (auto FI : table->method) {
