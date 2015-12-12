@@ -42,6 +42,7 @@ module l_class_OC_Echo (
         fifo_deq__ENA = 1;
         ind_echo__ENA = 1;
             ind_echo_v = (fifo_first);
+//READ rule_respond: :ind
         end; // End of rule_respond
 
         // Method: rule_respond__RDY

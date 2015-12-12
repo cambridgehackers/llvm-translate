@@ -164,6 +164,18 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (isAction)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         processFunction(func, OStr);
+        if (!endswith(mname, "__RDY")) {
+            std::string temp;
+            for (auto item: readList)
+                temp += ":" + item;
+            if (temp != "")
+                fprintf(OStr, "//READ %s: %s\n", mname.c_str(), temp.c_str());
+            temp = "";
+            for (auto item: writeList)
+                temp += ":" + item;
+            if (temp != "")
+                fprintf(OStr, "//WRITE %s: %s\n", mname.c_str(), temp.c_str());
+        }
         if (isAction)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");

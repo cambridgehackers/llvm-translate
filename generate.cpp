@@ -52,6 +52,7 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
+std::list<std::string> readList, writeList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -710,7 +711,11 @@ static std::string processInstruction(Instruction &I)
     case Instruction::Load: {
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
-        return printOperand(I.getOperand(0), true);
+        std::string p = printOperand(I.getOperand(0), true);
+        if (p[0] == '(' && p[p.length()-1] == ')')
+            p = p.substr(1, p.length()-2);
+        readList.push_back(p);
+        return p;
         }
     // Terminators
     case Instruction::Ret:
@@ -768,6 +773,7 @@ static std::string processInstruction(Instruction &I)
         std::string sval = printOperand(Operand, false);
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
             pdest = pdest.substr(1, pdest.length() -2);
+        writeList.push_back(pdest);
         vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
         if (BitMask)
             vout += "((";
@@ -885,6 +891,8 @@ void processFunction(Function *func, FILE *OStr)
     currentFunction = func;
 
     NextAnonValueNumber = 0;
+    readList.clear();
+    writeList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
 #if 0

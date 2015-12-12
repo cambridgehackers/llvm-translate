@@ -60,6 +60,7 @@ extern int trace_translate;
 extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
+extern std::list<std::string> readList, writeList;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
