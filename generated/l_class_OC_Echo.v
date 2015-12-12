@@ -23,6 +23,7 @@ module l_class_OC_Echo (
         fifo_enq__RDY,
         fifo_first,
         fifo_first__RDY);
+//INTERNAL l_class_OC_Fifo1 fifo
    reg[31:0] pipetemp;
     always @( posedge CLK) begin
       if (!nRST) begin

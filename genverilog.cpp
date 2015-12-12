@@ -149,8 +149,10 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "" && !dyn_cast<PointerType>(element)) {
-            if (const StructType *STy = dyn_cast<StructType>(element))
+            if (const StructType *STy = dyn_cast<StructType>(element)) {
                 generateModuleSignature(OStr, STy, fname);
+                fprintf(OStr, "//INTERNAL %s %s\n", getStructName(STy).c_str(), fname.c_str());
+            }
             else
                 fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
         }
