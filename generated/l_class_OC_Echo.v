@@ -1,7 +1,3 @@
-//RDY:            echoReq__RDY = (fifo_enq__RDY);
-//RDY:            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
-//RULE:   echoReq__ENA
-//RULE:   rule_respond__ENA
 module l_class_OC_Echo (
     input CLK,
     input nRST,
@@ -33,8 +29,6 @@ module l_class_OC_Echo (
         if (echoReq__ENA) begin
         fifo_enq__ENA = 1;
             fifo_enq_v = echoReq_v;
-//READ echoReq: :echoReq_v
-//WRITE echoReq: :fifo_enq_v
         end; // End of echoReq
 
         // Method: echoReq__RDY
@@ -45,8 +39,6 @@ module l_class_OC_Echo (
         fifo_deq__ENA = 1;
         ind_echo__ENA = 1;
             ind_echo_v = (fifo_first);
-//READ rule_respond: :fifo_first
-//WRITE rule_respond: :ind_echo_v
         end; // End of rule_respond
 
         // Method: rule_respond__RDY
@@ -56,3 +48,12 @@ module l_class_OC_Echo (
     end; // always @ (posedge CLK)
 endmodule 
 
+//RDY:            echoReq__RDY = (fifo_enq__RDY);
+//RDY:            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
+//RULE:   echoReq__ENA
+//RULE:   rule_respond__ENA
+//INTERNAL l_class_OC_Fifo1 fifo
+//READ echoReq: :echoReq_v
+//WRITE echoReq: :fifo_enq_v
+//READ rule_respond: :fifo_first
+//WRITE rule_respond: :ind_echo_v

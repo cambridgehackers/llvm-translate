@@ -1,8 +1,3 @@
-//RDY:            deq__RDY = (full);
-//RDY:            enq__RDY = ((full) ^ 1);
-//RDY:            first__RDY = (full);
-//RULE:   deq__ENA
-//RULE:   enq__ENA
 module l_class_OC_Fifo1 (
     input CLK,
     input nRST,
@@ -22,7 +17,6 @@ module l_class_OC_Fifo1 (
         // Method: deq
         if (deq__ENA) begin
         full <= 0;
-//WRITE deq: :full
         end; // End of deq
 
         // Method: deq__RDY
@@ -32,8 +26,6 @@ module l_class_OC_Fifo1 (
         if (enq__ENA) begin
         element <= enq_v;
         full <= 1;
-//READ enq: :enq_v
-//WRITE enq: :element:full
         end; // End of enq
 
         // Method: enq__RDY
@@ -41,7 +33,6 @@ module l_class_OC_Fifo1 (
 
         // Method: first
             first = (element);
-//READ first: :element
 
         // Method: first__RDY
             first__RDY = (full);
@@ -50,3 +41,12 @@ module l_class_OC_Fifo1 (
     end; // always @ (posedge CLK)
 endmodule 
 
+//RDY:            deq__RDY = (full);
+//RDY:            enq__RDY = ((full) ^ 1);
+//RDY:            first__RDY = (full);
+//RULE:   deq__ENA
+//RULE:   enq__ENA
+//WRITE deq: :full
+//READ enq: :enq_v
+//WRITE enq: :element:full
+//READ first: :element

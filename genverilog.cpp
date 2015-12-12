@@ -42,8 +42,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
-    std::list<std::string> enaList;
-    std::list<Function *> rdyList;
     if (instance != "") {
         inp = instance + "_";
         outp = instance + "_";
@@ -57,14 +55,9 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         int hasRet = (retTy != Type::getVoidTy(func->getContext()));
         if (hasRet) {
             paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
-            if (endswith(mname, "__RDY") && instance == "")
-                rdyList.push_back(func);
         }
-        else {
+        else
             paramList.push_back(inp + mname + "__ENA");
-            if (instance == "")
-                enaList.push_back(mname + "__ENA");
-        }
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
@@ -114,12 +107,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 paramList.push_back(outp + printType(element, false, fname, "  ", "", false));
         }
     }
-    for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
-        fprintf(OStr, "//RDY:");
-        processFunction(*PI, OStr);
-    }
-    for (auto PI = enaList.begin(); PI != enaList.end(); PI++)
-        fprintf(OStr, "//RULE:   %s\n", PI->c_str());
     if (instance != "")
         fprintf(OStr, "    %s %s (\n", name.c_str(), instance.c_str());
     else
@@ -139,9 +126,23 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
+    std::list<std::string> enaList;
+    std::list<Function *> rdyList;
+    std::list<std::string> readWriteList;
 
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
+    for (auto FI : table->method) {
+        Function *func = FI.second;
+        std::string mname = FI.first;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (hasRet) {
+            if (endswith(mname, "__RDY"))
+                rdyList.push_back(func);
+        }
+        else
+            enaList.push_back(mname + "__ENA");
+    }
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
@@ -171,18 +172,36 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             for (auto item: readList)
                 temp += ":" + item;
             if (temp != "")
-                fprintf(OStr, "//READ %s: %s\n", mname.c_str(), temp.c_str());
+                readWriteList.push_back("//READ " + mname + ": " + temp);
             temp = "";
             for (auto item: writeList)
                 temp += ":" + item;
             if (temp != "")
-                fprintf(OStr, "//WRITE %s: %s\n", mname.c_str(), temp.c_str());
+                readWriteList.push_back("//WRITE " + mname + ": " + temp);
         }
         if (isAction)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
     fprintf(OStr, "      end; // nRST\n    end; // always @ (posedge CLK)\nendmodule \n\n");
+    for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
+        fprintf(OStr, "//RDY:");
+        processFunction(*PI, OStr);
+    }
+    for (auto PI = enaList.begin(); PI != enaList.end(); PI++)
+        fprintf(OStr, "//RULE:   %s\n", PI->c_str());
+    Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "" && !dyn_cast<PointerType>(element))
+        if (const StructType *STy = dyn_cast<StructType>(element))
+            fprintf(OStr, "//INTERNAL %s %s\n", getStructName(STy).c_str(), fname.c_str());
+    }
+    for (auto item : readWriteList)
+        fprintf(OStr, "%s\n", item.c_str());
     fclose(OStr);
 
     /*
