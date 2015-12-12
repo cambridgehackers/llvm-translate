@@ -57,17 +57,13 @@ static int hasRun(const StructType *STy)
     return 0;
 }
 
-static std::string printFunctionSignature(const Function *F, std::string altname, bool Prototype, std::string postfix, int skip)
+static std::string printFunctionSignature(const Function *F, std::string altname)
 {
-    std::string sep = "", statstr = "", tstr;
+    std::string sep, statstr, tstr = altname + '(';
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
+    int skip = 1;
     ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
-    if (altname != "")
-        tstr += altname;
-    else
-        tstr += F->getName();
-    tstr += '(';
     if (F->isDeclaration()) {
         for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
             if (!skip) {
@@ -76,29 +72,26 @@ static std::string printFunctionSignature(const Function *F, std::string altname
             }
             skip = 0;
         }
-    } else if (!F->arg_empty()) {
+    }
+    else
         for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
             if (!skip) {
-                std::string ArgName = (I->hasName() || !Prototype) ? GetValueName(I) : "";
-                tstr += printType(I->getType(), /*isSigned=*/false, ArgName, sep, "", false);
+                tstr += printType(I->getType(), /*isSigned=*/false, GetValueName(I), sep, "", false);
                 sep = ", ";
             }
             skip = 0;
         }
-    }
     if (sep == "")
-        tstr += "void"; // ret() -> ret(void) in C.
-    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, postfix, false);
+        tstr += "void";
+    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, "", false);
 }
 
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
-    ClassMethodTable *table = classCreate[STy];
-    std::string name = getStructName(STy);
-    fprintf(OStr, "class %s {\npublic:\n", name.c_str());
+    fprintf(OStr, "class %s {\npublic:\n", getStructName(STy).c_str());
     generateClassElements(STy, OStr);
-    for (auto FI : table->method)
-        fprintf(OStr, "  %s", printFunctionSignature(FI.second, FI.first, false, ";\n", 1).c_str());
+    for (auto FI : classCreate[STy]->method)
+        fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     if (hasRun(STy))
         fprintf(OStr, "  void run();\n");
     fprintf(OStr, "};\n\n");
@@ -110,7 +103,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     std::string name = getStructName(STy);
     for (auto FI : table->method) {
         Function *func = FI.second;
-        fprintf(OStr, "%s", printFunctionSignature(func, name + "::" + FI.first, false, " {\n", 1).c_str());
+        fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
         processFunction(func, OStr);
         fprintf(OStr, "}\n");
     }

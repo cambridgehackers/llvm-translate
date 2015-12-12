@@ -19,9 +19,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <list>
-#include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/ExecutionEngine/Interpreter.h"
 
 #define SEPARATOR ":"
 
