@@ -50,6 +50,7 @@ endmodule
 //RDY:            echoReq__RDY = (fifo_enq__RDY);
 //RDY:            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
 //INTERNAL l_class_OC_Fifo1 fifo
+//EXTERNAL l_class_OC_EchoIndication ind
 //READ echoReq: :echoReq_v
 //WRITE echoReq: :fifo_enq_v
 //READ rule_respond: :fifo_first

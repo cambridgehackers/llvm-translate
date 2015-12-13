@@ -146,8 +146,12 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (const Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
-        if (fname != "" && !dyn_cast<PointerType>(element)) {
-            if (const StructType *STy = dyn_cast<StructType>(element)) {
+        if (fname != "") {
+            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
+                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
+                    readWriteList.push_back("//EXTERNAL " + getStructName(STy) + " " + fname);
+            }
+            else if (const StructType *STy = dyn_cast<StructType>(element)) {
                 generateModuleSignature(OStr, STy, fname);
                 readWriteList.push_back("//INTERNAL " + getStructName(STy) + " " + fname);
             }
