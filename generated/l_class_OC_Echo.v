@@ -47,8 +47,8 @@ module l_class_OC_Echo (
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY:        (fifo$enq__RDY);
-//RDY:        (fifo$first__RDY) & (fifo$deq__RDY);
+//RDY: echoReq__RDY;         (fifo$enq__RDY);
+//RDY: respond_rule__RDY;         (fifo$first__RDY) & (fifo$deq__RDY);
 //INTERNAL l_class_OC_Fifo1 fifo
 //EXTERNAL l_class_OC_EchoIndication ind
 //READ echoReq: :echoReq$v

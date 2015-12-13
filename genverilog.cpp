@@ -29,6 +29,11 @@ using namespace llvm;
 
 #include "declarations.h"
 
+typedef struct {
+    Function *func;
+    std::string name;
+} READY_INFO;
+
 std::string verilogArrRange(const Type *Ty)
 {
     unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
@@ -126,7 +131,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
-    std::list<Function *> rdyList;
+    std::list<READY_INFO> rdyList;
     std::list<std::string> readWriteList;
 
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
@@ -137,7 +142,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
         if (hasRet) {
             if (endswith(mname, "__RDY"))
-                rdyList.push_back(func);
+                rdyList.push_back(READY_INFO{func, mname});
         }
     }
     int Idx = 0;
@@ -188,8 +193,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     }
     fprintf(OStr, "      end; // nRST\n    end; // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
-        fprintf(OStr, "//RDY:");
-        processFunction(*PI, OStr);
+        fprintf(OStr, "//RDY: %s; ", PI->name.c_str());
+        processFunction(PI->func, OStr);
     }
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());
