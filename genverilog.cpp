@@ -43,8 +43,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string inp = "input ", outp = "output ";
     std::list<std::string> paramList;
     if (instance != "") {
-        inp = instance + "_";
-        outp = instance + "_";
+        inp = instance + MODULE_SEPARATOR;
+        outp = instance + MODULE_SEPARATOR;
     }
     paramList.push_back(inp + "CLK");
     paramList.push_back(inp + "nRST");
@@ -61,7 +61,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
-                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
+                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + MODULE_SEPARATOR + AI->getName().str());
             skip = 0;
         }
     }
@@ -83,11 +83,11 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                             element = newType;
                     std::string ename = fieldName(STy, Idx);
                     if (ename != "")
-                        paramList.push_back(outp + printType(element, false, fname + "_" + ename, "  ", "", false));
+                        paramList.push_back(outp + printType(element, false, fname + MODULE_SEPARATOR + ename, "  ", "", false));
                 }
                 for (auto FI : table->method) {
                     Function *func = FI.second;
-                    std::string mname = fname + "_" + FI.first;
+                    std::string mname = fname + MODULE_SEPARATOR + FI.first;
                     const Type *retTy = func->getReturnType();
                     int hasRet = (retTy != Type::getVoidTy(func->getContext()));
                     if (hasRet)
@@ -97,7 +97,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
-                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
+                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + MODULE_SEPARATOR + AI->getName().str());
                         skip = 0;
                     }
                 }
@@ -167,6 +167,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         fprintf(OStr, "        // Method: %s\n", mname.c_str());
         if (isAction)
             fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
+        else
+            fprintf(OStr, "             %s = ", mname.c_str());
         processFunction(func, OStr);
         if (!endswith(mname, "__RDY")) {
             std::string temp;
@@ -234,7 +236,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             if (!skip) {
                 //const Type *Ty = AI->getType();
                 //paramList.push_back(inp + verilogArrRange(Ty) + 
-                fprintf(BStr, "%s", (mname + "_" + AI->getName().str()).c_str());
+                fprintf(BStr, "%s", (mname + MODULE_SEPARATOR + AI->getName().str()).c_str());
             }
             skip = 0;
         }

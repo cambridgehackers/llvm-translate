@@ -23,7 +23,8 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 
-#define SEPARATOR ":"
+//#define SEPARATOR ":"
+#define MODULE_SEPARATOR "$"
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
 #define MAX_CHAR_BUFFER 1000

@@ -31,8 +31,8 @@ public:
   unsigned int pipetemp;
   void echoReq(unsigned int v);
   bool echoReq__RDY(void);
-  void rule_respond(void);
-  bool rule_respond__RDY(void);
+  void respond_rule(void);
+  bool respond_rule__RDY(void);
   void run();
 };
 

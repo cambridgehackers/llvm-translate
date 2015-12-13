@@ -4,7 +4,7 @@ module l_class_OC_Fifo1 (
     input deq__ENA,
     output deq__RDY,
     input enq__ENA,
-    input [31:0]enq_v,
+    input [31:0]enq$v,
     output enq__RDY,
     output [31:0]first,
     output first__RDY);
@@ -20,31 +20,31 @@ module l_class_OC_Fifo1 (
         end; // End of deq
 
         // Method: deq__RDY
-            deq__RDY = (full);
+             deq__RDY =         (full);
 
         // Method: enq
         if (enq__ENA) begin
-        element <= enq_v;
+        element <= enq$v;
         full <= 1;
         end; // End of enq
 
         // Method: enq__RDY
-            enq__RDY = ((full) ^ 1);
+             enq__RDY =         ((full) ^ 1);
 
         // Method: first
-            first = (element);
+             first =         (element);
 
         // Method: first__RDY
-            first__RDY = (full);
+             first__RDY =         (full);
 
       end; // nRST
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY:            deq__RDY = (full);
-//RDY:            enq__RDY = ((full) ^ 1);
-//RDY:            first__RDY = (full);
+//RDY:        (full);
+//RDY:        ((full) ^ 1);
+//RDY:        (full);
 //WRITE deq: :full
-//READ enq: :enq_v
+//READ enq: :enq$v
 //WRITE enq: :element:full
 //READ first: :element

@@ -358,7 +358,7 @@ std::string GetValueName(const Value *Operand)
         }
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
-        VarName = globalName + "_" + VarName;
+        VarName = globalName + MODULE_SEPARATOR + VarName;
     if (VarName != "this")
         readList.push_back(VarName);
     return VarName;
@@ -672,7 +672,7 @@ static std::string printCall(Instruction &I)
         prefix = ".";
     }
     if (generateRegion == ProcessVerilog) {
-        prefix = pcalledFunction + "_" + getMethodName(func->getName());
+        prefix = pcalledFunction + MODULE_SEPARATOR + getMethodName(func->getName());
         vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
@@ -685,7 +685,7 @@ static std::string printCall(Instruction &I)
         if (!skip) {
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string pre = prefix + "_" + FAI->getName().str();
+                std::string pre = prefix + MODULE_SEPARATOR + FAI->getName().str();
                 writeList.push_back(pre);
                 vout += ";\n            " + pre + " = ";
             }
@@ -754,9 +754,7 @@ static std::string processInstruction(Instruction &I)
     // Terminators
     case Instruction::Ret:
         if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
-            if (generateRegion == ProcessVerilog)
-                vout += "    " + globalName + " = ";
-            else
+            if (generateRegion == ProcessCPP)
                 vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(I.getOperand(0), false);
@@ -903,26 +901,16 @@ void processFunction(Function *func, FILE *OStr)
     writeList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
-#if 0
-    /* connect up argument formal param names with actual values */
-    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-        int slotindex = getLocalSlot(AI);
-        ERRORIF (AI->hasByValAttr());
-        (AI->getName().str().c_str());
-    }
-#endif
-    /* Generate Verilog for all instructions.  Record function calls for post processing */
+    /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         if (trace_translate && BI->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BI->getName().str().c_str());
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
             if (INEXT == IE || !isInlinableInst(*II)) {
-                if (trace_translate && generateRegion == ProcessCPP)
-                    printf("/*before %p opcode %d.=%s*/\n", &*II, II->getOpcode(), II->getOpcodeName());
                 std::string vout = processInstruction(*II);
                 bool save_val = (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
-                            && II->getType() != Type::getVoidTy(BI->getContext()));
+                         && II->getType() != Type::getVoidTy(BI->getContext()));
                 if (vout != "" && OStr) {
                     fprintf(OStr, "        ");
                     if (save_val) {

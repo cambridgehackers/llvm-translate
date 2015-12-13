@@ -2,23 +2,23 @@ module l_class_OC_Echo (
     input CLK,
     input nRST,
     input echoReq__ENA,
-    input [31:0]echoReq_v,
+    input [31:0]echoReq$v,
     output echoReq__RDY,
-    input rule_respond__ENA,
-    output rule_respond__RDY,
-    output   unsigned VERILOG_long long ind_unused_data_to_flag_indication_echo,
-    output ind_echo__ENA,
-    output [31:0]ind_echo_v);
+    input respond_rule__ENA,
+    output respond_rule__RDY,
+    output   unsigned VERILOG_long long ind$unused_data_to_flag_indication_echo,
+    output ind$echo__ENA,
+    output [31:0]ind$echo$v);
     l_class_OC_Fifo1 fifo (
-        fifo_CLK,
-        fifo_nRST,
-        fifo_deq__ENA,
-        fifo_deq__RDY,
-        fifo_enq__ENA,
-        fifo_enq_v,
-        fifo_enq__RDY,
-        fifo_first,
-        fifo_first__RDY);
+        fifo$CLK,
+        fifo$nRST,
+        fifo$deq__ENA,
+        fifo$deq__RDY,
+        fifo$enq__ENA,
+        fifo$enq$v,
+        fifo$enq__RDY,
+        fifo$first,
+        fifo$first__RDY);
    reg[31:0] pipetemp;
     always @( posedge CLK) begin
       if (!nRST) begin
@@ -26,32 +26,32 @@ module l_class_OC_Echo (
       else begin
         // Method: echoReq
         if (echoReq__ENA) begin
-        fifo_enq__ENA = 1;
-            fifo_enq_v = echoReq_v;
+        fifo$enq__ENA = 1;
+            fifo$enq$v = echoReq$v;
         end; // End of echoReq
 
         // Method: echoReq__RDY
-            echoReq__RDY = (fifo_enq__RDY);
+             echoReq__RDY =         (fifo$enq__RDY);
 
-        // Method: rule_respond
-        if (rule_respond__ENA) begin
-        fifo_deq__ENA = 1;
-        ind_echo__ENA = 1;
-            ind_echo_v = (fifo_first);
-        end; // End of rule_respond
+        // Method: respond_rule
+        if (respond_rule__ENA) begin
+        fifo$deq__ENA = 1;
+        ind$echo__ENA = 1;
+            ind$echo$v = (fifo$first);
+        end; // End of respond_rule
 
-        // Method: rule_respond__RDY
-            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
+        // Method: respond_rule__RDY
+             respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY);
 
       end; // nRST
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY:            echoReq__RDY = (fifo_enq__RDY);
-//RDY:            rule_respond__RDY = (fifo_first__RDY) & (fifo_deq__RDY);
+//RDY:        (fifo$enq__RDY);
+//RDY:        (fifo$first__RDY) & (fifo$deq__RDY);
 //INTERNAL l_class_OC_Fifo1 fifo
 //EXTERNAL l_class_OC_EchoIndication ind
-//READ echoReq: :echoReq_v
-//WRITE echoReq: :fifo_enq_v
-//READ rule_respond: :fifo_first
-//WRITE rule_respond: :ind_echo_v
+//READ echoReq: :echoReq$v
+//WRITE echoReq: :fifo$enq$v
+//READ respond_rule: :fifo$first
+//WRITE respond_rule: :ind$echo$v
