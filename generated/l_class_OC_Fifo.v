@@ -36,6 +36,6 @@ module l_class_OC_Fifo (
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY: deq__RDY;         0;
-//RDY: enq__RDY;         0;
-//RDY: first__RDY;         0;
+//RDY deq__RDY:         0;
+//RDY enq__RDY:         0;
+//RDY first__RDY:         0;
