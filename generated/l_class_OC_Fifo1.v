@@ -44,8 +44,6 @@ endmodule
 //RDY:            deq__RDY = (full);
 //RDY:            enq__RDY = ((full) ^ 1);
 //RDY:            first__RDY = (full);
-//RULE:   deq__ENA
-//RULE:   enq__ENA
 //WRITE deq: :full
 //READ enq: :enq_v
 //WRITE enq: :element:full

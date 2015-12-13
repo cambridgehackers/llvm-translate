@@ -126,7 +126,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
-    std::list<std::string> enaList;
     std::list<Function *> rdyList;
     std::list<std::string> readWriteList;
 
@@ -140,8 +139,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             if (endswith(mname, "__RDY"))
                 rdyList.push_back(func);
         }
-        else
-            enaList.push_back(mname + "__ENA");
     }
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -152,7 +149,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (fname != "" && !dyn_cast<PointerType>(element)) {
             if (const StructType *STy = dyn_cast<StructType>(element)) {
                 generateModuleSignature(OStr, STy, fname);
-                fprintf(OStr, "//INTERNAL %s %s\n", getStructName(STy).c_str(), fname.c_str());
+                readWriteList.push_back("//INTERNAL " + getStructName(STy) + " " + fname);
             }
             else
                 fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
@@ -187,18 +184,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//RDY:");
         processFunction(*PI, OStr);
-    }
-    for (auto PI = enaList.begin(); PI != enaList.end(); PI++)
-        fprintf(OStr, "//RULE:   %s\n", PI->c_str());
-    Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
-            element = newType;
-        std::string fname = fieldName(STy, Idx);
-        if (fname != "" && !dyn_cast<PointerType>(element))
-        if (const StructType *STy = dyn_cast<StructType>(element))
-            fprintf(OStr, "//INTERNAL %s %s\n", getStructName(STy).c_str(), fname.c_str());
     }
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());

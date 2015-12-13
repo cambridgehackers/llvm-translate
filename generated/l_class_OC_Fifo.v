@@ -39,5 +39,3 @@ endmodule
 //RDY:            deq__RDY = 0;
 //RDY:            enq__RDY = 0;
 //RDY:            first__RDY = 0;
-//RULE:   deq__ENA
-//RULE:   enq__ENA
