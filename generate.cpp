@@ -52,7 +52,7 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-std::list<std::string> readList, writeList;
+std::list<std::string> readList, writeList, invokeList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -359,8 +359,6 @@ std::string GetValueName(const Value *Operand)
     }
     if (generateRegion == ProcessVerilog && VarName != "this")
         VarName = globalName + MODULE_SEPARATOR + VarName;
-    if (VarName != "this")
-        readList.push_back(VarName);
     return VarName;
 }
 
@@ -676,8 +674,7 @@ static std::string printCall(Instruction &I)
         vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             vout += "__ENA = 1";
-        else
-            readList.push_back(prefix);
+        invokeList.push_back(prefix);
     }
     else
         vout += pcalledFunction + prefix + getMethodName(func->getName()) + "(";
@@ -686,7 +683,6 @@ static std::string printCall(Instruction &I)
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
                 std::string pre = prefix + MODULE_SEPARATOR + FAI->getName().str();
-                writeList.push_back(pre);
                 vout += ";\n            " + pre + " = ";
             }
             else
@@ -899,6 +895,7 @@ void processFunction(Function *func, FILE *OStr)
     NextAnonValueNumber = 0;
     readList.clear();
     writeList.clear();
+    invokeList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
