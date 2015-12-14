@@ -41,9 +41,9 @@ module l_class_OC_Fifo1 (
     end; // always @ (posedge CLK)
 endmodule 
 
-//METAGUARD deq__RDY;         (full);
-//METAGUARD enq__RDY;         ((full) ^ 1);
-//METAGUARD first__RDY;         (full);
-//METAWRITE deq; ():full;
-//METAWRITE enq; ():element:full;
-//METAREAD first; ():element;
+//METAGUARD; deq__RDY;         (full);
+//METAGUARD; enq__RDY;         ((full) ^ 1);
+//METAGUARD; first__RDY;         (full);
+//METAWRITE; deq; :full;
+//METAWRITE; enq; :element:full;
+//METAREAD; first; :element;

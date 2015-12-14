@@ -122,7 +122,7 @@ static bool isAddressExposed(const Value *V)
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 
-static int inheritsModule(const StructType *STy)
+int inheritsModule(const StructType *STy)
 {
     if (STy) {
         std::string sname = STy->getName();
@@ -945,7 +945,7 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                     element = table->replaceType[Idx];
                 printContainedStructs(element, OStr, ODir, cb);
             }
-            if (classCreate[STy] && inheritsModule(STy))
+            if (classCreate[STy] && (inheritsModule(STy) || generateRegion == ProcessCPP))
                 cb(STy, OStr, ODir);
         }
     }

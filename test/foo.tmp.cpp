@@ -20,19 +20,19 @@ void __cxa_pure_virtual(void)
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 
-class l_class_OC_EchoIndication {
-public:
-  void echo(unsigned int Vv);
-};
-
 unsigned int stop_main_program;
+//class l_class_OC_EchoIndication {
+//public:
+  //void echo(unsigned int Vv);
+//};
+//
+#include "../generated/output.h"
+#include "../generated/output.cpp"
+
 void l_class_OC_EchoIndication::echo(unsigned int v) {
         printf((("Heard an echo: %d\n")), v);
         stop_main_program = 1;
 }
-
-#include "../generated/output.h"
-#include "../generated/output.cpp"
 
 class l_class_OC_EchoIndication zEchoIndication;
 class l_class_OC_Echo zEcho;

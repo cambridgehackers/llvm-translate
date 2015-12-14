@@ -154,11 +154,11 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (fname != "") {
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
-                    readWriteList.push_back("//METAEXTERNAL " + fname + "; " + getStructName(STy) + ";");
+                    readWriteList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
                 generateModuleSignature(OStr, STy, fname);
-                readWriteList.push_back("//METAINTERNAL " + fname + "; " + getStructName(STy) + ";");
+                readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
             else
                 fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
@@ -181,17 +181,17 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             for (auto item: readList)
                 temp += ":" + item;
             if (temp != "")
-                readWriteList.push_back("//METAREAD " + mname + "; " + "(" + condition + ")" + temp + ";");
+                readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
             temp = "";
             for (auto item: writeList)
                 temp += ":" + item;
             if (temp != "")
-                readWriteList.push_back("//METAWRITE " + mname + "; " + "(" + condition + ")" + temp + ";");
+                readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
             temp = "";
             for (auto item: invokeList)
                 temp += ":" + item;
             if (temp != "")
-                readWriteList.push_back("//METAINVOKE " + mname + "; " + "(" + condition + ")" + temp + ";");
+                readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
         }
         if (isAction)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
@@ -199,7 +199,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     }
     fprintf(OStr, "      end; // nRST\n    end; // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
-        fprintf(OStr, "//METAGUARD %s; ", PI->name.c_str());
+        fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
         processFunction(PI->func, OStr);
     }
     for (auto item : readWriteList)

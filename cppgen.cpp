@@ -99,6 +99,8 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 {
+    if (!inheritsModule(STy))
+        return;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     for (auto FI : table->method) {

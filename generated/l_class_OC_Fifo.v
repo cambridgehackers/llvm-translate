@@ -36,6 +36,6 @@ module l_class_OC_Fifo (
     end; // always @ (posedge CLK)
 endmodule 
 
-//METAGUARD deq__RDY;         0;
-//METAGUARD enq__RDY;         0;
-//METAGUARD first__RDY;         0;
+//METAGUARD; deq__RDY;         0;
+//METAGUARD; enq__RDY;         0;
+//METAGUARD; first__RDY;         0;
