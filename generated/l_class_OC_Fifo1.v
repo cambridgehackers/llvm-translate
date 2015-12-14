@@ -41,10 +41,10 @@ module l_class_OC_Fifo1 (
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY deq__RDY:         (full);
-//RDY enq__RDY:         ((full) ^ 1);
-//RDY first__RDY:         (full);
-//WRITE deq: (true):full
-//READ enq: (true):enq$v
-//WRITE enq: (true):element:full
-//READ first: (true):element
+//METARDY deq__RDY:         (full);
+//METARDY enq__RDY:         ((full) ^ 1);
+//METARDY first__RDY:         (full);
+//METAWRITE deq: ():full
+//METAREAD enq: ():enq$v
+//METAWRITE enq: ():element:full
+//METAREAD first: ():element

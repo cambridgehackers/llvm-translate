@@ -47,11 +47,11 @@ module l_class_OC_Echo (
     end; // always @ (posedge CLK)
 endmodule 
 
-//RDY echoReq__RDY:         (fifo$enq__RDY);
-//RDY respond_rule__RDY:         (fifo$first__RDY) & (fifo$deq__RDY);
-//INTERNAL fifo: l_class_OC_Fifo1
-//EXTERNAL ind: l_class_OC_EchoIndication
-//READ echoReq: (true):echoReq$v
-//WRITE echoReq: (true):fifo$enq$v
-//READ respond_rule: (true):fifo$first
-//WRITE respond_rule: (true):ind$echo$v
+//METARDY echoReq__RDY:         (fifo$enq__RDY);
+//METARDY respond_rule__RDY:         (fifo$first__RDY) & (fifo$deq__RDY);
+//METAINTERNAL fifo: l_class_OC_Fifo1
+//METAEXTERNAL ind: l_class_OC_EchoIndication
+//METAREAD echoReq: ():echoReq$v
+//METAWRITE echoReq: ():fifo$enq$v
+//METAREAD respond_rule: ():fifo$first
+//METAWRITE respond_rule: ():ind$echo$v
