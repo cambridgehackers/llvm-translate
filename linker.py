@@ -33,6 +33,8 @@ mInfo = {}
 
 def processFile(filename):
     print 'infile', filename
+    if mInfo.get(filename) is not None:
+        return
     titem = {}
     titem['name'] = filename
     titem['methods'] = {}
@@ -73,8 +75,35 @@ def processFile(filename):
     for key, value in titem['internal'].iteritems():
         processFile(value)
 
+def getList(filename, mname, field):
+    #print 'getlist', filename, mname, field
+    mitem = mInfo[filename]
+    titem = mitem['methods'][mname]
+    retVal = titem[field]
+    #print 'invoke', titem['invoke']
+    for iitem in titem['invoke']:
+        for item in iitem[1:]:
+            refName = item.split('$')
+            #print 'refName', refName
+            if mitem['internal'].get(refName[0]):
+                gitem, rList = getList(mitem['internal'][refName[0]], refName[1], field)
+                for rItem in rList:
+                    if rItem[0] == '':
+                        rItem[0] = gitem['guard']
+                    elif gitem['guard'] != '':
+                        rItem[0] = rItem[0] + ' && ' +  gitem['guard']
+                    for ind in range(1, len(rItem)):
+                        rItem[ind] = refName[0] + "$" + rItem[ind]
+                    retVal.append(rItem)
+    return titem, retVal
 
 if __name__=='__main__':
     options = argparser.parse_args()
     for item in options.verilog:
         processFile(item)
+    for item in options.verilog:
+        for key, value in mInfo[item]['methods'].iteritems():
+            tignore, rList = getList(item, key, 'read')
+            print 'readList', key, rList
+            tignore, wList = getList(item, key, 'write')
+            print 'writeList', key, wList
