@@ -52,6 +52,32 @@ def prependName(name, string):
     #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
+def expandGuard(mitem, name, string):
+    retVal = ''
+    for match in re.finditer(SCANNER, string):
+        for i in range(1, 5):
+            tfield = match.group(i)
+            if tfield:
+                if i == 5:
+                    print 'Error in regex', string, tfield
+                if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
+                    if tfield.endswith('__RDY'):
+                        tsep = tfield.split('$')
+                        item = mitem['internal'].get(tsep[0])
+                        #print 'RECURSE', tfield, item
+                        if item:
+                            rmitem = mInfo[item]
+                            rtitem = rmitem['methods'][tsep[1][:-5]]
+                            tfield = expandGuard(rmitem, tsep[0] + '$', rtitem['guard'])
+                            #print 'RETURNED', tfield
+                        else:
+                            tfield = name + tfield
+                    else:
+                        tfield = name + tfield
+                retVal += tfield
+    #print 'expandGuard', string, ' -> ', retVal
+    return retVal
+
 def processFile(filename):
     print 'infile', filename
     if mInfo.get(filename) is not None:
@@ -109,7 +135,9 @@ def getList(filename, mname, field):
     titem = mitem['methods'][mname]
     retVal = titem[field]
     #print 'invoke', titem['invoke']
-    print 'WW', titem['guard']
+    #print 'WW', titem['guard']
+    tguard = expandGuard(mitem, '', titem['guard'])
+    #print 'WW2', tguard
     for iitem in titem['invoke']:
         for item in iitem[1:]:
             refName = item.split('$')
@@ -121,12 +149,12 @@ def getList(filename, mname, field):
                     if rItem[0] == '':
                         rItem[0] = gVal
                     elif gVal != '':
-                        rItem[0] = rItem[0] + ' && ' +  gVal
-                    gVal = titem['guard']
+                        rItem[0] = rItem[0] + ' & ' +  gVal
+                    gVal = tguard
                     if rItem[0] == '':
                         rItem[0] = gVal
                     elif gVal != '':
-                        rItem[0] = rItem[0] + ' && ' +  gVal
+                        rItem[0] = rItem[0] + ' & ' +  gVal
                     for ind in range(1, len(rItem)):
                         rItem[ind] = refName[0] + "$" + rItem[ind]
                     retVal.append(rItem)
