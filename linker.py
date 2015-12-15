@@ -39,6 +39,18 @@ SCANNER = re.compile(r'''
   (.)                          # an error!
 ''', re.DOTALL | re.VERBOSE)
 
+def prependName(name, string):
+    retVal = ''
+    for match in re.finditer(SCANNER, string):
+        for i in range(1, 5):
+            if match.group(i):
+                if i == 5:
+                    print 'Error in regex', string, match.group(i)
+                if i == 3 and (match.group(i)[0] < '0' or match.group(i)[0] > '9'):
+                    retVal += name
+                retVal += match.group(i)
+    return retVal
+
 def processFile(filename):
     print 'infile', filename
     if mInfo.get(filename) is not None:
@@ -65,10 +77,6 @@ def processFile(filename):
                     titem['methods'][tempName]['read'] = []
                     titem['methods'][tempName]['write'] = []
                     titem['methods'][tempName]['invoke'] = []
-                    print 'VVV', inVector[2]
-                    for match in re.finditer(SCANNER, inVector[2]):
-                        space, punct, word, stringlit, badchar = match.groups()
-                        print 'GG', space, punct, word, stringlit, badchar
                 elif inVector[0] == '//METAINTERNAL':
                     titem['internal'][inVector[1]] = inVector[2]
                 elif inVector[0] == '//METAEXTERNAL':
@@ -100,10 +108,11 @@ def getList(filename, mname, field):
             if mitem['internal'].get(refName[0]):
                 gitem, rList = getList(mitem['internal'][refName[0]], refName[1], field)
                 for rItem in rList:
+                    gVal = prependName(refName[0] + "$", gitem['guard'])
                     if rItem[0] == '':
-                        rItem[0] = gitem['guard']
-                    elif gitem['guard'] != '':
-                        rItem[0] = rItem[0] + ' && ' +  gitem['guard']
+                        rItem[0] = gVal
+                    elif gVal != '':
+                        rItem[0] = rItem[0] + ' && ' +  gVal
                     for ind in range(1, len(rItem)):
                         rItem[ind] = refName[0] + "$" + rItem[ind]
                     retVal.append(rItem)
