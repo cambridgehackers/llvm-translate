@@ -23,13 +23,21 @@
 import json
 import os, sys, shutil, string
 import argparse
-#import re
+import re
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
 argparser.add_argument('--directory', help='directory', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 mInfo = {}
+
+SCANNER = re.compile(r'''
+  (\s+) |                      # whitespace
+  (<<|>>|[][(){}<>=,;:*+-/^&]) | # punctuation
+  ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers
+  "((?:[^"\n\\]|\\.)*)" |      # regular string literal
+  (.)                          # an error!
+''', re.DOTALL | re.VERBOSE)
 
 def processFile(filename):
     print 'infile', filename
@@ -57,6 +65,10 @@ def processFile(filename):
                     titem['methods'][tempName]['read'] = []
                     titem['methods'][tempName]['write'] = []
                     titem['methods'][tempName]['invoke'] = []
+                    print 'VVV', inVector[2]
+                    for match in re.finditer(SCANNER, inVector[2]):
+                        space, punct, word, stringlit, badchar = match.groups()
+                        print 'GG', space, punct, word, stringlit, badchar
                 elif inVector[0] == '//METAINTERNAL':
                     titem['internal'][inVector[1]] = inVector[2]
                 elif inVector[0] == '//METAEXTERNAL':
