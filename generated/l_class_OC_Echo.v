@@ -6,9 +6,9 @@ module l_class_OC_Echo (
     output echoReq__RDY,
     input respond_rule__ENA,
     output respond_rule__RDY,
-    output   unsigned VERILOG_long long ind$unused_data_to_flag_indication_echo,
     output ind$echo__ENA,
-    output [31:0]ind$echo$v);
+    output [31:0]ind$echo$v,
+    input ind$echo__RDY);
     l_class_OC_Fifo1 fifo (
         fifo$CLK,
         fifo$nRST,
@@ -41,14 +41,14 @@ module l_class_OC_Echo (
         end; // End of respond_rule
 
         // Method: respond_rule__RDY
-             respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY);
+             respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
 
       end; // nRST
     end; // always @ (posedge CLK)
 endmodule 
 
 //METAGUARD; echoReq__RDY;         (fifo$enq__RDY);
-//METAGUARD; respond_rule__RDY;         (fifo$first__RDY) & (fifo$deq__RDY);
+//METAGUARD; respond_rule__RDY;         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
 //METAINTERNAL; fifo; l_class_OC_Fifo1;
 //METAEXTERNAL; ind; l_class_OC_EchoIndication;
 //METAINVOKE; echoReq; :fifo$enq;

@@ -49,6 +49,7 @@ def prependName(name, string):
                 if i == 3 and (match.group(i)[0] < '0' or match.group(i)[0] > '9'):
                     retVal += name
                 retVal += match.group(i)
+    #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
 def processFile(filename):
@@ -94,6 +95,13 @@ def processFile(filename):
     print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
     for key, value in titem['internal'].iteritems():
         processFile(value)
+    for key, value in titem['external'].iteritems():
+        titem = {}
+        titem['name'] = value
+        titem['methods'] = {}
+        titem['internal'] = {}
+        titem['external'] = {}
+        mInfo[value] = titem
 
 def getList(filename, mname, field):
     #print 'getlist', filename, mname, field
@@ -101,6 +109,7 @@ def getList(filename, mname, field):
     titem = mitem['methods'][mname]
     retVal = titem[field]
     #print 'invoke', titem['invoke']
+    print 'WW', titem['guard']
     for iitem in titem['invoke']:
         for item in iitem[1:]:
             refName = item.split('$')
@@ -109,6 +118,11 @@ def getList(filename, mname, field):
                 gitem, rList = getList(mitem['internal'][refName[0]], refName[1], field)
                 for rItem in rList:
                     gVal = prependName(refName[0] + "$", gitem['guard'])
+                    if rItem[0] == '':
+                        rItem[0] = gVal
+                    elif gVal != '':
+                        rItem[0] = rItem[0] + ' && ' +  gVal
+                    gVal = titem['guard']
                     if rItem[0] == '':
                         rItem[0] = gVal
                     elif gVal != '':

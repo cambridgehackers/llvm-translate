@@ -14,8 +14,8 @@ public:
 
 class l_class_OC_EchoIndication {
 public:
-  unsigned long long unused_data_to_flag_indication_echo;
   void echo(unsigned int v);
+  bool echo__RDY(void);
 };
 
 class l_class_OC_Fifo1 {
