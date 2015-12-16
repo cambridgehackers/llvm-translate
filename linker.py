@@ -43,12 +43,13 @@ def prependName(name, string):
     retVal = ''
     for match in re.finditer(SCANNER, string):
         for i in range(1, 5):
-            if match.group(i):
+            tfield = match.group(i)
+            if tfield:
                 if i == 5:
-                    print 'Error in regex', string, match.group(i)
-                if i == 3 and (match.group(i)[0] < '0' or match.group(i)[0] > '9'):
+                    print 'Error in regex', string, tfield
+                if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
                     retVal += name
-                retVal += match.group(i)
+                retVal += tfield
     #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
@@ -160,6 +161,49 @@ def getList(filename, mname, field):
                     retVal.append(rItem)
     return titem, retVal
 
+def testEqual(A, B):
+    if isinstance(A, list) and isinstance(B, list) and len(A) == len(B):
+        for ind in range(0, len(A) - 1):
+            if not testEqual(A[ind], B[ind]):
+                return False
+        return True
+    if isinstance(A, str) and isinstance(B, str):
+        return A == B
+    return False
+
+def appendItem(lis, item):
+    if len(lis) >= 2 and isinstance(lis[-1], str) and lis[-1] == '&' and testEqual(lis[-2], item):
+        lis.pop()
+    else:
+        lis.append(item)
+
+def parseExpression(string):
+    retVal = [[]]
+    ind = 0
+    for match in re.finditer(SCANNER, string):
+        for i in range(1, 5):
+            tfield = match.group(i)
+            if tfield == '(':
+                ind += 1
+                retVal.append([])
+            elif tfield == ')':
+                rVal = retVal[ind]
+                if len(rVal) == 1:
+                    rVal = rVal[0]
+                ind -= 1
+                appendItem(retVal[ind], rVal)
+                retVal.pop()
+            elif tfield:
+                if i == 5:
+                    print 'Error in regex', string, tfield
+                    sys.exit(-1)
+                if i != 1:
+                    appendItem(retVal[ind], tfield)
+    while isinstance(retVal, list) and len(retVal) == 1:
+        retVal = retVal[0]
+    #print 'parseExpression', string, ' -> ', retVal, ind
+    return retVal
+
 if __name__=='__main__':
     options = argparser.parse_args()
     for item in options.verilog:
@@ -167,6 +211,11 @@ if __name__=='__main__':
     for item in options.verilog:
         for key, value in mInfo[item]['methods'].iteritems():
             tignore, rList = getList(item, key, 'read')
-            print 'readList', key, rList
+            print 'readList', key
+            for rItem in rList:
+                print parseExpression(rItem[0]), rItem[1:]
             tignore, wList = getList(item, key, 'write')
-            print 'writeList', key, wList
+            print 'writeList', key
+            for wItem in wList:
+                print parseExpression(wItem[0]), wItem[1:]
+
