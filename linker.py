@@ -34,7 +34,7 @@ mInfo = {}
 SCANNER = re.compile(r'''
   (\s+) |                      # whitespace
   (<<|>>|[][(){}<>=,;:*+-/^&]) | # punctuation
-  ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers
+  ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers, numbers
   "((?:[^"\n\\]|\\.)*)" |      # regular string literal
   (.)                          # an error!
 ''', re.DOTALL | re.VERBOSE)
@@ -65,12 +65,10 @@ def expandGuard(mitem, name, string):
                     if tfield.endswith('__RDY'):
                         tsep = tfield.split('$')
                         item = mitem['internal'].get(tsep[0])
-                        #print 'RECURSE', tfield, item
                         if item:
                             rmitem = mInfo[item]
                             rtitem = rmitem['methods'][tsep[1][:-5]]
                             tfield = expandGuard(rmitem, tsep[0] + '$', rtitem['guard'])
-                            #print 'RETURNED', tfield
                         else:
                             tfield = name + tfield
                     else:
@@ -117,8 +115,6 @@ def processFile(filename):
                     titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
                 else:
                     print 'Unknown case', inVector
-                #print 'LL', inVector
-    #print 'ALL', json.dumps(titem, separators=(',',':'), sort_keys=True)
     print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
     for key, value in titem['internal'].iteritems():
         processFile(value)
@@ -135,14 +131,10 @@ def getList(filename, mname, field):
     mitem = mInfo[filename]
     titem = mitem['methods'][mname]
     retVal = titem[field]
-    #print 'invoke', titem['invoke']
-    #print 'WW', titem['guard']
     tguard = expandGuard(mitem, '', titem['guard'])
-    #print 'WW2', tguard
     for iitem in titem['invoke']:
         for item in iitem[1:]:
             refName = item.split('$')
-            #print 'refName', refName
             if mitem['internal'].get(refName[0]):
                 gitem, rList = getList(mitem['internal'][refName[0]], refName[1], field)
                 for rItem in rList:
