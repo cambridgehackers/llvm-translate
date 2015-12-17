@@ -2,7 +2,7 @@ module l_class_OC_Echo (
     input CLK,
     input nRST,
     input echoReq__ENA,
-    input [31:0]echoReq$v,
+    input [31:0]echoReq_v,
     output echoReq__RDY,
     input respond_rule__ENA,
     output respond_rule__RDY,
@@ -15,33 +15,27 @@ module l_class_OC_Echo (
         fifo$deq__ENA,
         fifo$deq__RDY,
         fifo$enq__ENA,
-        fifo$enq$v,
+        fifo$enq_v,
         fifo$enq__RDY,
         fifo$first,
         fifo$first__RDY);
    reg[31:0] pipetemp;
+    assign echoReq__RDY =         (fifo$enq__RDY);
+    assign respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
     always @( posedge CLK) begin
       if (!nRST) begin
       end
       else begin
-        // Method: echoReq
         if (echoReq__ENA) begin
         fifo$enq__ENA = 1;
             fifo$enq$v = echoReq$v;
         end; // End of echoReq
 
-        // Method: echoReq__RDY
-             echoReq__RDY =         (fifo$enq__RDY);
-
-        // Method: respond_rule
         if (respond_rule__ENA) begin
         fifo$deq__ENA = 1;
         ind$echo__ENA = 1;
             ind$echo$v = (fifo$first);
         end; // End of respond_rule
-
-        // Method: respond_rule__RDY
-             respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
 
       end; // nRST
     end; // always @ (posedge CLK)

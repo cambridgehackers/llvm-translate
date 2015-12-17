@@ -66,7 +66,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
-                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + MODULE_SEPARATOR + AI->getName().str());
+                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
             skip = 0;
         }
     }
@@ -164,16 +164,41 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                 fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
         }
     }
+    for (auto FI : table->method) {
+        Function *func = FI.second;
+        std::string mname = FI.first;
+        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        if (!isAction) {
+            fprintf(OStr, "    assign %s = ", mname.c_str());
+            processFunction(func, OStr);
+        std::string condition;
+        if (!endswith(mname, "__RDY")) {
+            std::string temp;
+            for (auto item: readList)
+                temp += ":" + item;
+            if (temp != "")
+                readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
+            temp = "";
+            for (auto item: writeList)
+                temp += ":" + item;
+            if (temp != "")
+                readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
+            temp = "";
+            for (auto item: invokeList)
+                temp += ":" + item;
+            if (temp != "")
+                readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
+        }
+        }
+    }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n      end\n      else begin\n");
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
-        fprintf(OStr, "        // Method: %s\n", mname.c_str());
-        if (isAction)
-            fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
-        else
-            fprintf(OStr, "             %s = ", mname.c_str());
+        if (!isAction)
+            continue;
+        fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         processFunction(func, OStr);
         std::string condition;
         if (!endswith(mname, "__RDY")) {
@@ -247,7 +272,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             if (!skip) {
                 //const Type *Ty = AI->getType();
                 //paramList.push_back(inp + verilogArrRange(Ty) + 
-                fprintf(BStr, "%s", (mname + MODULE_SEPARATOR + AI->getName().str()).c_str());
+                fprintf(BStr, "%s", (mname + "_" + AI->getName().str()).c_str());
             }
             skip = 0;
         }

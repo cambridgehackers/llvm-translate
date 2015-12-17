@@ -4,33 +4,23 @@ module l_class_OC_Fifo (
     input deq__ENA,
     output deq__RDY,
     input enq__ENA,
-    input [31:0]enq$v,
+    input [31:0]enq_v,
     output enq__RDY,
     output [31:0]first,
     output first__RDY);
+    assign deq__RDY =         0;
+    assign enq__RDY =         0;
+    assign first =         0;
+    assign first__RDY =         0;
     always @( posedge CLK) begin
       if (!nRST) begin
       end
       else begin
-        // Method: deq
         if (deq__ENA) begin
         end; // End of deq
 
-        // Method: deq__RDY
-             deq__RDY =         0;
-
-        // Method: enq
         if (enq__ENA) begin
         end; // End of enq
-
-        // Method: enq__RDY
-             enq__RDY =         0;
-
-        // Method: first
-             first =         0;
-
-        // Method: first__RDY
-             first__RDY =         0;
 
       end; // nRST
     end; // always @ (posedge CLK)

@@ -35,6 +35,8 @@ using namespace llvm;
 
 #include "declarations.h"
 
+#define ASSIGNOP ((generateRegion == ProcessVerilog) ? " <= " : " = ")
+
 static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;//= 1;
@@ -738,7 +740,7 @@ static std::string processInstruction(Instruction &I)
         if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
             pdest = pdest.substr(1, pdest.length() -2);
         writeList.push_back(pdest);
-        vout += pdest + ((generateRegion == ProcessVerilog) ? " <= " : " = ");
+        vout += pdest + ASSIGNOP;
         if (BitMask)
             vout += "((";
         vout += sval;
@@ -914,7 +916,7 @@ void processFunction(Function *func, FILE *OStr)
                         std::string resname = GetValueName(&*II);
                         if (generateRegion == ProcessCPP)
                             resname = printType(II->getType(), false, resname, "", "", false);
-                        fprintf(OStr, "%s = ", resname.c_str());
+                        fprintf(OStr, "%s", (resname + ASSIGNOP).c_str());
                     }
                     fprintf(OStr, "%s;\n", vout.c_str());
                 }
