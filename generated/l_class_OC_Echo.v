@@ -24,17 +24,18 @@ module l_class_OC_Echo (
     assign respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
     always @( posedge CLK) begin
       if (!nRST) begin
+        pipetemp <= 0;
       end
       else begin
         if (echoReq__ENA) begin
         fifo$enq__ENA = 1;
-            fifo$enq$v = echoReq$v;
+            fifo$enq_v = echoReq_v;
         end; // End of echoReq
 
         if (respond_rule__ENA) begin
         fifo$deq__ENA = 1;
         ind$echo__ENA = 1;
-            ind$echo$v = (fifo$first);
+            ind$echo_v = (fifo$first);
         end; // End of respond_rule
 
       end; // nRST

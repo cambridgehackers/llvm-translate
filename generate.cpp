@@ -359,8 +359,12 @@ std::string GetValueName(const Value *Operand)
             VarName += buffer;
         }
     }
-    if (generateRegion == ProcessVerilog && VarName != "this")
-        VarName = globalName + MODULE_SEPARATOR + VarName;
+    if (generateRegion == ProcessVerilog && VarName != "this") {
+        std::string sep = MODULE_SEPARATOR;
+        if (Operand->getValueID() == Value::ArgumentVal)
+            sep = "_";
+        VarName = globalName + sep + VarName;
+    }
     return VarName;
 }
 
@@ -684,7 +688,7 @@ static std::string printCall(Instruction &I)
         if (!skip) {
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string pre = prefix + MODULE_SEPARATOR + FAI->getName().str();
+                std::string pre = prefix + "_" + FAI->getName().str();
                 vout += ";\n            " + pre + " = ";
             }
             else

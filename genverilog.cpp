@@ -191,7 +191,17 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         }
     }
-    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n      end\n      else begin\n");
+    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
+    Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "" && !dyn_cast<PointerType>(element) && !  dyn_cast<StructType>(element))
+            fprintf(OStr, "        %s <= 0;\n", fname.c_str());
+    }
+    fprintf(OStr, "      end\n      else begin\n");
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
