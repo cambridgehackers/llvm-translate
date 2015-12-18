@@ -50,6 +50,23 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     if (instance != "") {
         inp = instance + MODULE_SEPARATOR;
         outp = instance + MODULE_SEPARATOR;
+        fprintf(OStr, "wire %s, %s;\n", (inp + "CLK").c_str(), (inp + "nRST").c_str());
+        for (auto FI : table->method) {
+            Function *func = FI.second;
+            std::string mname = FI.first;
+            const Type *retTy = func->getReturnType();
+            int hasRet = (retTy != Type::getVoidTy(func->getContext()));
+            if (hasRet)
+                fprintf(OStr, "wire %s%s;\n", verilogArrRange(retTy).c_str(), (outp + mname).c_str());
+            else
+                fprintf(OStr, "wire %s;\n", (inp + mname + "__ENA").c_str());
+            int skip = 1;
+            for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                if (!skip)
+                    fprintf(OStr, "wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), (inp + mname + "_" + AI->getName().str()).c_str());
+                skip = 0;
+            }
+        }
     }
     paramList.push_back(inp + "CLK");
     paramList.push_back(inp + "nRST");
@@ -232,7 +249,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(OStr, "        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
     }
-    fprintf(OStr, "      end; // nRST\n    end; // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "      end // nRST\n    end // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
         processFunction(PI->func, OStr);

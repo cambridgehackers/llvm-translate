@@ -9,6 +9,14 @@ module l_class_OC_Echo (
     output ind$echo__ENA,
     output [31:0]ind$echo$v,
     input ind$echo__RDY);
+wire fifo$CLK, fifo$nRST;
+wire fifo$deq__ENA;
+wire fifo$deq__RDY;
+wire fifo$enq__ENA;
+wire [31:0]fifo$enq_v;
+wire fifo$enq__RDY;
+wire [31:0]fifo$first;
+wire fifo$first__RDY;
     l_class_OC_Fifo1 fifo (
         fifo$CLK,
         fifo$nRST,
@@ -38,8 +46,8 @@ module l_class_OC_Echo (
             ind$echo_v = (fifo$first);
         end; // End of respond_rule
 
-      end; // nRST
-    end; // always @ (posedge CLK)
+      end // nRST
+    end // always @ (posedge CLK)
 endmodule 
 
 //METAGUARD; echoReq__RDY;         (fifo$enq__RDY);
