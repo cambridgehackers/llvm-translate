@@ -12,11 +12,7 @@ module l_class_OC_Fifo (
     assign enq__RDY =         0;
     assign first =         0;
     assign first__RDY =         0;
-//        if (deq__ENA) begin
-//        end; // End of deq
 
-//        if (enq__ENA) begin
-//        end; // End of enq
 
     always @( posedge CLK) begin
       if (!nRST) begin

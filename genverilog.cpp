@@ -275,8 +275,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         if (!isAction)
             continue;
-        fprintf(OStr, "//        if (%s__ENA) begin\n", mname.c_str());
+        globalCondition = mname + "__ENA";
         processFunction(func, OStr);
+        globalCondition = "";
         if (storeList.size() > 0)
             alwaysLines.push_back("if (" + mname + "__ENA) begin");
         for (auto info: storeList) {
@@ -284,7 +285,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         if (storeList.size() > 0)
             alwaysLines.push_back("end; // End of " + mname);
-        fprintf(OStr, "//        end; // End of %s\n", mname.c_str());
         fprintf(OStr, "\n");
         std::string condition;
         if (!endswith(mname, "__RDY")) {

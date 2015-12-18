@@ -47,6 +47,7 @@ std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
 static int generateRegion = ProcessNone;
 static Function *currentFunction;
+std::string globalCondition;
 
 static std::list<Function *> vtableWork;
 std::list<std::string> storeList;
@@ -678,9 +679,10 @@ static std::string printCall(Instruction &I)
     }
     if (generateRegion == ProcessVerilog) {
         prefix = pcalledFunction + MODULE_SEPARATOR + getMethodName(func->getName());
-        vout += prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
-            vout += "__ENA = 1";
+            vout += "assign " + prefix + "__ENA = " + globalCondition + " ? 1 : 0";
+        else
+            vout += prefix;
         invokeList.push_back(prefix);
     }
     else
@@ -690,11 +692,10 @@ static std::string printCall(Instruction &I)
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
                 std::string pre = prefix + "_" + FAI->getName().str();
-                vout += ";\n            " + pre + " = ";
+                vout += ";\n            assign " + pre + " = " + globalCondition + " ? " + parg + " : 0";
             }
             else
-                vout += sep;
-            vout += parg;
+                vout += sep + parg;
             sep = ", ";
         }
         skip = 0;
