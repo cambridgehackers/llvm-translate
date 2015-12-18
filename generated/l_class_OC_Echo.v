@@ -30,22 +30,22 @@ wire fifo$first__RDY;
    reg[31:0] pipetemp;
     assign echoReq__RDY =         (fifo$enq__RDY);
     assign respond_rule__RDY =         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$echo__RDY);
+//        if (echoReq__ENA) begin
+        fifo$enq__ENA = 1;
+            fifo$enq_v = echoReq_v;
+//        end; // End of echoReq
+
+//        if (respond_rule__ENA) begin
+        fifo$deq__ENA = 1;
+        ind$echo__ENA = 1;
+            ind$echo_v = (fifo$first);
+//        end; // End of respond_rule
+
     always @( posedge CLK) begin
       if (!nRST) begin
         pipetemp <= 0;
       end
       else begin
-        if (echoReq__ENA) begin
-        fifo$enq__ENA = 1;
-            fifo$enq_v = echoReq_v;
-        end; // End of echoReq
-
-        if (respond_rule__ENA) begin
-        fifo$deq__ENA = 1;
-        ind$echo__ENA = 1;
-            ind$echo_v = (fifo$first);
-        end; // End of respond_rule
-
       end // nRST
     end // always @ (posedge CLK)
 endmodule 

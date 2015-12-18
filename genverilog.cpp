@@ -268,28 +268,24 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         }
     }
-    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
-    Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
-            element = newType;
-        std::string fname = fieldName(STy, Idx);
-        if (fname != "" && !dyn_cast<PointerType>(element) && !  dyn_cast<StructType>(element))
-            fprintf(OStr, "        %s <= 0;\n", fname.c_str());
-    }
-    fprintf(OStr, "      end\n      else begin\n");
+    std::list<std::string> alwaysLines;
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         if (!isAction)
             continue;
-        fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
+        fprintf(OStr, "//        if (%s__ENA) begin\n", mname.c_str());
         processFunction(func, OStr);
+        if (storeList.size() > 0)
+            alwaysLines.push_back("if (" + mname + "__ENA) begin");
         for (auto info: storeList) {
-            fprintf(OStr, "        %s; //STORE\n", info.c_str());
+            alwaysLines.push_back(info);
         }
+        if (storeList.size() > 0)
+            alwaysLines.push_back("end; // End of " + mname);
+        fprintf(OStr, "//        end; // End of %s\n", mname.c_str());
+        fprintf(OStr, "\n");
         std::string condition;
         if (!endswith(mname, "__RDY")) {
             std::string temp;
@@ -308,10 +304,20 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             if (temp != "")
                 readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
         }
-        if (isAction)
-            fprintf(OStr, "        end; // End of %s\n", mname.c_str());
-        fprintf(OStr, "\n");
     }
+    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
+    Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "" && !dyn_cast<PointerType>(element) && !  dyn_cast<StructType>(element))
+            fprintf(OStr, "        %s <= 0;\n", fname.c_str());
+    }
+    fprintf(OStr, "      end\n      else begin\n");
+    for (auto info: alwaysLines)
+        fprintf(OStr, "        %s\n", info.c_str());
     fprintf(OStr, "      end // nRST\n    end // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());

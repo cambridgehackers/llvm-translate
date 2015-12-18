@@ -14,6 +14,12 @@ module l_class_OC_Fifo1 (
     assign enq__RDY =         ((full) ^ 1);
     assign first =         (element);
     assign first__RDY =         (full);
+//        if (deq__ENA) begin
+//        end; // End of deq
+
+//        if (enq__ENA) begin
+//        end; // End of enq
+
     always @( posedge CLK) begin
       if (!nRST) begin
         element <= 0;
@@ -21,14 +27,12 @@ module l_class_OC_Fifo1 (
       end
       else begin
         if (deq__ENA) begin
-        full <= 0; //STORE
+        full <= 0;
         end; // End of deq
-
         if (enq__ENA) begin
-        element <= enq_v; //STORE
-        full <= 1; //STORE
+        element <= enq_v;
+        full <= 1;
         end; // End of enq
-
       end // nRST
     end // always @ (posedge CLK)
 endmodule 

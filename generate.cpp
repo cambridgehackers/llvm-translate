@@ -751,9 +751,8 @@ static std::string processInstruction(Instruction &I)
         vout += sval;
         if (BitMask)
             vout += ") & " + printOperand(BitMask, false) + ")";
-        storeList.push_back(vout);
-        vout = "";
-        break;
+        storeList.push_back(vout + ";");
+        return "";
         }
 
     // Terminators

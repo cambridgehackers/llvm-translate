@@ -108,7 +108,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
         processFunction(func, OStr);
         for (auto info: storeList) {
-            fprintf(OStr, "        %s; //STORE\n", info.c_str());
+            fprintf(OStr, "        %s\n", info.c_str());
         }
         fprintf(OStr, "}\n");
     }
