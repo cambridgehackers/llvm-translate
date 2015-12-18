@@ -21,12 +21,12 @@ module l_class_OC_Fifo1 (
       end
       else begin
         if (deq__ENA) begin
-        full <= 0;
+        full <= 0; //STORE
         end; // End of deq
 
         if (enq__ENA) begin
-        element <= enq_v;
-        full <= 1;
+        element <= enq_v; //STORE
+        full <= 1; //STORE
         end; // End of enq
 
       end // nRST

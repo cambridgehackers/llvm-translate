@@ -49,6 +49,7 @@ static int generateRegion = ProcessNone;
 static Function *currentFunction;
 
 static std::list<Function *> vtableWork;
+std::list<std::string> storeList;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
@@ -750,6 +751,8 @@ static std::string processInstruction(Instruction &I)
         vout += sval;
         if (BitMask)
             vout += ") & " + printOperand(BitMask, false) + ")";
+        storeList.push_back(vout);
+        vout = "";
         break;
         }
 
@@ -902,6 +905,7 @@ void processFunction(Function *func, FILE *OStr)
     readList.clear();
     writeList.clear();
     invokeList.clear();
+    storeList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */

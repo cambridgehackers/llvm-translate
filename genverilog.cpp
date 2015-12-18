@@ -287,6 +287,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             continue;
         fprintf(OStr, "        if (%s__ENA) begin\n", mname.c_str());
         processFunction(func, OStr);
+        for (auto info: storeList) {
+            fprintf(OStr, "        %s; //STORE\n", info.c_str());
+        }
         std::string condition;
         if (!endswith(mname, "__RDY")) {
             std::string temp;
