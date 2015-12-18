@@ -144,6 +144,66 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     fprintf(OStr, ");\n");
 }
 
+void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
+{
+    std::string name = getStructName(STy);
+    ClassMethodTable *table = classCreate[STy];
+    /*
+     * Now generate importBVI for use of module from Bluespec
+     */
+    FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
+    fprintf(BStr, "interface %s;\n", ucName(name).c_str());
+    for (auto FI : table->method) {
+        Function *func = FI.second;
+        std::string mname = FI.first;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (endswith(mname, "__RDY"))
+            continue;
+        fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
+        int skip = 1;
+        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip) {
+                //const Type *Ty = AI->getType();
+                //paramList.push_back(inp + verilogArrRange(Ty) + 
+                fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
+            }
+            skip = 0;
+        }
+        fprintf(BStr, ");\n");
+    }
+    fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
+    fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
+    std::string sched = "", sep = "";
+    for (auto FI : table->method) {
+        Function *func = FI.second;
+        std::string mname = FI.first;
+        if (endswith(mname, "__RDY"))
+            continue;
+        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        if (hasRet)
+            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
+        else
+            fprintf(BStr, "    method %s(", mname.c_str());
+        int skip = 1;
+        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (!skip) {
+                //const Type *Ty = AI->getType();
+                //paramList.push_back(inp + verilogArrRange(Ty) + 
+                fprintf(BStr, "%s", (mname + "_" + AI->getName().str()).c_str());
+            }
+            skip = 0;
+        }
+        if (!hasRet)
+            fprintf(BStr, ") enable(%s__ENA", mname.c_str());
+        fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
+        sched += sep + mname;
+        sep = ", ";
+    }
+    fprintf(BStr, "    schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
+    fprintf(BStr, "endmodule\n");
+    fclose(BStr);
+}
+
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
@@ -257,59 +317,5 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());
     fclose(OStr);
-
-    /*
-     * Now generate importBVI for use of module from Bluespec
-     */
-    FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
-    fprintf(BStr, "interface %s;\n", ucName(name).c_str());
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        std::string mname = FI.first;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (endswith(mname, "__RDY"))
-            continue;
-        fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
-        int skip = 1;
-        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                //const Type *Ty = AI->getType();
-                //paramList.push_back(inp + verilogArrRange(Ty) + 
-                fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
-            }
-            skip = 0;
-        }
-        fprintf(BStr, ");\n");
-    }
-    fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
-    fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
-    std::string sched = "", sep = "";
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        std::string mname = FI.first;
-        if (endswith(mname, "__RDY"))
-            continue;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (hasRet)
-            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        else
-            fprintf(BStr, "    method %s(", mname.c_str());
-        int skip = 1;
-        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                //const Type *Ty = AI->getType();
-                //paramList.push_back(inp + verilogArrRange(Ty) + 
-                fprintf(BStr, "%s", (mname + "_" + AI->getName().str()).c_str());
-            }
-            skip = 0;
-        }
-        if (!hasRet)
-            fprintf(BStr, ") enable(%s__ENA", mname.c_str());
-        fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
-        sched += sep + mname;
-        sep = ", ";
-    }
-    fprintf(BStr, "    schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
-    fprintf(BStr, "endmodule\n");
-    fclose(BStr);
+    generateBsvWrapper(STy, aOStr, oDir);
 }
