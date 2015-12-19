@@ -106,7 +106,9 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
-        processFunction(func, OStr);
+        processFunction(func);
+        for (auto item: functionList)
+            fprintf(OStr, "        %s;\n", item.c_str());
         for (auto info: storeList) {
             fprintf(OStr, "        %s\n", info.c_str());
         }

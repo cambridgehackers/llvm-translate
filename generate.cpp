@@ -50,13 +50,12 @@ static Function *currentFunction;
 std::string globalCondition;
 
 static std::list<Function *> vtableWork;
-std::list<std::string> storeList;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-std::list<std::string> readList, writeList, invokeList;
+std::list<std::string> readList, writeList, invokeList, storeList, functionList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -893,7 +892,7 @@ static std::string processInstruction(Instruction &I)
 /*
  * Walk all BasicBlocks for a Function, calling requested processing function
  */
-void processFunction(Function *func, FILE *OStr)
+void processFunction(Function *func)
 {
     std::string fname = func->getName();
     globalName = getMethodName(fname);
@@ -906,6 +905,7 @@ void processFunction(Function *func, FILE *OStr)
     writeList.clear();
     invokeList.clear();
     storeList.clear();
+    functionList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", globalName.c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
@@ -916,17 +916,15 @@ void processFunction(Function *func, FILE *OStr)
             auto INEXT = std::next(BasicBlock::iterator(II));
             if (INEXT == IE || !isInlinableInst(*II)) {
                 std::string vout = processInstruction(*II);
-                bool save_val = (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
-                         && II->getType() != Type::getVoidTy(BI->getContext()));
-                if (vout != "" && OStr) {
-                    fprintf(OStr, "        ");
-                    if (save_val) {
+                if (vout != "") {
+                    if (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
+                         && II->getType() != Type::getVoidTy(BI->getContext())) {
                         std::string resname = GetValueName(&*II);
                         if (generateRegion == ProcessCPP)
                             resname = printType(II->getType(), false, resname, "", "", false);
-                        fprintf(OStr, "%s", (resname + ASSIGNOP).c_str());
+                        vout = resname + ASSIGNOP + vout;
                     }
-                    fprintf(OStr, "%s;\n", vout.c_str());
+                    functionList.push_back(vout);
                 }
             }
             II = INEXT;

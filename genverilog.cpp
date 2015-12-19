@@ -247,7 +247,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         if (!isAction) {
             fprintf(OStr, "    assign %s = ", mname.c_str());
-            processFunction(func, OStr);
+            processFunction(func);
+            for (auto item: functionList)
+                fprintf(OStr, "        %s;\n", item.c_str());
         std::string condition;
         if (!endswith(mname, "__RDY")) {
             std::string temp;
@@ -276,7 +278,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (!isAction)
             continue;
         globalCondition = mname + "__ENA";
-        processFunction(func, OStr);
+        processFunction(func);
+        for (auto item: functionList)
+            fprintf(OStr, "        %s;\n", item.c_str());
         globalCondition = "";
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA) begin");
@@ -324,7 +328,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     fprintf(OStr, "    end // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
-        processFunction(PI->func, OStr);
+        processFunction(PI->func);
+        for (auto item: functionList)
+            fprintf(OStr, "        %s;\n", item.c_str());
     }
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());

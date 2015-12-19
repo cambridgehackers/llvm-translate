@@ -61,7 +61,7 @@ extern int trace_translate;
 extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
-extern std::list<std::string> readList, writeList, invokeList, storeList;
+extern std::list<std::string> readList, writeList, invokeList, storeList, functionList;
 extern std::string globalCondition;
 
 int validateAddress(int arg, void *p);
@@ -71,7 +71,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
 std::string printOperand(Value *Operand, bool Indirect);
 std::string getStructName(const StructType *STy);
 std::string CBEMangle(const std::string &S);
-void processFunction(Function *func, FILE *outputFile);
+void processFunction(Function *func);
 std::string verilogArrRange(const Type *Ty);
 void memdump(unsigned char *p, int len, const char *title);
 void memdumpl(unsigned char *p, int len, const char *title);
