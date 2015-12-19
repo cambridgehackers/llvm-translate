@@ -84,7 +84,13 @@ endmodule
 verilogArgAction = 'output RDY_%(name)s,%(args)s input EN_%(name)s'
 verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
 userArgAction = '.%(uname)s__RDY(RDY_%(name)s),%(uargs)s .%(uname)s__ENA(EN_%(name)s),'
-userArgActionArg = ' .%(uname)s_v(%(name)s_v),'
+userArgActionArg = ' .%(uname)s_v(%(name)s_%(aname)s),'
+userArgInd = '.%(uname)s__RDY(RDY_%(name)s),%(uargs)s .%(uname)s__ENA(EN_%(name)s),'
+userArgIndArg = ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
+userArgWire = 'wire RDY_%(name)s, EN_%(name)s;'
+userArgWireArg = 'wire %(adim)s%(name)s_%(aname)s;'
+userArgLink = '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
+userArgLinkArg = '.%(name)s_%(aname)s(%(name)s_%(aname)s),'
 
 verilogArgValue = 'output RDY_%(name)s, output %(adim)s%(name)s'
 
@@ -93,16 +99,16 @@ module EchoVerilog( input CLK, input RST_N,
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size,
  %(verilogArgs)s);
 
- wire echo_rule_wire, echo_ind_ena, echo_ind_rdy;
- wire[31:0]echo_ind_v;
+ wire echo_rule_wire;
+ %(userWires)s
 
  l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
    %(userArgs)s
-   .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire),
-   .ind$echo__RDY(echo_ind_rdy), .ind$echo$v(echo_ind_v), .ind$echo__ENA(echo_ind_ena));
+   %(userInds)s
+   .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),
-   .RDY_ifc_heard(echo_ind_rdy), .ifc_heard_v(echo_ind_v), .EN_ifc_heard(echo_ind_ena),
+   %(userLinks)s
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size),
    .RDY_portalIfc_indications_0_first(RDY_ind_first), .portalIfc_indications_0_first(ind_first),
    .RDY_portalIfc_indications_0_deq(RDY_ind_deq), .EN_portalIfc_indications_0_deq(EN_ind_deq),
@@ -297,6 +303,7 @@ if __name__=='__main__':
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
         verilogActions = [['ind_deq', []], ['request_say', [['v', '[31:0]']], 'echoReq']]
         verilogValues = [['ind_notEmpty', ''], ['intr_status', ''], ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
+        userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
 
         vArgs = []
         uArgs = []
@@ -319,12 +326,31 @@ if __name__=='__main__':
         for item in verilogValues:
             pmap = {'name':item[0], 'adim': item[1]}
             vArgs.append(verilogArgValue % pmap)
-        print 'JJJJJJJJJJ', vArgs
+        uInds = []
+        uWires = []
+        uLinks = []
+        for item in userIndications:
+            pmap = {'name':item[0], 'uname': item[2]}
+            uStr = []
+            for aitem in item[1]:
+                pmap['aname'] = aitem[0]
+                pmap['adim'] = aitem[1]
+                uStr.append(userArgIndArg % pmap)
+                uWires.append(userArgWireArg % pmap)
+                uLinks.append(userArgLinkArg % pmap)
+            pmap['uargs'] = ','.join(uStr)
+            uInds.append(userArgInd % pmap)
+            uWires.append(userArgWire % pmap)
+            uLinks.append(userArgLink % pmap)
+        print 'JJJJJJJJJJ', uInds, uWires
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
             'verilogArgs': ',\n'.join(vArgs),
             'userArgs': ',\n'.join(uArgs),
+            'userInds': ',\n'.join(uInds),
+            'userWires': '\n '.join(uWires),
+            'userLinks': '\n   '.join(uLinks),
             }
         open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
         open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
