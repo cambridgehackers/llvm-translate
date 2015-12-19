@@ -1,12 +1,12 @@
 
 module EchoVerilog( input CLK, input RST_N, 
- output RDY_request_say, input[31:0] request_say_v, input        EN_request_say,
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size,
- output RDY_ind_first, output[31:0] ind_first,
- output RDY_intr_channel, output[31:0] intr_channel,
  output RDY_ind_deq, input EN_ind_deq,
+output RDY_request_say, input[31:0] request_say_v, input EN_request_say,
 output RDY_ind_notEmpty, output ind_notEmpty,
-output RDY_intr_status, output intr_status);
+output RDY_intr_status, output intr_status,
+output RDY_ind_first, output [31:0]ind_first,
+output RDY_intr_channel, output [31:0]intr_channel);
 
  wire echo_rule_wire, echo_ind_ena, echo_ind_rdy;
  wire[31:0]echo_ind_v;

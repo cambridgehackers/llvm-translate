@@ -81,15 +81,13 @@ module mk%(name)s(%(name)s);
 endmodule
 '''
 
-verilogArgAction = 'output RDY_%(name)s, input EN_%(name)s'
-verilogArgValue = 'output RDY_%(name)s, output %(name)s'
+verilogArgAction = 'output RDY_%(name)s,%(args)s input EN_%(name)s'
+verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
+verilogArgValue = 'output RDY_%(name)s, output %(adim)s%(name)s'
 
 verilogTemplate='''
 module EchoVerilog( input CLK, input RST_N, 
- output RDY_request_say, input[31:0] request_say_v, input        EN_request_say,
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size,
- output RDY_ind_first, output[31:0] ind_first,
- output RDY_intr_channel, output[31:0] intr_channel,
  %(verilogArgs)s);
 
  wire echo_rule_wire, echo_ind_ena, echo_ind_rdy;
@@ -294,10 +292,22 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-        verilogActions = ['ind_deq']
-        verilogValues = ['ind_notEmpty', 'intr_status']
-        vArgs = [(verilogArgAction % {'name':name}) for name in verilogActions]
-        vArgs += [(verilogArgValue % {'name':name}) for name in verilogValues]
+        verilogActions = [['ind_deq', []], ['request_say', [['v', '[31:0]']]]]
+        verilogValues = [['ind_notEmpty', ''], ['intr_status', ''], ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
+
+        vArgs = []
+        for item in verilogActions:
+            pmap = {'name':item[0]}
+            aStr = []
+            for aitem in item[1]:
+                pmap['aname'] = aitem[0]
+                pmap['adim'] = aitem[1]
+                aStr.append(verilogArgActionArg % pmap)
+            pmap['args'] = ','.join(aStr)
+            vArgs.append(verilogArgAction % pmap)
+        for item in verilogValues:
+            pmap = {'name':item[0], 'adim': item[1]}
+            vArgs.append(verilogArgValue % pmap)
         print 'JJJJJJJJJJ', vArgs
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
