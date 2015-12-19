@@ -83,6 +83,9 @@ endmodule
 
 verilogArgAction = 'output RDY_%(name)s,%(args)s input EN_%(name)s'
 verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
+userArgAction = '.%(uname)s__RDY(RDY_%(name)s),%(uargs)s .%(uname)s__ENA(EN_%(name)s),'
+userArgActionArg = ' .%(uname)s_v(%(name)s_v),'
+
 verilogArgValue = 'output RDY_%(name)s, output %(adim)s%(name)s'
 
 verilogTemplate='''
@@ -94,7 +97,7 @@ module EchoVerilog( input CLK, input RST_N,
  wire[31:0]echo_ind_v;
 
  l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
-   .echoReq__RDY(RDY_request_say), .echoReq_v(request_say_v), .echoReq__ENA(EN_request_say),
+   %(userArgs)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire),
    .ind$echo__RDY(echo_ind_rdy), .ind$echo$v(echo_ind_v), .ind$echo__ENA(echo_ind_ena));
 
@@ -292,19 +295,27 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-        verilogActions = [['ind_deq', []], ['request_say', [['v', '[31:0]']]]]
+        verilogActions = [['ind_deq', []], ['request_say', [['v', '[31:0]']], 'echoReq']]
         verilogValues = [['ind_notEmpty', ''], ['intr_status', ''], ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
 
         vArgs = []
+        uArgs = []
         for item in verilogActions:
             pmap = {'name':item[0]}
             aStr = []
+            uStr = []
+            if len(item) > 2:
+                pmap['uname'] = item[2]
             for aitem in item[1]:
                 pmap['aname'] = aitem[0]
                 pmap['adim'] = aitem[1]
                 aStr.append(verilogArgActionArg % pmap)
+                uStr.append(userArgActionArg % pmap)
             pmap['args'] = ','.join(aStr)
+            pmap['uargs'] = ','.join(uStr)
             vArgs.append(verilogArgAction % pmap)
+            if len(item) > 2:
+                uArgs.append(userArgAction % pmap)
         for item in verilogValues:
             pmap = {'name':item[0], 'adim': item[1]}
             vArgs.append(verilogArgValue % pmap)
@@ -313,6 +324,7 @@ if __name__=='__main__':
             'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
             'verilogArgs': ',\n'.join(vArgs),
+            'userArgs': ',\n'.join(uArgs),
             }
         open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
         open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
