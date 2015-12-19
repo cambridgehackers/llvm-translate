@@ -27,7 +27,89 @@ import re
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
 argparser.add_argument('--directory', help='directory', default='')
+argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
+
+bsvTemplate='''
+%(importFiles)s
+
+interface %(name)s;
+   interface %(request)s request;
+   interface %(indication)sPortalOutput l%(indication)sOutput;
+endinterface
+
+interface %(name)sBVI;
+   interface %(request)s request;
+   interface PortalSize messageSize;
+   interface PipeOut#(Bit#(SlaveDataBusWidth)) indications;
+   interface PortalInterrupt#(SlaveDataBusWidth) intr;
+endinterface
+
+import "BVI" %(name)sVerilog =
+module mk%(name)sBVI(%(name)sBVI);
+    default_clock clk();
+    default_reset rst();
+    interface %(request)s request;
+        %(methodList)s;
+    endinterface
+
+    interface PortalSize messageSize;
+        method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
+    endinterface
+    interface PipeOut indications;
+        method deq() enable(EN_ind_deq) ready(RDY_ind_deq);
+        method ind_first first() ready(RDY_ind_first);
+        method ind_notEmpty notEmpty() ready(RDY_ind_notEmpty);
+    endinterface
+    interface PortalInterrupt intr;
+        method intr_status status() ready(RDY_intr_status);
+        method intr_channel channel() ready(RDY_intr_channel);
+    endinterface
+endmodule
+
+(*synthesize*)
+module mk%(name)s(%(name)s);
+    let bvi <- mk%(name)sBVI;
+    Vector#(1, PipeOut#(Bit#(SlaveDataBusWidth))) tmpInd;
+    tmpInd[0] = bvi.indications;
+    interface %(request)s request = bvi.request;
+    interface %(indication)sPortalOutput l%(indication)sOutput;
+        interface PortalSize messageSize = bvi.messageSize;
+        interface Vector indications = tmpInd;
+        interface PortalInterrupt intr = bvi.intr;
+    endinterface
+endmodule
+'''
+
+verilogArgAction = 'output RDY_%(name)s, input EN_%(name)s'
+verilogArgValue = 'output RDY_%(name)s, output %(name)s'
+
+verilogTemplate='''
+module EchoVerilog( input CLK, input RST_N, 
+ output RDY_request_say, input[31:0] request_say_v, input        EN_request_say,
+ output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size,
+ output RDY_ind_first, output[31:0] ind_first,
+ output RDY_intr_channel, output[31:0] intr_channel,
+ %(verilogArgs)s);
+
+ wire echo_rule_wire, echo_ind_ena, echo_ind_rdy;
+ wire[31:0]echo_ind_v;
+
+ l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
+   .echoReq__RDY(RDY_request_say), .echoReq_v(request_say_v), .echoReq__ENA(EN_request_say),
+   .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire),
+   .ind$echo__RDY(echo_ind_rdy), .ind$echo$v(echo_ind_v), .ind$echo__ENA(echo_ind_ena));
+
+ mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),
+   .RDY_ifc_heard(echo_ind_rdy), .ifc_heard_v(echo_ind_v), .EN_ifc_heard(echo_ind_ena),
+   .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size),
+   .RDY_portalIfc_indications_0_first(RDY_ind_first), .portalIfc_indications_0_first(ind_first),
+   .RDY_portalIfc_indications_0_deq(RDY_ind_deq), .EN_portalIfc_indications_0_deq(EN_ind_deq),
+   .RDY_portalIfc_indications_0_notEmpty(RDY_ind_notEmpty), .portalIfc_indications_0_notEmpty(ind_notEmpty),
+   .RDY_portalIfc_intr_status(RDY_intr_status), .portalIfc_intr_status(intr_status),
+   .RDY_portalIfc_intr_channel(RDY_intr_channel), .portalIfc_intr_channel(intr_channel));
+endmodule  // mkEcho
+'''
 
 mInfo = {}
 
@@ -210,4 +292,18 @@ if __name__=='__main__':
             print 'writeList', key
             for wItem in wList:
                 print parseExpression(wItem[0]), wItem[1:]
+    if options.output:
+        importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
+        verilogActions = ['ind_deq']
+        verilogValues = ['ind_notEmpty', 'intr_status']
+        vArgs = [(verilogArgAction % {'name':name}) for name in verilogActions]
+        vArgs += [(verilogArgValue % {'name':name}) for name in verilogValues]
+        print 'JJJJJJJJJJ', vArgs
+        pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
+            'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
+            'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
+            'verilogArgs': ',\n'.join(vArgs),
+            }
+        open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
+        open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
 
