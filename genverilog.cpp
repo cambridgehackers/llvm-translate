@@ -278,13 +278,12 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         globalCondition = mname + "__ENA";
         processFunction(func, OStr);
         globalCondition = "";
-        if (storeList.size() > 0)
+        if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA) begin");
-        for (auto info: storeList) {
-            alwaysLines.push_back(info);
-        }
-        if (storeList.size() > 0)
+            for (auto info: storeList)
+                alwaysLines.push_back(info);
             alwaysLines.push_back("end; // End of " + mname);
+        }
         fprintf(OStr, "\n");
         std::string condition;
         if (!endswith(mname, "__RDY")) {
@@ -315,10 +314,14 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (fname != "" && !dyn_cast<PointerType>(element) && !  dyn_cast<StructType>(element))
             fprintf(OStr, "        %s <= 0;\n", fname.c_str());
     }
-    fprintf(OStr, "      end\n      else begin\n");
-    for (auto info: alwaysLines)
-        fprintf(OStr, "        %s\n", info.c_str());
-    fprintf(OStr, "      end // nRST\n    end // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "      end // nRST\n");
+    if (alwaysLines.size() > 0) {
+        fprintf(OStr, "      else begin\n");
+        for (auto info: alwaysLines)
+            fprintf(OStr, "        %s\n", info.c_str());
+        fprintf(OStr, "      end\n");
+    }
+    fprintf(OStr, "    end // always @ (posedge CLK)\nendmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
         processFunction(PI->func, OStr);
