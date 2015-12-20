@@ -78,15 +78,7 @@ module mk%(name)sBVI(%(name)sBVI);
     interface PortalSize messageSize;
         method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
     endinterface
-    interface PipeOut indications;
-        method deq() enable(EN_indications_0_deq) ready(RDY_indications_0_deq);
-        method indications_0_first first() ready(RDY_indications_0_first);
-        method indications_0_notEmpty notEmpty() ready(RDY_indications_0_notEmpty);
-    endinterface
-    interface PortalInterrupt intr;
-        method intr_status status() ready(RDY_intr_status);
-        method intr_channel channel() ready(RDY_intr_channel);
-    endinterface
+    %(interfaceBody)s
 endmodule
 
 (*synthesize*)
@@ -316,6 +308,7 @@ if __name__=='__main__':
         uLinks = []
         uReq = []
         eIfc = []
+        eBody = []
         for key, value in verilogActions.iteritems():
             for item in value[1]:
                 rname = value[0] + '_' + item[0]
@@ -352,6 +345,19 @@ if __name__=='__main__':
             uLinks.append(userArgLink % pmap)
         for key, value in exportInterface.iteritems():
             eIfc.append('interface %s %s;' % (value, key))
+            vVal = verilogValues.get(key)
+            vAct = verilogActions.get(key)
+            if vAct or vVal:
+                eBody.append('interface %s %s;' % (value.split('#')[0], key))
+                if vAct:
+                   for item in vAct[1]:
+                       pmap = {'iname': vAct[0], 'name': item[0]}
+                       eBody.append('    method %(name)s() enable(EN_%(iname)s_%(name)s) ready(RDY_%(iname)s_%(name)s);' % pmap)
+                if vVal:
+                   for item in vVal[1]:
+                       pmap = {'iname': vVal[0], 'name': item[0]}
+                       eBody.append('    method %(iname)s_%(name)s %(name)s() ready(RDY_%(iname)s_%(name)s);' % pmap)
+                eBody.append('endinterface')
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': ' '.join(uReq),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
@@ -360,6 +366,7 @@ if __name__=='__main__':
             'userWires': '\n '.join(uWires),
             'userLinks': '\n   '.join(uLinks),
             'exportInterface': '\n   '.join(eIfc),
+            'interfaceBody': '\n    '.join(eBody),
             }
         open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
         open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)

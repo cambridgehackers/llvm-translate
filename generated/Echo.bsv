@@ -31,8 +31,8 @@ module mkEchoBVI(EchoBVI);
     endinterface
     interface PipeOut indications;
         method deq() enable(EN_indications_0_deq) ready(RDY_indications_0_deq);
-        method indications_0_first first() ready(RDY_indications_0_first);
         method indications_0_notEmpty notEmpty() ready(RDY_indications_0_notEmpty);
+        method indications_0_first first() ready(RDY_indications_0_first);
     endinterface
     interface PortalInterrupt intr;
         method intr_status status() ready(RDY_intr_status);
