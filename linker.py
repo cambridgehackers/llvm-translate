@@ -96,20 +96,17 @@ userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
 verilogLink =         '.RDY_%(name)s(RDY_%(uname)s), .%(name)s(%(uname)s),'
 
 verilogTemplate='''
-module EchoVerilog( input CLK, input RST_N, 
- %(verilogArgs)s
+module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
  );
 
  wire echo_rule_wire;
  %(userWires)s
 
- l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
-   %(userArgs)s
+ l_class_OC_Echo echo(.CLK(CLK), .nRST(RST_N), %(userArgs)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
- mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),
-   %(userLinks)s
+ mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
    .RDY_portalIfc_indications_0_deq(RDY_ind_deq), .EN_portalIfc_indications_0_deq(EN_ind_deq),
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho
@@ -299,9 +296,14 @@ if __name__=='__main__':
     if options.output:
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
         verilogActions = [['ind_deq', []]]
-        verilogValues = [['ind_notEmpty', ''], ['intr_status', ''], ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
+        verilogValues = [['ind_notEmpty', ''], ['intr_status', ''],
+                         ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
         userRequests = [['request_say', [['v', '[31:0]']], 'say']]
         userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
+        linkItems = [['portalIfc_indications_0_first', 'ind_first'],
+                     ['portalIfc_indications_0_notEmpty', 'ind_notEmpty'],
+                     ['portalIfc_intr_status', 'intr_status'],
+                     ['portalIfc_intr_channel', 'intr_channel']]
 
         vArgs = []
         uArgs = []
@@ -343,10 +345,6 @@ if __name__=='__main__':
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
-        linkItems = [['portalIfc_indications_0_first', 'ind_first'],
-                     ['portalIfc_indications_0_notEmpty', 'ind_notEmpty'],
-                     ['portalIfc_intr_status', 'intr_status'],
-                     ['portalIfc_intr_channel', 'intr_channel']]
         for item in linkItems:
             pmap = {'name':item[0], 'uname': item[1]}
             uLinks.append(verilogLink % pmap)
