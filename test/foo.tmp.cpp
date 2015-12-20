@@ -29,10 +29,10 @@ unsigned int stop_main_program;
 #include "../generated/output.h"
 #include "../generated/output.cpp"
 
-bool l_class_OC_EchoIndication::echo__RDY(void) {
+bool l_class_OC_EchoIndication::heard__RDY(void) {
         return true;
 }
-void l_class_OC_EchoIndication::echo(unsigned int v) {
+void l_class_OC_EchoIndication::heard(unsigned int v) {
         printf((("Heard an echo: %d\n")), v);
         stop_main_program = 1;
 }

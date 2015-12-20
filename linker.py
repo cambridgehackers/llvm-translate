@@ -35,7 +35,7 @@ verilogActions = {'indications_0': [['deq', []]]}
 verilogValues  = {'indications_0': [['notEmpty', ''], ['first', '[31:0]']],
                   'intr': [['status', ''], ['channel', '[31:0]']]}
 userRequests =    {'request': [['say', [['v', '[31:0]']]]]}
-userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
+userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$heard']]
 
 verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
 verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
@@ -109,7 +109,7 @@ module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
  wire echo_rule_wire;
  %(userWires)s
 
- l_class_OC_Echo echo(.CLK(CLK), .nRST(RST_N), %(userArgs)s
+ l_class_OC_Echo lEcho(.CLK(CLK), .nRST(RST_N), %(userArgs)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
