@@ -64,7 +64,7 @@ endinterface
 
 interface %(name)sBVI;
    interface %(request)s request;
-%(exportInterface)s
+   %(exportInterface)s
 endinterface
 
 import "BVI" %(name)sVerilog =
@@ -351,7 +351,7 @@ if __name__=='__main__':
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
         for key, value in exportInterface.iteritems():
-            eIfc.append('   interface %s %s;' % (value, key))
+            eIfc.append('interface %s %s;' % (value, key))
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': ' '.join(uReq),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
@@ -359,7 +359,7 @@ if __name__=='__main__':
             'userArgs': '\n'.join(uArgs),
             'userWires': '\n '.join(uWires),
             'userLinks': '\n   '.join(uLinks),
-            'exportInterface': '\n'.join(eIfc),
+            'exportInterface': '\n   '.join(eIfc),
             }
         open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
         open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
