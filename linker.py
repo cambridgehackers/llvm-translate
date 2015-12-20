@@ -31,10 +31,10 @@ argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-verilogActions = [['indications_0_deq', []]]
+verilogActions = {'indications_0': [['deq', []]]}
 verilogValues  = {'indications_0': [['notEmpty', ''], ['first', '[31:0]']],
                   'intr': [['status', ''], ['channel', '[31:0]']]}
-userRequests =    [['request_say', [['v', '[31:0]']], 'say']]
+userRequests =    {'request': [['say', [['v', '[31:0]']], 'say']]}
 userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
 
 verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
@@ -284,8 +284,8 @@ def parseExpression(string):
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
-def addAction(item):
-    pmap = {'name':item[0], 'paramSep': '_'}
+def addAction(rname, item):
+    pmap = {'name':rname, 'paramSep': '_'}
     if len(item) > 2:
         pmap['uname'] = item[2]
         uArgs.append(userArgAction % pmap)
@@ -317,22 +317,27 @@ if __name__=='__main__':
         uWires = []
         uLinks = []
         uAct = []
-        for item in verilogActions:
-            addAction(item)
-            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0], 'eprefix': 'EN_'}
-            uLinks.append(verilogLink % pmap)
-        for item in userRequests:
-            addAction(item)
-            uAct.append('method')
-            pmap = {'name':item[0]}
-            if len(item) > 2:
-                pmap['uname'] = item[2]
-            for aitem in item[1]:
-                pmap['aname'] = aitem[0]
-                pmap['adim'] = aitem[1]
-                uAct.append(userArgReqArg % pmap)
-            if len(item) > 2:
-                uAct.append(userArgReq % pmap)
+        for key, value in verilogActions.iteritems():
+            for item in value:
+                print 'JJJJ', key, item
+                rname = key + '_' + item[0]
+                addAction(rname, item)
+                pmap = {'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': 'EN_'}
+                uLinks.append(verilogLink % pmap)
+        for key, value in userRequests.iteritems():
+            for item in value:
+                rname = key + '_' + item[0]
+                addAction(rname, item)
+                uAct.append('method')
+                pmap = {'name':rname}
+                if len(item) > 2:
+                    pmap['uname'] = item[2]
+                for aitem in item[1]:
+                    pmap['aname'] = aitem[0]
+                    pmap['adim'] = aitem[1]
+                    uAct.append(userArgReqArg % pmap)
+                if len(item) > 2:
+                    uAct.append(userArgReq % pmap)
         for key, value in verilogValues.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
