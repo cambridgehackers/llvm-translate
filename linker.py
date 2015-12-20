@@ -32,8 +32,8 @@ argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
 verilogActions = [['indications_0_deq', []]]
-verilogValues  = [['indications_0', [['notEmpty', ''], ['first', '[31:0]']]],
-                 ['intr', [['status', ''], ['channel', '[31:0]']]]]
+verilogValues  = {'indications_0': [['notEmpty', ''], ['first', '[31:0]']],
+                  'intr': [['status', ''], ['channel', '[31:0]']]}
 userRequests =    [['request_say', [['v', '[31:0]']], 'say']]
 userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
 
@@ -327,9 +327,9 @@ if __name__=='__main__':
                 uAct.append(userArgReqArg % pmap)
             if len(item) > 2:
                 uAct.append(userArgReq % pmap)
-        for vseq in verilogValues:
-            for item in vseq[1]:
-                rname = vseq[0] + '_' + item[0]
+        for key, value in verilogValues.iteritems():
+            for item in value:
+                rname = key + '_' + item[0]
                 pmap = {'name':rname, 'adim': item[1], 'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': ''}
                 vArgs.append(verilogArgValue % pmap)
                 uLinks.append(verilogLink % pmap)
