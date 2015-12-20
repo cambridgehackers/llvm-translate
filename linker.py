@@ -34,7 +34,7 @@ importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIn
 verilogActions = {'indications_0': [['deq', []]]}
 verilogValues  = {'indications_0': [['notEmpty', ''], ['first', '[31:0]']],
                   'intr': [['status', ''], ['channel', '[31:0]']]}
-userRequests =    {'request': [['say', [['v', '[31:0]']], 'say']]}
+userRequests =    {'request': [['say', [['v', '[31:0]']]]]}
 userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
 
 verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
@@ -327,17 +327,15 @@ if __name__=='__main__':
         for key, value in userRequests.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
+                item.append(item[0])
                 addAction(rname, item)
                 uAct.append('method')
-                pmap = {'name':rname}
-                if len(item) > 2:
-                    pmap['uname'] = item[2]
+                pmap = {'uname': item[0], 'name':rname}
                 for aitem in item[1]:
                     pmap['aname'] = aitem[0]
                     pmap['adim'] = aitem[1]
                     uAct.append(userArgReqArg % pmap)
-                if len(item) > 2:
-                    uAct.append(userArgReq % pmap)
+                uAct.append(userArgReq % pmap)
         for key, value in verilogValues.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
