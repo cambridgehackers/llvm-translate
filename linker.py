@@ -81,23 +81,22 @@ module mk%(name)s(%(name)s);
 endmodule
 '''
 
-verilogArgAction = 'output RDY_%(name)s,%(args)s input EN_%(name)s'
+verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
+verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
 verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
-userArgAction = '.%(uname)s__RDY(RDY_%(name)s),%(uargs)s .%(uname)s__ENA(EN_%(name)s),'
-userArgActionArg = ' .%(uname)s_v(%(name)s_%(aname)s),'
-userArgInd = '.%(uname)s__RDY(RDY_%(name)s),%(uargs)s .%(uname)s__ENA(EN_%(name)s),'
-userArgIndArg = ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
-userArgWire = 'wire RDY_%(name)s, EN_%(name)s;'
-userArgWireArg = 'wire %(adim)s%(name)s_%(aname)s;'
-userArgLink = '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
-userArgLinkArg = '.%(name)s_%(aname)s(%(name)s_%(aname)s),'
-
-verilogArgValue = 'output RDY_%(name)s, output %(adim)s%(name)s'
+userArgAction =       '.%(uname)s__RDY(RDY_%(name)s), .%(uname)s__ENA(EN_%(name)s),'
+userArgActionArg =    ' .%(uname)s_%(aname)s(%(name)s_%(aname)s),'
+userArgIndArg =       ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
+userArgLinkArg =      ' .%(name)s_%(aname)s(%(name)s_%(aname)s),'
+userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
+userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
+userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
 
 verilogTemplate='''
 module EchoVerilog( input CLK, input RST_N, 
- output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size,
- %(verilogArgs)s);
+ %(verilogArgs)s
+ output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
+ );
 
  wire echo_rule_wire;
  %(userWires)s
@@ -301,54 +300,58 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-        verilogActions = [['ind_deq', []], ['request_say', [['v', '[31:0]']], 'echoReq']]
+        verilogActions = [['ind_deq', []]]
         verilogValues = [['ind_notEmpty', ''], ['intr_status', ''], ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
+        userRequests = [['request_say', [['v', '[31:0]']], 'say']]
         userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
 
         vArgs = []
         uArgs = []
-        for item in verilogActions:
-            pmap = {'name':item[0]}
-            aStr = []
-            uStr = []
-            if len(item) > 2:
-                pmap['uname'] = item[2]
-            for aitem in item[1]:
-                pmap['aname'] = aitem[0]
-                pmap['adim'] = aitem[1]
-                aStr.append(verilogArgActionArg % pmap)
-                uStr.append(userArgActionArg % pmap)
-            pmap['args'] = ','.join(aStr)
-            pmap['uargs'] = ','.join(uStr)
-            vArgs.append(verilogArgAction % pmap)
-            if len(item) > 2:
-                uArgs.append(userArgAction % pmap)
-        for item in verilogValues:
-            pmap = {'name':item[0], 'adim': item[1]}
-            vArgs.append(verilogArgValue % pmap)
         uInds = []
         uWires = []
         uLinks = []
-        for item in userIndications:
-            pmap = {'name':item[0], 'uname': item[2]}
-            uStr = []
+        uAct = []
+        for item in verilogActions + userRequests:
+            pmap = {'name':item[0]}
+            if len(item) > 2:
+                pmap['uname'] = item[2]
+                uArgs.append(userArgAction % pmap)
             for aitem in item[1]:
                 pmap['aname'] = aitem[0]
                 pmap['adim'] = aitem[1]
-                uStr.append(userArgIndArg % pmap)
+                vArgs.append(verilogArgActionArg % pmap)
+                uArgs.append(userArgActionArg % pmap)
+            vArgs.append(verilogArgAction % pmap)
+#'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
+        for item in userRequests:
+            pmap = {'name':item[0]}
+            if len(item) > 2:
+                pmap['uname'] = item[2]
+                uAct.append(userArgAction % pmap)
+            for aitem in item[1]:
+                pmap['aname'] = aitem[0]
+                pmap['adim'] = aitem[1]
+                uAct.append(userArgActionArg % pmap)
+        print 'JJJJ', uAct
+        for item in verilogValues:
+            pmap = {'name':item[0], 'adim': item[1]}
+            vArgs.append(verilogArgValue % pmap)
+        for item in userIndications:
+            pmap = {'name':item[0], 'uname': item[2]}
+            for aitem in item[1]:
+                pmap['aname'] = aitem[0]
+                pmap['adim'] = aitem[1]
+                uInds.append(userArgIndArg % pmap)
                 uWires.append(userArgWireArg % pmap)
                 uLinks.append(userArgLinkArg % pmap)
-            pmap['uargs'] = ','.join(uStr)
-            uInds.append(userArgInd % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
-        print 'JJJJJJJJJJ', uInds, uWires
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
-            'verilogArgs': ',\n'.join(vArgs),
-            'userArgs': ',\n'.join(uArgs),
-            'userInds': ',\n'.join(uInds),
+            'verilogArgs': '\n'.join(vArgs),
+            'userArgs': '\n'.join(uArgs),
+            'userInds': '\n'.join(uInds),
             'userWires': '\n '.join(uWires),
             'userLinks': '\n   '.join(uLinks),
             }
