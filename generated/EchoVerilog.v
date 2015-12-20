@@ -18,11 +18,11 @@ output RDY_intr_channel, output [31:0]intr_channel,
  .ind$echo$v(ifc_heard_v),
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
- mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), .RDY_portalIfc_indications_0_notEmpty(RDY_indications_0_notEmpty), .portalIfc_indications_0_notEmpty(indications_0_notEmpty),
+ mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), .RDY_portalIfc_indications_0_deq(RDY_indications_0_deq), .EN_portalIfc_indications_0_deq(EN_indications_0_deq),
+   .RDY_portalIfc_indications_0_notEmpty(RDY_indications_0_notEmpty), .portalIfc_indications_0_notEmpty(indications_0_notEmpty),
    .RDY_portalIfc_indications_0_first(RDY_indications_0_first), .portalIfc_indications_0_first(indications_0_first),
    .RDY_portalIfc_intr_status(RDY_intr_status), .portalIfc_intr_status(intr_status),
    .RDY_portalIfc_intr_channel(RDY_intr_channel), .portalIfc_intr_channel(intr_channel),
-   .RDY_portalIfc_indications_0_deq(RDY_indications_0_deq), .EN_portalIfc_indications_0_deq(EN_indications_0_deq),
     .ifc_heard_v(ifc_heard_v),
    .RDY_ifc_heard(RDY_ifc_heard), .EN_ifc_heard(EN_ifc_heard),
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));

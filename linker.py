@@ -284,6 +284,18 @@ def parseExpression(string):
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
+def addAction(item):
+    pmap = {'name':item[0], 'paramSep': '_'}
+    if len(item) > 2:
+        pmap['uname'] = item[2]
+        uArgs.append(userArgAction % pmap)
+    for aitem in item[1]:
+        pmap['aname'] = aitem[0]
+        pmap['adim'] = aitem[1]
+        vArgs.append(verilogArgActionArg % pmap)
+        uArgs.append(userArgActionArg % pmap)
+    vArgs.append(verilogArgAction % pmap)
+
 if __name__=='__main__':
     options = argparser.parse_args()
     for item in options.verilog:
@@ -305,18 +317,12 @@ if __name__=='__main__':
         uWires = []
         uLinks = []
         uAct = []
-        for item in verilogActions + userRequests:
-            pmap = {'name':item[0], 'paramSep': '_'}
-            if len(item) > 2:
-                pmap['uname'] = item[2]
-                uArgs.append(userArgAction % pmap)
-            for aitem in item[1]:
-                pmap['aname'] = aitem[0]
-                pmap['adim'] = aitem[1]
-                vArgs.append(verilogArgActionArg % pmap)
-                uArgs.append(userArgActionArg % pmap)
-            vArgs.append(verilogArgAction % pmap)
+        for item in verilogActions:
+            addAction(item)
+            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0], 'eprefix': 'EN_'}
+            uLinks.append(verilogLink % pmap)
         for item in userRequests:
+            addAction(item)
             uAct.append('method')
             pmap = {'name':item[0]}
             if len(item) > 2:
@@ -333,9 +339,6 @@ if __name__=='__main__':
                 pmap = {'name':rname, 'adim': item[1], 'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': ''}
                 vArgs.append(verilogArgValue % pmap)
                 uLinks.append(verilogLink % pmap)
-        for item in verilogActions:
-            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0], 'eprefix': 'EN_'}
-            uLinks.append(verilogLink % pmap)
         for item in userIndications:
             pmap = {'name':item[0], 'uname': item[2], 'paramSep': '$'}
             for aitem in item[1]:
