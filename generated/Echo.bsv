@@ -10,7 +10,6 @@ interface Echo;
    interface EchoRequest request;
    interface EchoIndicationPortalOutput lEchoIndicationOutput;
 endinterface
-
 interface EchoBVI;
    interface EchoRequest request;
    interface PortalSize messageSize;
@@ -25,7 +24,6 @@ module mkEchoBVI(EchoBVI);
     interface EchoRequest request;
         method say(request_say_v) ready(RDY_request_say) enable(EN_request_say);
     endinterface
-
     interface PortalSize messageSize;
         method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
     endinterface

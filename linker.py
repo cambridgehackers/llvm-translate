@@ -20,15 +20,67 @@
 ## ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 ## CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
-import json
-import os, sys, shutil, string
-import argparse
-import re
+import argparse, json, re, os, sys, shutil, string
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
 argparser.add_argument('--directory', help='directory', default='')
 argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
+
+verilogTemplate='''
+module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
+ output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
+ );
+
+ wire respond_rule_wire;
+ %(userWires)s
+
+ l_class_OC_Echo lEcho(.CLK(CLK), .nRST(RST_N), %(userArgs)s
+   .respond_rule__RDY(respond_rule_wire), .respond_rule__ENA(respond_rule_wire));
+
+ mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
+   .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
+endmodule  // mkEcho
+'''
+
+bsvTemplate='''
+%(importFiles)s
+
+interface %(name)s;
+   interface %(request)s request;
+   interface %(indication)sPortalOutput l%(indication)sOutput;
+endinterface
+interface %(name)sBVI;
+   interface %(request)s request;
+   %(exportInterface)s
+endinterface
+
+import "BVI" %(name)sVerilog =
+module mk%(name)sBVI(%(name)sBVI);
+    default_clock clk();
+    default_reset rst();
+    interface %(request)s request;
+        %(methodList)s;
+    endinterface
+    interface PortalSize messageSize;
+        method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
+    endinterface
+    %(interfaceBody)s
+endmodule
+
+(*synthesize*)
+module mk%(name)s(%(name)s);
+    let bvi <- mk%(name)sBVI;
+    Vector#(1, PipeOut#(Bit#(SlaveDataBusWidth))) tmpInd;
+    tmpInd[0] = bvi.indications;
+    interface %(request)s request = bvi.request;
+    interface %(indication)sPortalOutput l%(indication)sOutput;
+        interface PortalSize messageSize = bvi.messageSize;
+        interface Vector indications = tmpInd;
+        interface PortalInterrupt intr = bvi.intr;
+    endinterface
+endmodule
+'''
 
 importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
 exportInterface = {'indications': 'PipeOut#(Bit#(SlaveDataBusWidth))',
@@ -53,63 +105,6 @@ userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
 userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
 userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
 verilogLink =         '.RDY_%(pname)s(RDY_%(name)s), .%(eprefix)s%(pname)s(%(eprefix)s%(name)s),'
-
-bsvTemplate='''
-%(importFiles)s
-
-interface %(name)s;
-   interface %(request)s request;
-   interface %(indication)sPortalOutput l%(indication)sOutput;
-endinterface
-
-interface %(name)sBVI;
-   interface %(request)s request;
-   %(exportInterface)s
-endinterface
-
-import "BVI" %(name)sVerilog =
-module mk%(name)sBVI(%(name)sBVI);
-    default_clock clk();
-    default_reset rst();
-    interface %(request)s request;
-        %(methodList)s;
-    endinterface
-
-    interface PortalSize messageSize;
-        method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
-    endinterface
-    %(interfaceBody)s
-endmodule
-
-(*synthesize*)
-module mk%(name)s(%(name)s);
-    let bvi <- mk%(name)sBVI;
-    Vector#(1, PipeOut#(Bit#(SlaveDataBusWidth))) tmpInd;
-    tmpInd[0] = bvi.indications;
-    interface %(request)s request = bvi.request;
-    interface %(indication)sPortalOutput l%(indication)sOutput;
-        interface PortalSize messageSize = bvi.messageSize;
-        interface Vector indications = tmpInd;
-        interface PortalInterrupt intr = bvi.intr;
-    endinterface
-endmodule
-'''
-
-verilogTemplate='''
-module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
- output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
- );
-
- wire echo_rule_wire;
- %(userWires)s
-
- l_class_OC_Echo lEcho(.CLK(CLK), .nRST(RST_N), %(userArgs)s
-   .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
-
- mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
-   .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
-endmodule  // mkEcho
-'''
 
 mInfo = {}
 
