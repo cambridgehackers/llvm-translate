@@ -93,6 +93,7 @@ userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
 userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
 userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
 userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
+verilogLink =         '.RDY_%(name)s(RDY_%(uname)s), .%(name)s(%(uname)s),'
 
 verilogTemplate='''
 module EchoVerilog( input CLK, input RST_N, 
@@ -109,12 +110,8 @@ module EchoVerilog( input CLK, input RST_N,
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),
    %(userLinks)s
-   .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size),
-   .RDY_portalIfc_indications_0_first(RDY_ind_first), .portalIfc_indications_0_first(ind_first),
    .RDY_portalIfc_indications_0_deq(RDY_ind_deq), .EN_portalIfc_indications_0_deq(EN_ind_deq),
-   .RDY_portalIfc_indications_0_notEmpty(RDY_ind_notEmpty), .portalIfc_indications_0_notEmpty(ind_notEmpty),
-   .RDY_portalIfc_intr_status(RDY_intr_status), .portalIfc_intr_status(intr_status),
-   .RDY_portalIfc_intr_channel(RDY_intr_channel), .portalIfc_intr_channel(intr_channel));
+   .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho
 '''
 
@@ -346,6 +343,13 @@ if __name__=='__main__':
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
+        linkItems = [['portalIfc_indications_0_first', 'ind_first'],
+                     ['portalIfc_indications_0_notEmpty', 'ind_notEmpty'],
+                     ['portalIfc_intr_status', 'intr_status'],
+                     ['portalIfc_intr_channel', 'intr_channel']]
+        for item in linkItems:
+            pmap = {'name':item[0], 'uname': item[1]}
+            uLinks.append(verilogLink % pmap)
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': ' '.join(uAct),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
