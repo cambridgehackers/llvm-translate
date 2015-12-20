@@ -31,9 +31,13 @@ argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-verilogActions = {'indications_0': [['deq', []]]}
-verilogValues  = {'indications_0': [['notEmpty', ''], ['first', '[31:0]']],
-                  'intr': [['status', ''], ['channel', '[31:0]']]}
+exportInterface = {'indications': 'PipeOut#(Bit#(SlaveDataBusWidth))',
+             'intr': 'PortalInterrupt#(SlaveDataBusWidth)',
+             'messageSize': 'PortalSize',
+            }
+verilogActions = {'indications': ['indications_0', [['deq', []]]]}
+verilogValues  = {'indications': ['indications_0', [['notEmpty', ''], ['first', '[31:0]']]],
+                  'intr':        ['intr',          [['status', ''], ['channel', '[31:0]']]]}
 userRequests =    {'request': [['say', [['v', '[31:0]']]]]}
 userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$heard']]
 
@@ -60,9 +64,7 @@ endinterface
 
 interface %(name)sBVI;
    interface %(request)s request;
-   interface PortalSize messageSize;
-   interface PipeOut#(Bit#(SlaveDataBusWidth)) indications;
-   interface PortalInterrupt#(SlaveDataBusWidth) intr;
+%(exportInterface)s
 endinterface
 
 import "BVI" %(name)sVerilog =
@@ -312,10 +314,11 @@ if __name__=='__main__':
         uArgs = []
         uWires = []
         uLinks = []
-        uAct = []
+        uReq = []
+        eIfc = []
         for key, value in verilogActions.iteritems():
-            for item in value:
-                rname = key + '_' + item[0]
+            for item in value[1]:
+                rname = value[0] + '_' + item[0]
                 pmap = {'uname': item[0], 'name':rname, 'paramSep': '_', 'pname':'portalIfc_' + rname, 'eprefix': 'EN_'}
                 addAction(item, pmap)
                 uLinks.append(verilogLink % pmap)
@@ -325,15 +328,15 @@ if __name__=='__main__':
                 pmap = {'uname': item[0], 'name':rname, 'paramSep': '_'}
                 uArgs.append(userArgAction % pmap)
                 addAction(item, pmap)
-                uAct.append('method')
+                uReq.append('method')
                 for aitem in item[1]:
                     pmap['aname'] = aitem[0]
                     pmap['adim'] = aitem[1]
-                    uAct.append(userArgReqArg % pmap)
-                uAct.append(userArgReq % pmap)
+                    uReq.append(userArgReqArg % pmap)
+                uReq.append(userArgReq % pmap)
         for key, value in verilogValues.iteritems():
-            for item in value:
-                rname = key + '_' + item[0]
+            for item in value[1]:
+                rname = value[0] + '_' + item[0]
                 pmap = {'name':rname, 'adim': item[1], 'pname':'portalIfc_' + rname, 'eprefix': ''}
                 vArgs.append(verilogArgValue % pmap)
                 uLinks.append(verilogLink % pmap)
@@ -347,13 +350,16 @@ if __name__=='__main__':
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
+        for key, value in exportInterface.iteritems():
+            eIfc.append('   interface %s %s;' % (value, key))
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
-            'methodList': ' '.join(uAct),
+            'methodList': ' '.join(uReq),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
             'verilogArgs': '\n'.join(vArgs),
             'userArgs': '\n'.join(uArgs),
             'userWires': '\n '.join(uWires),
             'userLinks': '\n   '.join(uLinks),
+            'exportInterface': '\n'.join(eIfc),
             }
         open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
         open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
