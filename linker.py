@@ -284,10 +284,7 @@ def parseExpression(string):
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
-def addAction(rname, item, adduarg):
-    pmap = {'uname': item[0], 'name':rname, 'paramSep': '_'}
-    if adduarg:
-        uArgs.append(userArgAction % pmap)
+def addAction(rname, item, pmap):
     for aitem in item[1]:
         pmap['aname'] = aitem[0]
         pmap['adim'] = aitem[1]
@@ -320,13 +317,16 @@ if __name__=='__main__':
             for item in value:
                 print 'JJJJ', key, item
                 rname = key + '_' + item[0]
-                addAction(rname, item, False)
+                pmap = {'uname': item[0], 'name':rname, 'paramSep': '_'}
+                addAction(rname, item, pmap)
                 pmap = {'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': 'EN_'}
                 uLinks.append(verilogLink % pmap)
         for key, value in userRequests.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
-                addAction(rname, item, True)
+                pmap = {'uname': item[0], 'name':rname, 'paramSep': '_'}
+                uArgs.append(userArgAction % pmap)
+                addAction(rname, item, pmap)
                 uAct.append('method')
                 pmap = {'uname': item[0], 'name':rname}
                 for aitem in item[1]:
