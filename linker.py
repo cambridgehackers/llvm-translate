@@ -28,17 +28,17 @@ argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 verilogTemplate='''
-module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
+module EchoVerilog(%(verilogArgs)s
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
  );
 
  wire respond_rule_wire;
  %(userWires)s
 
- l_class_OC_Echo lEcho(.CLK(CLK), .nRST(RST_N), %(userArgs)s
+ l_class_OC_Echo lEcho(%(userArgs)s
    .respond_rule__RDY(respond_rule_wire), .respond_rule__ENA(respond_rule_wire));
 
- mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
+ mkEchoIndicationOutput myEchoIndicationOutput(%(userLinks)s
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho
 '''
@@ -297,10 +297,10 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
 
-        vArgs = []
-        uArgs = []
+        vArgs = ['input CLK,', 'input RST_N,']
+        uArgs = ['.CLK(CLK),', '.nRST(RST_N),']
+        uLinks = ['.CLK(CLK),', '.RST_N(RST_N),']
         uWires = []
-        uLinks = []
         uReq = []
         eIfc = []
         eBody = []
