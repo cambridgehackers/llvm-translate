@@ -30,6 +30,28 @@ argparser.add_argument('--directory', help='directory', default='')
 argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
+importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
+verilogActions = [['indications_0_deq', []]]
+verilogValues = [['indications_0_notEmpty', ''], ['intr_status', ''],
+                 ['indications_0_first', '[31:0]'], ['intr_channel', '[31:0]']]
+userRequests =    [['request_say', [['v', '[31:0]']], 'say']]
+userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
+
+verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
+verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
+verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
+userArgAction =       '.%(uname)s__RDY(RDY_%(name)s), .%(uname)s__ENA(EN_%(name)s),'
+userArgActionArg =    ' .%(uname)s_%(aname)s(%(name)s_%(aname)s),'
+userArgIndArg =       ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
+userArgLinkArg =      ' .%(name)s_%(aname)s(%(name)s_%(aname)s),'
+userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
+userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
+userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
+userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
+userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
+verilogLink =         '.RDY_%(pname)s(RDY_%(uname)s), .%(pname)s(%(uname)s),'
+verilogActLink =      '.RDY_%(pname)s(RDY_%(uname)s), .EN_%(pname)s(EN_%(uname)s),'
+
 bsvTemplate='''
 %(importFiles)s
 
@@ -81,20 +103,6 @@ module mk%(name)s(%(name)s);
 endmodule
 '''
 
-verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
-verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
-verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
-userArgAction =       '.%(uname)s__RDY(RDY_%(name)s), .%(uname)s__ENA(EN_%(name)s),'
-userArgActionArg =    ' .%(uname)s_%(aname)s(%(name)s_%(aname)s),'
-userArgIndArg =       ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
-userArgLinkArg =      ' .%(name)s_%(aname)s(%(name)s_%(aname)s),'
-userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
-userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
-userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
-userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
-userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
-verilogLink =         '.RDY_%(name)s(RDY_%(uname)s), .%(name)s(%(uname)s),'
-
 verilogTemplate='''
 module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
  output RDY_messageSize_size, input[15:0] messageSize_size_methodNumber, output[15:0] messageSize_size
@@ -107,7 +115,6 @@ module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
-   .RDY_portalIfc_indications_0_deq(RDY_indications_0_deq), .EN_portalIfc_indications_0_deq(EN_indications_0_deq),
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho
 '''
@@ -294,16 +301,6 @@ if __name__=='__main__':
             for wItem in wList:
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
-        importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-        verilogActions = [['indications_0_deq', []]]
-        verilogValues = [['indications_0_notEmpty', ''], ['intr_status', ''],
-                         ['indications_0_first', '[31:0]'], ['intr_channel', '[31:0]']]
-        userRequests = [['request_say', [['v', '[31:0]']], 'say']]
-        userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
-        linkItems = [['portalIfc_indications_0_first', 'indications_0_first'],
-                     ['portalIfc_indications_0_notEmpty', 'indications_0_notEmpty'],
-                     ['portalIfc_intr_status', 'intr_status'],
-                     ['portalIfc_intr_channel', 'intr_channel']]
 
         vArgs = []
         uArgs = []
@@ -333,8 +330,12 @@ if __name__=='__main__':
             if len(item) > 2:
                 uAct.append(userArgReq % pmap)
         for item in verilogValues:
-            pmap = {'name':item[0], 'adim': item[1]}
+            pmap = {'name':item[0], 'adim': item[1], 'pname':'portalIfc_' + item[0], 'uname': item[0]}
             vArgs.append(verilogArgValue % pmap)
+            uLinks.append(verilogLink % pmap)
+        for item in verilogActions:
+            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0]}
+            uLinks.append(verilogActLink % pmap)
         for item in userIndications:
             pmap = {'name':item[0], 'uname': item[2]}
             for aitem in item[1]:
@@ -345,9 +346,6 @@ if __name__=='__main__':
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
-        for item in linkItems:
-            pmap = {'name':item[0], 'uname': item[1]}
-            uLinks.append(verilogLink % pmap)
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
             'methodList': ' '.join(uAct),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
