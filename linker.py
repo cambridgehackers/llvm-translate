@@ -48,7 +48,7 @@ userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
 userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
 userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
 userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
-verilogLink =         '.RDY_%(pname)s(RDY_%(uname)s), .%(eprefix)s%(pname)s(%(eprefix)s%(uname)s),'
+verilogLink =         '.RDY_%(pname)s(RDY_%(name)s), .%(eprefix)s%(pname)s(%(eprefix)s%(name)s),'
 
 bsvTemplate='''
 %(importFiles)s
@@ -316,9 +316,8 @@ if __name__=='__main__':
         for key, value in verilogActions.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
-                pmap = {'uname': item[0], 'name':rname, 'paramSep': '_'}
+                pmap = {'uname': item[0], 'name':rname, 'paramSep': '_', 'pname':'portalIfc_' + rname, 'eprefix': 'EN_'}
                 addAction(item, pmap)
-                pmap = {'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': 'EN_'}
                 uLinks.append(verilogLink % pmap)
         for key, value in userRequests.iteritems():
             for item in value:
@@ -327,7 +326,6 @@ if __name__=='__main__':
                 uArgs.append(userArgAction % pmap)
                 addAction(item, pmap)
                 uAct.append('method')
-                #pmap = {'uname': item[0], 'name':rname}
                 for aitem in item[1]:
                     pmap['aname'] = aitem[0]
                     pmap['adim'] = aitem[1]
@@ -336,7 +334,7 @@ if __name__=='__main__':
         for key, value in verilogValues.iteritems():
             for item in value:
                 rname = key + '_' + item[0]
-                pmap = {'name':rname, 'adim': item[1], 'pname':'portalIfc_' + rname, 'uname': rname, 'eprefix': ''}
+                pmap = {'name':rname, 'adim': item[1], 'pname':'portalIfc_' + rname, 'eprefix': ''}
                 vArgs.append(verilogArgValue % pmap)
                 uLinks.append(verilogLink % pmap)
         for item in userIndications:
