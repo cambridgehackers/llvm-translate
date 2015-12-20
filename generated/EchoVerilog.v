@@ -17,7 +17,7 @@ output RDY_intr_channel, output [31:0]intr_channel,
  l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
    .say__RDY(RDY_request_say), .say__ENA(EN_request_say),
  .say_v(request_say_v),
-    .ind$echo$v(ifc_heard_v),
+ .ind$echo$v(ifc_heard_v),
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),

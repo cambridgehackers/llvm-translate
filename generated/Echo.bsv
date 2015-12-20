@@ -23,7 +23,7 @@ module mkEchoBVI(EchoBVI);
     default_clock clk();
     default_reset rst();
     interface EchoRequest request;
-        method say(request_say_v) enable(EN_request_say) ready(RDY_request_say);
+        method say(request_say_v) ready(RDY_request_say) enable(EN_request_say);
     endinterface
 
     interface PortalSize messageSize;

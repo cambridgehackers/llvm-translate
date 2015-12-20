@@ -91,6 +91,8 @@ userArgLinkArg =      ' .%(name)s_%(aname)s(%(name)s_%(aname)s),'
 userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
 userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
 userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
+userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
+userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
 
 verilogTemplate='''
 module EchoVerilog( input CLK, input RST_N, 
@@ -103,7 +105,6 @@ module EchoVerilog( input CLK, input RST_N,
 
  l_class_OC_Echo echo(.nRST(RST_N), .CLK(CLK),
    %(userArgs)s
-   %(userInds)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N),
@@ -307,7 +308,6 @@ if __name__=='__main__':
 
         vArgs = []
         uArgs = []
-        uInds = []
         uWires = []
         uLinks = []
         uAct = []
@@ -322,17 +322,17 @@ if __name__=='__main__':
                 vArgs.append(verilogArgActionArg % pmap)
                 uArgs.append(userArgActionArg % pmap)
             vArgs.append(verilogArgAction % pmap)
-#'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
         for item in userRequests:
+            uAct.append('method')
             pmap = {'name':item[0]}
             if len(item) > 2:
                 pmap['uname'] = item[2]
-                uAct.append(userArgAction % pmap)
             for aitem in item[1]:
                 pmap['aname'] = aitem[0]
                 pmap['adim'] = aitem[1]
-                uAct.append(userArgActionArg % pmap)
-        print 'JJJJ', uAct
+                uAct.append(userArgReqArg % pmap)
+            if len(item) > 2:
+                uAct.append(userArgReq % pmap)
         for item in verilogValues:
             pmap = {'name':item[0], 'adim': item[1]}
             vArgs.append(verilogArgValue % pmap)
@@ -341,17 +341,16 @@ if __name__=='__main__':
             for aitem in item[1]:
                 pmap['aname'] = aitem[0]
                 pmap['adim'] = aitem[1]
-                uInds.append(userArgIndArg % pmap)
+                uArgs.append(userArgIndArg % pmap)
                 uWires.append(userArgWireArg % pmap)
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
             uLinks.append(userArgLink % pmap)
         pmap = {'name': 'Echo', 'request': 'EchoRequest', 'indication': 'EchoIndication',
-            'methodList': 'method say(request_say_v) enable(EN_request_say) ready(RDY_request_say)',
+            'methodList': ' '.join(uAct),
             'importFiles': '\n'.join(['import %s::*;' % name for name in importFiles]),
             'verilogArgs': '\n'.join(vArgs),
             'userArgs': '\n'.join(uArgs),
-            'userInds': '\n'.join(uInds),
             'userWires': '\n '.join(uWires),
             'userLinks': '\n   '.join(uLinks),
             }
