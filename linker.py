@@ -57,9 +57,9 @@ module mk%(name)sBVI(%(name)sBVI);
         method messageSize_size size(messageSize_size_methodNumber) ready(RDY_messageSize_size);
     endinterface
     interface PipeOut indications;
-        method deq() enable(EN_ind_deq) ready(RDY_ind_deq);
-        method ind_first first() ready(RDY_ind_first);
-        method ind_notEmpty notEmpty() ready(RDY_ind_notEmpty);
+        method deq() enable(EN_indications_0_deq) ready(RDY_indications_0_deq);
+        method indications_0_first first() ready(RDY_indications_0_first);
+        method indications_0_notEmpty notEmpty() ready(RDY_indications_0_notEmpty);
     endinterface
     interface PortalInterrupt intr;
         method intr_status status() ready(RDY_intr_status);
@@ -107,7 +107,7 @@ module EchoVerilog( input CLK, input RST_N, %(verilogArgs)s
    .respond_rule__RDY(echo_rule_wire), .respond_rule__ENA(echo_rule_wire));
 
  mkEchoIndicationOutput myEchoIndicationOutput(.CLK(CLK), .RST_N(RST_N), %(userLinks)s
-   .RDY_portalIfc_indications_0_deq(RDY_ind_deq), .EN_portalIfc_indications_0_deq(EN_ind_deq),
+   .RDY_portalIfc_indications_0_deq(RDY_indications_0_deq), .EN_portalIfc_indications_0_deq(EN_indications_0_deq),
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho
 '''
@@ -295,13 +295,13 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
         importFiles = ['ConnectalConfig', 'Portal', 'Pipe', 'Vector', 'EchoReq', 'EchoIndication']
-        verilogActions = [['ind_deq', []]]
-        verilogValues = [['ind_notEmpty', ''], ['intr_status', ''],
-                         ['ind_first', '[31:0]'], ['intr_channel', '[31:0]']]
+        verilogActions = [['indications_0_deq', []]]
+        verilogValues = [['indications_0_notEmpty', ''], ['intr_status', ''],
+                         ['indications_0_first', '[31:0]'], ['intr_channel', '[31:0]']]
         userRequests = [['request_say', [['v', '[31:0]']], 'say']]
         userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$echo']]
-        linkItems = [['portalIfc_indications_0_first', 'ind_first'],
-                     ['portalIfc_indications_0_notEmpty', 'ind_notEmpty'],
+        linkItems = [['portalIfc_indications_0_first', 'indications_0_first'],
+                     ['portalIfc_indications_0_notEmpty', 'indications_0_notEmpty'],
                      ['portalIfc_intr_status', 'intr_status'],
                      ['portalIfc_intr_channel', 'intr_channel']]
 
