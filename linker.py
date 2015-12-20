@@ -41,16 +41,14 @@ verilogArgValue =     'output RDY_%(name)s, output %(adim)s%(name)s,'
 verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
 verilogArgActionArg = ' input%(adim)s %(name)s_%(aname)s,'
 userArgAction =       '.%(uname)s__RDY(RDY_%(name)s), .%(uname)s__ENA(EN_%(name)s),'
-userArgActionArg =    ' .%(uname)s_%(aname)s(%(name)s_%(aname)s),'
-userArgIndArg =       ' .%(uname)s$%(aname)s(%(name)s_%(aname)s),'
+userArgActionArg =    ' .%(uname)s%(paramSep)s%(aname)s(%(name)s_%(aname)s),'
 userArgLinkArg =      ' .%(name)s_%(aname)s(%(name)s_%(aname)s),'
 userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
 userArgWireArg =      'wire %(adim)s%(name)s_%(aname)s;'
 userArgLink =         '.RDY_%(name)s(RDY_%(name)s), .EN_%(name)s(EN_%(name)s),'
 userArgReq =          'ready(RDY_%(name)s) enable(EN_%(name)s)'
 userArgReqArg =       '%(uname)s(%(name)s_%(aname)s)'
-verilogLink =         '.RDY_%(pname)s(RDY_%(uname)s), .%(pname)s(%(uname)s),'
-verilogActLink =      '.RDY_%(pname)s(RDY_%(uname)s), .EN_%(pname)s(EN_%(uname)s),'
+verilogLink =         '.RDY_%(pname)s(RDY_%(uname)s), .%(eprefix)s%(pname)s(%(eprefix)s%(uname)s),'
 
 bsvTemplate='''
 %(importFiles)s
@@ -308,7 +306,7 @@ if __name__=='__main__':
         uLinks = []
         uAct = []
         for item in verilogActions + userRequests:
-            pmap = {'name':item[0]}
+            pmap = {'name':item[0], 'paramSep': '_'}
             if len(item) > 2:
                 pmap['uname'] = item[2]
                 uArgs.append(userArgAction % pmap)
@@ -330,18 +328,18 @@ if __name__=='__main__':
             if len(item) > 2:
                 uAct.append(userArgReq % pmap)
         for item in verilogValues:
-            pmap = {'name':item[0], 'adim': item[1], 'pname':'portalIfc_' + item[0], 'uname': item[0]}
+            pmap = {'name':item[0], 'adim': item[1], 'pname':'portalIfc_' + item[0], 'uname': item[0], 'eprefix': ''}
             vArgs.append(verilogArgValue % pmap)
             uLinks.append(verilogLink % pmap)
         for item in verilogActions:
-            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0]}
-            uLinks.append(verilogActLink % pmap)
+            pmap = {'pname':'portalIfc_' + item[0], 'uname': item[0], 'eprefix': 'EN_'}
+            uLinks.append(verilogLink % pmap)
         for item in userIndications:
-            pmap = {'name':item[0], 'uname': item[2]}
+            pmap = {'name':item[0], 'uname': item[2], 'paramSep': '$'}
             for aitem in item[1]:
                 pmap['aname'] = aitem[0]
                 pmap['adim'] = aitem[1]
-                uArgs.append(userArgIndArg % pmap)
+                uArgs.append(userArgActionArg % pmap)
                 uWires.append(userArgWireArg % pmap)
                 uLinks.append(userArgLinkArg % pmap)
             uWires.append(userArgWire % pmap)
