@@ -231,13 +231,13 @@ typedef struct {
 } MUX_VALUE;
 static std::string globalCondition;
 static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
-static std::map<std::string, std::string> muxEnableList;
+static std::map<std::string, std::string> assignList;
 void muxEnable(std::string signal)
 {
 printf("[%s:%d] signal %s condition %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
-     if (muxEnableList[signal] != "")
-         muxEnableList[signal] += " || ";
-     muxEnableList[signal] += globalCondition;
+     if (assignList[signal] != "")
+         assignList[signal] += " || ";
+     assignList[signal] += globalCondition;
 }
 void muxValue(std::string signal, std::string value)
 {
@@ -253,7 +253,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 
     readWriteList.clear();
     muxValueList.clear();
-    muxEnableList.clear();
+    assignList.clear();
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
     for (auto FI : table->method) {
@@ -287,10 +287,11 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         if (!isAction) {
-            fprintf(OStr, "    assign %s = ", mname.c_str());
+            std::string temp;
             processFunction(func);
             for (auto item: functionList)
-                fprintf(OStr, "%s;\n", item.c_str());
+                temp += item;
+            assignList[mname] = temp;
             std::string condition;
             gatherInfo(mname, condition);
         }
@@ -312,15 +313,14 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                 alwaysLines.push_back(info);
             alwaysLines.push_back("end; // End of " + mname);
         }
-        fprintf(OStr, "\n");
         std::string condition;
         gatherInfo(mname, condition);
     }
-    for (auto item: muxEnableList)
+    for (auto item: assignList)
         fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
     for (auto item: muxValueList) {
         int remain = item.second.size();
-        fprintf(OStr, "        assign %s = ", item.first.c_str());
+        fprintf(OStr, "    assign %s = ", item.first.c_str());
         for (auto element: item.second) {
             if (--remain)
                 fprintf(OStr, "%s ? ", element.condition.c_str());
@@ -330,7 +330,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(OStr, ";\n");
         }
     }
-    fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
+    fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;

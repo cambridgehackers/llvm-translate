@@ -28,15 +28,14 @@ module l_class_OC_Echo (
         fifo$first,
         fifo$first__RDY);
     reg[31:0] pipetemp;
-    assign respond_rule__RDY = (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
-    assign say__RDY = (fifo$enq__RDY);
-
-
     assign fifo$deq__ENA = respond_rule__ENA;
     assign fifo$enq__ENA = say__ENA;
     assign ind$heard__ENA = respond_rule__ENA;
-        assign fifo$enq_v = say_v;
-        assign ind$heard_v = (fifo$first);
+    assign respond_rule__RDY = (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
+    assign say__RDY = (fifo$enq__RDY);
+    assign fifo$enq_v = say_v;
+    assign ind$heard_v = (fifo$first);
+
     always @( posedge CLK) begin
       if (!nRST) begin
         pipetemp <= 0;

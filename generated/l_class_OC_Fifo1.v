@@ -15,7 +15,6 @@ module l_class_OC_Fifo1 (
     assign first = (element);
     assign first__RDY = (full);
 
-
     always @( posedge CLK) begin
       if (!nRST) begin
         element <= 0;
