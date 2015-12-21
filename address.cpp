@@ -387,13 +387,16 @@ void constructVtableMap(Module *Mod)
             uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
             printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
-                if (const ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
+                if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
-                if (const Function *func = dyn_cast<Function>(vinit->getOperand(0)))
+                if (Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const StructType *STy = findThisArgumentType(func->getType())) {
-                    if (!classCreate[STy]->vtable)
-                        classCreate[STy]->vtable = new std::string[numElements];
-                    classCreate[STy]->vtable[classCreate[STy]->vtableCount++] = func->getName();
+                    ClassMethodTable *table = classCreate[STy];
+                    if (!table->vtable)
+                        table->vtable = new std::string[numElements];
+                    table->vtable[table->vtableCount++] = func->getName();
+                    if (!inheritsModule(STy))
+                        table->method[getMethodName(func->getName())] = func;
                 }
             }
         }

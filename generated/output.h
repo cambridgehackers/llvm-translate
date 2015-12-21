@@ -1,3 +1,9 @@
+class l_class_OC_EchoRequest {
+public:
+  void say(unsigned int v);
+  bool say__RDY(void);
+};
+
 class l_class_OC_Module {
 public:
 };
