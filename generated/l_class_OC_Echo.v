@@ -25,9 +25,9 @@ module l_class_OC_Echo (
         fifo$first__RDY);
     reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA;
-    assign ind$heard_v = (fifo$first);
-    assign respond_rule__RDY = (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
-    assign say__RDY = (fifo$enq__RDY);
+    assign ind$heard_v = fifo$first;
+    assign respond_rule__RDY = (fifo$first__RDY & fifo$deq__RDY) & ind$heard__RDY;
+    assign say__RDY = fifo$enq__RDY;
 
     always @( posedge CLK) begin
       if (!nRST) begin
@@ -36,8 +36,8 @@ module l_class_OC_Echo (
     end // always @ (posedge CLK)
 endmodule 
 
-//METAGUARD; respond_rule__RDY;         (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
-//METAGUARD; say__RDY;         (fifo$enq__RDY);
+//METAGUARD; respond_rule__RDY;         (fifo$first__RDY & fifo$deq__RDY) & ind$heard__RDY;
+//METAGUARD; say__RDY;         fifo$enq__RDY;
 //METAINVOKE; respond_rule; :fifo$deq:ind$heard:fifo$first;
 //METAINVOKE; say; :fifo$enq;
 //METAINTERNAL; fifo; l_class_OC_Fifo1;

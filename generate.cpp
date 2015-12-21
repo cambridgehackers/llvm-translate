@@ -170,8 +170,6 @@ static void processPromote(Function *currentFunction)
                 CallInst &ICL = static_cast<CallInst&>(*II);
             
                 std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
-                if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-                    pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
                 Function *func = ICL.getCalledFunction();
                 ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
                 ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
@@ -281,8 +279,6 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
             case Instruction::Call: {
                 CallInst *CI = dyn_cast<CallInst>(II);
                 std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
-                if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-                    pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length() - 2);
                 Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
                 std::string cthisp = printOperand(II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
@@ -497,7 +493,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
  */
 static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
-    std::string cbuffer = "(", sep = " ", amper = "&";
+    std::string cbuffer = "", sep = " ", amper = "&";
     PointerType *PTy;
     ConstantDataArray *CPA;
     uint64_t Total = 0;
@@ -506,8 +502,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
     std::string referstr = printOperand(Ptr, false);
-    if (referstr[0] == '(' && referstr[referstr.length()-1] == ')')
-       referstr = referstr.substr(1, referstr.length() - 2).c_str();
 
     for (auto TmpI = I; TmpI != E; ++TmpI) {
         LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
@@ -579,7 +573,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         }
         referstr = "";
     }
-    cbuffer += referstr + ")";
+    cbuffer += referstr;
     if (trace_gep)
         printf("%s: return %s\n", __FUNCTION__, cbuffer.c_str());
     return cbuffer;
@@ -600,16 +594,18 @@ std::string printOperand(Value *Operand, bool Indirect)
     if (Indirect)
         prefix = "*";
     if (isAddressImplicit)
-        prefix = "(&";  // Global variables are referenced as their addresses by llvm
+        prefix = "&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
         std::string p = processInstruction(*I);
-        if (p[0] == '(' && p[p.length()-1] == ')')
-            p = p.substr(1,p.length()-2);
-        if (prefix == "*" && p[0] == '&') {
+        if (prefix == "")
+            cbuffer += p;
+        else if (prefix == "*" && p[0] == '&') {
             prefix = "";
             p = p.substr(1);
+            cbuffer += p;
         }
-        cbuffer += prefix + "(" + p + ")";
+        else
+            cbuffer += prefix + "(" + p + ")";
     }
     else {
         cbuffer += prefix;
@@ -644,8 +640,6 @@ std::string printOperand(Value *Operand, bool Indirect)
                 ERRORIF(1); /* handle structured types */
         }
     }
-    if (isAddressImplicit)
-        cbuffer += ")";
     return cbuffer;
 }
 
@@ -658,8 +652,6 @@ static std::string printCall(Instruction &I)
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
 
     std::string pcalledFunction = printOperand(*AI, false);
-    if (pcalledFunction[0] == '(' && pcalledFunction[pcalledFunction.length()-1] == ')')
-        pcalledFunction = pcalledFunction.substr(1, pcalledFunction.length()-2);
     Function *func = ICL.getCalledFunction();
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
@@ -703,6 +695,15 @@ static std::string printCall(Instruction &I)
     return vout;
 }
 
+std::string parenOperand(Value *Operand)
+{
+    std::string temp = printOperand(Operand, false);
+    for (auto ch: temp)
+        if (!isalnum(ch) && ch != '$' && ch != '_')
+            return "(" + temp + ")";
+    return temp;
+}
+
 /*
  * Output instructions
  */
@@ -723,8 +724,6 @@ static std::string processInstruction(Instruction &I)
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
         std::string p = printOperand(I.getOperand(0), true);
-        if (p[0] == '(' && p[p.length()-1] == ')')
-            p = p.substr(1, p.length()-2);
         if (I.getType()->getTypeID() != Type::PointerTyID)
             readList.push_back(p);
         return p;
@@ -741,15 +740,13 @@ static std::string processInstruction(Instruction &I)
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(Operand, false);
-        if (pdest.length() > 2 && pdest[0] == '(' && pdest[pdest.length()-1] == ')')
-            pdest = pdest.substr(1, pdest.length() -2);
         writeList.push_back(pdest);
         vout += pdest + ASSIGNOP;
         if (BitMask)
             vout += "((";
         vout += sval;
         if (BitMask)
-            vout += ") & " + printOperand(BitMask, false) + ")";
+            vout += ") & " + parenOperand(BitMask) + ")";
         storeList.push_back(vout + ";");
         return "";
         }
@@ -790,9 +787,9 @@ static std::string processInstruction(Instruction &I)
             vout += printOperand(I.getOperand(0), false) + ", "
                  + printOperand(I.getOperand(1), false) + ")";
         } else
-            vout += printOperand(I.getOperand(0), false)
+            vout += parenOperand(I.getOperand(0))
                  + " " + intmapLookup(opcodeMap, I.getOpcode()) + " "
-                 + printOperand(I.getOperand(1), false);
+                 + parenOperand(I.getOperand(1));
         break;
 
     // Convert instructions...
@@ -809,9 +806,9 @@ static std::string processInstruction(Instruction &I)
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
         ICmpInst &CI = static_cast<ICmpInst&>(I);
-        vout += printOperand(I.getOperand(0), false)
+        vout += parenOperand(I.getOperand(0))
              + " " + intmapLookup(predText, CI.getPredicate()) + " "
-             + printOperand(I.getOperand(1), false);
+             + parenOperand(I.getOperand(1));
         break;
         }
 #if 0
