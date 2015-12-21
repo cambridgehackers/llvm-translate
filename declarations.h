@@ -99,3 +99,4 @@ int derivedStruct(const StructType *STyA, const StructType *STyB);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy);
 void muxValue(std::string signal, std::string value);
+void muxEnable(std::string signal);

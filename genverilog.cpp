@@ -230,11 +230,19 @@ typedef struct {
     std::string value;
 } MUX_VALUE;
 static std::string globalCondition;
-static std::map<std::string, std::list<MUX_VALUE>> muxList;
+static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
+static std::map<std::string, std::string> muxEnableList;
+void muxEnable(std::string signal)
+{
+printf("[%s:%d] signal %s condition %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
+     if (muxEnableList[signal] != "")
+         muxEnableList[signal] += " || ";
+     muxEnableList[signal] += globalCondition;
+}
 void muxValue(std::string signal, std::string value)
 {
 printf("[%s:%d] signal %s condition %s value %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str(), value.c_str());
-     muxList[signal].push_back(MUX_VALUE{globalCondition, value});
+     muxValueList[signal].push_back(MUX_VALUE{globalCondition, value});
 }
 
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
@@ -244,7 +252,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     std::list<READY_INFO> rdyList;
 
     readWriteList.clear();
-    muxList.clear();
+    muxValueList.clear();
+    muxEnableList.clear();
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
     for (auto FI : table->method) {
@@ -307,11 +316,19 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string condition;
         gatherInfo(mname, condition);
     }
-    for (auto item: muxList) {
+    for (auto item: muxEnableList)
+        fprintf(OStr, "        assign %s = %s;\n", item.first.c_str(), item.second.c_str());
+    for (auto item: muxValueList) {
+        int remain = item.second.size();
         fprintf(OStr, "        assign %s = ", item.first.c_str());
-printf("[%s:%d] MUX %s size %d\n", __FUNCTION__, __LINE__, item.first.c_str(), (int)item.second.size());
-        for (auto element: item.second)
-            fprintf(OStr, "%s ? %s : 0;\n", element.condition.c_str(), element.value.c_str());
+        for (auto element: item.second) {
+            if (--remain)
+                fprintf(OStr, "%s ? ", element.condition.c_str());
+            fprintf(OStr, "%s", element.value.c_str());
+            if (remain)
+                fprintf(OStr, " : ");
+            fprintf(OStr, ";\n");
+        }
     }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;

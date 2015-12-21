@@ -678,7 +678,7 @@ static std::string printCall(Instruction &I)
     if (generateRegion == ProcessVerilog) {
         prefix = pcalledFunction + MODULE_SEPARATOR + getMethodName(func->getName());
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
-            muxValue(prefix + "__ENA", "1");
+            muxEnable(prefix + "__ENA");
         else
             vout += prefix;
         invokeList.push_back(prefix);

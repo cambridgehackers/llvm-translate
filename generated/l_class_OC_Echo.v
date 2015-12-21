@@ -32,11 +32,11 @@ wire fifo$first__RDY;
     assign say__RDY = (fifo$enq__RDY);
 
 
-        assign fifo$deq__ENA = respond_rule__ENA ? 1 : 0;
-        assign fifo$enq__ENA = say__ENA ? 1 : 0;
-        assign fifo$enq_v = say__ENA ? say_v : 0;
-        assign ind$heard__ENA = respond_rule__ENA ? 1 : 0;
-        assign ind$heard_v = respond_rule__ENA ? (fifo$first) : 0;
+        assign fifo$deq__ENA = respond_rule__ENA;
+        assign fifo$enq__ENA = say__ENA;
+        assign ind$heard__ENA = respond_rule__ENA;
+        assign fifo$enq_v = say_v;
+        assign ind$heard_v = (fifo$first);
     always @( posedge CLK) begin
       if (!nRST) begin
         pipetemp <= 0;
