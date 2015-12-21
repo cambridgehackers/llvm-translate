@@ -314,7 +314,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA) begin");
             for (auto info: storeList)
-                alwaysLines.push_back(info);
+                alwaysLines.push_back(info.first + " <= " + info.second + ";");
             alwaysLines.push_back("end; // End of " + mname);
         }
         std::string condition;

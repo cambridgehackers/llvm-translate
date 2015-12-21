@@ -35,8 +35,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-#define ASSIGNOP ((generateRegion == ProcessVerilog) ? " <= " : " = ")
-
 static int trace_call;//=1;
 int trace_translate ;//= 1;
 static int trace_gep;//= 1;
@@ -54,7 +52,8 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-std::list<std::string> readList, writeList, invokeList, storeList, functionList;
+std::list<std::string> readList, writeList, invokeList, functionList;
+std::map<std::string, std::string> storeList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -741,13 +740,9 @@ static std::string processInstruction(Instruction &I)
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(Operand, false);
         writeList.push_back(pdest);
-        vout += pdest + ASSIGNOP;
         if (BitMask)
-            vout += "((";
-        vout += sval;
-        if (BitMask)
-            vout += ") & " + parenOperand(BitMask) + ")";
-        storeList.push_back(vout + ";");
+            sval = "((" + sval + ") & " + parenOperand(BitMask) + ")";
+        storeList[pdest] = sval;
         return "";
         }
 
@@ -918,9 +913,10 @@ void processFunction(Function *func)
                         std::string resname = GetValueName(&*II);
                         if (generateRegion == ProcessCPP)
                             resname = printType(II->getType(), false, resname, "", "", false);
-                        vout = resname + ASSIGNOP + vout;
+                        storeList[resname] = vout;
                     }
-                    functionList.push_back(vout);
+                    else
+                        functionList.push_back(vout);
                 }
             }
             II = INEXT;
