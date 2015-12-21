@@ -62,7 +62,7 @@ static bool findExact(std::string haystack, std::string needle)
 static std::string inlineValue(std::string wname, bool clear)
 {
     std::string temp = assignList[wname];
-printf("[%s:%d] start (%s, %d) = %s\n", __FUNCTION__, __LINE__, wname.c_str(), clear, temp.c_str());
+//printf("[%s:%d] start (%s, %d) = %s\n", __FUNCTION__, __LINE__, wname.c_str(), clear, temp.c_str());
     if (temp == "") {
         std::string exactMatch;
         int referenceCount = 0;
@@ -70,7 +70,7 @@ printf("[%s:%d] start (%s, %d) = %s\n", __FUNCTION__, __LINE__, wname.c_str(), c
             if (item.second == wname)
                 exactMatch = item.first;
             if (findExact(item.second, wname)) {
-printf("[%s:%d] clear %d name %s found %s from %s\n", __FUNCTION__, __LINE__, clear, wname.c_str(), item.second.c_str(), item.first.c_str());
+//printf("[%s:%d] clear %d name %s found %s from %s\n", __FUNCTION__, __LINE__, clear, wname.c_str(), item.second.c_str(), item.first.c_str());
                 referenceCount++;
             }
         }
@@ -321,7 +321,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         Function *func = FI.second;
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
-        globalCondition = mname + "__ENA";
+        globalCondition = mname + "__ENA_internal";
         processFunction(func);
         if (!isAction) {
             if (endswith(mname, "__RDY"))
@@ -332,6 +332,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             assignList[mname] = temp;
         }
         else {
+            fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
+            fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
+            fprintf(OStr, "    assign %s__RDY = %s__RDY_internal;\n", mname.c_str(), mname.c_str());
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
                 for (auto item: functionList)
@@ -340,9 +343,9 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             }
         }
         if (storeList.size() > 0) {
-            alwaysLines.push_back("if (" + mname + "__ENA) begin");
+            alwaysLines.push_back("if (" + mname + "__ENA_internal) begin");
             for (auto info: storeList)
-                alwaysLines.push_back(info.first + " <= " + info.second + ";");
+                alwaysLines.push_back("    " + info.first + " <= " + info.second + ";");
             alwaysLines.push_back("end; // End of " + mname);
         }
         std::string condition;
@@ -384,8 +387,12 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
     }
     for (auto item: assignList)
-        if (item.second != "")
-            fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
+        if (item.second != "") {
+            std::string temp = item.first.c_str();
+            if (endswith(temp, "__RDY"))
+                temp += "_internal";
+            fprintf(OStr, "    assign %s = %s;\n", temp.c_str(), item.second.c_str());
+        }
     if (resetList.size() > 0 || alwaysLines.size() > 0) {
         fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
         for (auto item: resetList)
