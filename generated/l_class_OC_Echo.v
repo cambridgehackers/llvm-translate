@@ -9,7 +9,6 @@ module l_class_OC_Echo (
     output ind$heard__ENA,
     output [31:0]ind$heard$v,
     input ind$heard__RDY);
-    wire fifo$CLK, fifo$nRST;
     wire fifo$deq__ENA;
     wire fifo$deq__RDY;
     wire fifo$enq__ENA;
@@ -18,8 +17,8 @@ module l_class_OC_Echo (
     wire [31:0]fifo$first;
     wire fifo$first__RDY;
     l_class_OC_Fifo1 fifo (
-        fifo$CLK,
-        fifo$nRST,
+        CLK,
+        nRST,
         fifo$deq__ENA,
         fifo$deq__RDY,
         fifo$enq__ENA,

@@ -88,6 +88,8 @@ static std::string printFunctionSignature(const Function *F, std::string altname
 
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
+    if (STy->getName() == "class.Module")
+        return;
     fprintf(OStr, "class %s {\npublic:\n", getStructName(STy).c_str());
     generateClassElements(STy, OStr);
     for (auto FI : classCreate[STy]->method)

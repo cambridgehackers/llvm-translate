@@ -4,10 +4,6 @@ public:
   bool say__RDY(void);
 };
 
-class l_class_OC_Module {
-public:
-};
-
 class l_class_OC_Fifo {
 public:
   void deq(void);

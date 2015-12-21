@@ -58,7 +58,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     if (instance != "") {
         inp = instance + MODULE_SEPARATOR;
         outp = instance + MODULE_SEPARATOR;
-        fprintf(OStr, "    wire %s, %s;\n", (inp + "CLK").c_str(), (inp + "nRST").c_str());
         for (auto FI : table->method) {
             Function *func = FI.second;
             std::string mname = FI.first;
@@ -76,21 +75,35 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             }
         }
     }
-    paramList.push_back(inp + "CLK");
-    paramList.push_back(inp + "nRST");
+    if (instance != "") {
+        paramList.push_back("CLK");
+        paramList.push_back("nRST");
+    }
+    else {
+        paramList.push_back(inp + "CLK");
+        paramList.push_back(inp + "nRST");
+    }
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
-        if (isAction)
-            paramList.push_back(inp + mname + "__ENA");
-        else
-            paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
+        if (instance != "")
+            paramList.push_back(instance + MODULE_SEPARATOR + mname + (isAction ? "__ENA" : ""));
+        else {
+            if (isAction)
+                paramList.push_back(inp + mname + "__ENA");
+            else
+                paramList.push_back(outp + verilogArrRange(retTy) + mname);
+        }
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip)
-                paramList.push_back(inp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str());
+            if (!skip) {
+                if (instance != "")
+                    paramList.push_back(inp + mname + "_" + AI->getName().str());
+                else
+                    paramList.push_back(inp + verilogArrRange(AI->getType()) + mname + "_" + AI->getName().str());
+            }
             skip = 0;
         }
     }
