@@ -253,6 +253,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     std::list<READY_INFO> rdyList;
     std::list<std::string> alwaysLines;
 
+    if (!inheritsModule(STy) || STy->getName() == "class.Module")
+        return;
     readWriteList.clear();
     muxValueList.clear();
     assignList.clear();
