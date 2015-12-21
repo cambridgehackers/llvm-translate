@@ -289,6 +289,19 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string condition;
         gatherInfo(mname, condition);
     }
+    for (auto item: muxValueList) {
+        int remain = item.second.size();
+        std::string temp;
+        for (auto element: item.second) {
+            if (--remain)
+                temp += element.condition + " ? ";
+            temp += element.value;
+            if (remain)
+                temp += " : ";
+        }
+        assignList[item.first] = temp;
+    }
+
     int Idx = 0;
     std::list<std::string> resetList;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -309,18 +322,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
                 resetList.push_back(fname);
             }
-        }
-    }
-    for (auto item: muxValueList) {
-        int remain = item.second.size();
-        fprintf(OStr, "    assign %s = ", item.first.c_str());
-        for (auto element: item.second) {
-            if (--remain)
-                fprintf(OStr, "%s ? ", element.condition.c_str());
-            fprintf(OStr, "%s", element.value.c_str());
-            if (remain)
-                fprintf(OStr, " : ");
-            fprintf(OStr, ";\n");
         }
     }
     for (auto item: assignList)
