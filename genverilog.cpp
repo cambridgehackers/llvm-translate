@@ -49,6 +49,16 @@ std::string verilogArrRange(const Type *Ty)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }
+static bool findExact(std::string haystack, std::string needle)
+{
+    std::string::size_type sz = haystack.find(needle);
+    if (sz == std::string::npos)
+        return false;
+    sz += needle.length();
+    if (isalnum(haystack[sz]) || haystack[sz] == '_' || haystack[sz] == '$')
+        return findExact(haystack.substr(sz), needle);
+    return true;
+}
 static std::string inlineValue(std::string wname, bool clear)
 {
     std::string temp = assignList[wname];
@@ -59,7 +69,7 @@ printf("[%s:%d] start (%s, %d) = %s\n", __FUNCTION__, __LINE__, wname.c_str(), c
         for (auto item: assignList) {
             if (item.second == wname)
                 exactMatch = item.first;
-            if (item.second.find(wname) != std::string::npos) {
+            if (findExact(item.second, wname)) {
 printf("[%s:%d] clear %d name %s found %s from %s\n", __FUNCTION__, __LINE__, clear, wname.c_str(), item.second.c_str(), item.first.c_str());
                 referenceCount++;
             }

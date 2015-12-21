@@ -10,7 +10,6 @@ module l_class_OC_Echo (
     output [31:0]ind$heard$v,
     input ind$heard__RDY);
     wire fifo$deq__RDY;
-    wire [31:0]fifo$first;
     wire fifo$first__RDY;
     l_class_OC_Fifo1 fifo (
         CLK,
@@ -20,11 +19,10 @@ module l_class_OC_Echo (
         say__ENA,
         say_v,
         say__RDY,
-        fifo$first,
+        ind$heard_v,
         fifo$first__RDY);
     reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA;
-    assign ind$heard_v = fifo$first;
     assign respond_rule__RDY = (fifo$first__RDY & fifo$deq__RDY) & ind$heard__RDY;
 
     always @( posedge CLK) begin
