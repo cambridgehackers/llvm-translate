@@ -204,23 +204,43 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
     fclose(BStr);
 }
 
+static std::list<std::string> readWriteList;
+static void gatherInfo(std::string mname, std::string condition)
+{
+    if (!endswith(mname, "__RDY")) {
+        std::string temp;
+        for (auto item: readList)
+            temp += ":" + item;
+        if (temp != "")
+            readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
+        temp = "";
+        for (auto item: writeList)
+            temp += ":" + item;
+        if (temp != "")
+            readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
+        temp = "";
+        for (auto item: invokeList)
+            temp += ":" + item;
+        if (temp != "")
+            readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
+    }
+}
+
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<READY_INFO> rdyList;
-    std::list<std::string> readWriteList;
 
+    readWriteList.clear();
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
         int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (hasRet) {
-            if (endswith(mname, "__RDY"))
-                rdyList.push_back(READY_INFO{func, mname});
-        }
+        if (hasRet && endswith(mname, "__RDY"))
+            rdyList.push_back(READY_INFO{func, mname});
     }
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -250,24 +270,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             processFunction(func);
             for (auto item: functionList)
                 fprintf(OStr, "        %s;\n", item.c_str());
-        std::string condition;
-        if (!endswith(mname, "__RDY")) {
-            std::string temp;
-            for (auto item: readList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
-            temp = "";
-            for (auto item: writeList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
-            temp = "";
-            for (auto item: invokeList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
-        }
+            std::string condition;
+            gatherInfo(mname, condition);
         }
     }
     std::list<std::string> alwaysLines;
@@ -290,23 +294,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         fprintf(OStr, "\n");
         std::string condition;
-        if (!endswith(mname, "__RDY")) {
-            std::string temp;
-            for (auto item: readList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
-            temp = "";
-            for (auto item: writeList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
-            temp = "";
-            for (auto item: invokeList)
-                temp += ":" + item;
-            if (temp != "")
-                readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
-        }
+        gatherInfo(mname, condition);
     }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;
