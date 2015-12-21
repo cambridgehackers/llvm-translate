@@ -49,6 +49,17 @@ std::string verilogArrRange(const Type *Ty)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }
+static std::string inlineValue(std::string wname, bool clear)
+{
+    std::string temp = assignList[wname];
+    if (!clear)
+        return temp;
+    else if (temp != "")
+        assignList[wname] = "";
+    else
+        return wname;
+    return temp;
+}
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance)
 {
     ClassMethodTable *table = classCreate[STy];
@@ -65,7 +76,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
             if (isAction) {
                 std::string wname = inp + mname + "__ENA";
-                if (assignList[wname] == "")
+                if (inlineValue(wname, false) == "")
                     fprintf(OStr, "    wire %s;\n", wname.c_str());
             }
             else
@@ -73,7 +84,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                 std::string wname = inp + mname + "_" + AI->getName().str();
-                if (!skip && assignList[wname] == "")
+                if (!skip && inlineValue(wname, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wname.c_str());
                 skip = 0;
             }
@@ -94,12 +105,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         if (instance != "") {
             std::string wname = instance + MODULE_SEPARATOR + mname + (isAction ? "__ENA" : "");
-            std::string temp = assignList[wname];
-            if (temp != "") {
-                assignList[wname] = "";
-                wname = temp;
-            }
-            paramList.push_back(wname);
+            paramList.push_back(inlineValue(wname, true));
         }
         else {
             if (isAction)
@@ -112,12 +118,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             if (!skip) {
                 if (instance != "") {
                     std::string wname = inp + mname + "_" + AI->getName().str();
-                    std::string temp = assignList[wname];
-                    if (temp != "") {
-                        assignList[wname] = "";
-                        wname = temp;
-                    }
-                    paramList.push_back(wname.c_str());
+                    paramList.push_back(inlineValue(wname, true));
                 }
                 else
                     paramList.push_back(inp + verilogArrRange(AI->getType()) + mname + "_" + AI->getName().str());
