@@ -226,6 +226,13 @@ static void gatherInfo(std::string mname, std::string condition)
     }
 }
 
+static std::string globalCondition;
+static std::list<std::string> muxList;
+void muxValue(std::string signal, std::string value)
+{
+     muxList.push_back("assign " + signal + " = " + globalCondition + " ? " + value + " : 0");
+}
+
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);
@@ -233,6 +240,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     std::list<READY_INFO> rdyList;
 
     readWriteList.clear();
+    muxList.clear();
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
     for (auto FI : table->method) {
@@ -296,6 +304,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string condition;
         gatherInfo(mname, condition);
     }
+    for (auto item: muxList)
+        fprintf(OStr, "        %s;\n", item.c_str());
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {

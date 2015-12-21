@@ -192,7 +192,7 @@ def processFile(filename):
                     titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
                 else:
                     print 'Unknown case', inVector
-    print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
+    #print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
     for key, value in titem['internal'].iteritems():
         processFile(value)
     for key, value in titem['external'].iteritems():

@@ -62,7 +62,6 @@ extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::list<std::string> readList, writeList, invokeList, storeList, functionList;
-extern std::string globalCondition;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
@@ -99,3 +98,4 @@ void pushWork(Function *func);
 int derivedStruct(const StructType *STyA, const StructType *STyB);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy);
+void muxValue(std::string signal, std::string value);
