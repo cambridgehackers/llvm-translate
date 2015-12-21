@@ -225,12 +225,16 @@ static void gatherInfo(std::string mname, std::string condition)
     }
 }
 
+typedef struct {
+    std::string condition;
+    std::string value;
+} MUX_VALUE;
 static std::string globalCondition;
-static std::list<std::string> muxList;
+static std::map<std::string, std::list<MUX_VALUE>> muxList;
 void muxValue(std::string signal, std::string value)
 {
 printf("[%s:%d] signal %s condition %s value %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str(), value.c_str());
-     muxList.push_back("assign " + signal + " = " + globalCondition + " ? " + value + " : 0");
+     muxList[signal].push_back(MUX_VALUE{globalCondition, value});
 }
 
 void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
@@ -277,7 +281,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(OStr, "    assign %s = ", mname.c_str());
             processFunction(func);
             for (auto item: functionList)
-                fprintf(OStr, "        %s;\n", item.c_str());
+                fprintf(OStr, "%s;\n", item.c_str());
             std::string condition;
             gatherInfo(mname, condition);
         }
@@ -293,7 +297,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         processFunction(func);
         for (auto item: functionList)
             fprintf(OStr, "        %s;\n", item.c_str());
-        globalCondition = "";
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA) begin");
             for (auto info: storeList)
@@ -304,8 +307,12 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string condition;
         gatherInfo(mname, condition);
     }
-    for (auto item: muxList)
-        fprintf(OStr, "        %s;\n", item.c_str());
+    for (auto item: muxList) {
+        fprintf(OStr, "        assign %s = ", item.first.c_str());
+printf("[%s:%d] MUX %s size %d\n", __FUNCTION__, __LINE__, item.first.c_str(), (int)item.second.size());
+        for (auto element: item.second)
+            fprintf(OStr, "%s ? %s : 0;\n", element.condition.c_str(), element.value.c_str());
+    }
     fprintf(OStr, "    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
