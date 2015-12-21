@@ -290,6 +290,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         gatherInfo(mname, condition);
     }
     int Idx = 0;
+    std::list<std::string> resetList;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
         if (const Type *newType = table->replaceType[Idx])
@@ -304,8 +305,10 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                 generateModuleSignature(OStr, STy, fname);
                 readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
-            else
+            else {
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
+                resetList.push_back(fname);
+            }
         }
     }
     for (auto item: muxValueList) {
@@ -322,24 +325,20 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     }
     for (auto item: assignList)
         fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
-    fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
-    Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
-            element = newType;
-        std::string fname = fieldName(STy, Idx);
-        if (fname != "" && !dyn_cast<PointerType>(element) && !  dyn_cast<StructType>(element))
-            fprintf(OStr, "        %s <= 0;\n", fname.c_str());
+    if (resetList.size() > 0 || alwaysLines.size() > 0) {
+        fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
+        for (auto item: resetList)
+            fprintf(OStr, "        %s <= 0;\n", item.c_str());
+        fprintf(OStr, "      end // nRST\n");
+        if (alwaysLines.size() > 0) {
+            fprintf(OStr, "      else begin\n");
+            for (auto info: alwaysLines)
+                fprintf(OStr, "        %s\n", info.c_str());
+            fprintf(OStr, "      end\n");
+        }
+        fprintf(OStr, "    end // always @ (posedge CLK)\n");
     }
-    fprintf(OStr, "      end // nRST\n");
-    if (alwaysLines.size() > 0) {
-        fprintf(OStr, "      else begin\n");
-        for (auto info: alwaysLines)
-            fprintf(OStr, "        %s\n", info.c_str());
-        fprintf(OStr, "      end\n");
-    }
-    fprintf(OStr, "    end // always @ (posedge CLK)\nendmodule \n\n");
+    fprintf(OStr, "endmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
         processFunction(PI->func);

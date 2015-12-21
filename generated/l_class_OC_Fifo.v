@@ -12,11 +12,6 @@ module l_class_OC_Fifo (
     assign enq__RDY = 0;
     assign first = 0;
     assign first__RDY = 0;
-
-    always @( posedge CLK) begin
-      if (!nRST) begin
-      end // nRST
-    end // always @ (posedge CLK)
 endmodule 
 
 //METAGUARD; deq__RDY;         0;
