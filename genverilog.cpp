@@ -63,14 +63,18 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             std::string mname = FI.first;
             const Type *retTy = func->getReturnType();
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
-            if (isAction)
-                fprintf(OStr, "    wire %s;\n", (inp + mname + "__ENA").c_str());
+            if (isAction) {
+                std::string wname = inp + mname + "__ENA";
+                if (assignList[wname] == "")
+                    fprintf(OStr, "    wire %s;\n", wname.c_str());
+            }
             else
                 fprintf(OStr, "    wire %s%s;\n", verilogArrRange(retTy).c_str(), (outp + mname).c_str());
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                if (!skip)
-                    fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), (inp + mname + "_" + AI->getName().str()).c_str());
+                std::string wname = inp + mname + "_" + AI->getName().str();
+                if (!skip && assignList[wname] == "")
+                    fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wname.c_str());
                 skip = 0;
             }
         }
@@ -88,8 +92,15 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
-        if (instance != "")
-            paramList.push_back(instance + MODULE_SEPARATOR + mname + (isAction ? "__ENA" : ""));
+        if (instance != "") {
+            std::string wname = instance + MODULE_SEPARATOR + mname + (isAction ? "__ENA" : "");
+            std::string temp = assignList[wname];
+            if (temp != "") {
+                assignList[wname] = "";
+                wname = temp;
+            }
+            paramList.push_back(wname);
+        }
         else {
             if (isAction)
                 paramList.push_back(inp + mname + "__ENA");
@@ -99,8 +110,15 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
-                if (instance != "")
-                    paramList.push_back(inp + mname + "_" + AI->getName().str());
+                if (instance != "") {
+                    std::string wname = inp + mname + "_" + AI->getName().str();
+                    std::string temp = assignList[wname];
+                    if (temp != "") {
+                        assignList[wname] = "";
+                        wname = temp;
+                    }
+                    paramList.push_back(wname.c_str());
+                }
                 else
                     paramList.push_back(inp + verilogArrRange(AI->getType()) + mname + "_" + AI->getName().str());
             }
@@ -248,14 +266,12 @@ static void gatherInfo(std::string mname, std::string condition)
 
 void muxEnable(std::string signal)
 {
-printf("[%s:%d] signal %s condition %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
      if (assignList[signal] != "")
          assignList[signal] += " || ";
      assignList[signal] += globalCondition;
 }
 void muxValue(std::string signal, std::string value)
 {
-printf("[%s:%d] signal %s condition %s value %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str(), value.c_str());
      muxValueList[signal].push_back(MUX_VALUE{globalCondition, value});
 }
 
@@ -340,7 +356,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
     }
     for (auto item: assignList)
-        fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
+        if (item.second != "")
+            fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
     if (resetList.size() > 0 || alwaysLines.size() > 0) {
         fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
         for (auto item: resetList)

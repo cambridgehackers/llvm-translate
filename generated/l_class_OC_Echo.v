@@ -9,27 +9,21 @@ module l_class_OC_Echo (
     output ind$heard__ENA,
     output [31:0]ind$heard$v,
     input ind$heard__RDY);
-    wire fifo$deq__ENA;
     wire fifo$deq__RDY;
-    wire fifo$enq__ENA;
-    wire [31:0]fifo$enq_v;
     wire fifo$enq__RDY;
     wire [31:0]fifo$first;
     wire fifo$first__RDY;
     l_class_OC_Fifo1 fifo (
         CLK,
         nRST,
-        fifo$deq__ENA,
+        respond_rule__ENA,
         fifo$deq__RDY,
-        fifo$enq__ENA,
-        fifo$enq_v,
+        say__ENA,
+        say_v,
         fifo$enq__RDY,
         fifo$first,
         fifo$first__RDY);
     reg[31:0] pipetemp;
-    assign fifo$deq__ENA = respond_rule__ENA;
-    assign fifo$enq__ENA = say__ENA;
-    assign fifo$enq_v = say_v;
     assign ind$heard__ENA = respond_rule__ENA;
     assign ind$heard_v = (fifo$first);
     assign respond_rule__RDY = (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
