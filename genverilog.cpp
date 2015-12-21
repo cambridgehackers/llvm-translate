@@ -33,6 +33,14 @@ typedef struct {
     Function *func;
     std::string name;
 } READY_INFO;
+typedef struct {
+    std::string condition;
+    std::string value;
+} MUX_VALUE;
+
+static std::string globalCondition;
+static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
+static std::map<std::string, std::string> assignList;
 
 std::string verilogArrRange(const Type *Ty)
 {
@@ -225,13 +233,6 @@ static void gatherInfo(std::string mname, std::string condition)
     }
 }
 
-typedef struct {
-    std::string condition;
-    std::string value;
-} MUX_VALUE;
-static std::string globalCondition;
-static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
-static std::map<std::string, std::string> assignList;
 void muxEnable(std::string signal)
 {
 printf("[%s:%d] signal %s condition %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
@@ -250,6 +251,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<READY_INFO> rdyList;
+    std::list<std::string> alwaysLines;
 
     readWriteList.clear();
     muxValueList.clear();
@@ -260,8 +262,32 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         Function *func = FI.second;
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
-        if (!isAction && endswith(mname, "__RDY"))
-            rdyList.push_back(READY_INFO{func, mname});
+        globalCondition = mname + "__ENA";
+        processFunction(func);
+        if (!isAction) {
+            if (endswith(mname, "__RDY"))
+                rdyList.push_back(READY_INFO{func, mname});
+            std::string temp;
+            for (auto item: functionList)
+                temp += item;
+            assignList[mname] = temp;
+        }
+        else {
+            if (functionList.size() > 0) {
+                printf("%s: non-store lines in Action\n", __FUNCTION__);
+                for (auto item: functionList)
+                    printf("%s\n", item.c_str());
+                exit(-1);
+            }
+        }
+        if (storeList.size() > 0) {
+            alwaysLines.push_back("if (" + mname + "__ENA) begin");
+            for (auto info: storeList)
+                alwaysLines.push_back(info);
+            alwaysLines.push_back("end; // End of " + mname);
+        }
+        std::string condition;
+        gatherInfo(mname, condition);
     }
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -282,42 +308,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
         }
     }
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        std::string mname = FI.first;
-        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
-        if (!isAction) {
-            std::string temp;
-            processFunction(func);
-            for (auto item: functionList)
-                temp += item;
-            assignList[mname] = temp;
-            std::string condition;
-            gatherInfo(mname, condition);
-        }
-    }
-    std::list<std::string> alwaysLines;
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        std::string mname = FI.first;
-        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
-        if (!isAction)
-            continue;
-        globalCondition = mname + "__ENA";
-        processFunction(func);
-        for (auto item: functionList)
-            fprintf(OStr, "        %s;\n", item.c_str());
-        if (storeList.size() > 0) {
-            alwaysLines.push_back("if (" + mname + "__ENA) begin");
-            for (auto info: storeList)
-                alwaysLines.push_back(info);
-            alwaysLines.push_back("end; // End of " + mname);
-        }
-        std::string condition;
-        gatherInfo(mname, condition);
-    }
-    for (auto item: assignList)
-        fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
     for (auto item: muxValueList) {
         int remain = item.second.size();
         fprintf(OStr, "    assign %s = ", item.first.c_str());
@@ -330,6 +320,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(OStr, ";\n");
         }
     }
+    for (auto item: assignList)
+        fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
     fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {

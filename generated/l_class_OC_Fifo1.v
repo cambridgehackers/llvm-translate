@@ -35,6 +35,6 @@ endmodule
 //METAGUARD; deq__RDY;         (full);
 //METAGUARD; enq__RDY;         ((full) ^ 1);
 //METAGUARD; first__RDY;         (full);
-//METAREAD; first; :element;
 //METAWRITE; deq; :full;
 //METAWRITE; enq; :element:full;
+//METAREAD; first; :element;
