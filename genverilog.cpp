@@ -55,11 +55,11 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             Function *func = FI.second;
             std::string mname = FI.first;
             const Type *retTy = func->getReturnType();
-            int hasRet = (retTy != Type::getVoidTy(func->getContext()));
-            if (hasRet)
-                fprintf(OStr, "wire %s%s;\n", verilogArrRange(retTy).c_str(), (outp + mname).c_str());
-            else
+            int isAction = (retTy == Type::getVoidTy(func->getContext()));
+            if (isAction)
                 fprintf(OStr, "wire %s;\n", (inp + mname + "__ENA").c_str());
+            else
+                fprintf(OStr, "wire %s%s;\n", verilogArrRange(retTy).c_str(), (outp + mname).c_str());
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                 if (!skip)
@@ -74,12 +74,11 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         Function *func = FI.second;
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
-        int hasRet = (retTy != Type::getVoidTy(func->getContext()));
-        if (hasRet) {
-            paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
-        }
-        else
+        int isAction = (retTy == Type::getVoidTy(func->getContext()));
+        if (isAction)
             paramList.push_back(inp + mname + "__ENA");
+        else
+            paramList.push_back(outp + (instance == "" ? verilogArrRange(retTy):"") + mname);
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip)
@@ -111,11 +110,11 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     Function *func = FI.second;
                     std::string mname = fname + MODULE_SEPARATOR + FI.first;
                     const Type *retTy = func->getReturnType();
-                    int hasRet = (retTy != Type::getVoidTy(func->getContext()));
-                    if (hasRet)
-                        paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
-                    else
+                    int isAction = (retTy == Type::getVoidTy(func->getContext()));
+                    if (isAction)
                         paramList.push_back(outp + mname + "__ENA");
+                    else
+                        paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
@@ -156,10 +155,10 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
+        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         if (endswith(mname, "__RDY"))
             continue;
-        fprintf(BStr, "    method %s %s(", hasRet ? "Bit#(32)" : "Action", mname.c_str());
+        fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
@@ -179,11 +178,11 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string mname = FI.first;
         if (endswith(mname, "__RDY"))
             continue;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (hasRet)
-            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        else
+        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        if (isAction)
             fprintf(BStr, "    method %s(", mname.c_str());
+        else
+            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
@@ -193,7 +192,7 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
             }
             skip = 0;
         }
-        if (!hasRet)
+        if (isAction)
             fprintf(BStr, ") enable(%s__ENA", mname.c_str());
         fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
         sched += sep + mname;
@@ -230,6 +229,7 @@ static std::string globalCondition;
 static std::list<std::string> muxList;
 void muxValue(std::string signal, std::string value)
 {
+printf("[%s:%d] signal %s condition %s value %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str(), value.c_str());
      muxList.push_back("assign " + signal + " = " + globalCondition + " ? " + value + " : 0");
 }
 
@@ -246,8 +246,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
-        int hasRet = (func->getReturnType() != Type::getVoidTy(func->getContext()));
-        if (hasRet && endswith(mname, "__RDY"))
+        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        if (!isAction && endswith(mname, "__RDY"))
             rdyList.push_back(READY_INFO{func, mname});
     }
     int Idx = 0;
