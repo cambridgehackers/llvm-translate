@@ -404,13 +404,13 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
             if (ptr)
                 cbuffer += sp + " VERILOG_char";
             else
-                cbuffer += " reg";
+                cbuffer += "reg";
         }
         else if (NumBits <= 16)
             cbuffer += sp + " VERILOG_short";
         else if (NumBits <= 32)
             //cbuffer += sp + " VERILOG_int";
-            cbuffer += " reg" + verilogArrRange(Ty);
+            cbuffer += "reg" + verilogArrRange(Ty);
         else if (NumBits <= 64)
             cbuffer += sp + " VERILOG_long long";
         }

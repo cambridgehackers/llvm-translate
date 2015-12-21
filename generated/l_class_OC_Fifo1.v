@@ -8,8 +8,8 @@ module l_class_OC_Fifo1 (
     output enq__RDY,
     output [31:0]first,
     output first__RDY);
-   reg[31:0] element;
-   reg full;
+    reg[31:0] element;
+    reg full;
     assign deq__RDY = (full);
     assign enq__RDY = ((full) ^ 1);
     assign first = (element);

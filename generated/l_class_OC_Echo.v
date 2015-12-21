@@ -9,14 +9,14 @@ module l_class_OC_Echo (
     output ind$heard__ENA,
     output [31:0]ind$heard$v,
     input ind$heard__RDY);
-wire fifo$CLK, fifo$nRST;
-wire fifo$deq__ENA;
-wire fifo$deq__RDY;
-wire fifo$enq__ENA;
-wire [31:0]fifo$enq_v;
-wire fifo$enq__RDY;
-wire [31:0]fifo$first;
-wire fifo$first__RDY;
+    wire fifo$CLK, fifo$nRST;
+    wire fifo$deq__ENA;
+    wire fifo$deq__RDY;
+    wire fifo$enq__ENA;
+    wire [31:0]fifo$enq_v;
+    wire fifo$enq__RDY;
+    wire [31:0]fifo$first;
+    wire fifo$first__RDY;
     l_class_OC_Fifo1 fifo (
         fifo$CLK,
         fifo$nRST,
@@ -27,14 +27,14 @@ wire fifo$first__RDY;
         fifo$enq__RDY,
         fifo$first,
         fifo$first__RDY);
-   reg[31:0] pipetemp;
+    reg[31:0] pipetemp;
     assign respond_rule__RDY = (fifo$first__RDY) & (fifo$deq__RDY) & (ind$heard__RDY);
     assign say__RDY = (fifo$enq__RDY);
 
 
-        assign fifo$deq__ENA = respond_rule__ENA;
-        assign fifo$enq__ENA = say__ENA;
-        assign ind$heard__ENA = respond_rule__ENA;
+    assign fifo$deq__ENA = respond_rule__ENA;
+    assign fifo$enq__ENA = say__ENA;
+    assign ind$heard__ENA = respond_rule__ENA;
         assign fifo$enq_v = say_v;
         assign ind$heard_v = (fifo$first);
     always @( posedge CLK) begin
