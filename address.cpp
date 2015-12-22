@@ -98,6 +98,7 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
     bool changed = false;
     Module *Mod = F.getParent();
     std::string fname = F.getName();
+    const StructType *callingSTy = findThisArgumentType(F.getType());
 //printf("CallProcessPass2: %s\n", fname.c_str());
     for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
@@ -138,19 +139,8 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
             case Instruction::Call: {
                 CallInst *ICL = dyn_cast<CallInst>(II);
                 Value *callV = ICL->getCalledValue();
-                std::string cName = printOperand(ICL->getCalledValue(), false);
-                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(cName));
-                std::string cthisp = printOperand(II->getOperand(0), false);
-                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), cName.c_str(), func, cthisp.c_str());
-                if (func && cthisp == "this") {
-                    fprintf(stdout,"callProcess: cName %s single!!!!\n", cName.c_str());
-                    call2runOnFunction(currentFunction, *func);
-                    II->setOperand(II->getNumOperands()-1, func);
-                    InlineFunctionInfo IFI;
-                    InlineFunction(ICL, IFI, false);
-                    changed = true;
-                }
-                else if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
+                Function *func = dyn_cast<Function>(callV);
+                if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
@@ -159,6 +149,16 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                     }
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
+                }
+                std::string cName = func->getName();
+                const StructType *STy = findThisArgumentType(func->getType());
+                //printf("%s: %s CALLS %s func %p calling %p STy %p\n", __FUNCTION__, fname.c_str(), cName.c_str(), func, callingSTy, STy);
+                if (func && callingSTy == STy) {
+                    fprintf(stdout,"callProcess: cName %s single!!!!\n", cName.c_str());
+                    call2runOnFunction(currentFunction, *func);
+                    InlineFunctionInfo IFI;
+                    InlineFunction(ICL, IFI, false);
+                    changed = true;
                 }
                 break;
                 }
