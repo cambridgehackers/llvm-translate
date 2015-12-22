@@ -92,6 +92,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
         return;
     fprintf(OStr, "class %s {\npublic:\n", getStructName(STy).c_str());
     generateClassElements(STy, OStr);
+    fprintf(OStr, "public:\n");
     for (auto FI : classCreate[STy]->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     if (hasRun(STy))

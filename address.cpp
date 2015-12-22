@@ -589,8 +589,7 @@ static void processStruct(const StructType *STy)
     }
     for (unsigned int i = 0; i < table->vtableCount; i++) {
          Function *func = table->vtable[i];
-         std::string mname = getMethodName(func->getName());
-         methodMap[mname] = func;
+         methodMap[getMethodName(func->getName())] = func;
     }
     for (auto item: methodMap) {
         if (endswith(item.first, "__RDY")) {
