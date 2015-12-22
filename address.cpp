@@ -90,6 +90,70 @@ void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
     I->eraseFromParent();
 }
 
+static void call2runOnFunction(Function *currentFunction, Function &F)
+{
+    bool changed = false;
+    Module *Mod = F.getParent();
+    std::string fname = F.getName();
+//printf("CallProcessPass2: %s\n", fname.c_str());
+    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
+            auto PI = std::next(BasicBlock::iterator(II));
+            int opcode = II->getOpcode();
+            switch (opcode) {
+            case Instruction::Alloca: {
+                Value *retv = (Value *)II;
+                std::string name = II->getName();
+                int ind = name.find("block");
+//printf("       ALLOCA %s;", name.c_str());
+                if (II->hasName() && ind == -1 && endswith(name, ".addr")) {
+                    Value *newt = NULL;
+                    auto PN = PI;
+                    while (PN != IE) {
+                        auto PNN = std::next(BasicBlock::iterator(PN));
+                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
+                            newt = PN->getOperand(0); // Remember value we were storing in temp
+                            if (PI == PN)
+                                PI = PNN;
+                            PN->eraseFromParent(); // delete Store instruction
+                        }
+                        else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
+                            PN->replaceAllUsesWith(newt); // replace with stored value
+                            if (PI == PN)
+                                PI = PNN;
+                            PN->eraseFromParent(); // delete Load instruction
+                        }
+                        PN = PNN;
+                    }
+//printf("del1");
+                    II->eraseFromParent(); // delete Alloca instruction
+                    changed = true;
+                }
+//printf("\n");
+                break;
+                }
+            case Instruction::Call: {
+                CallInst *CI = dyn_cast<CallInst>(II);
+                std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
+                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
+                std::string cthisp = printOperand(II->getOperand(0), false);
+                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
+                if (func && cthisp == "this") {
+                    fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
+                    call2runOnFunction(currentFunction, *func);
+                    II->setOperand(II->getNumOperands()-1, func);
+                    InlineFunctionInfo IFI;
+                    InlineFunction(CI, IFI, false);
+                    changed = true;
+                }
+                break;
+                }
+            };
+            II = PI;
+        }
+    }
+}
+
 static void pushWork(Function *func)
 {
     ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];

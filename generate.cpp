@@ -222,68 +222,37 @@ void processPromote(Function *currentFunction)
         }
     }
 }
-void call2runOnFunction(Function *currentFunction, Function &F)
+
+/*
+ * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
+ * This enables llvm-translate to easily maintain a list of valid memory regions
+ * during processing.
+ */
+void callMemrunOnFunction(CallInst *II)
 {
-    bool changed = false;
-    Module *Mod = F.getParent();
-    std::string fname = F.getName();
-//printf("CallProcessPass2: %s\n", fname.c_str());
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
-        for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
-            auto PI = std::next(BasicBlock::iterator(II));
-            int opcode = II->getOpcode();
-            switch (opcode) {
-            case Instruction::Alloca: {
-                Value *retv = (Value *)II;
-                std::string name = II->getName();
-                int ind = name.find("block");
-//printf("       ALLOCA %s;", name.c_str());
-                if (II->hasName() && ind == -1 && endswith(name, ".addr")) {
-                    Value *newt = NULL;
-                    auto PN = PI;
-                    while (PN != IE) {
-                        auto PNN = std::next(BasicBlock::iterator(PN));
-                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
-                            newt = PN->getOperand(0); // Remember value we were storing in temp
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Store instruction
-                        }
-                        else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
-                            PN->replaceAllUsesWith(newt); // replace with stored value
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Load instruction
-                        }
-                        PN = PNN;
-                    }
-//printf("del1");
-                    II->eraseFromParent(); // delete Alloca instruction
-                    changed = true;
-                }
-//printf("\n");
-                break;
-                }
-            case Instruction::Call: {
-                CallInst *CI = dyn_cast<CallInst>(II);
-                std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
-                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
-                std::string cthisp = printOperand(II->getOperand(0), false);
-                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
-                if (func && cthisp == "this") {
-                    fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
-                    call2runOnFunction(currentFunction, *func);
-                    II->setOperand(II->getNumOperands()-1, func);
-                    InlineFunctionInfo IFI;
-                    InlineFunction(CI, IFI, false);
-                    changed = true;
-                }
-                break;
-                }
-            };
-            II = PI;
-        }
-    }
+    Module *Mod = II->getParent()->getParent()->getParent();
+    Value *called = II->getOperand(II->getNumOperands()-1);
+    const Function *CF = dyn_cast<Function>(called);
+    Instruction *PI = II->user_back();
+    unsigned long tparam = 0;
+    unsigned long styparam = (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType());
+    //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
+    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
+        tparam = (unsigned long)PI->getType();
+    Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
+        Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext())};
+    FunctionType *fty = FunctionType::get(Type::getInt8PtrTy(Mod->getContext()),
+        ArrayRef<Type*>(Params, 3), false);
+    Function *F = dyn_cast<Function>(Mod->getOrInsertFunction("llvm_translate_malloc", fty));
+    F->setCallingConv(CF->getCallingConv());
+    F->setDoesNotAlias(0);
+    F->setAttributes(CF->getAttributes());
+    IRBuilder<> builder(II->getParent());
+    builder.SetInsertPoint(II);
+    II->replaceAllUsesWith(builder.CreateCall(F,
+       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
+       "llvm_translate_malloc"));
+    II->eraseFromParent();
 }
 
 /*
