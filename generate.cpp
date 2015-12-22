@@ -46,7 +46,7 @@ static unsigned NextTypeID;
 static int generateRegion = ProcessNone;
 static Function *currentFunction;
 
-static std::list<Function *> vtableWork;
+std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
@@ -160,7 +160,7 @@ static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
-static void processPromote(Function *currentFunction)
+void processPromote(Function *currentFunction)
 {
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
@@ -222,7 +222,7 @@ static void processPromote(Function *currentFunction)
         }
     }
 }
-static void call2runOnFunction(Function *currentFunction, Function &F)
+void call2runOnFunction(Function *currentFunction, Function &F)
 {
     bool changed = false;
     Module *Mod = F.getParent();
@@ -284,17 +284,6 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
             II = PI;
         }
     }
-}
-
-void pushWork(Function *func)
-{
-    if (!func || generateRegion != ProcessNone)
-        return;
-    vtableWork.push_back(func);
-    // inline intra-class method call bodies
-    call2runOnFunction(func, *func);
-    // promote guards from contained calls to be guards for this function
-    processPromote(func);
 }
 
 /*
@@ -977,7 +966,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
                 (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
         }
 
-    // run Constructors
+    // run Constructors from user program
     EE->runStaticConstructorsDestructors(false);
 
     // Construct the address -> symbolic name map using actual data allocated/initialized

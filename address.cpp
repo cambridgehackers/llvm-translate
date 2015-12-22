@@ -90,6 +90,17 @@ void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
     I->eraseFromParent();
 }
 
+static void pushWork(Function *func)
+{
+    ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
+    table->method[getMethodName(func->getName())] = func;
+    vtableWork.push_back(func);
+    // inline intra-class method call bodies
+    call2runOnFunction(func, *func);
+    // promote guards from contained calls to be guards for this function
+    processPromote(func);
+}
+
 static Function *fixupFunction(std::string methodName, Function *func)
 {
     Function *fnew = NULL;
@@ -153,8 +164,6 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
     table->rules.push_back(name);
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    table->method[getMethodName(enaFunc->getName())] = enaFunc;
-    table->method[getMethodName(rdyFunc->getName())] = rdyFunc;
     pushWork(enaFunc);
     pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
@@ -402,10 +411,8 @@ void constructVtableMap(Module *Mod)
                     table->vtable[table->vtableCount++] = func->getName();
                     std::string mname = getMethodName(func->getName());
                     int isRDY = endswith(mname, "__RDY");
-                    if (!inheritsModule(STy) || isRDY || wasRDY) {
-                        table->method[mname] = func;
+                    if (!inheritsModule(STy) || isRDY || wasRDY)
                         funcList.push_back(func);
-                    }
                     wasRDY = isRDY; // HACK... need better way to look for base function
                 }
             }
