@@ -762,8 +762,7 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                     element = table->replaceType[Idx];
                 printContainedStructs(element, OStr, ODir, cb);
             }
-            if (classCreate[STy])
-// && (inheritsModule(STy) || generateRegion == ProcessCPP))
+            if (table)
                 cb(STy, OStr, ODir);
         }
     }
