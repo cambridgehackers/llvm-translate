@@ -28,10 +28,16 @@
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
 #include "declarations.h"
+
+static int trace_malloc;// = 1;
+static int trace_fixup;// = 1;
+static int trace_mapt;// = 1;
+static int trace_hoist;// = 1;
 
 typedef  struct {
     void *p;
@@ -56,9 +62,6 @@ struct MAPSEENcomp {
 };
 
 #define GIANT_SIZE 1024
-static int trace_malloc;// = 1;
-static int trace_fixup;// = 1;
-static int trace_mapt;// = 1;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -150,6 +153,93 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                 }
             };
             II = PI;
+        }
+    }
+}
+
+static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
+{
+    Function *parentRDYName = ruleRDYFunction[currentFunction];
+    if (!parentRDYName || RDYName < 0)
+        return;
+    TerminatorInst *TI = parentRDYName->begin()->getTerminator();
+    Instruction *newI = copyFunction(TI, argI, RDYName, Type::getInt1Ty(TI->getContext()));
+    if (CallInst *nc = dyn_cast<CallInst>(newI))
+        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+    Value *cond = TI->getOperand(0);
+    const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+    if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
+        TI->setOperand(0, newI);
+    else {
+        // 'And' return value into condition
+        Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
+        cond->replaceAllUsesWith(newBool);
+        // we must set this after the 'replaceAllUsesWith'
+        newBool->setOperand(0, cond);
+    }
+}
+
+// Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
+// Walk list of work items, cleaning up function references and adding to vtableWork
+static void processPromote(Function *currentFunction)
+{
+    for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
+        for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
+            auto INEXT = std::next(BasicBlock::iterator(II));
+            if (II->getOpcode() == Instruction::Call) {
+                CallInst &ICL = static_cast<CallInst&>(*II);
+            
+                std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
+                Function *func = ICL.getCalledFunction();
+                ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
+                ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
+                if (!func)
+                    func = EE->FindFunctionNamed(pcalledFunction.c_str());
+                if (trace_hoist || !func)
+                    printf("CALL: CALLER %s func %p pcalledFunction '%s'\n", currentFunction->getName().str().c_str(), func, pcalledFunction.c_str());
+                if (!func) {
+                    printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+                    currentFunction->dump();
+                    exit(-1);
+                }
+                PointerType  *PTy = cast<PointerType>(func->getType());
+                FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
+                ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
+                Instruction *oldOp = dyn_cast<Instruction>(II->getOperand(II->getNumOperands()-1));
+                //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
+                if (oldOp) {
+                    II->setOperand(II->getNumOperands()-1, func);
+                    recursiveDelete(oldOp);
+                }
+                if (trace_hoist)
+                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, II->getType()->getTypeID(), pcalledFunction.c_str());
+                if (func->isDeclaration() && pcalledFunction == "_Z14PIPELINEMARKER") {
+                    /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
+                    Function *F = II->getParent()->getParent();
+                    Module *Mod = F->getParent();
+                    std::string Fname = F->getName().str();
+                    std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
+                    Function *otherBody = Mod->getFunction(otherName);
+                    TerminatorInst *TI = otherBody->begin()->getTerminator();
+                    prepareClone(TI, II);
+                    Instruction *IT = dyn_cast<Instruction>(II->getOperand(1));
+                    Instruction *IC = dyn_cast<Instruction>(II->getOperand(0));
+                    Instruction *newIC = cloneTree(IC, TI);
+                    Instruction *newIT = cloneTree(IT, TI);
+                    printf("[%s:%d] other %s %p\n", __FUNCTION__, __LINE__, otherName.c_str(), otherBody);
+                    IRBuilder<> builder(TI->getParent());
+                    builder.SetInsertPoint(TI);
+                    builder.CreateStore(newIC, newIT);
+                    IRBuilder<> oldbuilder(II->getParent());
+                    oldbuilder.SetInsertPoint(II);
+                    Value *newLoad = oldbuilder.CreateLoad(IT);
+                    II->replaceAllUsesWith(newLoad);
+                    II->eraseFromParent();
+                    return;
+                }
+                addGuard(II, vtableFind(classCreate[findThisArgumentType(func->getType())], getMethodName(func->getName()) + "__RDY"), currentFunction);
+            }
+            II = INEXT;
         }
     }
 }
