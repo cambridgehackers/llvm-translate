@@ -244,7 +244,7 @@ static void processPromote(Function *currentFunction)
 std::map<Function *, int> pushSeen;
 static void pushWork(Function *func)
 {
-#ifdef NEW
+#if 0//def NEW
     if (pushSeen[func])
         return;
 #endif
@@ -587,8 +587,8 @@ void preprocessModule(Module *Mod)
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
             uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
-            int wasRDY = 0;
             printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
+            std::map<std::string, Function *>methodMap;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
@@ -599,10 +599,13 @@ void preprocessModule(Module *Mod)
                         table->vtable = new std::string[numElements];
                     table->vtable[table->vtableCount++] = func->getName();
                     std::string mname = getMethodName(func->getName());
-                    int isRDY = endswith(mname, "__RDY");
-                    if (!inheritsModule(STy) || isRDY || wasRDY)
-                        funcList.push_back(func);
-                    wasRDY = isRDY; // HACK... need better way to look for base function
+                    methodMap[mname] = func;
+                }
+            }
+            for (auto item: methodMap) {
+                if (endswith(item.first, "__RDY")) {
+                    funcList.push_back(methodMap[item.first.substr(0, item.first.length() - 5)]);
+                    funcList.push_back(item.second); // push RDY after ENA
                 }
             }
         }
