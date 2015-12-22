@@ -150,11 +150,10 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
                 }
-                std::string cName = func->getName();
                 const StructType *STy = findThisArgumentType(func->getType());
-                //printf("%s: %s CALLS %s func %p calling %p STy %p\n", __FUNCTION__, fname.c_str(), cName.c_str(), func, callingSTy, STy);
+                //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (func && callingSTy == STy) {
-                    fprintf(stdout,"callProcess: cName %s single!!!!\n", cName.c_str());
+                    fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
                     call2runOnFunction(currentFunction, *func);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
@@ -201,10 +200,9 @@ static void processPromote(Function *currentFunction)
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
-                std::string cName = func->getName();
                 if (trace_hoist)
-                    printf("HOIST: CALLER %s func %p cName '%s'\n", currentFunction->getName().str().c_str(), func, cName.c_str());
-                if (func->isDeclaration() && cName == "_Z14PIPELINEMARKER") {
+                    printf("HOIST: CALLER %s calling '%s'\n", currentFunction->getName().str().c_str(), func->getName().str().c_str());
+                if (func->isDeclaration() && func->getName() == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
                     std::string Fname = currentFunction->getName().str();
                     std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
