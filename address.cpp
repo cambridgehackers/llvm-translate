@@ -378,6 +378,7 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
 
 void constructVtableMap(Module *Mod)
 {
+    std::list<Function *> funcList;
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         findThisArgumentType(FB->getType());
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
@@ -401,13 +402,17 @@ void constructVtableMap(Module *Mod)
                     table->vtable[table->vtableCount++] = func->getName();
                     std::string mname = getMethodName(func->getName());
                     int isRDY = endswith(mname, "__RDY");
-                    if (!inheritsModule(STy) || isRDY || wasRDY)
+                    if (!inheritsModule(STy) || isRDY || wasRDY) {
                         table->method[mname] = func;
+                        funcList.push_back(func);
+                    }
                     wasRDY = isRDY; // HACK... need better way to look for base function
                 }
             }
         }
     }
+    for (auto func: funcList)
+        pushWork(func);
 }
 
 /*

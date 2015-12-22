@@ -174,29 +174,18 @@ static void processPromote(Function *currentFunction)
                 ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
                 if (!func)
                     func = EE->FindFunctionNamed(pcalledFunction.c_str());
-                if (trace_call)
-                    printf("CALL: CALLER %d %s func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), func, pcalledFunction.c_str());
+                if (trace_call || !func)
+                    printf("CALL: CALLER %s func %p pcalledFunction '%s'\n", globalName.c_str(), func, pcalledFunction.c_str());
                 if (!func) {
                     printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
+                    currentFunction->dump();
                     exit(-1);
                 }
-                pushWork(func);
                 PointerType  *PTy = cast<PointerType>(func->getType());
                 FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
                 ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
                 Instruction *oldOp = dyn_cast<Instruction>(II->getOperand(II->getNumOperands()-1));
-                const StructType *STy = findThisArgumentType(func->getType());
                 //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
-                // also pushWork for all possible derivable types from the current method invocation
-                for (auto info : classCreate)
-                    if (const StructType *iSTy = info.first)
-                    if (ClassMethodTable *table = info.second)
-                    if (oldOp && derivedStruct(iSTy, STy))
-                    if (oldOp->getOpcode() == Instruction::Load)
-                    if (Instruction *gep = dyn_cast<Instruction>(oldOp->getOperand(0)))
-                    if (gep->getNumOperands() >= 2)
-                    if (const ConstantInt *CI = cast<ConstantInt>(gep->getOperand(1)))
-                        pushWork(EE->FindFunctionNamed(lookupMethodName(table, CI->getZExtValue()).c_str()));
                 if (oldOp) {
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
@@ -227,7 +216,7 @@ static void processPromote(Function *currentFunction)
                     II->eraseFromParent();
                     return;
                 }
-                addGuard(II, vtableFind(classCreate[STy], getMethodName(func->getName()) + "__RDY"), currentFunction);
+                addGuard(II, vtableFind(classCreate[findThisArgumentType(func->getType())], getMethodName(func->getName()) + "__RDY"), currentFunction);
             }
             II = INEXT;
         }
