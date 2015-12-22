@@ -192,7 +192,6 @@ static void processPromote(Function *currentFunction)
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
-                    //func = EE->FindFunctionNamed(printOperand(callV, false).c_str());
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
                         currentFunction->dump();
@@ -203,14 +202,10 @@ static void processPromote(Function *currentFunction)
                 }
                 std::string cName = func->getName();
                 if (trace_hoist)
-                    printf("CALL: CALLER %s func %p cName '%s'\n", currentFunction->getName().str().c_str(), func, cName.c_str());
-                if (trace_hoist)
-                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, II->getType()->getTypeID(), cName.c_str());
+                    printf("HOIST: CALLER %s func %p cName '%s'\n", currentFunction->getName().str().c_str(), func, cName.c_str());
                 if (func->isDeclaration() && cName == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
-                    Function *F = II->getParent()->getParent();
-                    Module *Mod = F->getParent();
-                    std::string Fname = F->getName().str();
+                    std::string Fname = currentFunction->getName().str();
                     std::string otherName = Fname.substr(0, Fname.length() - 8) + "2" + "3ENAEv";
                     Function *otherBody = Mod->getFunction(otherName);
                     TerminatorInst *TI = otherBody->begin()->getTerminator();
@@ -230,7 +225,8 @@ static void processPromote(Function *currentFunction)
                     II->eraseFromParent();
                     return;
                 }
-                addGuard(II, vtableFind(classCreate[findThisArgumentType(func->getType())], getMethodName(func->getName()) + "__RDY"), currentFunction);
+                ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
+                addGuard(II, vtableFind(table, getMethodName(func->getName()) + "__RDY"), currentFunction);
             }
             II = INEXT;
         }
