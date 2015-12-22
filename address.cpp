@@ -150,8 +150,11 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
 {
     Function *enaFunc = fixupFunction(name, ENA[2]);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
-    classCreate[findThisArgumentType(rdyFunc->getType())]->rules.push_back(name);
+    ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
+    table->rules.push_back(name);
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
+    table->method[getMethodName(enaFunc->getName())] = enaFunc;
+    table->method[getMethodName(rdyFunc->getName())] = rdyFunc;
     pushWork(enaFunc);
     pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
@@ -385,6 +388,7 @@ void constructVtableMap(Module *Mod)
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
             uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
+            int wasRDY = 0;
             printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
@@ -395,8 +399,11 @@ void constructVtableMap(Module *Mod)
                     if (!table->vtable)
                         table->vtable = new std::string[numElements];
                     table->vtable[table->vtableCount++] = func->getName();
-                    if (!inheritsModule(STy))
-                        table->method[getMethodName(func->getName())] = func;
+                    std::string mname = getMethodName(func->getName());
+                    int isRDY = endswith(mname, "__RDY");
+                    if (!inheritsModule(STy) || isRDY || wasRDY)
+                        table->method[mname] = func;
+                    wasRDY = isRDY; // HACK... need better way to look for base function
                 }
             }
         }

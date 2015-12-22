@@ -301,8 +301,6 @@ void pushWork(Function *func)
 {
     if (!func || generateRegion != ProcessNone)
         return;
-    if (ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())])
-        table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     call2runOnFunction(func, *func);
