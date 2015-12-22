@@ -136,8 +136,9 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                 break;
                 }
             case Instruction::Call: {
-                CallInst *CI = dyn_cast<CallInst>(II);
-                std::string cName = printOperand(CI->getCalledValue(), false);
+                CallInst *ICL = dyn_cast<CallInst>(II);
+                Value *callV = ICL->getCalledValue();
+                std::string cName = printOperand(ICL->getCalledValue(), false);
                 Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(cName));
                 std::string cthisp = printOperand(II->getOperand(0), false);
                 //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), cName.c_str(), func, cthisp.c_str());
@@ -146,8 +147,18 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                     call2runOnFunction(currentFunction, *func);
                     II->setOperand(II->getNumOperands()-1, func);
                     InlineFunctionInfo IFI;
-                    InlineFunction(CI, IFI, false);
+                    InlineFunction(ICL, IFI, false);
                     changed = true;
+                }
+                else if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
+                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
+                    if (!func) {
+                        printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
+                        currentFunction->dump();
+                        exit(-1);
+                    }
+                    II->setOperand(II->getNumOperands()-1, func);
+                    recursiveDelete(oldOp);
                 }
                 break;
                 }
@@ -190,16 +201,6 @@ static void processPromote(Function *currentFunction)
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
-                if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
-                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
-                    if (!func) {
-                        printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
-                        currentFunction->dump();
-                        exit(-1);
-                    }
-                    II->setOperand(II->getNumOperands()-1, func);
-                    recursiveDelete(oldOp);
-                }
                 std::string cName = func->getName();
                 if (trace_hoist)
                     printf("HOIST: CALLER %s func %p cName '%s'\n", currentFunction->getName().str().c_str(), func, cName.c_str());
