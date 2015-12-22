@@ -94,7 +94,7 @@ const StructType *findThisArgumentType(const PointerType *PTy);
 void recursiveDelete(Value *V);
 int vtableFind(const ClassMethodTable *table, std::string name);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
-void constructVtableMap(Module *Mod);
+void preprocessModule(Module *Mod);
 int derivedStruct(const StructType *STyA, const StructType *STyB);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy);

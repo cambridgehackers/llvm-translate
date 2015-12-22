@@ -27,9 +27,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/IR/CallSite.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 
 using namespace llvm;
 
@@ -133,38 +131,6 @@ int inheritsModule(const StructType *STy)
                 return 1;
     }
     return 0;
-}
-
-/*
- * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
- * This enables llvm-translate to easily maintain a list of valid memory regions
- * during processing.
- */
-static void callMemrunOnFunction(CallInst *II)
-{
-    Module *Mod = II->getParent()->getParent()->getParent();
-    Value *called = II->getOperand(II->getNumOperands()-1);
-    const Function *CF = dyn_cast<Function>(called);
-    Instruction *PI = II->user_back();
-    unsigned long tparam = 0;
-    unsigned long styparam = (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType());
-    //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
-    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
-        tparam = (unsigned long)PI->getType();
-    Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
-        Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext())};
-    FunctionType *fty = FunctionType::get(Type::getInt8PtrTy(Mod->getContext()),
-        ArrayRef<Type*>(Params, 3), false);
-    Function *F = dyn_cast<Function>(Mod->getOrInsertFunction("llvm_translate_malloc", fty));
-    F->setCallingConv(CF->getCallingConv());
-    F->setDoesNotAlias(0);
-    F->setAttributes(CF->getAttributes());
-    IRBuilder<> builder(II->getParent());
-    builder.SetInsertPoint(II);
-    II->replaceAllUsesWith(builder.CreateCall(F,
-       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
-       "llvm_translate_malloc"));
-    II->eraseFromParent();
 }
 
 /*
@@ -512,7 +478,7 @@ static std::string printCall(Instruction &I)
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
-        printf("CALL: CALLER %d %s func %p pcalledFunction '%s'\n", generateRegion, globalName.c_str(), func, pcalledFunction.c_str());
+        printf("CALL: CALLER %s func %p pcalledFunction '%s'\n", globalName.c_str(), func, pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
@@ -802,7 +768,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                     element = table->replaceType[Idx];
                 printContainedStructs(element, OStr, ODir, cb);
             }
-            if (classCreate[STy] && (inheritsModule(STy) || generateRegion == ProcessCPP))
+            if (classCreate[STy])
+// && (inheritsModule(STy) || generateRegion == ProcessCPP))
                 cb(STy, OStr, ODir);
         }
     }
@@ -816,36 +783,8 @@ static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
 
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
-    // remove dwarf info, if it was compiled in
-    const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
-    const char **p = delete_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++)) {
-            while (!Declare->use_empty()) {
-                CallInst *CI = cast<CallInst>(Declare->user_back());
-                CI->eraseFromParent();
-            }
-            Declare->eraseFromParent();
-        }
-
-    // Construct the vtable map for classes
-    constructVtableMap(Mod);
-
-    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
-    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
-    p = malloc_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++))
-            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                callMemrunOnFunction(cast<CallInst>(*I));
-
-    // Add StructType parameter to exportSymbol calls
-    if (Function *Declare = Mod->getFunction("exportSymbol"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
-            CallInst *II = cast<CallInst>(*I);
-            II->setOperand(2, ConstantInt::get(Type::getInt64Ty(II->getContext()),
-                (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
-        }
+    // Construct the vtable map for classes, cleanup IR, build vtableWork function list
+    preprocessModule(Mod);
 
     // run Constructors from user program
     EE->runStaticConstructorsDestructors(false);
@@ -859,9 +798,9 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
-    FILE *Out = fopen((OutDirectory + "/output.cpp").c_str(), "w");
-    generateStructs(Out, "", generateClassBody); // generate class method bodies
-    FILE *OutHeader = fopen((OutDirectory + "/output.h").c_str(), "w");
-    generateStructs(OutHeader, "", generateClassDef); // generate class definitions
+    generateStructs(fopen((OutDirectory + "/output.cpp").c_str(), "w"),
+        "", generateClassBody); // generate class method bodies
+    generateStructs(fopen((OutDirectory + "/output.h").c_str(), "w"),
+        "", generateClassDef); // generate class definitions
     return false;
 }
