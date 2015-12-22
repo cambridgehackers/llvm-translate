@@ -1,6 +1,6 @@
 class l_class_OC_EchoRequest {
 public:
-  void say(unsigned int v);
+  void say(unsigned int say_v);
   bool say__RDY(void);
 };
 
@@ -8,7 +8,7 @@ class l_class_OC_Fifo {
 public:
   void deq(void);
   bool deq__RDY(void);
-  void enq(unsigned int v);
+  void enq(unsigned int enq_v);
   bool enq__RDY(void);
   unsigned int first(void);
   bool first__RDY(void);
@@ -16,7 +16,7 @@ public:
 
 class l_class_OC_EchoIndication {
 public:
-  void heard(unsigned int v);
+  void heard(unsigned int heard_v);
   bool heard__RDY(void);
 };
 
@@ -26,7 +26,7 @@ public:
   bool full;
   void deq(void);
   bool deq__RDY(void);
-  void enq(unsigned int v);
+  void enq(unsigned int enq_v);
   bool enq__RDY(void);
   unsigned int first(void);
   bool first__RDY(void);
@@ -39,7 +39,7 @@ public:
   unsigned int pipetemp;
   void respond_rule(void);
   bool respond_rule__RDY(void);
-  void say(unsigned int v);
+  void say(unsigned int say_say_v);
   bool say__RDY(void);
   void run();
 };

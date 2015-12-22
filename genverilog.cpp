@@ -114,11 +114,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             }
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                std::string wname = inp + 
-#ifndef NEW
-mname + "_" + 
-#endif
-AI->getName().str();
+                std::string wname = inp + AI->getName().str();
                 if (!skip && inlineValue(wname, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wname.c_str());
                 skip = 0;
@@ -150,17 +146,9 @@ AI->getName().str();
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 if (instance != "")
-                    paramList.push_back(inlineValue(inp + 
-#ifndef NEW
-mname + "_" + 
-#endif
-AI->getName().str(), true));
+                    paramList.push_back(inlineValue(inp + AI->getName().str(), true));
                 else
-                    paramList.push_back(inp + verilogArrRange(AI->getType()) + 
-#ifndef NEW
-mname + "_" + 
-#endif
-AI->getName().str());
+                    paramList.push_back(inp + verilogArrRange(AI->getType()) + AI->getName().str());
             }
             skip = 0;
         }
@@ -197,11 +185,7 @@ AI->getName().str());
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
-                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + 
-#ifndef NEW
-mname + MODULE_SEPARATOR + 
-#endif
-AI->getName().str());
+                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + AI->getName().str());
                         skip = 0;
                     }
                 }
@@ -271,11 +255,7 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
             if (!skip) {
                 //const Type *Ty = AI->getType();
                 //paramList.push_back(inp + verilogArrRange(Ty) + 
-                fprintf(BStr, "%s", (
-#ifndef NEW
-mname + "_" + 
-#endif
-AI->getName().str()).c_str());
+                fprintf(BStr, "%s", AI->getName().str().c_str());
             }
             skip = 0;
         }

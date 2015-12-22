@@ -199,9 +199,7 @@ static void processPromote(Function *currentFunction)
     for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
         if (!skip)
             AI->setName(mName + "_" + AI->getName());
-#ifdef NEW
         skip = 0;
-#endif
     }
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
@@ -244,7 +242,7 @@ static void processPromote(Function *currentFunction)
 std::map<Function *, int> pushSeen;
 static void pushWork(Function *func)
 {
-#if 0//def NEW
+#if 0
     if (pushSeen[func])
         return;
 #endif

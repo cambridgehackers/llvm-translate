@@ -4,10 +4,10 @@ module l_class_OC_Echo (
     input respond_rule__ENA,
     output respond_rule__RDY,
     input say__ENA,
-    input [31:0]say_v,
+    input [31:0]say_say_v,
     output say__RDY,
     output ind$heard__ENA,
-    output [31:0]ind$heard$v,
+    output [31:0]heard_v,
     input ind$heard__RDY);
     wire respond_rule__RDY_internal;
     wire respond_rule__ENA_internal = respond_rule__ENA && respond_rule__RDY_internal;
@@ -23,7 +23,7 @@ module l_class_OC_Echo (
         respond_rule__ENA_internal,
         fifo$deq__RDY,
         say__ENA_internal,
-        say_v,
+        say_say_v,
         say__RDY,
         ind$heard_v,
         fifo$first__RDY);
