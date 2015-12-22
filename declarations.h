@@ -48,7 +48,7 @@ public:
     std::map<int, bool>               allocateLocally;
     std::list<std::string>            rules;
     unsigned int                      vtableCount;
-    std::string                      *vtable;
+    Function                          **vtable;
     ClassMethodTable(): vtableCount(0), vtable(NULL) {}
 };
 

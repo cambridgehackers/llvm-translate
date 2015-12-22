@@ -528,7 +528,7 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 int vtableFind(const ClassMethodTable *table, std::string name)
 {
     for (unsigned int i = 0; table && i < table->vtableCount; i++)
-        if (getMethodName(table->vtable[i]) == name)
+        if (getMethodName(table->vtable[i]->getName()) == name)
             return i;
     return -1;
 }
@@ -536,7 +536,7 @@ int vtableFind(const ClassMethodTable *table, std::string name)
 std::string lookupMethodName(const ClassMethodTable *table, int ind)
 {
     if (table && ind >= 0 && ind < (int)table->vtableCount)
-        return table->vtable[ind];
+        return table->vtable[ind]->getName();
     return "";
 }
 
@@ -572,9 +572,15 @@ static void callMemrunOnFunction(CallInst *II)
     II->eraseFromParent();
 }
 
+static std::map<const StructType *, int> STyList;
+typedef Function *FPTR;
+static void processStruct(const StructType *STy)
+{
+}
 void preprocessModule(Module *Mod)
 {
     std::list<Function *> funcList;
+    STyList.clear();
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         findThisArgumentType(FB->getType());
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
@@ -592,10 +598,11 @@ void preprocessModule(Module *Mod)
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (Function *func = dyn_cast<Function>(vinit->getOperand(0)))
                 if (const StructType *STy = findThisArgumentType(func->getType())) {
+                    STyList[STy] = 1;
                     ClassMethodTable *table = classCreate[STy];
                     if (!table->vtable)
-                        table->vtable = new std::string[numElements];
-                    table->vtable[table->vtableCount++] = func->getName();
+                        table->vtable = new FPTR[numElements];
+                    table->vtable[table->vtableCount++] = func;
                     std::string mname = getMethodName(func->getName());
                     methodMap[mname] = func;
                 }
