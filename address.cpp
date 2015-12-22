@@ -194,6 +194,15 @@ static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
 static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
+    std::string mName = getMethodName(currentFunction->getName());
+    int skip = 1;
+    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
+        if (!skip)
+            AI->setName(mName + "_" + AI->getName());
+#ifdef NEW
+        skip = 0;
+#endif
+    }
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
@@ -232,8 +241,14 @@ static void processPromote(Function *currentFunction)
     }
 }
 
+std::map<Function *, int> pushSeen;
 static void pushWork(Function *func)
 {
+#ifdef NEW
+    if (pushSeen[func])
+        return;
+#endif
+    pushSeen[func] = 1;
     ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
     table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);

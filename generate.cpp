@@ -177,12 +177,14 @@ std::string GetValueName(const Value *Operand)
             VarName += buffer;
         }
     }
+#ifndef NEW
     if (generateRegion == ProcessVerilog && VarName != "this") {
         std::string sep = MODULE_SEPARATOR;
         if (Operand->getValueID() == Value::ArgumentVal)
             sep = "_";
         VarName = globalName + sep + VarName;
     }
+#endif
     return VarName;
 }
 
@@ -490,12 +492,12 @@ static std::string printCall(Instruction &I)
         prefix = ".";
     }
     if (generateRegion == ProcessVerilog) {
-        prefix = pcalledFunction + MODULE_SEPARATOR + getMethodName(func->getName());
+        prefix = pcalledFunction + MODULE_SEPARATOR;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
-            muxEnable(prefix + "__ENA");
+            muxEnable(prefix + getMethodName(func->getName()) + "__ENA");
         else
-            vout += prefix;
-        invokeList.push_back(prefix);
+            vout += prefix + getMethodName(func->getName());
+        invokeList.push_back(prefix +  getMethodName(func->getName()));
     }
     else
         vout += pcalledFunction + prefix + getMethodName(func->getName()) + "(";
@@ -503,7 +505,11 @@ static std::string printCall(Instruction &I)
         if (!skip) {
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string pre = prefix + "_" + FAI->getName().str();
+                std::string pre = prefix + 
+#ifndef NEW
+getMethodName(func->getName()) + "_" + 
+#endif
+FAI->getName().str();
                 muxValue(pre, parg);
             }
             else
