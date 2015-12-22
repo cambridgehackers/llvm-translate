@@ -137,12 +137,12 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                 }
             case Instruction::Call: {
                 CallInst *CI = dyn_cast<CallInst>(II);
-                std::string pcalledFunction = printOperand(CI->getCalledValue(), false);
-                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(pcalledFunction));
+                std::string cName = printOperand(CI->getCalledValue(), false);
+                Function *func = dyn_cast_or_null<Function>(Mod->getNamedValue(cName));
                 std::string cthisp = printOperand(II->getOperand(0), false);
-                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), pcalledFunction.c_str(), func, cthisp.c_str());
+                //printf("%s: %s CALLS %s func %p thisp %s\n", __FUNCTION__, fname.c_str(), cName.c_str(), func, cthisp.c_str());
                 if (func && cthisp == "this") {
-                    fprintf(stdout,"callProcess: pcalledFunction %s single!!!!\n", pcalledFunction.c_str());
+                    fprintf(stdout,"callProcess: cName %s single!!!!\n", cName.c_str());
                     call2runOnFunction(currentFunction, *func);
                     II->setOperand(II->getNumOperands()-1, func);
                     InlineFunctionInfo IFI;
@@ -183,32 +183,30 @@ static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
 // Walk list of work items, cleaning up function references and adding to vtableWork
 static void processPromote(Function *currentFunction)
 {
+    Module *Mod = currentFunction->getParent();
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Call) {
-                CallInst &ICL = static_cast<CallInst&>(*II);
-            
-                std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
-                Function *func = ICL.getCalledFunction();
-                if (!func)
-                    func = EE->FindFunctionNamed(pcalledFunction.c_str());
-                if (trace_hoist || !func)
-                    printf("CALL: CALLER %s func %p pcalledFunction '%s'\n", currentFunction->getName().str().c_str(), func, pcalledFunction.c_str());
-                if (!func) {
-                    printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-                    currentFunction->dump();
-                    exit(-1);
-                }
-                Instruction *oldOp = dyn_cast<Instruction>(II->getOperand(II->getNumOperands()-1));
-                //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
-                if (oldOp) {
+            if (CallInst *ICL = dyn_cast<CallInst>(II)) {
+                Value *callV = ICL->getCalledValue();
+                Function *func = dyn_cast<Function>(callV);
+                if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
+                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
+                    //func = EE->FindFunctionNamed(printOperand(callV, false).c_str());
+                    if (!func) {
+                        printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
+                        currentFunction->dump();
+                        exit(-1);
+                    }
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
                 }
+                std::string cName = func->getName();
                 if (trace_hoist)
-                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, II->getType()->getTypeID(), pcalledFunction.c_str());
-                if (func->isDeclaration() && pcalledFunction == "_Z14PIPELINEMARKER") {
+                    printf("CALL: CALLER %s func %p cName '%s'\n", currentFunction->getName().str().c_str(), func, cName.c_str());
+                if (trace_hoist)
+                    printf("HOIST:    CALL %p typeid %d pcalled %s\n", func, II->getType()->getTypeID(), cName.c_str());
+                if (func->isDeclaration() && cName == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
                     Function *F = II->getParent()->getParent();
                     Module *Mod = F->getParent();
