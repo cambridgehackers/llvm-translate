@@ -140,7 +140,7 @@ int inheritsModule(const StructType *STy)
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
  */
-void callMemrunOnFunction(CallInst *II)
+static void callMemrunOnFunction(CallInst *II)
 {
     Module *Mod = II->getParent()->getParent()->getParent();
     Value *called = II->getOperand(II->getNumOperands()-1);

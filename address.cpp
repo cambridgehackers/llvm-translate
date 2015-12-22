@@ -191,8 +191,6 @@ static void processPromote(Function *currentFunction)
             
                 std::string pcalledFunction = printOperand(ICL.getCalledValue(), false);
                 Function *func = ICL.getCalledFunction();
-                ERRORIF(func && (Intrinsic::ID)func->getIntrinsicID());
-                ERRORIF (ICL.hasStructRetAttr() || ICL.hasByValArgument() || ICL.isTailCall());
                 if (!func)
                     func = EE->FindFunctionNamed(pcalledFunction.c_str());
                 if (trace_hoist || !func)
@@ -202,9 +200,6 @@ static void processPromote(Function *currentFunction)
                     currentFunction->dump();
                     exit(-1);
                 }
-                PointerType  *PTy = cast<PointerType>(func->getType());
-                FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-                ERRORIF(FTy->isVarArg() && !FTy->getNumParams());
                 Instruction *oldOp = dyn_cast<Instruction>(II->getOperand(II->getNumOperands()-1));
                 //printf("[%s:%d] %s -> %s %p oldOp %p\n", __FUNCTION__, __LINE__, globalName.c_str(), pcalledFunction.c_str(), func, oldOp);
                 if (oldOp) {
