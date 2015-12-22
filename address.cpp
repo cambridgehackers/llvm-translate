@@ -576,10 +576,35 @@ static std::map<const StructType *, int> STyList;
 typedef Function *FPTR;
 static void processStruct(const StructType *STy)
 {
+    if (!STyList[STy])
+        return;
+    STyList[STy] = 0;
+    ClassMethodTable *table = classCreate[STy];
+    std::map<std::string, Function *>methodMap;
+
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
+        if (PointerType *PTy = dyn_cast<PointerType>(*I))
+        if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
+            processStruct(STy);
+    }
+    for (unsigned int i = 0; i < table->vtableCount; i++) {
+         Function *func = table->vtable[i];
+         std::string mname = getMethodName(func->getName());
+         methodMap[mname] = func;
+    }
+    for (auto item: methodMap) {
+        if (endswith(item.first, "__RDY")) {
+            pushWork(methodMap[item.first.substr(0, item.first.length() - 5)]);
+            pushWork(item.second); // push RDY after ENA
+        }
+    }
+    for (auto info : classCreate)
+        if (const StructType *iSTy = info.first)
+        if (derivedStruct(iSTy, STy))
+            processStruct(iSTy);
 }
 void preprocessModule(Module *Mod)
 {
-    std::list<Function *> funcList;
     STyList.clear();
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         findThisArgumentType(FB->getType());
@@ -592,7 +617,6 @@ void preprocessModule(Module *Mod)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
             uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
             printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
-            std::map<std::string, Function *>methodMap;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
@@ -603,20 +627,12 @@ void preprocessModule(Module *Mod)
                     if (!table->vtable)
                         table->vtable = new FPTR[numElements];
                     table->vtable[table->vtableCount++] = func;
-                    std::string mname = getMethodName(func->getName());
-                    methodMap[mname] = func;
-                }
-            }
-            for (auto item: methodMap) {
-                if (endswith(item.first, "__RDY")) {
-                    funcList.push_back(methodMap[item.first.substr(0, item.first.length() - 5)]);
-                    funcList.push_back(item.second); // push RDY after ENA
                 }
             }
         }
     }
-    for (auto func: funcList)
-        pushWork(func);
+    for (auto item: STyList)
+         processStruct(item.first);
 
     // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
