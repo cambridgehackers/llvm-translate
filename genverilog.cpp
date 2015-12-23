@@ -185,7 +185,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
-                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + AI->getName().str());
+                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + fname + MODULE_SEPARATOR + AI->getName().str());
                         skip = 0;
                     }
                 }
