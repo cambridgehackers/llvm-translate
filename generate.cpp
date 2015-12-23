@@ -143,11 +143,9 @@ std::string getStructName(const StructType *STy)
         classCreate[STy] = new ClassMethodTable;
     if (!STy->isLiteral() && !STy->getName().empty())
         return CBEMangle("l_"+STy->getName().str());
-    else {
-        if (!UnnamedStructIDs[STy])
-            UnnamedStructIDs[STy] = NextTypeID++;
-        return "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
-    }
+    if (!UnnamedStructIDs[STy])
+        UnnamedStructIDs[STy] = NextTypeID++;
+    return "l_unnamed_" + utostr(UnnamedStructIDs[STy]);
 }
 
 std::string GetValueName(const Value *Operand)
@@ -166,7 +164,6 @@ std::string GetValueName(const Value *Operand)
         Name = "tmp__" + utostr(No);
     }
     std::string VarName;
-    VarName.reserve(Name.capacity());
     for (auto charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
         char ch = *charp;
         if (isalnum(ch) || ch == '_')
@@ -377,15 +374,15 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             }
             cbuffer += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
         }
-        else if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
-            cbuffer += referstr;
-            cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
-        }
         else {
             cbuffer += referstr;
-            if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
-                cbuffer += ")+(" + printOperand(I.getOperand(), false);
-            cbuffer += "))";
+            if ((*I)->isArrayTy() || !(*I)->isVectorTy())
+                cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
+            else {
+                if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
+                    cbuffer += ")+(" + printOperand(I.getOperand(), false);
+                cbuffer += "))";
+            }
         }
         referstr = "";
     }
