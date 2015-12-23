@@ -106,13 +106,14 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 wname += "__ENA";
             else
                 arrRange = verilogArrRange(retTy);
-            if (inlineValue(wname, false) == "")
-                fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wname.c_str());
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                std::string wname = inp + AI->getName().str();
-                if (!skip && inlineValue(wname, false) == "")
-                    fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wname.c_str());
+                if (!skip) {
+                    wname = inp + AI->getName().str();
+                    arrRange = verilogArrRange(AI->getType());
+                }
+                if (inlineValue(wname, false) == "")
+                    fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wname.c_str());
                 skip = 0;
             }
         }
@@ -124,20 +125,22 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
+        std::string wparam;
         if (instance != "")
-            paramList.push_back(inlineValue(instPrefix + mname + (isAction ? "__ENA" : ""), true));
+            wparam = inlineValue(instPrefix + mname + (isAction ? "__ENA" : ""), true);
         else if (isAction)
-            paramList.push_back(inp + mname + "__ENA");
+            wparam = inp + mname + "__ENA";
         else
-            paramList.push_back(outp + verilogArrRange(retTy) + mname);
+            wparam = outp + verilogArrRange(retTy) + mname;
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 if (instance != "")
-                    paramList.push_back(inlineValue(inp + AI->getName().str(), true));
+                    wparam = inlineValue(inp + AI->getName().str(), true);
                 else
-                    paramList.push_back(inp + verilogArrRange(AI->getType()) + AI->getName().str());
+                    wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
             }
+            paramList.push_back(wparam);
             skip = 0;
         }
     }
@@ -163,17 +166,18 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 }
                 for (auto FI : table->method) {
                     Function *func = FI.second;
-                    std::string mname = fname + MODULE_SEPARATOR + FI.first;
+                    std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
                     const Type *retTy = func->getReturnType();
                     int isAction = (retTy == Type::getVoidTy(func->getContext()));
                     if (isAction)
-                        paramList.push_back(outp + mname + "__ENA");
+                        wparam = outp + mname + "__ENA";
                     else
-                        paramList.push_back(inp + (instance == "" ? verilogArrRange(retTy):"") + mname);
+                        wparam = inp + (instance == "" ? verilogArrRange(retTy):"") + mname;
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
-                            paramList.push_back(outp + (instance == "" ? verilogArrRange(AI->getType()):"") + fname + MODULE_SEPARATOR + AI->getName().str());
+                            wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + fname + MODULE_SEPARATOR + AI->getName().str();
+                        paramList.push_back(wparam);
                         skip = 0;
                     }
                 }
@@ -216,11 +220,8 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
         fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                //const Type *Ty = AI->getType();
-                //paramList.push_back(inp + verilogArrRange(Ty) + 
+            if (!skip)
                 fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
-            }
             skip = 0;
         }
         fprintf(BStr, ");\n");
@@ -240,11 +241,8 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                //const Type *Ty = AI->getType();
-                //paramList.push_back(inp + verilogArrRange(Ty) + 
+            if (!skip)
                 fprintf(BStr, "%s", AI->getName().str().c_str());
-            }
             skip = 0;
         }
         if (isAction)
