@@ -120,14 +120,14 @@ static bool isAddressExposed(const Value *V)
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
 }
 
-int inheritsModule(const StructType *STy)
+int inheritsModule(const StructType *STy, const char *name)
 {
     if (STy) {
         std::string sname = STy->getName();
-        if (sname == "class.Module")
+        if (sname == name)
             return 1;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (inheritsModule(dyn_cast<StructType>(*I)))
+            if (inheritsModule(dyn_cast<StructType>(*I), name))
                 return 1;
     }
     return 0;

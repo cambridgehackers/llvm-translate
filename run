@@ -2,7 +2,8 @@
 set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
-./linker.py --directory generated --output Echo l_class_OC_Echo
+./Debug+Asserts/bin/llvm-translate --odir=generatedb ../atomicc/examples/echo/fifo.ll
+#./linker.py --directory generated --output Echo l_class_OC_Echo
 
 #c++filt <generated/output.cpp >generated/output.tmp
 

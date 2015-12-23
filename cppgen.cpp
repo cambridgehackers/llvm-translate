@@ -94,7 +94,7 @@ static std::string printFunctionSignature(const Function *F, std::string altname
 
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
-    if (STy->getName() == "class.Module")
+    if (inheritsModule(STy, "class.ModuleStub") || STy->getName() == "class.Module")
         return;
     fprintf(OStr, "class %s {\nprivate:\n", getStructName(STy).c_str());
     extraMethods.clear();
@@ -111,7 +111,7 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 {
-    if (!inheritsModule(STy))
+    if (!inheritsModule(STy, "class.Module"))
         return;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);

@@ -26,6 +26,8 @@ unsigned int stop_main_program;
   //void echo(unsigned int Vv);
 //};
 //
+#include "../generatedb/output.h"
+#include "../generatedb/output.cpp"
 #include "../generated/output.h"
 #include "../generated/output.cpp"
 
