@@ -27,6 +27,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+std::list<std::string> extraMethods;
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
@@ -38,8 +39,13 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         std::string fname = fieldName(STy, Idx);
         if (fname == "unused_data_to_force_inheritance")
             continue;
-        if (fname != "")
+        if (fname != "") {
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
+            if (dyn_cast<PointerType>(element)) {
+                extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
+                    + ") { " + fname + " = v; }");
+            }
+        }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);
     }
@@ -90,13 +96,16 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     if (STy->getName() == "class.Module")
         return;
-    fprintf(OStr, "class %s {\npublic:\n", getStructName(STy).c_str());
+    fprintf(OStr, "class %s {\nprivate:\n", getStructName(STy).c_str());
+    extraMethods.clear();
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n");
     for (auto FI : classCreate[STy]->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     if (hasRun(STy))
         fprintf(OStr, "  void run();\n");
+    for (auto item: extraMethods)
+        fprintf(OStr, "  %s\n", item.c_str());
     fprintf(OStr, "};\n\n");
 }
 

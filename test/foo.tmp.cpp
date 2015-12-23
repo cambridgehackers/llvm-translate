@@ -61,7 +61,7 @@ int i;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-    zEcho.ind = &zEchoIndication;
+    zEcho.setind(&zEchoIndication);
     zEcho.say(22);
     while (!stop_main_program) {
         zEcho.run();
