@@ -167,36 +167,37 @@ def processFile(filename):
             fileDesc = open(item + '/' + filename + '.v')
         except:
             continue
-        print 'DD', fileDesc
         break
-    with fileDesc as inFile:
-        for inLine in inFile:
-            if inLine.startswith('//META'):
-                inVector = map(str.strip, inLine.strip().split(';'))
-                if inVector[-1] == '':
-                    inVector.pop()
-                if inVector[0] == '//METAGUARD':
-                    if not inVector[1].endswith('__RDY'):
-                        print 'Guard name invalid', invector
-                        sys.exit(-1)
-                    tempName = inVector[1][:-5]
-                    titem['methods'][tempName] = {}
-                    titem['methods'][tempName]['guard'] = inVector[2]
-                    titem['methods'][tempName]['read'] = []
-                    titem['methods'][tempName]['write'] = []
-                    titem['methods'][tempName]['invoke'] = []
-                elif inVector[0] == '//METAINTERNAL':
-                    titem['internal'][inVector[1]] = inVector[2]
-                elif inVector[0] == '//METAEXTERNAL':
-                    titem['external'][inVector[1]] = inVector[2]
-                elif inVector[0] == '//METAINVOKE':
-                    titem['methods'][inVector[1]]['invoke'].append(inVector[2].split(':'))
-                elif inVector[0] == '//METAREAD':
-                    titem['methods'][inVector[1]]['read'].append(inVector[2].split(':'))
-                elif inVector[0] == '//METAWRITE':
-                    titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
-                else:
-                    print 'Unknown case', inVector
+    print 'DD', fileDesc
+    if fileDesc is not None:
+        with fileDesc as inFile:
+            for inLine in inFile:
+                if inLine.startswith('//META'):
+                    inVector = map(str.strip, inLine.strip().split(';'))
+                    if inVector[-1] == '':
+                        inVector.pop()
+                    if inVector[0] == '//METAGUARD':
+                        if not inVector[1].endswith('__RDY'):
+                            print 'Guard name invalid', invector
+                            sys.exit(-1)
+                        tempName = inVector[1][:-5]
+                        titem['methods'][tempName] = {}
+                        titem['methods'][tempName]['guard'] = inVector[2]
+                        titem['methods'][tempName]['read'] = []
+                        titem['methods'][tempName]['write'] = []
+                        titem['methods'][tempName]['invoke'] = []
+                    elif inVector[0] == '//METAINTERNAL':
+                        titem['internal'][inVector[1]] = inVector[2]
+                    elif inVector[0] == '//METAEXTERNAL':
+                        titem['external'][inVector[1]] = inVector[2]
+                    elif inVector[0] == '//METAINVOKE':
+                        titem['methods'][inVector[1]]['invoke'].append(inVector[2].split(':'))
+                    elif inVector[0] == '//METAREAD':
+                        titem['methods'][inVector[1]]['read'].append(inVector[2].split(':'))
+                    elif inVector[0] == '//METAWRITE':
+                        titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
+                    else:
+                        print 'Unknown case', inVector
     #print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
     for key, value in titem['internal'].iteritems():
         processFile(value)

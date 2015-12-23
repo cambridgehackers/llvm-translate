@@ -38,7 +38,7 @@ static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static int trace_mapt;// = 1;
 static int trace_hoist;// = 1;
-static int trace_lookup;// = 1;
+static int trace_lookup;//= 1;
 
 typedef  struct {
     void *p;
