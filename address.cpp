@@ -239,14 +239,8 @@ static void processPromote(Function *currentFunction)
     }
 }
 
-std::map<Function *, int> pushSeen;
 static void pushWork(Function *func)
 {
-#if 0
-    if (pushSeen[func])
-        return;
-#endif
-    pushSeen[func] = 1;
     ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
     table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);
@@ -254,6 +248,12 @@ static void pushWork(Function *func)
     call2runOnFunction(func, *func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
+}
+static void pushPair(Function *enaFunc, Function *rdyFunc)
+{
+    ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
+    pushWork(enaFunc);
+    pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -318,11 +318,10 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
     table->rules.push_back(name);
-    ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    pushWork(enaFunc);
-    pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
+    pushPair(enaFunc, rdyFunc);
 }
 
+#if 0
 static Function *addFunction(std::string name, ClassMethodTable *table)
 {
     std::string lname = lookupMethodName(table, vtableFind(table, name));
@@ -333,15 +332,16 @@ static Function *addFunction(std::string name, ClassMethodTable *table)
     Function *func = EE->FindFunctionNamed(lname.c_str());
     return func;
 }
+#endif
 
 extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
 {
+#if 0
     ClassMethodTable *table = classCreate[STy];
     Function *enaFunc = addFunction(name, table);
     Function *rdyFunc = addFunction(std::string(name) + "__RDY", table); // must be after 'ENA'
-    ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    pushWork(enaFunc);
-    pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
+    //pushPair(enaFunc, rdyFunc);
+#endif
 }
 
 static void dumpMemoryRegions(int arg)
@@ -591,12 +591,9 @@ static void processStruct(const StructType *STy)
          Function *func = table->vtable[i];
          methodMap[getMethodName(func->getName())] = func;
     }
-    for (auto item: methodMap) {
-        if (endswith(item.first, "__RDY")) {
-            pushWork(methodMap[item.first.substr(0, item.first.length() - 5)]);
-            pushWork(item.second); // push RDY after ENA
-        }
-    }
+    for (auto item: methodMap)
+        if (endswith(item.first, "__RDY"))
+            pushPair(methodMap[item.first.substr(0, item.first.length() - 5)], item.second);
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
         if (derivedStruct(iSTy, STy))

@@ -44,8 +44,8 @@ bool l_class_OC_Echo::respond_rule__RDY(void) {
         bool tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_Echo::say(unsigned int say_say_v) {
-        fifo.enq(say_say_v);
+void l_class_OC_Echo::say(unsigned int say_v) {
+        fifo.enq(say_v);
 }
 bool l_class_OC_Echo::say__RDY(void) {
         bool tmp__1 = fifo.enq__RDY();

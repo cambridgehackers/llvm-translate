@@ -44,7 +44,7 @@ public:
 public:
   void respond_rule(void);
   bool respond_rule__RDY(void);
-  void say(unsigned int say_say_v);
+  void say(unsigned int say_v);
   bool say__RDY(void);
   void run();
 };
