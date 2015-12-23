@@ -62,17 +62,14 @@ static bool findExact(std::string haystack, std::string needle)
 static std::string inlineValue(std::string wname, bool clear)
 {
     std::string temp = assignList[wname];
-//printf("[%s:%d] start (%s, %d) = %s\n", __FUNCTION__, __LINE__, wname.c_str(), clear, temp.c_str());
     if (temp == "") {
         std::string exactMatch;
         int referenceCount = 0;
         for (auto item: assignList) {
             if (item.second == wname)
                 exactMatch = item.first;
-            if (findExact(item.second, wname)) {
-//printf("[%s:%d] clear %d name %s found %s from %s\n", __FUNCTION__, __LINE__, clear, wname.c_str(), item.second.c_str(), item.first.c_str());
+            if (findExact(item.second, wname))
                 referenceCount++;
-            }
         }
         if (referenceCount == 1 && exactMatch != "") {
             if (clear)
@@ -92,26 +89,25 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 {
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
-    std::string inp = "input ", outp = "output ";
+    std::string inp = "input ", outp = "output ", instPrefix, inpClk = "input ";
     std::list<std::string> paramList;
     if (instance != "") {
-        inp = instance + MODULE_SEPARATOR;
-        outp = instance + MODULE_SEPARATOR;
+        instPrefix = instance + MODULE_SEPARATOR;
+        inp = instPrefix;
+        outp = instPrefix;
+        inpClk = "";
         for (auto FI : table->method) {
             Function *func = FI.second;
             std::string mname = FI.first;
             const Type *retTy = func->getReturnType();
+            std::string arrRange, wname = instPrefix + mname;
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
-            if (isAction) {
-                std::string wname = inp + mname + "__ENA";
-                if (inlineValue(wname, false) == "")
-                    fprintf(OStr, "    wire %s;\n", wname.c_str());
-            }
-            else {
-                std::string wname = outp + mname;
-                if (inlineValue(wname, false) == "")
-                    fprintf(OStr, "    wire %s%s;\n", verilogArrRange(retTy).c_str(), wname.c_str());
-            }
+            if (isAction)
+                wname += "__ENA";
+            else
+                arrRange = verilogArrRange(retTy);
+            if (inlineValue(wname, false) == "")
+                fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wname.c_str());
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                 std::string wname = inp + AI->getName().str();
@@ -121,27 +117,19 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             }
         }
     }
-    if (instance != "") {
-        paramList.push_back("CLK");
-        paramList.push_back("nRST");
-    }
-    else {
-        paramList.push_back(inp + "CLK");
-        paramList.push_back(inp + "nRST");
-    }
+    paramList.push_back(inpClk + "CLK");
+    paramList.push_back(inpClk + "nRST");
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         if (instance != "")
-            paramList.push_back(inlineValue(instance + MODULE_SEPARATOR + mname + (isAction ? "__ENA" : ""), true));
-        else {
-            if (isAction)
-                paramList.push_back(inp + mname + "__ENA");
-            else
-                paramList.push_back(outp + verilogArrRange(retTy) + mname);
-        }
+            paramList.push_back(inlineValue(instPrefix + mname + (isAction ? "__ENA" : ""), true));
+        else if (isAction)
+            paramList.push_back(inp + mname + "__ENA");
+        else
+            paramList.push_back(outp + verilogArrRange(retTy) + mname);
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
