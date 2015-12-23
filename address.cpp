@@ -321,27 +321,8 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     pushPair(enaFunc, rdyFunc);
 }
 
-#if 0
-static Function *addFunction(std::string name, ClassMethodTable *table)
-{
-    std::string lname = lookupMethodName(table, vtableFind(table, name));
-    if (lname == "") {
-        printf("ExportSymbol: could not find method %s\n", name.c_str());
-        exit(-1);
-    }
-    Function *func = EE->FindFunctionNamed(lname.c_str());
-    return func;
-}
-#endif
-
 extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
 {
-#if 0
-    ClassMethodTable *table = classCreate[STy];
-    Function *enaFunc = addFunction(name, table);
-    Function *rdyFunc = addFunction(std::string(name) + "__RDY", table); // must be after 'ENA'
-    //pushPair(enaFunc, rdyFunc);
-#endif
 }
 
 static void dumpMemoryRegions(int arg)
@@ -649,14 +630,6 @@ void preprocessModule(Module *Mod)
         if (Function *Declare = Mod->getFunction(*p++))
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 callMemrunOnFunction(cast<CallInst>(*I));
-
-    // Add StructType parameter to exportSymbol calls
-    if (Function *Declare = Mod->getFunction("exportSymbol"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
-            CallInst *II = cast<CallInst>(*I);
-            II->setOperand(2, ConstantInt::get(Type::getInt64Ty(II->getContext()),
-                (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
-        }
 }
 
 /*
