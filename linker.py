@@ -23,7 +23,7 @@
 import argparse, json, re, os, sys, shutil, string
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
-argparser.add_argument('--directory', help='directory', default='')
+argparser.add_argument('--directory', help='directory', default=[], action='append')
 argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
@@ -161,7 +161,15 @@ def processFile(filename):
     titem['internal'] = {}
     titem['external'] = {}
     mInfo[filename] = titem
-    with open(options.directory + '/' + filename + '.v') as inFile:
+    fileDesc = None
+    for item in options.directory:
+        try:
+            fileDesc = open(item + '/' + filename + '.v')
+        except:
+            continue
+        print 'DD', fileDesc
+        break
+    with fileDesc as inFile:
         for inLine in inFile:
             if inLine.startswith('//META'):
                 inVector = map(str.strip, inLine.strip().split(';'))
@@ -360,6 +368,6 @@ if __name__=='__main__':
             'exportInterface': '\n   '.join(eIfc),
             'interfaceBody': '\n    '.join(eBody),
             }
-        open(options.directory + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
-        open(options.directory + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
+        open(options.directory[0] + '/' + options.output + '.bsv', 'w').write(bsvTemplate % pmap)
+        open(options.directory[0] + '/' + options.output + 'Verilog' + '.v', 'w').write(verilogTemplate % pmap)
 
