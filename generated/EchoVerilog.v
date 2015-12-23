@@ -2,7 +2,7 @@
 module EchoVerilog(input CLK,
 input RST_N,
 output RDY_indications_0_deq, input EN_indications_0_deq,
- input[31:0] request_say_v,
+ input [31:0]request_say_v,
 output RDY_request_say, input EN_request_say,
 output RDY_indications_0_notEmpty, output indications_0_notEmpty,
 output RDY_indications_0_first, output [31:0]indications_0_first,
