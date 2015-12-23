@@ -38,6 +38,7 @@ static int trace_malloc;// = 1;
 static int trace_fixup;// = 1;
 static int trace_mapt;// = 1;
 static int trace_hoist;// = 1;
+static int trace_lookup;// = 1;
 
 typedef  struct {
     void *p;
@@ -141,9 +142,10 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
-                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(printOperand(callV, false)));
+                    std::string fname = printOperand(callV, false);
+                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(fname));
                     if (!func) {
-                        printf("%s: %s not an instantiable call!!!!\n", __FUNCTION__, currentFunction->getName().str().c_str());
+                        printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, currentFunction->getName().str().c_str(), fname.c_str());
                         currentFunction->dump();
                         exit(-1);
                     }
@@ -516,6 +518,8 @@ int vtableFind(const ClassMethodTable *table, std::string name)
 
 std::string lookupMethodName(const ClassMethodTable *table, int ind)
 {
+    if (trace_lookup)
+        printf("[%s:%d] table %p, ind %d max %d\n", __FUNCTION__, __LINE__, table, ind, table ? table->vtableCount:-1);
     if (table && ind >= 0 && ind < (int)table->vtableCount)
         return table->vtable[ind]->getName();
     return "";
@@ -603,6 +607,8 @@ void preprocessModule(Module *Mod)
                     ClassMethodTable *table = classCreate[STy];
                     if (!table->vtable)
                         table->vtable = new FPTR[numElements];
+                    if (trace_lookup)
+                        printf("[%s:%d] %s[%d] = %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), table->vtableCount, func->getName().str().c_str());
                     table->vtable[table->vtableCount++] = func;
                 }
             }
