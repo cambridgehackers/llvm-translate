@@ -41,6 +41,7 @@ typedef struct {
     const char *name;
 } INTMAP_TYPE;
 
+#define MAX_MEMBER_SIZE 100
 class ClassMethodTable {
 public:
     std::map<std::string, Function *> method;
@@ -48,8 +49,9 @@ public:
     std::map<int, bool>               allocateLocally;
     std::list<std::string>            rules;
     unsigned int                      vtableCount;
-    Function                          **vtable;
-    ClassMethodTable(): vtableCount(0), vtable(NULL) {}
+    Function                          *vtable[MAX_MEMBER_SIZE];
+    ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
+    {}
 };
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);

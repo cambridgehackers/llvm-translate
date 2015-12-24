@@ -443,9 +443,9 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
      || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
         return;
     addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
-    //printf("[%s:%d] addr %p TID %d Ty %p name %s\n", __FUNCTION__, __LINE__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    //printf("%s: addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
-        printf("[%s:%d] baddd\n", __FUNCTION__, __LINE__);
+        printf("%s: bad addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
@@ -481,9 +481,12 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
         }
         break;
         }
-    case Type::PointerTyID:
-        mapType(Mod, *(char **)addr, cast<PointerType>(Ty)->getElementType(), aname);
+    case Type::PointerTyID: {
+        Type *element = cast<PointerType>(Ty)->getElementType();
+        if (element->getTypeID() != Type::FunctionTyID)
+            mapType(Mod, *(char **)addr, element, aname);
         break;
+    }
     default:
         break;
     }
@@ -583,11 +586,28 @@ static void processStruct(const StructType *STy)
         if (derivedStruct(iSTy, STy))
             processStruct(iSTy);
 }
+
+static void addMethodTable(Function *func)
+{
+    const StructType *STy = findThisArgumentType(func->getType());
+    if (!STy)
+        return;
+    std::string sname = STy->getName();
+    if (!strncmp(sname.c_str(), "class.std::", 11)
+     || !strncmp(sname.c_str(), "struct.std::", 12))
+        return;   // don't generate anything for std classes
+    STyList[STy] = 1;
+    ClassMethodTable *table = classCreate[STy];
+    //if (!table->vtable) /* for now, statically allocate */
+        //table->vtable = new FPTR[numElements];
+    if (trace_lookup)
+        printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
+    table->vtable[table->vtableCount++] = func;
+}
+
 void preprocessModule(Module *Mod)
 {
     STyList.clear();
-    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        findThisArgumentType(FB->getType());
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         const ConstantArray *CA;
@@ -595,26 +615,21 @@ void preprocessModule(Module *Mod)
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-            uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
-            printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
+            //uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
+            if (trace_lookup)
+                printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (Function *func = dyn_cast<Function>(vinit->getOperand(0)))
-                if (const StructType *STy = findThisArgumentType(func->getType())) {
-                    STyList[STy] = 1;
-                    ClassMethodTable *table = classCreate[STy];
-                    if (!table->vtable)
-                        table->vtable = new FPTR[numElements];
-                    if (trace_lookup)
-                        printf("[%s:%d] %s[%d] = %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), table->vtableCount, func->getName().str().c_str());
-                    table->vtable[table->vtableCount++] = func;
-                }
+                    addMethodTable(func);
             }
         }
     }
+    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
+        addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
     for (auto item: STyList)
-         processStruct(item.first);
+        processStruct(item.first);
 
     // remove dwarf info, if it was compiled in
     const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};

@@ -751,6 +751,9 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
         for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir, cb);
         if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+            if (!strncmp(STy->getName().str().c_str(), "class.std::", 11)
+             || !strncmp(STy->getName().str().c_str(), "struct.std::", 12))
+                return;   // don't generate anything for std classes
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
