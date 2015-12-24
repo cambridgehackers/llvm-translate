@@ -34,9 +34,8 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int trace_malloc;// = 1;
+static int trace_malloc;//= 1;
 static int trace_fixup;// = 1;
-static int trace_mapt;// = 1;
 static int trace_hoist;// = 1;
 static int trace_lookup;//= 1;
 
@@ -655,6 +654,6 @@ void constructAddressMap(Module *Mod)
             mapType(Mod, (char *)addr, Ty, name);
         }
     }
-    if (trace_mapt)
+    if (trace_malloc)
         dumpMemoryRegions(4010);
 }
