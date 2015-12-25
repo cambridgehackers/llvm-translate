@@ -122,7 +122,7 @@ static bool isAddressExposed(const Value *V)
 
 int inheritsModule(const StructType *STy, const char *name)
 {
-    if (STy) {
+    if (STy && STy->hasName()) {
         std::string sname = STy->getName();
         if (sname == name)
             return 1;
@@ -750,7 +750,8 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
         structMap[Ty] = 1;
         for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
             printContainedStructs(*I, OStr, ODir, cb);
-        if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+        if (const StructType *STy = dyn_cast<StructType>(Ty))
+        if (STy->hasName()) {
             if (!strncmp(STy->getName().str().c_str(), "class.std::", 11)
              || !strncmp(STy->getName().str().c_str(), "struct.std::", 12))
                 return;   // don't generate anything for std classes

@@ -78,6 +78,15 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
 }
+class HackClass {
+};
+typedef bool (HackClass::*METHPTR)(void);
+extern "C" void *methodToFunction(METHPTR v, const StructType *STy)
+{
+printf("[%s:%d] STy %p\n", __FUNCTION__, __LINE__, STy);
+    memdump((uint8_t *)&v, sizeof(v), "methodToFunction");
+    return NULL;
+}
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
 {
@@ -601,9 +610,11 @@ static void processStruct(const StructType *STy)
 static void addMethodTable(Function *func)
 {
     const StructType *STy = findThisArgumentType(func->getType());
-    if (!STy)
+    if (!STy || !STy->hasName())
         return;
     std::string sname = STy->getName();
+    if (sname == "class.PipeIn" || sname == "class.PipeOut")
+        return;
     if (!strncmp(sname.c_str(), "class.std::", 11)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes

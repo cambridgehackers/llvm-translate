@@ -363,8 +363,10 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                     readWriteList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
+                if (STy->getName() != "class.PipeIn" && STy->getName() != "class.PipeOut") {
                 generateModuleSignature(OStr, STy, fname);
                 readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
+                }
             }
             else {
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
