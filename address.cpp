@@ -36,7 +36,7 @@ using namespace llvm;
 
 static int trace_malloc;//= 1;
 static int trace_fixup;// = 1;
-static int trace_hoist;// = 1;
+static int trace_hoist;//= 1;
 static int trace_lookup;//= 1;
 
 typedef  struct {
@@ -168,17 +168,17 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
     }
 }
 
-static void addGuard(Instruction *argI, int RDYName, Function *currentFunction)
+static void addGuard(Instruction *argI, Function *func, Function *currentFunction)
 {
     Function *parentRDYName = ruleRDYFunction[currentFunction];
-    if (!parentRDYName || RDYName < 0)
+    if (!parentRDYName || !func)
         return;
     TerminatorInst *TI = parentRDYName->begin()->getTerminator();
-    Instruction *newI = copyFunction(TI, argI, RDYName, Type::getInt1Ty(TI->getContext()));
-    if (CallInst *nc = dyn_cast<CallInst>(newI))
-        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
     Value *cond = TI->getOperand(0);
     const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
+    Instruction *newI = copyFunction(TI, argI, func, Type::getInt1Ty(TI->getContext()));
+    if (CallInst *nc = dyn_cast<CallInst>(newI))
+        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
     if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
         TI->setOperand(0, newI);
     else {
@@ -208,8 +208,9 @@ static void processPromote(Function *currentFunction)
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
+                ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
                 if (trace_hoist)
-                    printf("HOIST: CALLER %s calling '%s'\n", currentFunction->getName().str().c_str(), func->getName().str().c_str());
+                    printf("HOIST: CALLER %s calling '%s' table %p\n", currentFunction->getName().str().c_str(), func->getName().str().c_str(), table);
                 if (func->isDeclaration() && func->getName() == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
                     std::string Fname = currentFunction->getName().str();
@@ -232,8 +233,16 @@ static void processPromote(Function *currentFunction)
                     II->eraseFromParent();
                     return;
                 }
-                ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
-                addGuard(II, vtableFind(table, getMethodName(func->getName()) + "__RDY"), currentFunction);
+                std::string rdyName = getMethodName(func->getName()) + "__RDY";
+                for (unsigned int i = 0; table && i < table->vtableCount; i++) {
+                    Function *mfunc = table->vtable[i];
+                    if (trace_hoist)
+                        printf("HOIST: act %s req %s\n", getMethodName(mfunc->getName()).c_str(), rdyName.c_str());
+                    if (getMethodName(mfunc->getName()) == rdyName) {
+                        addGuard(II, mfunc, currentFunction);
+                        break;
+                    }
+                }
             }
             II = INEXT;
         }
@@ -510,14 +519,6 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     return ret;
 }
 
-int vtableFind(const ClassMethodTable *table, std::string name)
-{
-    for (unsigned int i = 0; table && i < table->vtableCount; i++)
-        if (getMethodName(table->vtable[i]->getName()) == name)
-            return i;
-    return -1;
-}
-
 std::string lookupMethodName(const ClassMethodTable *table, int ind)
 {
     if (trace_lookup)
@@ -574,17 +575,27 @@ static void processStruct(const StructType *STy)
         if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
             processStruct(STy);
     }
-    for (unsigned int i = 0; i < table->vtableCount; i++) {
-         Function *func = table->vtable[i];
-         methodMap[getMethodName(func->getName())] = func;
-    }
-    for (auto item: methodMap)
-        if (endswith(item.first, "__RDY"))
-            pushPair(methodMap[item.first.substr(0, item.first.length() - 5)], item.second);
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
         if (derivedStruct(iSTy, STy))
             processStruct(iSTy);
+    if (trace_lookup)
+        printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
+    for (unsigned int i = 0; i < table->vtableCount; i++) {
+         Function *func = table->vtable[i];
+         //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
+         methodMap[getMethodName(func->getName())] = func;
+    }
+    for (auto item: methodMap)
+        if (endswith(item.first, "__RDY")) {
+            Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
+            if (trace_lookup)
+                printf("%s: pair %s[%s] ena %p[%s]\n", __FUNCTION__, item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
+            if (enaFunc)
+                pushPair(enaFunc, item.second);
+            else
+                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
+        }
 }
 
 static void addMethodTable(Function *func)
@@ -607,6 +618,26 @@ static void addMethodTable(Function *func)
 
 void preprocessModule(Module *Mod)
 {
+    // remove dwarf info, if it was compiled in
+    const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
+    const char **p = delete_names;
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++)) {
+            while (!Declare->use_empty()) {
+                CallInst *CI = cast<CallInst>(Declare->user_back());
+                CI->eraseFromParent();
+            }
+            Declare->eraseFromParent();
+        }
+
+    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
+    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
+    p = malloc_names;
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++))
+            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+                callMemrunOnFunction(cast<CallInst>(*I));
+
     STyList.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
@@ -630,26 +661,6 @@ void preprocessModule(Module *Mod)
         addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
     for (auto item: STyList)
         processStruct(item.first);
-
-    // remove dwarf info, if it was compiled in
-    const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
-    const char **p = delete_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++)) {
-            while (!Declare->use_empty()) {
-                CallInst *CI = cast<CallInst>(Declare->user_back());
-                CI->eraseFromParent();
-            }
-            Declare->eraseFromParent();
-        }
-
-    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
-    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
-    p = malloc_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++))
-            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                callMemrunOnFunction(cast<CallInst>(*I));
 }
 
 /*

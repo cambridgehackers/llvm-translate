@@ -96,11 +96,13 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     if (inheritsModule(STy, "class.ModuleStub") || STy->getName() == "class.Module")
         return;
-    fprintf(OStr, "class %s {\nprivate:\n", getStructName(STy).c_str());
+    ClassMethodTable *table = classCreate[STy];
+    std::string name = getStructName(STy);
+    fprintf(OStr, "class %s {\n", name.c_str());
     extraMethods.clear();
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n");
-    for (auto FI : classCreate[STy]->method)
+    for (auto FI : table->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     if (hasRun(STy))
         fprintf(OStr, "  void run();\n");

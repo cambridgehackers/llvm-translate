@@ -67,7 +67,7 @@ void prepareClone(Instruction *TI, const Instruction *I)
     for (auto AI = SourceF->arg_begin(), AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
 }
-Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex, Type *returnType)
+Instruction *copyFunction(Instruction *TI, const Instruction *I, Function *func, Type *returnType)
 {
     prepareClone(TI, I);
     if (!returnType)
@@ -76,20 +76,8 @@ Instruction *copyFunction(Instruction *TI, const Instruction *I, int methodIndex
     Value *new_thisp = I->getOperand(0);
     if (orig_thisp)
         new_thisp = cloneTree(orig_thisp, TI);
-    Type *Params[] = {new_thisp->getType()};
-    Type *castType = PointerType::get(
-             PointerType::get(
-                 PointerType::get(
-                     FunctionType::get(returnType,
-                           ArrayRef<Type*>(Params, 1), false),
-                     0), 0), 0);
+    Value *Params[] = {new_thisp};
     IRBuilder<> builder(TI->getParent());
     builder.SetInsertPoint(TI);
-    Value *vtabbase = builder.CreateLoad(
-             builder.CreateBitCast(new_thisp, castType));
-    Value *newCall = builder.CreateCall(
-             builder.CreateLoad(
-                 builder.CreateConstInBoundsGEP1_32(nullptr,
-                     vtabbase, methodIndex)), new_thisp);
-    return dyn_cast<Instruction>(newCall);
+    return dyn_cast<Instruction>(builder.CreateCall(func, ArrayRef<Value*>(Params, 1)));
 }
