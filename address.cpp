@@ -537,55 +537,38 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
 
 static void callMethod(CallInst *II)
 {
-    //II->getParent()->getParent()->dump();
-    //II->dump();
     Value *oldOp = II->getOperand(1);
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()),
         (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
     recursiveDelete(oldOp);
     Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
-    //load->dump();
     Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
-    //gep->dump();
     Value *gepPtr = gep->getOperand(0);
-    //gepPtr->dump();
     Instruction *store = NULL;
     for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
-        Instruction *IR = dyn_cast<Instruction>(UI->getUser());
+        if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
         if (IR->getOpcode() == Instruction::Store)
             store = IR;
-printf("[%s:%d] IR %p\n", __FUNCTION__, __LINE__, IR);
     }
-printf("[%s:%d] store %p\n", __FUNCTION__, __LINE__, store);
     if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
-    unsigned elemNum = CS->getNumOperands();
-printf("[%s:%d] STRUCTTYPECONSTANT %d\n", __FUNCTION__, __LINE__, elemNum);
-    Value *vop = CS->getOperand(0);
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
-        uint64_t val = CI->getZExtValue();
-printf("[%s:%d] constanint %lld\n", __FUNCTION__, __LINE__, (long long)val);
-        II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), val));
-    }
-    else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
-        int op = CE->getOpcode();
-printf("[%s:%d] constanexp %s\n", __FUNCTION__, __LINE__, CE->getOpcodeName());
-        if (op == Instruction::PtrToInt) {
-            II->setOperand(0, CE->getOperand(0));
+        Value *vop = CS->getOperand(0);
+        if (ConstantInt *CI = dyn_cast<ConstantInt>(vop))
+            II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), CI->getZExtValue()));
+        else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
+            if (CE->getOpcode() == Instruction::PtrToInt)
+                II->setOperand(0, CE->getOperand(0));
+            else {
+                printf("[%s:%d] NOTPTR\n", __FUNCTION__, __LINE__);
+                exit(-1);
+            }
         }
         else {
-printf("[%s:%d] NOTPTR\n", __FUNCTION__, __LINE__);
-exit(-1);
+            printf("[%s:%d] NOTCI\n", __FUNCTION__, __LINE__);
+            exit(-1);
         }
-    }
-    else {
-printf("[%s:%d] NOTCI\n", __FUNCTION__, __LINE__);
-exit(-1);
-    }
     }
     recursiveDelete(load);
     recursiveDelete(store);
-//printf("[%s:%d]after\n", __FUNCTION__, __LINE__);
-    //II->getParent()->getParent()->dump();
 }
 
 /*
