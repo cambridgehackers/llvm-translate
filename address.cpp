@@ -535,11 +535,24 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
     return "";
 }
 
+/*
+ * Transform a MemberFunctionPointer into a normal c++ function pointer,
+ * looking up as necessary in vtable.  Note that the 'this' pointer offset
+ * field is assumed to be 0 and discarded in the process.  The original
+ * MemberFunctionPointer is a struct of {i64, i64}.
+ * The first i64 is either the address of a C++ function or (if odd)
+ * the offset in bytes + 1 in the vtable.
+ * The second i64 seems to be an offset for 'this', for derived types.
+ */
 static void callMethod(CallInst *II)
 {
+    Module *Mod = II->getParent()->getParent()->getParent();
+    IRBuilder<> builder(II->getParent());
+    builder.SetInsertPoint(II);
+    const StructType *STy = findThisArgumentType(II->getParent()->getParent()->getType());
+    ClassMethodTable *table = classCreate[STy];
     Value *oldOp = II->getOperand(1);
-    II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()),
-        (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
+    II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
     recursiveDelete(oldOp);
     Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
     Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
@@ -547,24 +560,22 @@ static void callMethod(CallInst *II)
     Instruction *store = NULL;
     for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
         if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
-        if (IR->getOpcode() == Instruction::Store)
+        if (IR->getOpcode() == Instruction::Store) {
             store = IR;
-    }
-    if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
-        Value *vop = CS->getOperand(0);
-        if (ConstantInt *CI = dyn_cast<ConstantInt>(vop))
-            II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), CI->getZExtValue()));
-        else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
-            if (CE->getOpcode() == Instruction::PtrToInt)
-                II->setOperand(0, CE->getOperand(0));
-            else {
-                printf("[%s:%d] NOTPTR\n", __FUNCTION__, __LINE__);
-                exit(-1);
+            if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
+                Value *vop = CS->getOperand(0);
+                Function *func = NULL;
+                if (ConstantInt *CI = dyn_cast<ConstantInt>(vop))
+                    func = table->vtable[CI->getZExtValue()/sizeof(uint64_t)];
+                else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
+                    ERRORIF(CE->getOpcode() != Instruction::PtrToInt);
+                    func = dyn_cast<Function>(CE->getOperand(0));
+                }
+                else
+                    ERRORIF(1);
+//                II->setOperand(0, builder.CreateBitCast(func, Type::getInt8PtrTy(Mod->getContext())));
+                II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func));
             }
-        }
-        else {
-            printf("[%s:%d] NOTCI\n", __FUNCTION__, __LINE__);
-            exit(-1);
         }
     }
     recursiveDelete(load);
@@ -582,11 +593,11 @@ static void callMemrunOnFunction(CallInst *II)
     Value *called = II->getOperand(II->getNumOperands()-1);
     const Function *CF = dyn_cast<Function>(called);
     Instruction *PI = II->user_back();
-    unsigned long tparam = 0;
-    unsigned long styparam = (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType());
+    uint64_t tparam = 0;
+    uint64_t styparam = (uint64_t)findThisArgumentType(II->getParent()->getParent()->getType());
     //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
-        tparam = (unsigned long)PI->getType();
+        tparam = (uint64_t)PI->getType();
     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
         Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext())};
     FunctionType *fty = FunctionType::get(Type::getInt8PtrTy(Mod->getContext()),
@@ -683,11 +694,6 @@ void preprocessModule(Module *Mod)
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 callMemrunOnFunction(cast<CallInst>(*I));
 
-    // fixup params to methodToFunction
-    if (Function *Declare = Mod->getFunction("methodToFunction"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-            callMethod(cast<CallInst>(*I));
-
     STyList.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
@@ -707,8 +713,15 @@ void preprocessModule(Module *Mod)
             }
         }
     }
+    // now add all non-virtual functions to end of vtable
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
+
+    // fixup params to methodToFunction.  Must be after vtable processing
+    if (Function *Declare = Mod->getFunction("methodToFunction"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+            callMethod(cast<CallInst>(*I));
+
     for (auto item: STyList)
         processStruct(item.first);
 }
