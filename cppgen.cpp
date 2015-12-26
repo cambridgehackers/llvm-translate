@@ -40,9 +40,6 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         if (fname == "unused_data_to_force_inheritance")
             continue;
         if (fname != "") {
-            if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (iSTy->getName() == "class.PipeIn" || iSTy->getName() == "class.PipeOut")
-                    continue;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
             if (dyn_cast<PointerType>(element)) {
                 extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
