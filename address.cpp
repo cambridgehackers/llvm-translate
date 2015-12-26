@@ -78,13 +78,11 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
 }
-class HackClass {
-};
-typedef bool (HackClass::*METHPTR)(void);
-extern "C" void *methodToFunction(METHPTR v, const StructType *STy)
+
+extern "C" void *methodToFunction(void *func, const StructType *STy)
 {
-printf("[%s:%d] STy %p\n", __FUNCTION__, __LINE__, STy);
-    memdump((uint8_t *)&v, sizeof(v), "methodToFunction");
+printf("[%s:%d] func %p STy %p\n", __FUNCTION__, __LINE__, func, STy);
+STy->dump();
     return NULL;
 }
 
@@ -537,6 +535,59 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
     return "";
 }
 
+static void callMethod(CallInst *II)
+{
+    //II->getParent()->getParent()->dump();
+    //II->dump();
+    Value *oldOp = II->getOperand(1);
+    II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()),
+        (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
+    recursiveDelete(oldOp);
+    Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
+    //load->dump();
+    Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
+    //gep->dump();
+    Value *gepPtr = gep->getOperand(0);
+    //gepPtr->dump();
+    Instruction *store = NULL;
+    for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
+        Instruction *IR = dyn_cast<Instruction>(UI->getUser());
+        if (IR->getOpcode() == Instruction::Store)
+            store = IR;
+printf("[%s:%d] IR %p\n", __FUNCTION__, __LINE__, IR);
+    }
+printf("[%s:%d] store %p\n", __FUNCTION__, __LINE__, store);
+    if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
+    unsigned elemNum = CS->getNumOperands();
+printf("[%s:%d] STRUCTTYPECONSTANT %d\n", __FUNCTION__, __LINE__, elemNum);
+    Value *vop = CS->getOperand(0);
+    if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
+        uint64_t val = CI->getZExtValue();
+printf("[%s:%d] constanint %lld\n", __FUNCTION__, __LINE__, (long long)val);
+        II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), val));
+    }
+    else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
+        int op = CE->getOpcode();
+printf("[%s:%d] constanexp %s\n", __FUNCTION__, __LINE__, CE->getOpcodeName());
+        if (op == Instruction::PtrToInt) {
+            II->setOperand(0, CE->getOperand(0));
+        }
+        else {
+printf("[%s:%d] NOTPTR\n", __FUNCTION__, __LINE__);
+exit(-1);
+        }
+    }
+    else {
+printf("[%s:%d] NOTCI\n", __FUNCTION__, __LINE__);
+exit(-1);
+    }
+    }
+    recursiveDelete(load);
+    recursiveDelete(store);
+//printf("[%s:%d]after\n", __FUNCTION__, __LINE__);
+    //II->getParent()->getParent()->dump();
+}
+
 /*
  * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
  * This enables llvm-translate to easily maintain a list of valid memory regions
@@ -648,6 +699,11 @@ void preprocessModule(Module *Mod)
         if (Function *Declare = Mod->getFunction(*p++))
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 callMemrunOnFunction(cast<CallInst>(*I));
+
+    // fixup params to methodToFunction
+    if (Function *Declare = Mod->getFunction("methodToFunction"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+            callMethod(cast<CallInst>(*I));
 
     STyList.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
