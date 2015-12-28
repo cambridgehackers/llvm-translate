@@ -21,44 +21,6 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 
 unsigned int stop_main_program;
-#define METHOD(A,B,C) \
-    virtual bool A ## __RDY(void) C \
-    virtual void A B
-#define GVALUE(A,B,C) \
-    virtual bool A ## __RDY(void) C \
-    virtual B A(void)
-
-typedef bool (*GUARDPTR)(void *);
-template<class T>
-class PipeIn {
-    void *p;
-    GUARDPTR enq__RDYp;
-    void (*enqp)(void *p, T v);
- public:
-    METHOD(enq, (T v), {return enq__RDYp(p); }) { enqp(p, v); }
-    PipeIn() {}
-    PipeIn(void *ap, void *aenq__RDYp, void *aenqp):
-         p(ap), enq__RDYp((GUARDPTR)aenq__RDYp), enqp((void (*)(void *, T))aenqp) {}
-};
-
-template<class T>
-class PipeOut {
-    void *p;
-    GUARDPTR deq__RDYp;
-    void (*deqp)(void *p);
-    GUARDPTR first__RDYp;
-    T (*firstp)(void *p);
- public:
-    METHOD(deq, (void), {return deq__RDYp(p); }) { deqp(p); }
-    GVALUE(first, T, {return first__RDYp(p); }) { return firstp(p); }
-    PipeOut() {}
-    PipeOut(void *ap, void *adeq__RDYp, void *adeqp, void *afirst__RDYp, void *afirstp):
-         p(ap), deq__RDYp((GUARDPTR)adeq__RDYp), deqp((void (*)(void *))adeqp),
-             first__RDYp((GUARDPTR)afirst__RDYp), firstp((T (*)(void *))afirstp) {}
-};
-class l_class_OC_PipeIn: PipeIn<int> {};
-class l_class_OC_PipeOut: PipeOut<int> {};
-
 #include "../generatedb/output.h"
 #include "../generatedb/output.cpp"
 #include "../generated/output.h"
