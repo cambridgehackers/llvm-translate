@@ -129,7 +129,7 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     I->eraseFromParent();
 }
 
-static void call2runOnFunction(Function *currentFunction, Function &F)
+static void processMethodInlining(Function *currentFunction, Function &F)
 {
     bool changed = false;
     Module *Mod = F.getParent();
@@ -192,7 +192,7 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (func && callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
-                    call2runOnFunction(currentFunction, *func);
+                    processMethodInlining(currentFunction, *func);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
                     changed = true;
@@ -303,7 +303,7 @@ static void pushWork(Function *func)
     table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
-    call2runOnFunction(func, *func);
+    processMethodInlining(func, *func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
 }
@@ -379,10 +379,6 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     if (trace_lookup)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, rdyFunc);
-}
-
-extern "C" void exportSymbol(void *thisp, const char *name, StructType *STy)
-{
 }
 
 static void dumpMemoryRegions(int arg)
@@ -590,7 +586,7 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
  * the offset in bytes + 1 in the vtable.
  * The second i64 seems to be an offset for 'this', for derived types.
  */
-static void callMethod(CallInst *II)
+static void processMethodToFunction(CallInst *II)
 {
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
@@ -650,7 +646,7 @@ static void prefixFunction(Function *func, std::string prefixName)
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
  */
-static void callMemrunOnFunction(CallInst *II)
+static void processMalloc(CallInst *II)
 {
     Module *Mod = II->getParent()->getParent()->getParent();
     Value *called = II->getOperand(II->getNumOperands()-1);
@@ -763,7 +759,7 @@ void preprocessModule(Module *Mod)
     while(*p)
         if (Function *Declare = Mod->getFunction(*p++))
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                callMemrunOnFunction(cast<CallInst>(*I));
+                processMalloc(cast<CallInst>(*I));
 
     STyList.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
@@ -790,7 +786,7 @@ void preprocessModule(Module *Mod)
     // fixup params to methodToFunction.  Must be after vtable processing
     if (Function *Declare = Mod->getFunction("methodToFunction"))
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-            callMethod(cast<CallInst>(*I));
+            processMethodToFunction(cast<CallInst>(*I));
 
     // Add StructType parameter to registerInstance calls (must have been 'unsigned long' in original source!)
     if (Function *Declare = Mod->getFunction("registerInstance"))

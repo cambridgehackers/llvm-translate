@@ -370,9 +370,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             uint64_t foffset = cast<ConstantInt>(I.getOperand())->getZExtValue();
             std::string fname = fieldName(STy, foffset);
             std::string dot = ".";
-            std::string arrow = "->";
-            if (generateRegion == ProcessVerilog)
-                arrow = MODULE_SEPARATOR;
+            std::string arrow = MODULE_ARROW;
             if (StructType *element = dyn_cast<StructType>(STy->element_begin()[foffset])) {
                 if (inheritsModule(element, "class.InterfaceClass")) {
                     fname += '_';
@@ -500,9 +498,7 @@ static std::string printCall(Instruction &I)
         exit(-1);
     }
     Function::const_arg_iterator FAI = func->arg_begin();
-    std::string prefix = "->";
-    if (generateRegion == ProcessVerilog)
-        prefix = MODULE_SEPARATOR;
+    std::string prefix = MODULE_ARROW;
     if (pcalledFunction[0] == '&') {
         std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
