@@ -302,13 +302,11 @@ static void pushWork(std::string mname, Function *func)
     processPromote(mname, func);
 }
 
-static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
+static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    if (pushSeen[enaFunc])
-        return;
-    pushWork(prefixName + getMethodName(enaFunc->getName()), enaFunc);
-    pushWork(prefixName + getMethodName(rdyFunc->getName()), rdyFunc); // must be after 'ENA', since hoisting copies guards
+    pushWork(enaName, enaFunc);
+    pushWork(rdyName, rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -375,7 +373,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     table->rules.push_back(name);
     if (trace_lookup)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
-    pushPair(enaFunc, rdyFunc, "");
+    pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
 
 static void dumpMemoryRegions(int arg)
@@ -659,19 +657,21 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
     for (auto item: methodMap)
         if (endswith(item.first, "__RDY")) {
             Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
+            std::string enaName = prefixName +  getMethodName(enaFunc->getName());
+            std::string rdyName = prefixName +  getMethodName(item.second->getName());
             if (!enaFunc) {
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
             }
             if (inheritsModule(STy, "class.InterfaceClass")) {
-                updateParameterNames(prefixName +  getMethodName(enaFunc->getName()), enaFunc);
-                updateParameterNames(prefixName +  getMethodName(item.second->getName()), item.second);
+                updateParameterNames(enaName, enaFunc);
+                updateParameterNames(rdyName, item.second);
             }
             else {
             if (trace_lookup)
                 if (!pushSeen[enaFunc])
                 printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
-            pushPair(enaFunc, item.second, prefixName);
+            pushPair(enaFunc, enaName, item.second, rdyName);
             }
         }
 }
