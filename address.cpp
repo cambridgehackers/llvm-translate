@@ -106,7 +106,7 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
             methodMap[getMethodName(func->getName())] = func;
         }
     }
-    pushMethodMap(methodMap, name, NULL);
+    pushMethodMap(methodMap, name + std::string("_"), NULL);
 }
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -223,8 +223,6 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
 
 static void updateParameterNames(std::string prefixName, Function *currentFunction)
 {
-    if (prefixName != "")
-        prefixName += "_";
     std::string mName = prefixName + getMethodName(currentFunction->getName());
     int skip = 1;
     for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
@@ -325,8 +323,8 @@ static void prefixFunction(Function *func, std::string prefixName)
 static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    if (prefixName != "")
-        prefixName += "_";
+    if (pushSeen[enaFunc])
+        return;
 #if 1
     prefixFunction(enaFunc, prefixName);
     prefixFunction(rdyFunc, prefixName);
@@ -714,7 +712,7 @@ static void processStruct(const StructType *STy, std::string prefixName)
         if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
             std::string fname;
             if (inheritsModule(iSTy, "class.InterfaceClass"))
-                fname = fieldName(STy, Idx);
+                fname = fieldName(STy, Idx) + "_";
             processStruct(iSTy, fname);
         }
     }
