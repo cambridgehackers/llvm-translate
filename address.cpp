@@ -50,6 +50,12 @@ typedef struct {
     const void *addr;
     const void *type;
 } MAPSEEN_TYPE;
+typedef struct {
+    StructType *STy;
+    int         Idx;
+} InterfaceTypeInfo;
+
+static std::map<void *, InterfaceTypeInfo> interfaceMap;
 
 struct MAPSEENcomp {
     bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
@@ -79,11 +85,18 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     return ptr;
 }
 
-extern "C" void *methodToFunction(void *func, const StructType *STy)
+extern "C" void *methodToFunction(Function *func, const StructType *STy)
 {
-printf("[%s:%d] func %p STy %p\n", __FUNCTION__, __LINE__, func, STy);
-STy->dump();
-    return NULL;
+    //printf("[%s:%d] func %s STy %p\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), STy);
+    //STy->dump();
+    return func;
+}
+std::map<StructType *, std::list<char *>> instanceMap;
+extern "C" void registerInstance(char *v, StructType *STy)
+{
+    printf("[%s:%d] v %p STy %p\n", __FUNCTION__, __LINE__, v, STy);
+    STy->dump();
+    instanceMap[STy].push_back(v);
 }
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -152,6 +165,7 @@ static void call2runOnFunction(Function *currentFunction, Function &F)
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(fname));
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, currentFunction->getName().str().c_str(), fname.c_str());
+                        callingSTy->dump();
                         currentFunction->dump();
                         exit(-1);
                     }
@@ -384,7 +398,7 @@ int validateAddress(int arg, void *p)
     return 1;
 }
 
-int derivedStruct(const StructType *STyA, const StructType *STyB)
+static int derivedStruct(const StructType *STyA, const StructType *STyB)
 {
     int Idx = 0;
     if (STyA && STyB)
@@ -490,8 +504,11 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         }
                     }
             }
-            if (fname != "")
+            if (fname != "") {
+                if (dyn_cast<StructType>(element))
+                    interfaceMap[eaddr] = InterfaceTypeInfo{STy, Idx};
                 mapType(Mod, eaddr, element, aname + "$$" + fname);
+            }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
         }
@@ -546,7 +563,6 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
  */
 static void callMethod(CallInst *II)
 {
-    Module *Mod = II->getParent()->getParent()->getParent();
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
     const StructType *STy = findThisArgumentType(II->getParent()->getParent()->getType());
@@ -573,13 +589,31 @@ static void callMethod(CallInst *II)
                 }
                 else
                     ERRORIF(1);
-//                II->setOperand(0, builder.CreateBitCast(func, Type::getInt8PtrTy(Mod->getContext())));
                 II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func));
             }
         }
     }
     recursiveDelete(load);
     recursiveDelete(store);
+}
+
+static void prefixFunction(Function *func, std::string prefixName)
+{
+    std::string fname = func->getName();
+    if (prefixName != "" && fname.substr(0,3) == "_ZN") {
+        const char *start = fname.c_str();
+        const char *ptr = start + 3;
+        char *endptr;
+        long len = strtol(ptr, &endptr, 10);
+        ptr = endptr + len;
+        while (*ptr && *ptr != 'E')
+            ptr++;
+        if (*ptr)
+            ptr++;
+        len = strtol(ptr, &endptr, 10);
+        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length() + 1) + prefixName + "_" + endptr;
+        func->setName(fname);
+    }
 }
 
 /*
@@ -615,14 +649,33 @@ static void callMemrunOnFunction(CallInst *II)
 }
 
 static std::map<const StructType *, int> STyList;
+static std::map<const StructType *, std::string> STyPrefix;
+typedef std::map<std::string, Function *>MethodMapType;
 typedef Function *FPTR;
+static void pushMethodMap(MethodMapType &methodMap, std::string prefixName)
+{
+    for (auto item: methodMap)
+        if (endswith(item.first, "__RDY")) {
+            Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
+            if (!enaFunc) {
+                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
+                exit(-1);
+            }
+            prefixFunction(enaFunc, prefixName);
+            prefixFunction(item.second, prefixName);
+            if (trace_lookup)
+                printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
+            pushPair(enaFunc, item.second);
+        }
+}
 static void processStruct(const StructType *STy)
 {
     if (!STyList[STy])
         return;
     STyList[STy] = 0;
     ClassMethodTable *table = classCreate[STy];
-    std::map<std::string, Function *>methodMap;
+    std::string sname = STy->getName();
+    MethodMapType methodMap;
 
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
@@ -631,8 +684,10 @@ static void processStruct(const StructType *STy)
     }
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
-        if (derivedStruct(iSTy, STy))
+        if (derivedStruct(iSTy, STy)) {
+            STyPrefix[iSTy] = STyPrefix[STy];
             processStruct(iSTy);
+        }
     if (trace_lookup)
         printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++) {
@@ -640,16 +695,8 @@ static void processStruct(const StructType *STy)
          //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
          methodMap[getMethodName(func->getName())] = func;
     }
-    for (auto item: methodMap)
-        if (endswith(item.first, "__RDY")) {
-            Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
-            if (trace_lookup)
-                printf("%s: pair %s[%s] ena %p[%s]\n", __FUNCTION__, item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
-            if (enaFunc)
-                pushPair(enaFunc, item.second);
-            else
-                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
-        }
+    if (sname != "class.PipeIn" && sname != "class.PipeOut")
+        pushMethodMap(methodMap, STyPrefix[STy]);
 }
 
 static void addMethodTable(Function *func)
@@ -658,8 +705,6 @@ static void addMethodTable(Function *func)
     if (!STy || !STy->hasName())
         return;
     std::string sname = STy->getName();
-    if (sname == "class.PipeIn" || sname == "class.PipeOut")
-        return;
     if (!strncmp(sname.c_str(), "class.std::", 11)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
@@ -702,7 +747,6 @@ void preprocessModule(Module *Mod)
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-            //uint64_t numElements = cast<ArrayType>(MI->getType()->getElementType())->getNumElements();
             if (trace_lookup)
                 printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
@@ -722,8 +766,13 @@ void preprocessModule(Module *Mod)
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
             callMethod(cast<CallInst>(*I));
 
-    for (auto item: STyList)
-        processStruct(item.first);
+    // Add StructType parameter to registerInstance calls (must have been 'unsigned long' in original source!)
+    if (Function *Declare = Mod->getFunction("registerInstance"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
+            CallInst *II = cast<CallInst>(*I);
+            II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()),
+                (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
+        }
 }
 
 /*
@@ -732,6 +781,7 @@ void preprocessModule(Module *Mod)
  */
 void constructAddressMap(Module *Mod)
 {
+    const DataLayout *TD = EE->getDataLayout();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         if ((name.length() < 4 || name.substr(0,4) != ".str")
@@ -743,6 +793,39 @@ void constructAddressMap(Module *Mod)
             mapType(Mod, (char *)addr, Ty, name);
         }
     }
+    for (auto IM: instanceMap) {
+        StructType *STy = IM.first;
+        std::string sname = STy->getName();
+        for (auto addr: IM.second) {
+            MethodMapType methodMap;
+            std::string prefixName;
+            const StructLayout *SLO = TD->getStructLayout(STy);
+            int Idx = 0;
+            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+                char *eaddr = addr + SLO->getElementOffset(Idx);
+                Type *element = *I;
+                if (PointerType *PTy = dyn_cast<PointerType>(element)) {
+                    Type *element = PTy->getElementType();
+                    if (element->getTypeID() == Type::FunctionTyID) {
+                        Function *func = *(Function **)eaddr;
+                        if (func)
+                            methodMap[getMethodName(func->getName())] = func;
+                    }
+                    else {
+                        InterfaceTypeInfo &info = interfaceMap[addr];
+                        if (info.STy)
+                            prefixName = fieldName(info.STy, info.Idx);
+                    }
+                }
+            }
+            STyPrefix[STy] = prefixName;
+            pushMethodMap(methodMap, prefixName);
+        }
+    }
+
+    for (auto item: STyList)
+        processStruct(item.first);
+
     if (trace_malloc)
         dumpMemoryRegions(4010);
 }

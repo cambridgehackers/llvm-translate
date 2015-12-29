@@ -34,8 +34,8 @@ using namespace llvm;
 #include "declarations.h"
 
 static int trace_call;//=1;
-int trace_translate ;//= 1;
-static int trace_gep;//= 1;
+int trace_translate;//=1;
+static int trace_gep;//=1;
 static std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
@@ -306,7 +306,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
  */
 static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
-    std::string cbuffer = "", sep = " ", amper = "&";
+    std::string cbuffer, sep = " ", amper = "&";
     PointerType *PTy;
     ConstantDataArray *CPA;
     uint64_t Total = 0;
@@ -364,6 +364,12 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     cbuffer += amper;
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I)) {
+            if (trace_gep)
+                printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str());
+            if (!expose && referstr[0] == '&') {
+                expose = true;
+                referstr = referstr.substr(1);
+            }
             if (expose)
                 cbuffer += referstr + ".";
             else {
@@ -375,6 +381,8 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             cbuffer += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
         }
         else {
+            if (trace_gep)
+                printf("[%s:%d] expose %d referstr %s cbuffer %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str());
             cbuffer += referstr;
             if ((*I)->isArrayTy() || !(*I)->isVectorTy())
                 cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
@@ -477,8 +485,13 @@ static std::string printCall(Instruction &I)
     Function::const_arg_iterator FAI = func->arg_begin();
     std::string prefix = "->";
     if (pcalledFunction[0] == '&') {
+        std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
         prefix = ".";
+        if (const StructType *STy = findThisArgumentType(func->getType()))
+            sname = STy->getName();
+        if (sname == "class.PipeIn" || sname == "class.PipeOut")
+            prefix = "_";
     }
     if (generateRegion == ProcessVerilog) {
         prefix = pcalledFunction + MODULE_SEPARATOR;

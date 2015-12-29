@@ -95,7 +95,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 const StructType *findThisArgumentType(const PointerType *PTy);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void preprocessModule(Module *Mod);
-int derivedStruct(const StructType *STyA, const StructType *STyB);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy, const char *name);
 void muxValue(std::string signal, std::string value);
