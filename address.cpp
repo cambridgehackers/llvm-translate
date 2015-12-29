@@ -641,13 +641,14 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 exit(-1);
             }
             if (inheritsModule(STy, "class.InterfaceClass")) {
+                if (trace_lookup)
+                    printf("%s: Interface seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__, pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
                 updateParameterNames(enaName, enaFunc);
                 updateParameterNames(rdyName, item.second);
             }
             else {
             if (trace_lookup)
-                if (!pushSeen[enaFunc])
-                printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
+                printf("%s: seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__, pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
             pushPair(enaFunc, enaName, item.second, rdyName);
             }
         }
@@ -789,6 +790,7 @@ void preprocessModule(Module *Mod)
  */
 void constructAddressMap(Module *Mod)
 {
+printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         if ((name.length() < 4 || name.substr(0,4) != ".str")

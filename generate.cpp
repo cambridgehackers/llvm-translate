@@ -480,6 +480,7 @@ std::string printOperand(Value *Operand, bool Indirect)
 
 static std::string printCall(Instruction &I)
 {
+    Function *callingFunction = I.getParent()->getParent();
     std::string vout, sep = "";
     int skip = 1;
     CallInst &ICL = static_cast<CallInst&>(I);
@@ -491,7 +492,9 @@ static std::string printCall(Instruction &I)
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
-        printf("CALL: CALLER func %p pcalledFunction '%s'\n", func, pcalledFunction.c_str());
+        printf("CALL: CALLER %s func %s pcalledFunction '%s'\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), pcalledFunction.c_str());
+    //if (endswith(pcalledFunction, "in_"))
+        //callingFunction->dump();
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
