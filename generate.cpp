@@ -36,7 +36,6 @@ using namespace llvm;
 static int trace_call;//=1;
 int trace_translate;//=1;
 static int trace_gep;//=1;
-static std::string globalName;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
@@ -492,7 +491,7 @@ static std::string printCall(Instruction &I)
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
-        printf("CALL: CALLER %s func %p pcalledFunction '%s'\n", globalName.c_str(), func, pcalledFunction.c_str());
+        printf("CALL: CALLER func %p pcalledFunction '%s'\n", func, pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
@@ -728,9 +727,6 @@ static std::string processInstruction(Instruction &I)
 void processFunction(Function *func)
 {
     std::string fname = func->getName();
-    globalName = getMethodName(fname);
-    if (globalName == "")
-        globalName = fname;
     currentFunction = func;
 
     NextAnonValueNumber = 0;
@@ -740,7 +736,7 @@ void processFunction(Function *func)
     storeList.clear();
     functionList.clear();
     if (trace_call)
-        printf("PROCESSING %s\n", globalName.c_str());
+        printf("PROCESSING %s\n", fname.c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         if (trace_translate && BI->hasName())         // Print out the label if it exists...
