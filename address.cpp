@@ -72,8 +72,6 @@ static std::list<MEMORY_REGION> memoryRegion;
 static std::map<const StructType *, int> STyList;
 static std::map<void *, InterfaceTypeInfo> interfaceMap;
 
-static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, const StructType *STy);
-
 /*
  * Allocated memory region management
  */
@@ -86,27 +84,6 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
         printf("[%s:%d] %ld = %p type %p sty %p\n", __FUNCTION__, __LINE__, size, ptr, type, STy);
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
-}
-
-extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
-{
-    MethodMapType methodMap;
-    const DataLayout *TD = EE->getDataLayout();
-    const StructLayout *SLO = TD->getStructLayout(STy);
-    std::string sname = STy->getName();
-    //printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
-    //STy->dump();
-    int Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        char *eaddr = addr + SLO->getElementOffset(Idx);
-        if (PointerType *PTy = dyn_cast<PointerType>(*I))
-        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
-            Function *func = *(Function **)eaddr;
-            ERRORIF(!func);
-            methodMap[getMethodName(func->getName())] = func;
-        }
-    }
-    pushMethodMap(methodMap, name + std::string("_"), NULL);
 }
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -675,6 +652,28 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
             }
         }
 }
+
+extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
+{
+    MethodMapType methodMap;
+    const DataLayout *TD = EE->getDataLayout();
+    const StructLayout *SLO = TD->getStructLayout(STy);
+    std::string sname = STy->getName();
+    //printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
+    //STy->dump();
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        char *eaddr = addr + SLO->getElementOffset(Idx);
+        if (PointerType *PTy = dyn_cast<PointerType>(*I))
+        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
+            Function *func = *(Function **)eaddr;
+            ERRORIF(!func);
+            methodMap[getMethodName(func->getName())] = func;
+        }
+    }
+    pushMethodMap(methodMap, name + std::string("_"), NULL);
+}
+
 static void processStruct(const StructType *STy, std::string prefixName)
 {
     if (!STyList[STy])
