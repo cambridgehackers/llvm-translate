@@ -506,16 +506,18 @@ static std::string printCall(Instruction &I)
         if (inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
             prefix = "";
     }
-    if (generateRegion == ProcessVerilog) {
+    if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
+    std::string mname = prefix + getMethodName(func->getName());
+    if (generateRegion == ProcessVerilog) {
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
-            muxEnable(prefix + getMethodName(func->getName()) + "__ENA");
+            muxEnable(mname + "__ENA");
         else
-            vout += prefix + getMethodName(func->getName());
-        invokeList.push_back(prefix +  getMethodName(func->getName()));
+            vout += mname;
+        invokeList.push_back(mname);
     }
     else
-        vout += pcalledFunction + prefix + getMethodName(func->getName()) + "(";
+        vout += pcalledFunction + mname + "(";
     for (; AI != AE; ++AI, FAI++) {
         if (!skip) {
             std::string parg = printOperand(*AI, false);
