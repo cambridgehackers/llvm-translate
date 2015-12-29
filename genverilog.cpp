@@ -123,6 +123,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
+printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instance.c_str(), mname.c_str(), func->getName().str().c_str());
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         std::string wparam;
@@ -153,13 +154,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         if (fname != "")
         if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
             element = PTy->getElementType();
-            if (const StructType *STy = dyn_cast<StructType>(element)) {
+            if (const StructType *STy = dyn_cast<StructType>(element)) { // calling indications to C++ from hardware
                 if (ClassMethodTable *table = classCreate[STy]) {
                 int Idx = 0;
                 for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                     const Type *element = *I;
-                        if (const Type *newType = table->replaceType[Idx])
-                            element = newType;
+                    if (const Type *newType = table->replaceType[Idx])
+                        element = newType;
                     std::string ename = fieldName(STy, Idx);
                     if (ename != "")
                         paramList.push_back(outp + printType(element, false, fname + MODULE_SEPARATOR + ename, "  ", "", false));

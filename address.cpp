@@ -94,8 +94,8 @@ extern "C" void *methodToFunction(Function *func, const StructType *STy)
 std::map<StructType *, std::list<char *>> instanceMap;
 extern "C" void registerInstance(char *v, StructType *STy)
 {
-    printf("[%s:%d] v %p STy %p\n", __FUNCTION__, __LINE__, v, STy);
-    STy->dump();
+    //printf("[%s:%d] v %p STy %p\n", __FUNCTION__, __LINE__, v, STy);
+    //STy->dump();
     instanceMap[STy].push_back(v);
 }
 
@@ -270,8 +270,12 @@ static void processPromote(Function *currentFunction)
     }
 }
 
+std::map<Function *, int> pushSeen;
 static void pushWork(Function *func)
 {
+    if (pushSeen[func])
+        return;
+    pushSeen[func] = 1;
     ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
     table->method[getMethodName(func->getName())] = func;
     vtableWork.push_back(func);
@@ -649,7 +653,6 @@ static void callMemrunOnFunction(CallInst *II)
 }
 
 static std::map<const StructType *, int> STyList;
-static std::map<const StructType *, std::string> STyPrefix;
 typedef std::map<std::string, Function *>MethodMapType;
 typedef Function *FPTR;
 static void pushMethodMap(MethodMapType &methodMap, std::string prefixName)
@@ -663,7 +666,8 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName)
             }
             prefixFunction(enaFunc, prefixName);
             prefixFunction(item.second, prefixName);
-            if (trace_lookup)
+            //if (trace_lookup)
+                if (!pushSeen[enaFunc])
                 printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
             pushPair(enaFunc, item.second);
         }
@@ -684,10 +688,8 @@ static void processStruct(const StructType *STy)
     }
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
-        if (derivedStruct(iSTy, STy)) {
-            STyPrefix[iSTy] = STyPrefix[STy];
+        if (derivedStruct(iSTy, STy))
             processStruct(iSTy);
-        }
     if (trace_lookup)
         printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++) {
@@ -696,7 +698,7 @@ static void processStruct(const StructType *STy)
          methodMap[getMethodName(func->getName())] = func;
     }
     if (sname != "class.PipeIn" && sname != "class.PipeOut")
-        pushMethodMap(methodMap, STyPrefix[STy]);
+        pushMethodMap(methodMap, "");
 }
 
 static void addMethodTable(Function *func)
@@ -818,7 +820,6 @@ void constructAddressMap(Module *Mod)
                     }
                 }
             }
-            STyPrefix[STy] = prefixName;
             pushMethodMap(methodMap, prefixName);
         }
     }
