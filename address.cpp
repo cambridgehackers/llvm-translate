@@ -213,10 +213,9 @@ static void updateParameterNames(std::string mName, Function *currentFunction)
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
-static void processPromote(std::string mname, Function *currentFunction)
+static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
-    updateParameterNames(mname, currentFunction);
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
@@ -276,7 +275,7 @@ static void pushWork(std::string mname, Function *func)
     // inline intra-class method call bodies
     processMethodInlining(func, *func);
     // promote guards from contained calls to be guards for this function
-    processPromote(mname, func);
+    processPromote(func);
 }
 
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName)
@@ -640,17 +639,16 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
             }
-            if (inheritsModule(STy, "class.InterfaceClass")) {
-                if (trace_lookup)
-                    printf("%s: Interface seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__, pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-                updateParameterNames(enaName, enaFunc);
-                updateParameterNames(rdyName, item.second);
-            }
-            else {
             if (trace_lookup)
-                printf("%s: seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__, pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            pushPair(enaFunc, enaName, item.second, rdyName);
+                printf("%s: %s seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__,
+                    inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair",
+                    pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
+            if (!pushSeen[enaFunc]) {
+            updateParameterNames(enaName, enaFunc);
+            updateParameterNames(rdyName, item.second);
             }
+            if (!inheritsModule(STy, "class.InterfaceClass"))
+                pushPair(enaFunc, enaName, item.second, rdyName);
         }
 }
 
@@ -685,11 +683,19 @@ static void processStruct(const StructType *STy, std::string prefixName)
 
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        if (PointerType *PTy = dyn_cast<PointerType>(*I))
+        if (const StructType *iSTy = dyn_cast<StructType>(*I)) {
+            std::string fname;
+            if (inheritsModule(iSTy, "class.InterfaceClass"))
+                fname = fieldName(STy, Idx) + "_";
+printf("[%s:%d] inline STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
+            //processStruct(iSTy, fname);
+        }
+        else if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
             std::string fname;
             if (inheritsModule(iSTy, "class.InterfaceClass"))
                 fname = fieldName(STy, Idx) + "_";
+printf("[%s:%d] ptr STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
             processStruct(iSTy, fname);
         }
     }
@@ -704,6 +710,7 @@ static void processStruct(const StructType *STy, std::string prefixName)
          //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
          methodMap[getMethodName(func->getName())] = func;
     }
+printf("[%s:%d] STy %p prefix %s\n", __FUNCTION__, __LINE__, STy, prefixName.c_str());
     pushMethodMap(methodMap, prefixName, STy);
 }
 
@@ -716,7 +723,8 @@ static void addMethodTable(Function *func)
     if (!strncmp(sname.c_str(), "class.std::", 11)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
-    STyList[STy] = 1;
+    //if (!inheritsModule(STy, "class.InterfaceClass"))
+        STyList[STy] = 1;
     ClassMethodTable *table = classCreate[STy];
     if (trace_lookup)
         printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
