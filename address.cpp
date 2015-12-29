@@ -221,9 +221,9 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     }
 }
 
-static void updateParameterNames(std::string prefixName, Function *currentFunction)
+static void updateParameterNames(std::string mName, Function *currentFunction)
 {
-    std::string mName = prefixName + getMethodName(currentFunction->getName());
+//printf("[%s:%d] mName %s func %s\n", __FUNCTION__, __LINE__, mName.c_str(), currentFunction->getName().str().c_str());
     int skip = 1;
     for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
         // update parameter names to be prefixed by method name (so that
@@ -236,10 +236,10 @@ static void updateParameterNames(std::string prefixName, Function *currentFuncti
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
-static void processPromote(Function *currentFunction)
+static void processPromote(std::string mname, Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
-    updateParameterNames("", currentFunction);
+    updateParameterNames(mname, currentFunction);
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
@@ -299,37 +299,14 @@ static void pushWork(std::string mname, Function *func)
     // inline intra-class method call bodies
     processMethodInlining(func, *func);
     // promote guards from contained calls to be guards for this function
-    processPromote(func);
+    processPromote(mname, func);
 }
 
-static void prefixFunction(Function *func, std::string prefixName)
-{
-    std::string fname = func->getName();
-    if (prefixName != "" && fname.substr(0,3) == "_ZN") {
-        const char *start = fname.c_str();
-        const char *ptr = start + 3;
-        char *endptr;
-        long len = strtol(ptr, &endptr, 10);
-        ptr = endptr + len;
-        while (*ptr && *ptr != 'E')
-            ptr++;
-        if (*ptr)
-            ptr++;
-        len = strtol(ptr, &endptr, 10);
-        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length()) + prefixName + endptr;
-        func->setName(fname);
-    }
-}
 static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
     if (pushSeen[enaFunc])
         return;
-#if 1
-    prefixFunction(enaFunc, prefixName);
-    prefixFunction(rdyFunc, prefixName);
-    prefixName = "";
-#endif
     pushWork(prefixName + getMethodName(enaFunc->getName()), enaFunc);
     pushWork(prefixName + getMethodName(rdyFunc->getName()), rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
@@ -687,8 +664,8 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 exit(-1);
             }
             if (inheritsModule(STy, "class.InterfaceClass")) {
-                updateParameterNames(prefixName, enaFunc);
-                updateParameterNames(prefixName, item.second);
+                updateParameterNames(prefixName +  getMethodName(enaFunc->getName()), enaFunc);
+                updateParameterNames(prefixName +  getMethodName(item.second->getName()), item.second);
             }
             else {
             if (trace_lookup)
