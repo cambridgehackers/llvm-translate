@@ -225,7 +225,7 @@ static void updateParameterNames(std::string prefixName, Function *currentFuncti
 {
     if (prefixName != "")
         prefixName += "_";
-    std::string mName = getMethodName(currentFunction->getName());
+    std::string mName = prefixName + getMethodName(currentFunction->getName());
     int skip = 1;
     for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
         // update parameter names to be prefixed by method name (so that
@@ -318,19 +318,22 @@ static void prefixFunction(Function *func, std::string prefixName)
         if (*ptr)
             ptr++;
         len = strtol(ptr, &endptr, 10);
-        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length() + 1) + prefixName + "_" + endptr;
+        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length()) + prefixName + endptr;
         func->setName(fname);
     }
 }
 static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    prefixFunction(enaFunc, prefixName);
-    prefixFunction(rdyFunc, prefixName);
     if (prefixName != "")
         prefixName += "_";
-    pushWork(getMethodName(enaFunc->getName()), enaFunc);
-    pushWork(getMethodName(rdyFunc->getName()), rdyFunc); // must be after 'ENA', since hoisting copies guards
+#if 1
+    prefixFunction(enaFunc, prefixName);
+    prefixFunction(rdyFunc, prefixName);
+    prefixName = "";
+#endif
+    pushWork(prefixName + getMethodName(enaFunc->getName()), enaFunc);
+    pushWork(prefixName + getMethodName(rdyFunc->getName()), rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -710,6 +713,8 @@ static void processStruct(const StructType *STy, std::string prefixName)
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
             std::string fname;
+            if (inheritsModule(iSTy, "class.InterfaceClass"))
+                fname = fieldName(STy, Idx);
             processStruct(iSTy, fname);
         }
     }
