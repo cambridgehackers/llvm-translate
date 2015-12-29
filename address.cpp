@@ -88,12 +88,6 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     return ptr;
 }
 
-extern "C" void *methodToFunction(Function *func, const StructType *STy)
-{
-    //printf("[%s:%d] func %s STy %p\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), STy);
-    //STy->dump();
-    return func;
-}
 extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
 {
     MethodMapType methodMap;
@@ -588,9 +582,10 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
  */
 static void processMethodToFunction(CallInst *II)
 {
+    Function *callingFunction = II->getParent()->getParent();
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
-    const StructType *STy = findThisArgumentType(II->getParent()->getParent()->getType());
+    const StructType *STy = findThisArgumentType(callingFunction->getType());
     ClassMethodTable *table = classCreate[STy];
     Value *oldOp = II->getOperand(1);
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
@@ -599,6 +594,7 @@ static void processMethodToFunction(CallInst *II)
     Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
     Value *gepPtr = gep->getOperand(0);
     Instruction *store = NULL;
+    Value *val = NULL;
     for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
         if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
         if (IR->getOpcode() == Instruction::Store) {
@@ -614,12 +610,13 @@ static void processMethodToFunction(CallInst *II)
                 }
                 else
                     ERRORIF(1);
-                II->setOperand(0, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func));
+                val = ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func);
             }
         }
     }
-    recursiveDelete(load);
     recursiveDelete(store);
+    II->replaceAllUsesWith(val);
+    recursiveDelete(II);      // No longer need to call methodToFunction() !
 }
 
 static void prefixFunction(Function *func, std::string prefixName)
@@ -783,10 +780,13 @@ void preprocessModule(Module *Mod)
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
 
-    // fixup params to methodToFunction.  Must be after vtable processing
+    // replace calls to methodToFunction with "Function *" values.  Must be after vtable processing
     if (Function *Declare = Mod->getFunction("methodToFunction"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
+            auto NI = std::next(I);
             processMethodToFunction(cast<CallInst>(*I));
+            I = NI;
+        }
 
     // Add StructType parameter to registerInstance calls (must have been 'unsigned long' in original source!)
     if (Function *Declare = Mod->getFunction("registerInstance"))
