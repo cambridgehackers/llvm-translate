@@ -364,21 +364,36 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     cbuffer += amper;
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I)) {
+            uint64_t foffset = cast<ConstantInt>(I.getOperand())->getZExtValue();
+            std::string fname = fieldName(STy, foffset);
+            std::string dot = ".";
+            std::string arrow = "->";
+            if (generateRegion == ProcessVerilog)
+                arrow = MODULE_SEPARATOR;
+            if (StructType *element = dyn_cast<StructType>(STy->element_begin()[foffset])) {
+                std::string sname = element->getName();
+                if (sname == "class.PipeIn" || sname == "class.PipeOut") {
+                    fname += '_';
+                    if (generateRegion == ProcessVerilog)
+                        dot = MODULE_SEPARATOR;
+                }
+            }
             if (trace_gep)
-                printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str());
+                printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s fname %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str(), fname.c_str());
             if (!expose && referstr[0] == '&') {
                 expose = true;
                 referstr = referstr.substr(1);
             }
             if (expose)
-                cbuffer += referstr + ".";
+                cbuffer += referstr + dot;
             else {
-                referstr += "->";
-                if (referstr == "this->")
+                if (referstr == "this")
                     referstr = "";
+                else
+                    referstr += arrow;
                 cbuffer += referstr;
             }
-            cbuffer += fieldName(STy, cast<ConstantInt>(I.getOperand())->getZExtValue());
+            cbuffer += fname;
         }
         else {
             if (trace_gep)
@@ -484,6 +499,8 @@ static std::string printCall(Instruction &I)
     }
     Function::const_arg_iterator FAI = func->arg_begin();
     std::string prefix = "->";
+    if (generateRegion == ProcessVerilog)
+        prefix = MODULE_SEPARATOR;
     if (pcalledFunction[0] == '&') {
         std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
@@ -491,10 +508,10 @@ static std::string printCall(Instruction &I)
         if (const StructType *STy = findThisArgumentType(func->getType()))
             sname = STy->getName();
         if (sname == "class.PipeIn" || sname == "class.PipeOut")
-            prefix = "_";
+            prefix = "";
     }
     if (generateRegion == ProcessVerilog) {
-        prefix = pcalledFunction + MODULE_SEPARATOR;
+        prefix = pcalledFunction + prefix;
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             muxEnable(prefix + getMethodName(func->getName()) + "__ENA");
         else

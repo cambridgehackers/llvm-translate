@@ -54,8 +54,7 @@ typedef struct {
     StructType *STy;
     int         Idx;
 } InterfaceTypeInfo;
-
-static std::map<void *, InterfaceTypeInfo> interfaceMap;
+typedef std::map<std::string, Function *>MethodMapType;
 
 struct MAPSEENcomp {
     bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
@@ -70,6 +69,10 @@ struct MAPSEENcomp {
 #define GIANT_SIZE 1024
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
+static std::map<const StructType *, int> STyList;
+static std::map<void *, InterfaceTypeInfo> interfaceMap;
+
+static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, const StructType *STy);
 
 /*
  * Allocated memory region management
@@ -91,12 +94,25 @@ extern "C" void *methodToFunction(Function *func, const StructType *STy)
     //STy->dump();
     return func;
 }
-std::map<StructType *, std::list<char *>> instanceMap;
-extern "C" void registerInstance(char *v, StructType *STy)
+extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
 {
-    //printf("[%s:%d] v %p STy %p\n", __FUNCTION__, __LINE__, v, STy);
+    MethodMapType methodMap;
+    const DataLayout *TD = EE->getDataLayout();
+    const StructLayout *SLO = TD->getStructLayout(STy);
+    std::string sname = STy->getName();
+    //printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
     //STy->dump();
-    instanceMap[STy].push_back(v);
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        char *eaddr = addr + SLO->getElementOffset(Idx);
+        if (PointerType *PTy = dyn_cast<PointerType>(*I))
+        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
+            Function *func = *(Function **)eaddr;
+            ERRORIF(!func);
+            methodMap[getMethodName(func->getName())] = func;
+        }
+    }
+    pushMethodMap(methodMap, name, NULL);
 }
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -211,18 +227,25 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     }
 }
 
+static void updateParameterNames(Function *currentFunction)
+{
+    std::string mName = getMethodName(currentFunction->getName());
+    int skip = 1;
+    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
+        // update parameter names to be prefixed by method name (so that
+        // all parameter names are unique across module for verilog instantiation)
+        if (!skip)
+            AI->setName(mName + "_" + AI->getName());
+        skip = 0;
+    }
+}
+
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
 static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
-    std::string mName = getMethodName(currentFunction->getName());
-    int skip = 1;
-    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
-        if (!skip)
-            AI->setName(mName + "_" + AI->getName());
-        skip = 0;
-    }
+    updateParameterNames(currentFunction);
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
@@ -353,6 +376,8 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
     table->rules.push_back(name);
+    if (trace_lookup)
+        printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, rdyFunc);
 }
 
@@ -652,11 +677,11 @@ static void callMemrunOnFunction(CallInst *II)
     II->eraseFromParent();
 }
 
-static std::map<const StructType *, int> STyList;
-typedef std::map<std::string, Function *>MethodMapType;
-typedef Function *FPTR;
-static void pushMethodMap(MethodMapType &methodMap, std::string prefixName)
+static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, const StructType *STy)
 {
+    std::string sname;
+    if (STy)
+        sname = STy->getName();
     for (auto item: methodMap)
         if (endswith(item.first, "__RDY")) {
             Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
@@ -664,12 +689,18 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName)
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
             }
+            if (sname == "class.PipeIn" || sname == "class.PipeOut") {
+                updateParameterNames(enaFunc);
+                updateParameterNames(item.second);
+            }
+            else {
             prefixFunction(enaFunc, prefixName);
             prefixFunction(item.second, prefixName);
-            //if (trace_lookup)
+            if (trace_lookup)
                 if (!pushSeen[enaFunc])
                 printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
             pushPair(enaFunc, item.second);
+            }
         }
 }
 static void processStruct(const StructType *STy)
@@ -678,7 +709,6 @@ static void processStruct(const StructType *STy)
         return;
     STyList[STy] = 0;
     ClassMethodTable *table = classCreate[STy];
-    std::string sname = STy->getName();
     MethodMapType methodMap;
 
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
@@ -697,8 +727,7 @@ static void processStruct(const StructType *STy)
          //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
          methodMap[getMethodName(func->getName())] = func;
     }
-    if (sname != "class.PipeIn" && sname != "class.PipeOut")
-        pushMethodMap(methodMap, "");
+    pushMethodMap(methodMap, "", STy);
 }
 
 static void addMethodTable(Function *func)
@@ -712,8 +741,6 @@ static void addMethodTable(Function *func)
         return;   // don't generate anything for std classes
     STyList[STy] = 1;
     ClassMethodTable *table = classCreate[STy];
-    //if (!table->vtable) /* for now, statically allocate */
-        //table->vtable = new FPTR[numElements];
     if (trace_lookup)
         printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
     table->vtable[table->vtableCount++] = func;
@@ -783,7 +810,6 @@ void preprocessModule(Module *Mod)
  */
 void constructAddressMap(Module *Mod)
 {
-    const DataLayout *TD = EE->getDataLayout();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         if ((name.length() < 4 || name.substr(0,4) != ".str")
@@ -793,34 +819,6 @@ void constructAddressMap(Module *Mod)
             memoryRegion.push_back(MEMORY_REGION{addr,
                 EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
             mapType(Mod, (char *)addr, Ty, name);
-        }
-    }
-    for (auto IM: instanceMap) {
-        StructType *STy = IM.first;
-        std::string sname = STy->getName();
-        for (auto addr: IM.second) {
-            MethodMapType methodMap;
-            std::string prefixName;
-            const StructLayout *SLO = TD->getStructLayout(STy);
-            int Idx = 0;
-            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                char *eaddr = addr + SLO->getElementOffset(Idx);
-                Type *element = *I;
-                if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                    Type *element = PTy->getElementType();
-                    if (element->getTypeID() == Type::FunctionTyID) {
-                        Function *func = *(Function **)eaddr;
-                        if (func)
-                            methodMap[getMethodName(func->getName())] = func;
-                    }
-                    else {
-                        InterfaceTypeInfo &info = interfaceMap[addr];
-                        if (info.STy)
-                            prefixName = fieldName(info.STy, info.Idx);
-                    }
-                }
-            }
-            pushMethodMap(methodMap, prefixName);
         }
     }
 
