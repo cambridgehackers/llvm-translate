@@ -1,22 +1,22 @@
 class l_class_OC_Fifo {
 public:
-  void deq(void);
-  bool deq__RDY(void);
-  void enq(unsigned int enq_v);
-  bool enq__RDY(void);
-  unsigned int first(void);
-  bool first__RDY(void);
+  void in_enq(unsigned int in_enq_v);
+  bool in_enq__RDY(void);
+  void out_deq(void);
+  bool out_deq__RDY(void);
+  unsigned int out_first(void);
+  bool out_first__RDY(void);
 };
 
 class l_class_OC_Fifo1 {
   unsigned int element;
   bool full;
 public:
-  void deq(void);
-  bool deq__RDY(void);
-  void enq(unsigned int enq_v);
-  bool enq__RDY(void);
-  unsigned int first(void);
-  bool first__RDY(void);
+  void in_enq(unsigned int in_enq_v);
+  bool in_enq__RDY(void);
+  void out_deq(void);
+  bool out_deq__RDY(void);
+  unsigned int out_first(void);
+  bool out_first__RDY(void);
 };
 
