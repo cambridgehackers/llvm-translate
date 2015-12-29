@@ -325,6 +325,8 @@ static void prefixFunction(Function *func, std::string prefixName)
 static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
+    prefixFunction(enaFunc, prefixName);
+    prefixFunction(rdyFunc, prefixName);
     if (prefixName != "")
         prefixName += "_";
     pushWork(getMethodName(enaFunc->getName()), enaFunc);
@@ -688,8 +690,6 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 updateParameterNames(prefixName, item.second);
             }
             else {
-            prefixFunction(enaFunc, prefixName);
-            prefixFunction(item.second, prefixName);
             if (trace_lookup)
                 if (!pushSeen[enaFunc])
                 printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
