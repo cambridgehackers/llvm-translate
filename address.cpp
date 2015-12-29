@@ -679,9 +679,6 @@ static void callMemrunOnFunction(CallInst *II)
 
 static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, const StructType *STy)
 {
-    std::string sname;
-    if (STy)
-        sname = STy->getName();
     for (auto item: methodMap)
         if (endswith(item.first, "__RDY")) {
             Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
@@ -689,7 +686,7 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
             }
-            if (sname == "class.PipeIn" || sname == "class.PipeOut") {
+            if (inheritsModule(STy, "class.InterfaceClass")) {
                 updateParameterNames(enaFunc);
                 updateParameterNames(item.second);
             }

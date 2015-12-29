@@ -364,7 +364,7 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
                     readWriteList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
-                if (STy->getName() != "class.PipeIn" && STy->getName() != "class.PipeOut") {
+                if (!inheritsModule(STy, "class.InterfaceClass")) {
                 generateModuleSignature(OStr, STy, fname);
                 readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
                 }

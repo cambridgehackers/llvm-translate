@@ -126,9 +126,12 @@ int inheritsModule(const StructType *STy, const char *name)
         std::string sname = STy->getName();
         if (sname == name)
             return 1;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (inheritsModule(dyn_cast<StructType>(*I), name))
+        int Idx = 0;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(STy, Idx);
+            if (fname == "" && inheritsModule(dyn_cast<StructType>(*I), name))
                 return 1;
+        }
     }
     return 0;
 }
@@ -371,8 +374,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             if (generateRegion == ProcessVerilog)
                 arrow = MODULE_SEPARATOR;
             if (StructType *element = dyn_cast<StructType>(STy->element_begin()[foffset])) {
-                std::string sname = element->getName();
-                if (sname == "class.PipeIn" || sname == "class.PipeOut") {
+                if (inheritsModule(element, "class.InterfaceClass")) {
                     fname += '_';
                     if (generateRegion == ProcessVerilog)
                         dot = MODULE_SEPARATOR;
@@ -505,9 +507,7 @@ static std::string printCall(Instruction &I)
         std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
         prefix = ".";
-        if (const StructType *STy = findThisArgumentType(func->getType()))
-            sname = STy->getName();
-        if (sname == "class.PipeIn" || sname == "class.PipeOut")
+        if (inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
             prefix = "";
     }
     if (generateRegion == ProcessVerilog) {

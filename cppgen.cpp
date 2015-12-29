@@ -41,7 +41,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
             continue;
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (iSTy->getName() == "class.PipeIn" || iSTy->getName() == "class.PipeOut")
+                if (inheritsModule(iSTy, "class.InterfaceClass"))
                     continue;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
             if (dyn_cast<PointerType>(element)) {
@@ -97,9 +97,8 @@ static std::string printFunctionSignature(const Function *F, std::string altname
 
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
-    if (inheritsModule(STy, "class.ModuleStub") || STy->getName() == "class.Module")
-        return;
-    if (STy->getName() == "class.PipeIn" || STy->getName() == "class.PipeOut")
+    if (inheritsModule(STy, "class.ModuleStub") || inheritsModule(STy, "class.InterfaceClass")
+     || STy->getName() == "class.Module" || STy->getName() == "class.InterfaceClass")
         return;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
