@@ -221,8 +221,10 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     }
 }
 
-static void updateParameterNames(Function *currentFunction)
+static void updateParameterNames(std::string prefixName, Function *currentFunction)
 {
+    if (prefixName != "")
+        prefixName += "_";
     std::string mName = getMethodName(currentFunction->getName());
     int skip = 1;
     for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
@@ -239,7 +241,7 @@ static void updateParameterNames(Function *currentFunction)
 static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
-    updateParameterNames(currentFunction);
+    updateParameterNames("", currentFunction);
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
@@ -288,24 +290,45 @@ static void processPromote(Function *currentFunction)
 }
 
 std::map<Function *, int> pushSeen;
-static void pushWork(Function *func)
+static void pushWork(std::string mname, Function *func)
 {
     if (pushSeen[func])
         return;
     pushSeen[func] = 1;
     ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
-    table->method[getMethodName(func->getName())] = func;
+    table->method[mname] = func;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     processMethodInlining(func, *func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
 }
-static void pushPair(Function *enaFunc, Function *rdyFunc)
+
+static void prefixFunction(Function *func, std::string prefixName)
+{
+    std::string fname = func->getName();
+    if (prefixName != "" && fname.substr(0,3) == "_ZN") {
+        const char *start = fname.c_str();
+        const char *ptr = start + 3;
+        char *endptr;
+        long len = strtol(ptr, &endptr, 10);
+        ptr = endptr + len;
+        while (*ptr && *ptr != 'E')
+            ptr++;
+        if (*ptr)
+            ptr++;
+        len = strtol(ptr, &endptr, 10);
+        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length() + 1) + prefixName + "_" + endptr;
+        func->setName(fname);
+    }
+}
+static void pushPair(Function *enaFunc, Function *rdyFunc, std::string prefixName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
-    pushWork(enaFunc);
-    pushWork(rdyFunc); // must be after 'ENA', since hoisting copies guards
+    if (prefixName != "")
+        prefixName += "_";
+    pushWork(getMethodName(enaFunc->getName()), enaFunc);
+    pushWork(getMethodName(rdyFunc->getName()), rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -372,7 +395,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     table->rules.push_back(name);
     if (trace_lookup)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
-    pushPair(enaFunc, rdyFunc);
+    pushPair(enaFunc, rdyFunc, "");
 }
 
 static void dumpMemoryRegions(int arg)
@@ -619,25 +642,6 @@ static void processMethodToFunction(CallInst *II)
     recursiveDelete(II);      // No longer need to call methodToFunction() !
 }
 
-static void prefixFunction(Function *func, std::string prefixName)
-{
-    std::string fname = func->getName();
-    if (prefixName != "" && fname.substr(0,3) == "_ZN") {
-        const char *start = fname.c_str();
-        const char *ptr = start + 3;
-        char *endptr;
-        long len = strtol(ptr, &endptr, 10);
-        ptr = endptr + len;
-        while (*ptr && *ptr != 'E')
-            ptr++;
-        if (*ptr)
-            ptr++;
-        len = strtol(ptr, &endptr, 10);
-        fname = fname.substr(0, ptr-start) + utostr(len + prefixName.length() + 1) + prefixName + "_" + endptr;
-        func->setName(fname);
-    }
-}
-
 /*
  * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
  * This enables llvm-translate to easily maintain a list of valid memory regions
@@ -680,8 +684,8 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 exit(-1);
             }
             if (inheritsModule(STy, "class.InterfaceClass")) {
-                updateParameterNames(enaFunc);
-                updateParameterNames(item.second);
+                updateParameterNames(prefixName, enaFunc);
+                updateParameterNames(prefixName, item.second);
             }
             else {
             prefixFunction(enaFunc, prefixName);
@@ -689,11 +693,11 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
             if (trace_lookup)
                 if (!pushSeen[enaFunc])
                 printf("%s: prefix %s pair %s[%s] ena %p[%s]\n", __FUNCTION__, prefixName.c_str(), item.first.c_str(), item.second->getName().str().c_str(), enaFunc, enaFunc->getName().str().c_str());
-            pushPair(enaFunc, item.second);
+            pushPair(enaFunc, item.second, prefixName);
             }
         }
 }
-static void processStruct(const StructType *STy)
+static void processStruct(const StructType *STy, std::string prefixName)
 {
     if (!STyList[STy])
         return;
@@ -701,15 +705,18 @@ static void processStruct(const StructType *STy)
     ClassMethodTable *table = classCreate[STy];
     MethodMapType methodMap;
 
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I) {
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
-        if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
-            processStruct(STy);
+        if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
+            std::string fname;
+            processStruct(iSTy, fname);
+        }
     }
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
         if (derivedStruct(iSTy, STy))
-            processStruct(iSTy);
+            processStruct(iSTy, prefixName);
     if (trace_lookup)
         printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++) {
@@ -717,7 +724,7 @@ static void processStruct(const StructType *STy)
          //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
          methodMap[getMethodName(func->getName())] = func;
     }
-    pushMethodMap(methodMap, "", STy);
+    pushMethodMap(methodMap, prefixName, STy);
 }
 
 static void addMethodTable(Function *func)
@@ -816,7 +823,7 @@ void constructAddressMap(Module *Mod)
     }
 
     for (auto item: STyList)
-        processStruct(item.first);
+        processStruct(item.first, "");
 
     if (trace_malloc)
         dumpMemoryRegions(4010);
