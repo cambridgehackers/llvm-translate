@@ -272,9 +272,11 @@ static void pushWork(std::string mname, Function *func)
     pushSeen[func] = 1;
     const StructType *STy = findThisArgumentType(func->getType());
     ClassMethodTable *table = classCreate[STy];
+    table->method[mname] = func;
+    if (inheritsModule(STy, "class.ModuleStub"))
+        return;
     if (inheritsModule(STy, "class.Module"))
     updateParameterNames(mname, func);
-    table->method[mname] = func;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     processMethodInlining(func, *func);
