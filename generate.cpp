@@ -493,8 +493,6 @@ static std::string printCall(Instruction &I)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
         printf("CALL: CALLER %s func %s pcalledFunction '%s'\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), pcalledFunction.c_str());
-    //if (endswith(pcalledFunction, "in_"))
-        //callingFunction->dump();
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
@@ -503,13 +501,9 @@ static std::string printCall(Instruction &I)
     std::string prefix = MODULE_ARROW;
     bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
     if (pcalledFunction[0] == '&') {
-        std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
-        prefix = ".";
-        if (thisInterface)
-            prefix = "";
+        prefix = thisInterface ? "" : ".";
     }
-printf("[%s:%d] pcallf %s pref %s meth %s\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), prefix.c_str(), getMethodName(func->getName()).c_str());
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
     std::string mname = prefix + getMethodName(func->getName());
@@ -525,12 +519,8 @@ printf("[%s:%d] pcallf %s pref %s meth %s\n", __FUNCTION__, __LINE__, pcalledFun
     for (; AI != AE; ++AI, FAI++) {
         if (!skip) {
             std::string parg = printOperand(*AI, false);
-            if (generateRegion == ProcessVerilog) {
-                std::string pre = mname + "_" + FAI->getName().str();
-printf("[%s:%d] prefix %s fai %s parg %s\n", __FUNCTION__, __LINE__, prefix.c_str(),
-FAI->getName().str().c_str(), parg.c_str());
-                muxValue(pre, parg);
-            }
+            if (generateRegion == ProcessVerilog)
+                muxValue(mname + "_" + FAI->getName().str(), parg);
             else
                 vout += sep + parg;
             sep = ", ";
