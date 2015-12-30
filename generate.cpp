@@ -367,9 +367,9 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     for (; I != E; ++I) {
         if (StructType *STy = dyn_cast<StructType>(*I)) {
             uint64_t foffset = cast<ConstantInt>(I.getOperand())->getZExtValue();
-            std::string fname = fieldName(STy, foffset);
             std::string dot = MODULE_DOT;
             std::string arrow = MODULE_ARROW;
+            std::string fname = fieldName(STy, foffset);
             if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
                 fname += '_';
             if (trace_gep)
@@ -379,15 +379,12 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
                 referstr = referstr.substr(1);
             }
             if (expose)
-                cbuffer += referstr + dot;
-            else {
-                if (referstr == "this")
-                    referstr = "";
-                else
-                    referstr += arrow;
-                cbuffer += referstr;
-            }
-            cbuffer += fname;
+                referstr += dot;
+            else if (referstr == "this")
+                referstr = "";
+            else
+                referstr += arrow;
+            cbuffer += referstr + fname;
         }
         else {
             if (trace_gep)
