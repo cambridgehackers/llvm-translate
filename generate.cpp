@@ -526,9 +526,7 @@ printf("[%s:%d] pcallf %s pref %s meth %s\n", __FUNCTION__, __LINE__, pcalledFun
         if (!skip) {
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string pre = (thisInterface
-//true ????
- ? mname + "_" : prefix) + FAI->getName().str();
+                std::string pre = mname + "_" + FAI->getName().str();
 printf("[%s:%d] prefix %s fai %s parg %s\n", __FUNCTION__, __LINE__, prefix.c_str(),
 FAI->getName().str().c_str(), parg.c_str());
                 muxValue(pre, parg);

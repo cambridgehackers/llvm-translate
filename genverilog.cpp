@@ -109,7 +109,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                 if (!skip) {
-                    wname = inp + AI->getName().str();
+                    wname = inp + mname + "_" + AI->getName().str();
                     arrRange = verilogArrRange(AI->getType());
                 }
                 if (inlineValue(wname, false) == "")
@@ -137,7 +137,7 @@ printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instanc
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 if (instance != "")
-                    wparam = inlineValue(inp + AI->getName().str(), true);
+                    wparam = inlineValue(inp + mname + "_" + AI->getName().str(), true);
                 else
                     wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
             }
@@ -177,7 +177,7 @@ printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instanc
                     int skip = 1;
                     for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                         if (!skip)
-                            wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + fname + MODULE_SEPARATOR + AI->getName().str();
+                            wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
                         paramList.push_back(wparam);
                         skip = 0;
                     }

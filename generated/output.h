@@ -1,12 +1,12 @@
 class l_class_OC_EchoRequest {
 public:
-  void say(unsigned int say_v);
+  void say(unsigned int v);
   bool say__RDY(void);
 };
 
 class l_class_OC_EchoIndication {
 public:
-  void heard(unsigned int heard_v);
+  void heard(unsigned int v);
   bool heard__RDY(void);
 };
 
