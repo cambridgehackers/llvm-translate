@@ -368,15 +368,10 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         if (StructType *STy = dyn_cast<StructType>(*I)) {
             uint64_t foffset = cast<ConstantInt>(I.getOperand())->getZExtValue();
             std::string fname = fieldName(STy, foffset);
-            std::string dot = ".";
+            std::string dot = MODULE_DOT;
             std::string arrow = MODULE_ARROW;
-            if (StructType *element = dyn_cast<StructType>(STy->element_begin()[foffset])) {
-                if (inheritsModule(element, "class.InterfaceClass")) {
-                    fname += '_';
-                    if (generateRegion == ProcessVerilog)
-                        dot = MODULE_SEPARATOR;
-                }
-            }
+            if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
+                fname += '_';
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s fname %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str(), fname.c_str());
             if (!expose && referstr[0] == '&') {
@@ -484,11 +479,12 @@ static std::string printCall(Instruction &I)
     std::string vout, sep = "";
     int skip = 1;
     CallInst &ICL = static_cast<CallInst&>(I);
+    Function *func = ICL.getCalledFunction();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-
     std::string pcalledFunction = printOperand(*AI, false);
-    Function *func = ICL.getCalledFunction();
+    std::string prefix = MODULE_ARROW;
+
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (trace_call)
@@ -498,7 +494,6 @@ static std::string printCall(Instruction &I)
         exit(-1);
     }
     Function::const_arg_iterator FAI = func->arg_begin();
-    std::string prefix = MODULE_ARROW;
     bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);

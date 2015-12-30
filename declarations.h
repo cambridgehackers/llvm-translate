@@ -26,6 +26,7 @@
 //#define SEPARATOR ":"
 #define MODULE_SEPARATOR "$"
 #define MODULE_ARROW (generateRegion == ProcessVerilog ? MODULE_SEPARATOR : "->")
+#define MODULE_DOT   (generateRegion == ProcessVerilog ? MODULE_SEPARATOR : ".")
 
 #define MAX_BASIC_BLOCK_FLAGS 0x10
 #define MAX_CHAR_BUFFER 1000
