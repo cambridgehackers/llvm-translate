@@ -683,20 +683,17 @@ static void processStruct(const StructType *STy, std::string prefixName)
 
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        std::string fname = fieldName(STy, Idx);
         if (const StructType *iSTy = dyn_cast<StructType>(*I)) {
-            std::string fname;
-            if (inheritsModule(iSTy, "class.InterfaceClass"))
-                fname = fieldName(STy, Idx) + "_";
+            if (inheritsModule(iSTy, "class.InterfaceClass") && fname != "") {
 printf("[%s:%d] inline STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-            //processStruct(iSTy, fname);
+                //processStruct(iSTy, fname + "_");
+            }
         }
         else if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
-            std::string fname;
-            if (inheritsModule(iSTy, "class.InterfaceClass"))
-                fname = fieldName(STy, Idx) + "_";
-printf("[%s:%d] ptr STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-            processStruct(iSTy, fname);
+printf("[%s:%d] ptr STy %s Idx %d iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
+            processStruct(iSTy, "");
         }
     }
     for (auto info : classCreate)
