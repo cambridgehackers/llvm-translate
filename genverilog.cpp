@@ -102,18 +102,19 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             const Type *retTy = func->getReturnType();
             std::string arrRange, wname = instPrefix + mname;
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
+            std::string wparam = wname;
             if (isAction)
-                wname += "__ENA";
+                wparam += "__ENA";
             else
                 arrRange = verilogArrRange(retTy);
             int skip = 1;
             for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
                 if (!skip) {
-                    wname = inp + mname + "_" + AI->getName().str();
+                    wparam = wname + "_" + AI->getName().str();
                     arrRange = verilogArrRange(AI->getType());
                 }
-                if (inlineValue(wname, false) == "")
-                    fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wname.c_str());
+                if (inlineValue(wparam, false) == "")
+                    fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
                 skip = 0;
             }
         }
