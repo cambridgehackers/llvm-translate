@@ -501,13 +501,15 @@ static std::string printCall(Instruction &I)
     }
     Function::const_arg_iterator FAI = func->arg_begin();
     std::string prefix = MODULE_ARROW;
+    bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
     if (pcalledFunction[0] == '&') {
         std::string sname;
         pcalledFunction = pcalledFunction.substr(1);
         prefix = ".";
-        if (inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
+        if (thisInterface)
             prefix = "";
     }
+printf("[%s:%d] pcallf %s pref %s meth %s\n", __FUNCTION__, __LINE__, pcalledFunction.c_str(), prefix.c_str(), getMethodName(func->getName()).c_str());
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
     std::string mname = prefix + getMethodName(func->getName());
@@ -524,7 +526,11 @@ static std::string printCall(Instruction &I)
         if (!skip) {
             std::string parg = printOperand(*AI, false);
             if (generateRegion == ProcessVerilog) {
-                std::string pre = prefix + FAI->getName().str();
+                std::string pre = (thisInterface
+//true ????
+ ? mname + "_" : prefix) + FAI->getName().str();
+printf("[%s:%d] prefix %s fai %s parg %s\n", __FUNCTION__, __LINE__, prefix.c_str(),
+FAI->getName().str().c_str(), parg.c_str());
                 muxValue(pre, parg);
             }
             else

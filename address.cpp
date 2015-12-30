@@ -198,19 +198,6 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     }
 }
 
-static void updateParameterNames(std::string mName, Function *currentFunction)
-{
-//printf("[%s:%d] mName %s func %s\n", __FUNCTION__, __LINE__, mName.c_str(), currentFunction->getName().str().c_str());
-    int skip = 1;
-    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
-        // update parameter names to be prefixed by method name (so that
-        // all parameter names are unique across module for verilog instantiation)
-        if (!skip)
-            AI->setName(mName + "_" + AI->getName());
-        skip = 0;
-    }
-}
-
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
 // Walk list of work items, cleaning up function references and adding to vtableWork
 static void processPromote(Function *currentFunction)
@@ -263,13 +250,30 @@ static void processPromote(Function *currentFunction)
     }
 }
 
+static void updateParameterNames(std::string mName, Function *currentFunction)
+{
+    int skip = 1;
+    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
+        // update parameter names to be prefixed by method name (so that
+        // all parameter names are unique across module for verilog instantiation)
+        if (!skip) {
+printf("%s: mName %s func %s param %s\n", __FUNCTION__, mName.c_str(), currentFunction->getName().str().c_str(), AI->getName().str().c_str());
+            AI->setName(mName + "_" + AI->getName());
+        }
+        skip = 0;
+    }
+}
+
 std::map<Function *, int> pushSeen;
 static void pushWork(std::string mname, Function *func)
 {
     if (pushSeen[func])
         return;
     pushSeen[func] = 1;
-    ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
+    const StructType *STy = findThisArgumentType(func->getType());
+    ClassMethodTable *table = classCreate[STy];
+    //if (inheritsModule(STy, "class.Module"))
+    updateParameterNames(mname, func);
     table->method[mname] = func;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
@@ -643,10 +647,6 @@ static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, cons
                 printf("%s: %s seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__,
                     inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair",
                     pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            if (!pushSeen[enaFunc]) {
-            updateParameterNames(enaName, enaFunc);
-            updateParameterNames(rdyName, item.second);
-            }
             if (!inheritsModule(STy, "class.InterfaceClass"))
                 pushPair(enaFunc, enaName, item.second, rdyName);
         }
@@ -687,7 +687,7 @@ static void processStruct(const StructType *STy, std::string prefixName)
         if (const StructType *iSTy = dyn_cast<StructType>(*I)) {
             if (inheritsModule(iSTy, "class.InterfaceClass") && fname != "") {
 printf("[%s:%d] inline STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-                //processStruct(iSTy, fname + "_");
+                processStruct(iSTy, fname + "_");
             }
         }
         else if (PointerType *PTy = dyn_cast<PointerType>(*I))
