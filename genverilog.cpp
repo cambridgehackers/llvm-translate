@@ -124,16 +124,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
-printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instance.c_str(), mname.c_str(), func->getName().str().c_str());
         const Type *retTy = func->getReturnType();
         std::string wname = instPrefix + mname;
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
-        std::string wparam;
+        std::string wparam = inp + mname + (isAction ? "__ENA" : "");
         if (instance != "")
-            wparam = inlineValue(instPrefix + mname + (isAction ? "__ENA" : ""), true);
-        else if (isAction)
-            wparam = inp + mname + "__ENA";
-        else
+            wparam = inlineValue(wparam, true);
+        else if (!isAction)
             wparam = outp + verilogArrRange(retTy) + mname;
         int skip = 1;
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
