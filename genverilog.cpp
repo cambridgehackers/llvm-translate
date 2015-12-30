@@ -125,6 +125,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         std::string mname = FI.first;
 printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instance.c_str(), mname.c_str(), func->getName().str().c_str());
         const Type *retTy = func->getReturnType();
+        std::string wname = instPrefix + mname;
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         std::string wparam;
         if (instance != "")
@@ -137,7 +138,7 @@ printf("[%s:%d] inst %s mname %s funcname %s\n", __FUNCTION__, __LINE__, instanc
         for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (!skip) {
                 if (instance != "")
-                    wparam = inlineValue(inp + mname + "_" + AI->getName().str(), true);
+                    wparam = inlineValue(wname + "_" + AI->getName().str(), true);
                 else
                     wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
             }
