@@ -85,18 +85,6 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
 }
-extern "C" void exportRequest(Function *enaFunc)
-{
-printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
-    ClassMethodTable *table = classCreate[findThisArgumentType(enaFunc->getType())];
-    std::string enaName = getMethodName(enaFunc->getName());
-    std::string rdyName = enaName + "__RDY";
-    for (unsigned int i = 0; i < table->vtableCount; i++) {
-        Function *rdyFunc = table->vtable[i];
-        if (getMethodName(rdyFunc->getName()) == rdyName)
-            pushPair(enaFunc, enaName, rdyFunc, rdyName);
-    }
-}
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
 {
@@ -287,9 +275,6 @@ static void pushWork(std::string mname, Function *func)
     table->method[mname] = func;
     if (inheritsModule(STy, "class.ModuleStub"))
         return;
-    if (inheritsModule(STy, "class.InterfaceClass"))
-        return;
-    if (inheritsModule(STy, "class.Module"))
     updateParameterNames(mname, func);
     vtableWork.push_back(func);
     // inline intra-class method call bodies
@@ -303,6 +288,17 @@ static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, 
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
     pushWork(enaName, enaFunc);
     pushWork(rdyName, rdyFunc); // must be after 'ENA', since hoisting copies guards
+}
+
+extern "C" void exportRequest(Function *enaFunc)
+{
+    //printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
+    ClassMethodTable *table = classCreate[findThisArgumentType(enaFunc->getType())];
+    std::string enaName = getMethodName(enaFunc->getName());
+    std::string rdyName = enaName + "__RDY";
+    for (unsigned int i = 0; i < table->vtableCount; i++)
+        if (getMethodName(table->vtable[i]->getName()) == rdyName)
+            pushPair(enaFunc, enaName, table->vtable[i], rdyName);
 }
 
 static Function *fixupFunction(std::string methodName, Function *func)
@@ -648,12 +644,10 @@ static void processMalloc(CallInst *II)
 
 static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
 {
-    ClassMethodTable *table = classCreate[STy];
     for (auto item: methodMap)
         if (endswith(item.first, "__RDY")) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
             Function *enaFunc = methodMap[enaName];
-            std::string rdyName = item.first;
             if (!enaFunc) {
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
@@ -661,12 +655,8 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
             if (trace_lookup)
                 printf("%s: %s %s seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
                     inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair", STy?STy->getName().str().c_str():"",
-                    pushSeen[enaFunc].c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            if (!inheritsModule(STy, "class.InterfaceClass")) {
-    //table->method[enaName] = enaFunc;
-    //table->method[rdyName] = item.second;
-                pushPair(enaFunc, enaName, item.second, rdyName);
-            }
+                    pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
+            pushPair(enaFunc, enaName, item.second, item.first);
         }
 }
 

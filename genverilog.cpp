@@ -91,12 +91,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ", instPrefix, inpClk = "input ";
     std::list<std::string> paramList;
-#if 1
-printf("[%s:%d] sname %s\n", __FUNCTION__, __LINE__, name.c_str());
-    for (auto FI : table->method) {
-printf("[%s:%d] %s [%s]\n", __FUNCTION__, __LINE__, FI.first.c_str(), FI.second->getName().str().c_str());
-    }
-#endif
     if (instance != "") {
         instPrefix = instance + MODULE_SEPARATOR;
         inp = instPrefix;
@@ -161,15 +155,6 @@ printf("[%s:%d] %s [%s]\n", __FUNCTION__, __LINE__, FI.first.c_str(), FI.second-
             element = PTy->getElementType();
             if (const StructType *STy = dyn_cast<StructType>(element)) { // calling indications to C++ from hardware
                 if (ClassMethodTable *table = classCreate[STy]) {
-                int Idx = 0;
-                for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                    const Type *element = *I;
-                    if (const Type *newType = table->replaceType[Idx])
-                        element = newType;
-                    std::string ename = fieldName(STy, Idx);
-                    if (ename != "")
-                        paramList.push_back(outp + printType(element, false, fname + MODULE_SEPARATOR + ename, "  ", "", false));
-                }
                 for (auto FI : table->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
