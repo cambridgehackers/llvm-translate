@@ -7,7 +7,7 @@ module l_class_OC_Echo (
     input [31:0]say_v,
     output say__RDY,
     output ind$heard__ENA,
-    output [31:0]ind$heard_v,
+    output [31:0]ind$heard_heard_v,
     input ind$heard__RDY);
     wire respond_rule__RDY_internal;
     wire respond_rule__ENA_internal = respond_rule__ENA && respond_rule__RDY_internal;
@@ -25,7 +25,7 @@ module l_class_OC_Echo (
         say__RDY,
         respond_rule__ENA_internal,
         fifo$out_deq__RDY,
-        ind$heard_v,
+        ind$heard_heard_v,
         fifo$out_first__RDY);
     reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA_internal;
