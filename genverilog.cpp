@@ -300,7 +300,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
         functionList.clear();
-        if (!inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
         processFunction(func);
         if (!isAction) {
             if (endswith(mname, "__RDY"))
@@ -391,7 +390,6 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
         functionList.clear();
-        if (!inheritsModule(findThisArgumentType(PI->func->getType()), "class.InterfaceClass"))
         processFunction(PI->func);
         for (auto item: functionList)
             fprintf(OStr, "        %s;\n", item.c_str());

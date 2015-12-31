@@ -653,8 +653,8 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
                 exit(-1);
             }
             if (trace_lookup)
-                printf("%s: %s %s seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
-                    inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair", STy?STy->getName().str().c_str():"",
+                printf("%s: %s seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
+                    STy?STy->getName().str().c_str():"",
                     pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
             pushPair(enaFunc, enaName, item.second, item.first);
         }

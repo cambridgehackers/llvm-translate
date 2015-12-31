@@ -492,9 +492,9 @@ static std::string printCall(Instruction &I)
     if (trace_call)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
     Function::const_arg_iterator FAI = func->arg_begin();
-    bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
+        bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
         prefix = thisInterface ? "" : ".";
     }
     if (generateRegion == ProcessVerilog)
