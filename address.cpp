@@ -55,6 +55,7 @@ typedef struct {
     int         Idx;
 } InterfaceTypeInfo;
 typedef std::map<std::string, Function *>MethodMapType;
+std::map<Function *, std::string> pushSeen;
 
 struct MAPSEENcomp {
     bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
@@ -279,14 +280,13 @@ printf("%s: mName %s func %s param %s\n", __FUNCTION__, mName.c_str(), currentFu
     }
 }
 
-std::map<Function *, int> pushSeen;
 static void pushWork(std::string mname, Function *func)
 {
     const StructType *STy = findThisArgumentType(func->getType());
     ClassMethodTable *table = classCreate[STy];
-    if (pushSeen[func])
+    if (pushSeen[func] != "")
         return;
-    pushSeen[func] = 1;
+    pushSeen[func] = mname;
     table->method[mname] = func;
     if (inheritsModule(STy, "class.ModuleStub"))
         return;
@@ -662,9 +662,9 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
                 exit(-1);
             }
             if (trace_lookup)
-                printf("%s: %s %s seen %d pair rdy %s ena %s[%s]\n", __FUNCTION__,
+                printf("%s: %s %s seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
                     inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair", STy?STy->getName().str().c_str():"",
-                    pushSeen[enaFunc], rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
+                    pushSeen[enaFunc].c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
             if (!inheritsModule(STy, "class.InterfaceClass")) {
     //table->method[enaName] = enaFunc;
     //table->method[rdyName] = item.second;

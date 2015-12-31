@@ -498,7 +498,7 @@ static std::string printCall(Instruction &I)
     }
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
-    std::string mname = prefix + getMethodName(func->getName());
+    std::string mname = prefix + pushSeen[func];
     if (generateRegion == ProcessVerilog) {
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
             muxEnable(mname + "__ENA");
