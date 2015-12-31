@@ -55,7 +55,7 @@ typedef struct {
     int         Idx;
 } InterfaceTypeInfo;
 typedef std::map<std::string, Function *>MethodMapType;
-std::map<Function *, std::string> pushSeen;
+std::map<const Function *, std::string> pushSeen;
 
 struct MAPSEENcomp {
     bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
@@ -70,7 +70,6 @@ struct MAPSEENcomp {
 #define GIANT_SIZE 1024
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
-static void pushWork(std::string mname, Function *func);
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 
 /*
@@ -226,8 +225,6 @@ static void processPromote(Function *currentFunction)
                 ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
                 if (trace_hoist)
                     printf("HOIST: CALLER %s calling '%s'[%s] table %p\n", currentFunction->getName().str().c_str(), func->getName().str().c_str(), mName.c_str(), table);
-                if (mName != "")
-                    pushWork(mName, func);
                 if (func->isDeclaration() && func->getName() == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
                     std::string Fname = currentFunction->getName().str();
@@ -688,8 +685,17 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
             Function *func = *(Function **)eaddr;
             ERRORIF(!func);
-            methodMap[name + std::string("_") + getMethodName(func->getName())] = func;
+            std::string mname = name + std::string("_") + getMethodName(func->getName());
+            methodMap[mname] = func;
+            //printf("[%s:%d] %s = %p[%s]\n", __FUNCTION__, __LINE__, mname.c_str(), func, func->getName().str().c_str());
         }
+    }
+    ClassMethodTable *table = classCreate[STy];
+    for (unsigned i = 0; i < table->vtableCount; i++) {
+        const Function *func = table->vtable[i];
+        std::string mname = getMethodName(func->getName());
+        //printf("[%s:%d] v[%d] = %p[%s]\n", __FUNCTION__, __LINE__, i, func, func->getName().str().c_str());
+        pushSeen[func] = mname;
     }
     pushMethodMap(methodMap, NULL);
 }

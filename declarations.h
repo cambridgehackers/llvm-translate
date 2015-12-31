@@ -68,7 +68,7 @@ extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::list<std::string> readList, writeList, invokeList, functionList;
 extern std::map<std::string, std::string> storeList;
 extern std::list<Function *> vtableWork;
-extern std::map<Function *, std::string> pushSeen;
+extern std::map<const Function *, std::string> pushSeen;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);

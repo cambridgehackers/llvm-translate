@@ -484,12 +484,13 @@ static std::string printCall(Instruction &I)
 
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
-    if (trace_call)
-        printf("CALL: CALLER %s func %s pcalledFunction '%s'\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
+    std::string fname = pushSeen[func];
+    if (trace_call)
+        printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
     Function::const_arg_iterator FAI = func->arg_begin();
     bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
     if (pcalledFunction[0] == '&') {
