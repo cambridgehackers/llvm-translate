@@ -771,6 +771,10 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+                printContainedStructs(*I, OStr, ODir, cb);
+            }
+            Idx = 0;
+            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                 const Type *element = *I;
                 if (table && table->replaceType[Idx])
                     element = table->replaceType[Idx];

@@ -69,7 +69,8 @@ struct MAPSEENcomp {
 #define GIANT_SIZE 1024
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
-static std::map<const StructType *, int> STyList;
+static void pushWork(std::string mname, Function *func);
+static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 
 /*
  * Allocated memory region management
@@ -83,6 +84,18 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
         printf("[%s:%d] %ld = %p type %p sty %p\n", __FUNCTION__, __LINE__, size, ptr, type, STy);
     memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
     return ptr;
+}
+extern "C" void exportRequest(Function *enaFunc)
+{
+printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
+    ClassMethodTable *table = classCreate[findThisArgumentType(enaFunc->getType())];
+    std::string enaName = getMethodName(enaFunc->getName());
+    std::string rdyName = enaName + "__RDY";
+    for (unsigned int i = 0; i < table->vtableCount; i++) {
+        Function *rdyFunc = table->vtable[i];
+        if (getMethodName(rdyFunc->getName()) == rdyName)
+            pushPair(enaFunc, enaName, rdyFunc, rdyName);
+    }
 }
 
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -208,9 +221,12 @@ static void processPromote(Function *currentFunction)
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
+                std::string mName = getMethodName(func->getName());
                 ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
                 if (trace_hoist)
-                    printf("HOIST: CALLER %s calling '%s' table %p\n", currentFunction->getName().str().c_str(), func->getName().str().c_str(), table);
+                    printf("HOIST: CALLER %s calling '%s'[%s] table %p\n", currentFunction->getName().str().c_str(), func->getName().str().c_str(), mName.c_str(), table);
+                if (mName != "")
+                    pushWork(mName, func);
                 if (func->isDeclaration() && func->getName() == "_Z14PIPELINEMARKER") {
                     /* for now, just remove the Call.  Later we will push processing of II->getOperand(0) into another block */
                     std::string Fname = currentFunction->getName().str();
@@ -233,7 +249,7 @@ static void processPromote(Function *currentFunction)
                     II->eraseFromParent();
                     return;
                 }
-                std::string rdyName = getMethodName(func->getName()) + "__RDY";
+                std::string rdyName = mName + "__RDY";
                 for (unsigned int i = 0; table && i < table->vtableCount; i++) {
                     Function *mfunc = table->vtable[i];
                     if (trace_hoist)
@@ -482,7 +498,6 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
-        STyList[STy] = 1;
         getStructName(STy); // allocate classCreate
         const StructLayout *SLO = TD->getStructLayout(STy);
         int Idx = 0;
@@ -679,50 +694,6 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
     pushMethodMap(methodMap, NULL);
 }
 
-static void processStruct(const StructType *STy)
-{
-    if (!STyList[STy])
-        return;
-    STyList[STy] = 0;
-    ClassMethodTable *table = classCreate[STy];
-    MethodMapType methodMap;
-
-    int Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        std::string fname = fieldName(STy, Idx);
-        if (const StructType *iSTy = dyn_cast<StructType>(*I)) {
-            if (inheritsModule(iSTy, "class.InterfaceClass") && fname != "") {
-printf("[%s:%d] inline STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-                ClassMethodTable *itable = classCreate[iSTy];
-                for (unsigned int i = 0; i < itable->vtableCount; i++) {
-                    Function *func = itable->vtable[i];
-                    //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
-                    std::string mname = fname + "_" + getMethodName(func->getName());
-                    methodMap[mname] = func;
-                    //table->method[mname] = func;
-                }
-            }
-        }
-        else if (PointerType *PTy = dyn_cast<PointerType>(*I))
-        if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
-printf("[%s:%d] ptr STy %s Idx %d iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-            processStruct(iSTy);
-        }
-    }
-    for (auto info : classCreate)
-        if (const StructType *iSTy = info.first)
-        if (derivedStruct(iSTy, STy))
-            processStruct(iSTy);
-    if (trace_lookup)
-        printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
-    for (unsigned int i = 0; i < table->vtableCount; i++) {
-         Function *func = table->vtable[i];
-         //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
-         methodMap[getMethodName(func->getName())] = func;
-    }
-    pushMethodMap(methodMap, STy);
-}
-
 static void addMethodTable(Function *func)
 {
     const StructType *STy = findThisArgumentType(func->getType());
@@ -760,7 +731,6 @@ void preprocessModule(Module *Mod)
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 processMalloc(cast<CallInst>(*I));
 
-    STyList.clear();
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         const ConstantArray *CA;
@@ -817,9 +787,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
             mapType(Mod, (char *)addr, Ty, name);
         }
     }
-
-    for (auto item: STyList)
-        processStruct(item.first);
 
     if (trace_malloc)
         dumpMemoryRegions(4010);
