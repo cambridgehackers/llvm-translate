@@ -70,7 +70,6 @@ struct MAPSEENcomp {
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 static std::map<const StructType *, int> STyList;
-static std::map<void *, InterfaceTypeInfo> interfaceMap;
 
 /*
  * Allocated memory region management
@@ -483,6 +482,8 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
     switch (Ty->getTypeID()) {
     case Type::StructTyID: {
         StructType *STy = cast<StructType>(Ty);
+        STyList[STy] = 1;
+        getStructName(STy); // allocate classCreate
         const StructLayout *SLO = TD->getStructLayout(STy);
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -508,11 +509,8 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         }
                     }
             }
-            if (fname != "") {
-                if (dyn_cast<StructType>(element))
-                    interfaceMap[eaddr] = InterfaceTypeInfo{STy, Idx};
+            if (fname != "")
                 mapType(Mod, eaddr, element, aname + "$$" + fname);
-            }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
         }
@@ -734,7 +732,6 @@ static void addMethodTable(Function *func)
     if (!strncmp(sname.c_str(), "class.std::", 11)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
-    STyList[STy] = 1;
     ClassMethodTable *table = classCreate[STy];
     if (trace_lookup)
         printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
