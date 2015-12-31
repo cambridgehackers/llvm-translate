@@ -124,6 +124,7 @@ void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
+        if (!inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
         processFunction(func);
         for (auto info: storeList)
             fprintf(OStr, "        %s = %s;\n", info.first.c_str(), info.second.c_str());

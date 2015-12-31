@@ -267,13 +267,15 @@ printf("%s: mName %s func %s param %s\n", __FUNCTION__, mName.c_str(), currentFu
 std::map<Function *, int> pushSeen;
 static void pushWork(std::string mname, Function *func)
 {
+    const StructType *STy = findThisArgumentType(func->getType());
+    ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func])
         return;
     pushSeen[func] = 1;
-    const StructType *STy = findThisArgumentType(func->getType());
-    ClassMethodTable *table = classCreate[STy];
     table->method[mname] = func;
     if (inheritsModule(STy, "class.ModuleStub"))
+        return;
+    if (inheritsModule(STy, "class.InterfaceClass"))
         return;
     if (inheritsModule(STy, "class.Module"))
     updateParameterNames(mname, func);
@@ -634,23 +636,27 @@ static void processMalloc(CallInst *II)
     II->eraseFromParent();
 }
 
-static void pushMethodMap(MethodMapType &methodMap, std::string prefixName, const StructType *STy)
+static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
 {
+    ClassMethodTable *table = classCreate[STy];
     for (auto item: methodMap)
         if (endswith(item.first, "__RDY")) {
-            Function *enaFunc = methodMap[item.first.substr(0, item.first.length() - 5)];
-            std::string enaName = prefixName +  getMethodName(enaFunc->getName());
-            std::string rdyName = prefixName +  getMethodName(item.second->getName());
+            std::string enaName = item.first.substr(0, item.first.length() - 5);
+            Function *enaFunc = methodMap[enaName];
+            std::string rdyName = item.first;
             if (!enaFunc) {
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
                 exit(-1);
             }
             if (trace_lookup)
-                printf("%s: %s seen %d prefix %s pair %s rdy %s ena %s[%s]\n", __FUNCTION__,
-                    inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair",
-                    pushSeen[enaFunc], prefixName.c_str(), item.first.c_str(), rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            if (!inheritsModule(STy, "class.InterfaceClass"))
+                printf("%s: %s %s seen %d pair rdy %s ena %s[%s]\n", __FUNCTION__,
+                    inheritsModule(STy, "class.InterfaceClass") ? "Interface" : "pair", STy?STy->getName().str().c_str():"",
+                    pushSeen[enaFunc], rdyName.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
+            if (!inheritsModule(STy, "class.InterfaceClass")) {
+    //table->method[enaName] = enaFunc;
+    //table->method[rdyName] = item.second;
                 pushPair(enaFunc, enaName, item.second, rdyName);
+            }
         }
 }
 
@@ -669,13 +675,13 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
             Function *func = *(Function **)eaddr;
             ERRORIF(!func);
-            methodMap[getMethodName(func->getName())] = func;
+            methodMap[name + std::string("_") + getMethodName(func->getName())] = func;
         }
     }
-    pushMethodMap(methodMap, name + std::string("_"), NULL);
+    pushMethodMap(methodMap, NULL);
 }
 
-static void processStruct(const StructType *STy, std::string prefixName)
+static void processStruct(const StructType *STy)
 {
     if (!STyList[STy])
         return;
@@ -689,19 +695,26 @@ static void processStruct(const StructType *STy, std::string prefixName)
         if (const StructType *iSTy = dyn_cast<StructType>(*I)) {
             if (inheritsModule(iSTy, "class.InterfaceClass") && fname != "") {
 printf("[%s:%d] inline STy %s Idx %d fname %s iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, fname.c_str(), iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-                processStruct(iSTy, fname + "_");
+                ClassMethodTable *itable = classCreate[iSTy];
+                for (unsigned int i = 0; i < itable->vtableCount; i++) {
+                    Function *func = itable->vtable[i];
+                    //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
+                    std::string mname = fname + "_" + getMethodName(func->getName());
+                    methodMap[mname] = func;
+                    //table->method[mname] = func;
+                }
             }
         }
         else if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
 printf("[%s:%d] ptr STy %s Idx %d iSTy %p[%s] fieldname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), Idx, iSTy, iSTy->getName().str().c_str(), fieldName(STy, Idx).c_str());
-            processStruct(iSTy, "");
+            processStruct(iSTy);
         }
     }
     for (auto info : classCreate)
         if (const StructType *iSTy = info.first)
         if (derivedStruct(iSTy, STy))
-            processStruct(iSTy, prefixName);
+            processStruct(iSTy);
     if (trace_lookup)
         printf("%s: start %s\n", __FUNCTION__, STy->getName().str().c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++) {
@@ -709,8 +722,7 @@ printf("[%s:%d] ptr STy %s Idx %d iSTy %p[%s] fieldname %s\n", __FUNCTION__, __L
          //printf("%s: method %s\n", __FUNCTION__, getMethodName(func->getName()).c_str());
          methodMap[getMethodName(func->getName())] = func;
     }
-printf("[%s:%d] STy %p prefix %s\n", __FUNCTION__, __LINE__, STy, prefixName.c_str());
-    pushMethodMap(methodMap, prefixName, STy);
+    pushMethodMap(methodMap, STy);
 }
 
 static void addMethodTable(Function *func)
@@ -722,8 +734,7 @@ static void addMethodTable(Function *func)
     if (!strncmp(sname.c_str(), "class.std::", 11)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
-    //if (!inheritsModule(STy, "class.InterfaceClass"))
-        STyList[STy] = 1;
+    STyList[STy] = 1;
     ClassMethodTable *table = classCreate[STy];
     if (trace_lookup)
         printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
@@ -811,7 +822,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
 
     for (auto item: STyList)
-        processStruct(item.first, "");
+        processStruct(item.first);
 
     if (trace_malloc)
         dumpMemoryRegions(4010);

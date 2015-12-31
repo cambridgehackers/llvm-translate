@@ -91,6 +91,12 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ", instPrefix, inpClk = "input ";
     std::list<std::string> paramList;
+#if 1
+printf("[%s:%d] sname %s\n", __FUNCTION__, __LINE__, name.c_str());
+    for (auto FI : table->method) {
+printf("[%s:%d] %s [%s]\n", __FUNCTION__, __LINE__, FI.first.c_str(), FI.second->getName().str().c_str());
+    }
+#endif
     if (instance != "") {
         instPrefix = instance + MODULE_SEPARATOR;
         inp = instPrefix;
@@ -308,6 +314,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
+        functionList.clear();
+        if (!inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass"))
         processFunction(func);
         if (!isAction) {
             if (endswith(mname, "__RDY"))
@@ -397,6 +405,8 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     fprintf(OStr, "endmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
+        functionList.clear();
+        if (!inheritsModule(findThisArgumentType(PI->func->getType()), "class.InterfaceClass"))
         processFunction(PI->func);
         for (auto item: functionList)
             fprintf(OStr, "        %s;\n", item.c_str());
