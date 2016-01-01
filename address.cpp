@@ -668,22 +668,21 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
 
 extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
 {
-    std::map<std::string, Function *> callMap;
-    MethodMapType methodMap;
     const DataLayout *TD = EE->getDataLayout();
     const StructLayout *SLO = TD->getStructLayout(STy);
-    std::string sname = STy->getName();
+    ClassMethodTable *table = classCreate[STy];
+    std::map<std::string, Function *> callMap;
+    MethodMapType methodMap;
     //printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
     //STy->dump();
     int Idx = 0;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        char *eaddr = addr + SLO->getElementOffset(Idx);
-        std::string fname = fieldName(STy, Idx);
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
-        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID)
+        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
+            char *eaddr = addr + SLO->getElementOffset(Idx);
+            std::string fname = fieldName(STy, Idx);
             callMap[fname] = *(Function **)eaddr;
-    }
-    ClassMethodTable *table = classCreate[STy];
+        }
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
