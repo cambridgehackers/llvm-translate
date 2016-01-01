@@ -157,8 +157,6 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     std::string fname = printOperand(callV, false);
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(fname));
-                    if (!func)
-                        func = callMap[fname.c_str()];
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), fname.c_str());
                         callingSTy->dump();
@@ -670,6 +668,7 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
 
 extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
 {
+    std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
     const DataLayout *TD = EE->getDataLayout();
     const StructLayout *SLO = TD->getStructLayout(STy);
@@ -681,31 +680,23 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
         char *eaddr = addr + SLO->getElementOffset(Idx);
         std::string fname = fieldName(STy, Idx);
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
-        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
-            Function *func = *(Function **)eaddr;
-            ERRORIF(!func);
-            callMap[fname] = func;
-            std::string mName = name + std::string("_") + getMethodName(func->getName());
-            methodMap[mName] = func;
-            //printf("[%s:%d] %s = %p[%s]\n", __FUNCTION__, __LINE__, mName.c_str(), func, func->getName().str().c_str());
-        }
+        if (PTy->getElementType()->getTypeID() == Type::FunctionTyID)
+            callMap[fname] = *(Function **)eaddr;
     }
     ClassMethodTable *table = classCreate[STy];
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
-        Function *calledFunc = NULL;
-        std::string calledName, fname = func->getName();
         std::string mName = getMethodName(func->getName());
-        //methodMap[mName] = func;
         pushSeen[func] = mName;
         processAlloca(func, func);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
-                if (CallInst *ICL = dyn_cast<CallInst>(II))
-                    calledName = printOperand(ICL->getCalledValue(), false);
-        printf("[%s:%d] %s = %p[%s] called %s\n", __FUNCTION__, __LINE__, mName.c_str(), func, func->getName().str().c_str(), calledName.c_str());
+                if (CallInst *ICL = dyn_cast<CallInst>(II)) {
+                    Function *calledFunc = callMap[printOperand(ICL->getCalledValue(), false)];
+                    if (calledFunc)
+                        methodMap[name + std::string("_") + mName] = calledFunc;
+                }
     }
-    callMap.clear();
     pushMethodMap(methodMap, NULL);
 }
 

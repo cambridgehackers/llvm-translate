@@ -50,7 +50,6 @@ static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
 std::list<std::string> readList, writeList, invokeList, functionList;
 std::map<std::string, std::string> storeList;
-std::map<std::string, Function *> callMap;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -485,8 +484,6 @@ static std::string printCall(Instruction &I)
 
     if (!func)
         func = EE->FindFunctionNamed(pcalledFunction.c_str());
-    if (!func)
-        func = callMap[pcalledFunction.c_str()];
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
