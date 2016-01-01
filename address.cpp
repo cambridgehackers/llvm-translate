@@ -669,15 +669,17 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
             Function *func = *(Function **)eaddr;
             ERRORIF(!func);
             callMap[fname] = func;
-            std::string mname = name + std::string("_") + getMethodName(func->getName());
-            methodMap[mname] = func;
-            //printf("[%s:%d] %s = %p[%s]\n", __FUNCTION__, __LINE__, mname.c_str(), func, func->getName().str().c_str());
+            std::string mName = name + std::string("_") + getMethodName(func->getName());
+            methodMap[mName] = func;
+            //printf("[%s:%d] %s = %p[%s]\n", __FUNCTION__, __LINE__, mName.c_str(), func, func->getName().str().c_str());
         }
     }
     ClassMethodTable *table = classCreate[STy];
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
-        pushSeen[func] = getMethodName(func->getName());
+        std::string mName = getMethodName(func->getName());
+        //methodMap[mName] = func;
+        pushSeen[func] = mName;
         processMethodInlining(func, func);
         //func->dump();
     }
