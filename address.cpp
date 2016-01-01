@@ -50,13 +50,6 @@ typedef struct {
     const void *addr;
     const void *type;
 } MAPSEEN_TYPE;
-typedef struct {
-    StructType *STy;
-    int         Idx;
-} InterfaceTypeInfo;
-typedef std::map<std::string, Function *>MethodMapType;
-std::map<const Function *, std::string> pushSeen;
-
 struct MAPSEENcomp {
     bool operator() (const MAPSEEN_TYPE& lhs, const MAPSEEN_TYPE& rhs) const {
         if (lhs.addr < rhs.addr)
@@ -66,8 +59,10 @@ struct MAPSEENcomp {
         return lhs.type < rhs.type;
     }
 };
+typedef std::map<std::string, Function *>MethodMapType;
 
 #define GIANT_SIZE 1024
+std::map<const Function *, std::string> pushSeen;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
@@ -100,14 +95,13 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     I->eraseFromParent();
 }
 
-static void processMethodInlining(Function *currentFunction, Function &F)
+static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 {
-    bool changed = false;
-    Module *Mod = F.getParent();
-    std::string fname = F.getName();
-    const StructType *callingSTy = findThisArgumentType(F.getType());
-//printf("CallProcessPass2: %s\n", fname.c_str());
-    for (auto BB = F.begin(), BE = F.end(); BB != BE; ++BB) {
+    Module *Mod = thisFunc->getParent();
+    std::string fname = thisFunc->getName();
+    const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
+//printf("%s: %s\n", __FUNCTION__, fname.c_str());
+    for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
             int opcode = II->getOpcode();
@@ -138,7 +132,6 @@ static void processMethodInlining(Function *currentFunction, Function &F)
                     }
 //printf("del1");
                     II->eraseFromParent(); // delete Alloca instruction
-                    changed = true;
                 }
 //printf("\n");
                 break;
@@ -150,10 +143,12 @@ static void processMethodInlining(Function *currentFunction, Function &F)
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     std::string fname = printOperand(callV, false);
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(fname));
+                    if (!func)
+                        func = callMap[fname.c_str()];
                     if (!func) {
-                        printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, currentFunction->getName().str().c_str(), fname.c_str());
+                        printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), fname.c_str());
                         callingSTy->dump();
-                        currentFunction->dump();
+                        parentFunc->dump();
                         exit(-1);
                     }
                     II->setOperand(II->getNumOperands()-1, func);
@@ -161,12 +156,11 @@ static void processMethodInlining(Function *currentFunction, Function &F)
                 }
                 const StructType *STy = findThisArgumentType(func->getType());
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
-                if (func && callingSTy == STy) {
+                if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
-                    processMethodInlining(currentFunction, *func);
+                    processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
-                    changed = true;
                 }
                 break;
                 }
@@ -251,34 +245,32 @@ static void processPromote(Function *currentFunction)
     }
 }
 
-static void updateParameterNames(std::string mName, Function *currentFunction)
+static void updateParameterNames(std::string mName, Function *func)
 {
     int skip = 1;
-    for (auto AI = currentFunction->arg_begin(), AE = currentFunction->arg_end(); AI != AE; ++AI) {
+    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
         // update parameter names to be prefixed by method name (so that
         // all parameter names are unique across module for verilog instantiation)
-        if (!skip) {
-printf("%s: mName %s func %s param %s\n", __FUNCTION__, mName.c_str(), currentFunction->getName().str().c_str(), AI->getName().str().c_str());
+        if (!skip)
             AI->setName(mName + "_" + AI->getName());
-        }
         skip = 0;
     }
 }
 
-static void pushWork(std::string mname, Function *func)
+static void pushWork(std::string mName, Function *func)
 {
     const StructType *STy = findThisArgumentType(func->getType());
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
         return;
-    pushSeen[func] = mname;
-    table->method[mname] = func;
+    pushSeen[func] = mName;
+    table->method[mName] = func;
     if (inheritsModule(STy, "class.ModuleStub"))
         return;
-    updateParameterNames(mname, func);
+    updateParameterNames(mName, func);
     vtableWork.push_back(func);
     // inline intra-class method call bodies
-    processMethodInlining(func, *func);
+    processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
 }
@@ -671,10 +663,12 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         char *eaddr = addr + SLO->getElementOffset(Idx);
+        std::string fname = fieldName(STy, Idx);
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
             Function *func = *(Function **)eaddr;
             ERRORIF(!func);
+            callMap[fname] = func;
             std::string mname = name + std::string("_") + getMethodName(func->getName());
             methodMap[mname] = func;
             //printf("[%s:%d] %s = %p[%s]\n", __FUNCTION__, __LINE__, mname.c_str(), func, func->getName().str().c_str());
@@ -682,11 +676,12 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
     }
     ClassMethodTable *table = classCreate[STy];
     for (unsigned i = 0; i < table->vtableCount; i++) {
-        const Function *func = table->vtable[i];
-        std::string mname = getMethodName(func->getName());
-        //printf("[%s:%d] v[%d] = %p[%s]\n", __FUNCTION__, __LINE__, i, func, func->getName().str().c_str());
-        pushSeen[func] = mname;
+        Function *func = table->vtable[i];
+        pushSeen[func] = getMethodName(func->getName());
+        processMethodInlining(func, func);
+        //func->dump();
     }
+    callMap.clear();
     pushMethodMap(methodMap, NULL);
 }
 
