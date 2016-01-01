@@ -95,11 +95,9 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     I->eraseFromParent();
 }
 
-static void processMethodInlining(Function *thisFunc, Function *parentFunc)
+static void processAlloca(Function *thisFunc, Function *parentFunc)
 {
-    Module *Mod = thisFunc->getParent();
     std::string fname = thisFunc->getName();
-    const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
 //printf("%s: %s\n", __FUNCTION__, fname.c_str());
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
@@ -136,6 +134,22 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 //printf("\n");
                 break;
                 }
+            };
+            II = PI;
+        }
+    }
+}
+static void processMethodInlining(Function *thisFunc, Function *parentFunc)
+{
+    Module *Mod = thisFunc->getParent();
+    std::string fname = thisFunc->getName();
+    const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
+//printf("%s: %s\n", __FUNCTION__, fname.c_str());
+    for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
+            auto PI = std::next(BasicBlock::iterator(II));
+            int opcode = II->getOpcode();
+            switch (opcode) {
             case Instruction::Call: {
                 CallInst *ICL = dyn_cast<CallInst>(II);
                 Value *callV = ICL->getCalledValue();
@@ -158,6 +172,7 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
+                    processAlloca(func, parentFunc);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
@@ -270,6 +285,7 @@ static void pushWork(std::string mName, Function *func)
     updateParameterNames(mName, func);
     vtableWork.push_back(func);
     // inline intra-class method call bodies
+    processAlloca(func, func);
     processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
@@ -677,11 +693,17 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
     ClassMethodTable *table = classCreate[STy];
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
+        Function *calledFunc = NULL;
+        std::string calledName, fname = func->getName();
         std::string mName = getMethodName(func->getName());
         //methodMap[mName] = func;
         pushSeen[func] = mName;
-        processMethodInlining(func, func);
-        //func->dump();
+        processAlloca(func, func);
+        for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
+            for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
+                if (CallInst *ICL = dyn_cast<CallInst>(II))
+                    calledName = printOperand(ICL->getCalledValue(), false);
+        printf("[%s:%d] %s = %p[%s] called %s\n", __FUNCTION__, __LINE__, mName.c_str(), func, func->getName().str().c_str(), calledName.c_str());
     }
     callMap.clear();
     pushMethodMap(methodMap, NULL);
