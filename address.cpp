@@ -66,6 +66,7 @@ std::map<const Function *, std::string> pushSeen;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
+static void registerInterface(char *addr, StructType *STy, const char *name);
 
 /*
  * Allocated memory region management
@@ -523,8 +524,11 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         }
                     }
             }
-            if (fname != "")
+            if (fname != "") {
                 mapType(Mod, eaddr, element, aname + "$$" + fname);
+                if (StructType *iSTy = dyn_cast<StructType>(element))
+                    registerInterface(eaddr, iSTy, fname.c_str());
+            }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
         }
@@ -666,14 +670,14 @@ static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
         }
 }
 
-extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
+static void registerInterface(char *addr, StructType *STy, const char *name)
 {
     const DataLayout *TD = EE->getDataLayout();
     const StructLayout *SLO = TD->getStructLayout(STy);
     ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
-    //printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
+    printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
     //STy->dump();
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
@@ -697,6 +701,10 @@ extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
                 }
     }
     pushMethodMap(methodMap, NULL);
+}
+extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
+{
+    //registerInterface(addr, STy, name);
 }
 
 static void addMethodTable(Function *func)
