@@ -65,7 +65,6 @@ typedef std::map<std::string, Function *>MethodMapType;
 std::map<const Function *, std::string> pushSeen;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
-static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 
 /*
  * Allocated memory region management
@@ -591,24 +590,6 @@ static void processMalloc(CallInst *II)
     II->eraseFromParent();
 }
 
-static void pushMethodMap(MethodMapType &methodMap, const StructType *STy)
-{
-    for (auto item: methodMap)
-        if (endswith(item.first, "__RDY")) {
-            std::string enaName = item.first.substr(0, item.first.length() - 5);
-            Function *enaFunc = methodMap[enaName];
-            if (!enaFunc) {
-                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
-                exit(-1);
-            }
-            if (trace_lookup)
-                printf("%s: %s seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
-                    STy?STy->getName().str().c_str():"",
-                    pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            pushPair(enaFunc, enaName, item.second, item.first);
-        }
-}
-
 static void registerInterface(char *addr, StructType *STy, const char *name)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -616,7 +597,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
-    printf("[%s:%d] addr %p STy %p name %s\n", __FUNCTION__, __LINE__, addr, STy, name);
     //STy->dump();
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
@@ -633,13 +613,23 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         processAlloca(func, func);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
-                if (CallInst *ICL = dyn_cast<CallInst>(II)) {
-                    Function *calledFunc = callMap[printOperand(ICL->getCalledValue(), false)];
-                    if (calledFunc)
-                        methodMap[name + std::string("_") + mName] = calledFunc;
-                }
+                if (CallInst *ICL = dyn_cast<CallInst>(II))
+                if (Function *calledFunc = callMap[printOperand(ICL->getCalledValue(), false)])
+                    methodMap[name + std::string("_") + mName] = calledFunc;
     }
-    pushMethodMap(methodMap, NULL);
+    for (auto item: methodMap)
+        if (endswith(item.first, "__RDY")) {
+            std::string enaName = item.first.substr(0, item.first.length() - 5);
+            Function *enaFunc = methodMap[enaName];
+            if (!enaFunc) {
+                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
+                exit(-1);
+            }
+            if (trace_lookup)
+                printf("%s: seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
+                    pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
+            pushPair(enaFunc, enaName, item.second, item.first);
+        }
 }
 
 static void addMethodTable(Function *func)
