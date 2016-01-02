@@ -59,6 +59,10 @@ static bool findExact(std::string haystack, std::string needle)
         return findExact(haystack.substr(sz), needle);
     return true;
 }
+
+/*
+ * lookup/replace values for class variables that are assigned only 1 time.
+ */
 static std::string inlineValue(std::string wname, bool clear)
 {
     std::string temp = assignList[wname];
@@ -85,6 +89,10 @@ static std::string inlineValue(std::string wname, bool clear)
         return wname;
     return temp;
 }
+
+/*
+ * Generate verilog module header for class definition or reference
+ */
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance)
 {
     ClassMethodTable *table = classCreate[STy];
@@ -186,6 +194,9 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     fprintf(OStr, ");\n");
 }
 
+/*
+ * Generate BSV file for generated class definition.
+ */
 void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
 {
     std::string name = getStructName(STy);

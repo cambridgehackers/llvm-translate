@@ -28,6 +28,10 @@ using namespace llvm;
 #include "declarations.h"
 
 std::list<std::string> extraMethods;
+
+/*
+ * Recursively generate element definitions for a class.
+ */
 static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
@@ -66,6 +70,9 @@ static int hasRun(const StructType *STy)
     return 0;
 }
 
+/*
+ * Generate string for class method declaration
+ */
 static std::string printFunctionSignature(const Function *F, std::string altname)
 {
     std::string sep, statstr, tstr = altname + '(';
@@ -88,6 +95,10 @@ static std::string printFunctionSignature(const Function *F, std::string altname
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, "", false);
 }
 
+/*
+ * Generate class definition into output file.  Class methods are
+ * only generated as prototypes.
+ */
 void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
 {
     if (inheritsModule(STy, "class.ModuleStub") || inheritsModule(STy, "class.InterfaceClass")
@@ -108,6 +119,9 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
     fprintf(OStr, "};\n\n");
 }
 
+/*
+ * Generate class method bodies for output classes
+ */
 void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
 {
     if (!inheritsModule(STy, "class.Module"))
