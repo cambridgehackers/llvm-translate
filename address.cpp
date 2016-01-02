@@ -66,7 +66,6 @@ std::map<const Function *, std::string> pushSeen;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
-static void registerInterface(char *addr, StructType *STy, const char *name);
 
 /*
  * Allocated memory region management
@@ -485,66 +484,6 @@ static void inlineReferences(Module *Mod, const StructType *STy, uint64_t Idx, T
     }
 }
 
-static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
-{
-    const DataLayout *TD = EE->getDataLayout();
-    if (!addr || addr == BOGUS_POINTER
-     || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
-        return;
-    addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
-    //printf("%s: addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
-    if (validateAddress(3010, addr))
-        printf("%s: bad addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
-    switch (Ty->getTypeID()) {
-    case Type::StructTyID: {
-        StructType *STy = cast<StructType>(Ty);
-        getStructName(STy); // allocate classCreate
-        const StructLayout *SLO = TD->getStructLayout(STy);
-        int Idx = 0;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-            std::string fname = fieldName(STy, Idx);
-            char *eaddr = addr + SLO->getElementOffset(Idx);
-            Type *element = *I;
-            if (PointerType *PTy = dyn_cast<PointerType>(element)) {
-                void *p = *(char **)eaddr;
-                /* Look up destination address in allocated regions, to see
-                 * what if its datatype is a derived type from the pointer
-                 * target type.  If so, replace pointer base type.
-                 */
-                for (MEMORY_REGION info : memoryRegion)
-                    if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)
-                     && checkDerived(info.type, PTy)) {
-                        if (!classCreate[STy])
-                            classCreate[STy] = new ClassMethodTable;
-                        classCreate[STy]->replaceType[Idx] = info.type;
-                        if (STy == info.STy) {
-                            classCreate[STy]->allocateLocally[Idx] = true;
-                            inlineReferences(Mod, STy, Idx, info.type);
-                            classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
-                        }
-                    }
-            }
-            if (fname != "") {
-                mapType(Mod, eaddr, element, aname + "$$" + fname);
-                if (StructType *iSTy = dyn_cast<StructType>(element))
-                    registerInterface(eaddr, iSTy, fname.c_str());
-            }
-            else if (dyn_cast<StructType>(element))
-                mapType(Mod, eaddr, element, aname);
-        }
-        break;
-        }
-    case Type::PointerTyID: {
-        Type *element = cast<PointerType>(Ty)->getElementType();
-        if (element->getTypeID() != Type::FunctionTyID)
-            mapType(Mod, *(char **)addr, element, aname);
-        break;
-    }
-    default:
-        break;
-    }
-}
-
 std::string fieldName(const StructType *STy, uint64_t ind)
 {
     unsigned int subs = 0;
@@ -702,10 +641,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     }
     pushMethodMap(methodMap, NULL);
 }
-extern "C" void registerInstance(char *addr, StructType *STy, const char *name)
-{
-    //registerInterface(addr, STy, name);
-}
 
 static void addMethodTable(Function *func)
 {
@@ -772,14 +707,66 @@ void preprocessModule(Module *Mod)
             processMethodToFunction(cast<CallInst>(*I));
             I = NI;
         }
+}
 
-    // Add StructType parameter to registerInstance calls (must have been 'unsigned long' in original source!)
-    if (Function *Declare = Mod->getFunction("registerInstance"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++) {
-            CallInst *II = cast<CallInst>(*I);
-            II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()),
-                (unsigned long)findThisArgumentType(II->getParent()->getParent()->getType())));
+static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
+{
+    const DataLayout *TD = EE->getDataLayout();
+    if (!addr || addr == BOGUS_POINTER
+     || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
+        return;
+    addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
+    //printf("%s: addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    if (validateAddress(3010, addr))
+        printf("%s: bad addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    switch (Ty->getTypeID()) {
+    case Type::StructTyID: {
+        StructType *STy = cast<StructType>(Ty);
+        getStructName(STy); // allocate classCreate
+        const StructLayout *SLO = TD->getStructLayout(STy);
+        int Idx = 0;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(STy, Idx);
+            char *eaddr = addr + SLO->getElementOffset(Idx);
+            Type *element = *I;
+            if (PointerType *PTy = dyn_cast<PointerType>(element)) {
+                void *p = *(char **)eaddr;
+                /* Look up destination address in allocated regions, to see
+                 * what if its datatype is a derived type from the pointer
+                 * target type.  If so, replace pointer base type.
+                 */
+                for (MEMORY_REGION info : memoryRegion)
+                    if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)
+                     && checkDerived(info.type, PTy)) {
+                        if (!classCreate[STy])
+                            classCreate[STy] = new ClassMethodTable;
+                        classCreate[STy]->replaceType[Idx] = info.type;
+                        if (STy == info.STy) {
+                            classCreate[STy]->allocateLocally[Idx] = true;
+                            inlineReferences(Mod, STy, Idx, info.type);
+                            classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
+                        }
+                    }
+            }
+            if (fname != "") {
+                mapType(Mod, eaddr, element, aname + "$$" + fname);
+                if (StructType *iSTy = dyn_cast<StructType>(element))
+                    registerInterface(eaddr, iSTy, fname.c_str());
+            }
+            else if (dyn_cast<StructType>(element))
+                mapType(Mod, eaddr, element, aname);
         }
+        break;
+        }
+    case Type::PointerTyID: {
+        Type *element = cast<PointerType>(Ty)->getElementType();
+        if (element->getTypeID() != Type::FunctionTyID)
+            mapType(Mod, *(char **)addr, element, aname);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 /*
