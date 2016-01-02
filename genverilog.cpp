@@ -107,15 +107,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 wparam += "__ENA";
             else
                 arrRange = verilogArrRange(retTy);
-            int skip = 1;
-            for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                if (!skip) {
-                    wparam = wname + "_" + AI->getName().str();
-                    arrRange = verilogArrRange(AI->getType());
-                }
+            if (inlineValue(wparam, false) == "")
+                fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
+            for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                wparam = wname + "_" + AI->getName().str();
+                arrRange = verilogArrRange(AI->getType());
                 if (inlineValue(wparam, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
-                skip = 0;
             }
         }
     }
@@ -132,16 +130,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             wparam = inlineValue(wparam, true);
         else if (!isAction)
             wparam = outp + verilogArrRange(retTy) + mname;
-        int skip = 1;
-        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip) {
-                if (instance != "")
-                    wparam = inlineValue(wname + "_" + AI->getName().str(), true);
-                else
-                    wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
-            }
+        paramList.push_back(wparam);
+        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            if (instance != "")
+                wparam = inlineValue(wname + "_" + AI->getName().str(), true);
+            else
+                wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
             paramList.push_back(wparam);
-            skip = 0;
         }
     }
     int Idx = 0;
@@ -164,12 +159,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                         wparam = outp + mname + "__ENA";
                     else
                         wparam = inp + (instance == "" ? verilogArrRange(retTy):"") + mname;
-                    int skip = 1;
-                    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                        if (!skip)
-                            wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
+                    paramList.push_back(wparam);
+                    for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                        wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
                         paramList.push_back(wparam);
-                        skip = 0;
                     }
                 }
                 }
@@ -209,12 +202,8 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
         if (endswith(mname, "__RDY"))
             continue;
         fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
-        int skip = 1;
-        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip)
-                fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
-            skip = 0;
-        }
+        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+            fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
         fprintf(BStr, ");\n");
     }
     fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
@@ -230,12 +219,8 @@ void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
             fprintf(BStr, "    method %s(", mname.c_str());
         else
             fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        int skip = 1;
-        for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-            if (!skip)
-                fprintf(BStr, "%s", AI->getName().str().c_str());
-            skip = 0;
-        }
+        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+            fprintf(BStr, "%s", AI->getName().str().c_str());
         if (isAction)
             fprintf(BStr, ") enable(%s__ENA", mname.c_str());
         fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());

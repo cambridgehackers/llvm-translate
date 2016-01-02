@@ -70,25 +70,18 @@ static std::string printFunctionSignature(const Function *F, std::string altname
 {
     std::string sep, statstr, tstr = altname + '(';
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-    int skip = 1;
     ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
     if (F->hasLocalLinkage()) statstr = "static ";
     if (F->isDeclaration()) {
-        for (auto I = FT->param_begin(), E = FT->param_end(); I != E; ++I) {
-            if (!skip) {
-                tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
-                sep = ", ";
-            }
-            skip = 0;
+        for (auto I = FT->param_begin()+1, E = FT->param_end(); I != E; ++I) {
+            tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
+            sep = ", ";
         }
     }
     else
-        for (auto I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-            if (!skip) {
-                tstr += printType(I->getType(), /*isSigned=*/false, GetValueName(I), sep, "", false);
-                sep = ", ";
-            }
-            skip = 0;
+        for (auto I = ++F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+            tstr += printType(I->getType(), /*isSigned=*/false, GetValueName(I), sep, "", false);
+            sep = ", ";
         }
     if (sep == "")
         tstr += "void";
