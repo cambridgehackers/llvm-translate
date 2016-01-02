@@ -315,7 +315,7 @@ static Function *fixupFunction(std::string methodName, Function *func)
                               + utostr(methodName.length()) + methodName + "Ev",
                         func->getParent());
                     fnew->arg_begin()->setName("this");
-                    Argument *newArg = new Argument(PTy, "JJJthis", func);
+                    Argument *newArg = new Argument(PTy, "temporary_this", func);
                     II->replaceAllUsesWith(newArg);
                     VMap[newArg] = fnew->arg_begin();
                     recursiveDelete(II);
@@ -635,6 +635,16 @@ static void addMethodTable(Function *func)
     table->vtable[table->vtableCount++] = func;
 }
 
+/*
+ * Perform any processing needed on the IR before execution.
+ * This includes:
+ *    * Removal of calls to dwarf debug functions
+ *    * change all malloc/new calls to point to our runtime, so we can track them
+ *    * Capture all vtable information for types (so we can lookup functions)
+ *    * Process/remove all 'methodToFunction' calls (which allow the generation
+ *    *     of function pointers for class methods)
+ * Context: Run after IR file load, before executing constructors.
+ */
 void preprocessModule(Module *Mod)
 {
     // remove dwarf info, if it was compiled in
@@ -649,7 +659,7 @@ void preprocessModule(Module *Mod)
             Declare->eraseFromParent();
         }
 
-    // before running constructors, remap all calls to 'malloc' and 'new' to our runtime.
+    // remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};
     p = malloc_names;
     while(*p)
@@ -657,6 +667,7 @@ void preprocessModule(Module *Mod)
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 processMalloc(cast<CallInst>(*I));
 
+    // extract vtables for classes.
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
         const ConstantArray *CA;
@@ -675,10 +686,12 @@ void preprocessModule(Module *Mod)
         }
     }
     // now add all non-virtual functions to end of vtable
+    // Context: must be run after vtable extraction (so that functions are appended to end)
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
         addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
 
-    // replace calls to methodToFunction with "Function *" values.  Must be after vtable processing
+    // replace calls to methodToFunction with "Function *" values.
+    // Context: Must be after all vtable processing.
     if (Function *Declare = Mod->getFunction("methodToFunction"))
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
             auto NI = std::next(I);
