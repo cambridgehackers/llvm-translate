@@ -80,6 +80,9 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
     return ptr;
 }
 
+/*
+ * Recursively delete an Instruction and operands (if they become unused)
+ */
 static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
 {
     Instruction *I = dyn_cast<Instruction>(V);
@@ -94,6 +97,11 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     I->eraseFromParent();
 }
 
+/*
+ * Remove Alloca items inserted by clang as part of dwarf debug support.
+ * (the 'this' pointer was copied into a stack temp rather than being
+ * referenced directly from the parameter)
+ */
 static void processAlloca(Function *thisFunc)
 {
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
@@ -132,6 +140,12 @@ static void processAlloca(Function *thisFunc)
         }
     }
 }
+
+/*
+ * Lookup vtable-referenced functions, changing IR to reference actual bound
+ * function directly.  Also inline references to methods from the same class,
+ * since these internal references must be inlined in generated verilog.
+ */
 static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 {
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
@@ -170,6 +184,9 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
     }
 }
 
+/*
+ * Add another condition to a guard function.
+ */
 static void addGuard(Instruction *argI, Function *func, Function *currentFunction)
 {
     Function *parentRDYName = ruleRDYFunction[currentFunction];
@@ -253,6 +270,9 @@ static void updateParameterNames(std::string mName, Function *func)
         AI->setName(mName + "_" + AI->getName());
 }
 
+/*
+ * Add a function to the processing list for generation of cpp and verilog.
+ */
 static void pushWork(std::string mName, Function *func)
 {
     const StructType *STy = findThisArgumentType(func->getType());
@@ -272,6 +292,11 @@ static void pushWork(std::string mName, Function *func)
     processPromote(func);
 }
 
+/*
+ * Methods, guarded values, rules all get pushed as pairs so that 'RDY' function
+ * is processed after processing for base method (so that guards promoted during
+ * the method processing are later handled)
+ */
 static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName)
 {
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
@@ -279,6 +304,10 @@ static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, 
     pushWork(rdyName, rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
+/*
+ * Called from user constructors to force processing of interface 'request' methods
+ * to classes.
+ */
 extern "C" void exportRequest(Function *enaFunc)
 {
     //printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
@@ -290,6 +319,11 @@ extern "C" void exportRequest(Function *enaFunc)
             pushPair(enaFunc, enaName, table->vtable[i], rdyName);
 }
 
+/*
+ * Process 'blocks' functions that were generated for user rules.
+ * The blocks context is removed; the functions are transformed into
+ * a method (and its associated RDY method), attached to the containing class.
+ */
 static Function *fixupFunction(std::string methodName, Function *func)
 {
     Function *fnew = NULL;
@@ -346,6 +380,9 @@ static Function *fixupFunction(std::string methodName, Function *func)
     return fnew;
 }
 
+/*
+ * Called from user constructors to process Blocks functions generated for a rule
+ */
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
     Function *enaFunc = fixupFunction(name, ENA[2]);
@@ -357,6 +394,9 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
 
+/*
+ * Dump all statically allocated and malloc'ed data areas
+ */
 static void dumpMemoryRegions(int arg)
 {
     printf("%s: %d\n", __FUNCTION__, arg);
@@ -382,6 +422,9 @@ static void dumpMemoryRegions(int arg)
     }
 }
 
+/*
+ * Verify that an address lies within a valid user data area.
+ */
 int validateAddress(int arg, void *p)
 {
     for (MEMORY_REGION info : memoryRegion) {
@@ -399,6 +442,9 @@ int validateAddress(int arg, void *p)
     return 1;
 }
 
+/*
+ * Check if one StructType inherits another one.
+ */
 static int derivedStruct(const StructType *STyA, const StructType *STyB)
 {
     int Idx = 0;
@@ -408,6 +454,7 @@ static int derivedStruct(const StructType *STyA, const StructType *STyB)
             return 1;
     return 0;
 }
+
 static int checkDerived(const Type *A, const Type *B)
 {
     if (const PointerType *PTyA = cast<PointerType>(A))
@@ -417,6 +464,10 @@ static int checkDerived(const Type *A, const Type *B)
     return 0;
 }
 
+/*
+ * Local version of 'ReplaceAllUsesWith'(RAUW) that allows changing the
+ * datatype as part of the replcement.
+ */
 static void myReplaceAllUsesWith(Value *Old, Value *New)
 {
   //assert(New->getType() == Old->getType() && "replaceAllUses of value with new value of different type!");
@@ -441,6 +492,10 @@ static void myReplaceAllUsesWith(Value *Old, Value *New)
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 
+/*
+ * For pointers in a class that were allocated by methods in the class,
+ * allocate them statically as part of the class object itself.
+ */
 static void inlineReferences(Module *Mod, const StructType *STy, uint64_t Idx, Type *newType)
 {
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB) {
@@ -467,6 +522,10 @@ static void inlineReferences(Module *Mod, const StructType *STy, uint64_t Idx, T
     }
 }
 
+/*
+ * Return the name of the 'ind'th field of a StructType.
+ * This code depends on a modification to llvm/clang that generates structFieldMap.
+ */
 std::string fieldName(const StructType *STy, uint64_t ind)
 {
     unsigned int subs = 0;
@@ -485,6 +544,9 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     return ret;
 }
 
+/*
+ * Lookup a function name from the vtable for a class.
+ */
 std::string lookupMethodName(const ClassMethodTable *table, int ind)
 {
     if (trace_lookup)
