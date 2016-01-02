@@ -64,13 +64,14 @@ int main(int argc, char **argv, char * const *envp)
     unsigned i = 0;
 
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
-    //DebugFlag = dump_interpret != 0;
-
     cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
+    if (OutputDir == "") {
+        printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
+        exit(-1);
+    }
 
+    // Load the first input bitcode file
     LLVMContext &Context = getGlobalContext();
-
-    // Load/link the input bitcode
     SlotMapping slots;
     Module *Mod = llvm_ParseIRFile(InputFile[0], Context, &slots);
     if (!Mod) {
@@ -79,12 +80,14 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     }
     Linker L(Mod);
     for (i = 1; i < InputFile.size(); ++i) {
+        // Load/link subsequent input bitcode files
         Module *M = llvm_ParseIRFile(InputFile[i], Context, &slots);
         if (!M || L.linkInModule(M)) {
             printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
         }
     }
 
+    // Create the execution environment and allocate memory for static items
     EngineBuilder builder((std::unique_ptr<Module>(Mod)));
     builder.setMArch(MArch);
     builder.setMCPU("");
@@ -92,34 +95,29 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     builder.setErrorStr(&ErrorMsg);
     builder.setEngineKind(EngineKind::Interpreter);
     builder.setOptLevel(CodeGenOpt::None);
-
-    // Create the execution environment and allocate memory for static items
     EE = builder.create();
     assert(EE);
-
-    if (OutputDir == "") {
-        printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
-        exit(-1);
-    }
 
     GenerateRunOnModule(Mod, OutputDir);
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
 
-printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     DebugFlag = dump_interpret != 0;
+#if 0
+printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     // Run main
-    //std::vector<std::string> InputArgv;
-    //InputArgv.push_back("param1");
-    //InputArgv.push_back("param2");
-    //const Function *EntryFn = Mod->getFunction("main");
-    //if (!EntryFn) {
-        //printf("'main' function not found in module.\n");
-        //exit(1);
-    //}
-    //char *envp[] = {NULL};
-    //int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-//printf("[%s:%d] %d\n", __FUNCTION__, __LINE__, Result);
+    std::vector<std::string> InputArgv;
+    InputArgv.push_back("param1");
+    InputArgv.push_back("param2");
+    const Function *EntryFn = Mod->getFunction("main");
+    if (!EntryFn) {
+        printf("'main' function not found in module.\n");
+        exit(1);
+    }
+    char *envp[] = {NULL};
+    int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
+printf("[%s:%d] after 'main', return code = %d\n", __FUNCTION__, __LINE__, Result);
+#endif
 
     // write copy of optimized bitcode
     //raw_fd_ostream OutBit("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
