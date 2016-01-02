@@ -474,16 +474,13 @@ static std::string printCall(Instruction &I)
 {
     Function *callingFunction = I.getParent()->getParent();
     std::string vout, sep;
-    int skip = 1;
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    std::string pcalledFunction = printOperand(*AI, false);
+    std::string pcalledFunction = printOperand(*AI++, false); // skips 'this' param
     std::string prefix = MODULE_ARROW;
 
-    if (!func)
-        func = EE->FindFunctionNamed(pcalledFunction.c_str());
     if (!func) {
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
@@ -491,7 +488,7 @@ static std::string printCall(Instruction &I)
     std::string fname = pushSeen[func];
     if (trace_call)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
-    Function::const_arg_iterator FAI = func->arg_begin();
+    Function::const_arg_iterator FAI = ++func->arg_begin();
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
         bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
@@ -509,16 +506,13 @@ static std::string printCall(Instruction &I)
     }
     else
         vout += pcalledFunction + mname + "(";
-    for (; AI != AE; ++AI, FAI++) {
-        if (!skip) {
-            std::string parg = printOperand(*AI, false);
-            if (generateRegion == ProcessVerilog)
-                muxValue(mname + "_" + FAI->getName().str(), parg);
-            else
-                vout += sep + parg;
-            sep = ", ";
-        }
-        skip = 0;
+    for (; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
+        std::string parg = printOperand(*AI, false);
+        if (generateRegion == ProcessVerilog)
+            muxValue(mname + "_" + FAI->getName().str(), parg);
+        else
+            vout += sep + parg;
+        sep = ", ";
     }
     if (generateRegion != ProcessVerilog)
         vout += ")";

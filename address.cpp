@@ -245,16 +245,12 @@ static void processPromote(Function *currentFunction)
     }
 }
 
+// update parameter names to be prefixed by method name (so that
+// all parameter names are unique across module for verilog instantiation)
 static void updateParameterNames(std::string mName, Function *func)
 {
-    int skip = 1;
-    for (auto AI = func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-        // update parameter names to be prefixed by method name (so that
-        // all parameter names are unique across module for verilog instantiation)
-        if (!skip)
-            AI->setName(mName + "_" + AI->getName());
-        skip = 0;
-    }
+    for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+        AI->setName(mName + "_" + AI->getName());
 }
 
 static void pushWork(std::string mName, Function *func)
