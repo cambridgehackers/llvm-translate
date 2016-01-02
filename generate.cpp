@@ -197,7 +197,7 @@ const StructType *findThisArgumentType(const PointerType *PTy)
  */
 std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
-    std::string sep = "", cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
+    std::string sep, cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
     switch (Ty->getTypeID()) {
     case Type::VoidTyID:
         if (generateRegion == ProcessVerilog)
@@ -309,6 +309,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
 static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     std::string cbuffer, sep = " ", amper = "&";
+    ClassMethodTable *table;
     PointerType *PTy;
     ConstantDataArray *CPA;
     uint64_t Total = 0;
@@ -334,7 +335,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         printf("[%s:%d] referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
     if (I == E)
         return referstr;
-    ClassMethodTable *table;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
      && (table = classCreate[findThisArgumentType(PTy)])) {
@@ -473,7 +473,7 @@ std::string printOperand(Value *Operand, bool Indirect)
 static std::string printCall(Instruction &I)
 {
     Function *callingFunction = I.getParent()->getParent();
-    std::string vout, sep = "";
+    std::string vout, sep;
     int skip = 1;
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();

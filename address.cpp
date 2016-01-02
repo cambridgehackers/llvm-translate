@@ -94,16 +94,12 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     I->eraseFromParent();
 }
 
-static void processAlloca(Function *thisFunc, Function *parentFunc)
+static void processAlloca(Function *thisFunc)
 {
-    std::string fname = thisFunc->getName();
-//printf("%s: %s\n", __FUNCTION__, fname.c_str());
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
-            int opcode = II->getOpcode();
-            switch (opcode) {
-            case Instruction::Alloca: {
+            if (II->getOpcode() == Instruction::Alloca) {
                 Value *retv = (Value *)II;
                 std::string name = II->getName();
                 int ind = name.find("block");
@@ -131,8 +127,6 @@ static void processAlloca(Function *thisFunc, Function *parentFunc)
                     II->eraseFromParent(); // delete Alloca instruction
                 }
 //printf("\n");
-                break;
-                }
             };
             II = PI;
         }
@@ -140,17 +134,13 @@ static void processAlloca(Function *thisFunc, Function *parentFunc)
 }
 static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 {
-    Module *Mod = thisFunc->getParent();
-    std::string fname = thisFunc->getName();
-    const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
-//printf("%s: %s\n", __FUNCTION__, fname.c_str());
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
-            int opcode = II->getOpcode();
-            switch (opcode) {
-            case Instruction::Call: {
-                CallInst *ICL = dyn_cast<CallInst>(II);
+            if (CallInst *ICL = dyn_cast<CallInst>(II)) {
+                Module *Mod = thisFunc->getParent();
+                std::string fname = thisFunc->getName();
+                const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
@@ -169,12 +159,10 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
-                    processAlloca(func, parentFunc);
+                    processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
-                }
-                break;
                 }
             };
             II = PI;
@@ -282,7 +270,7 @@ static void pushWork(std::string mName, Function *func)
     updateParameterNames(mName, func);
     vtableWork.push_back(func);
     // inline intra-class method call bodies
-    processAlloca(func, func);
+    processAlloca(func);
     processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
@@ -610,7 +598,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
         pushSeen[func] = mName;
-        processAlloca(func, func);
+        processAlloca(func);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II))
