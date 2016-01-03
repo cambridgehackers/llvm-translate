@@ -104,37 +104,27 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
  */
 static void processAlloca(Function *thisFunc)
 {
+    std::map<const Value *,Value *> remapValue;
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
-            if (II->getOpcode() == Instruction::Alloca) {
-                Value *retv = (Value *)II;
-                std::string name = II->getName();
-                int ind = name.find("block");
-//printf("       ALLOCA %s;", name.c_str());
-                if (II->hasName() && ind == -1 && endswith(name, ".addr")) {
-                    Value *newt = NULL;
-                    auto PN = PI;
-                    while (PN != IE) {
-                        auto PNN = std::next(BasicBlock::iterator(PN));
-                        if (PN->getOpcode() == Instruction::Store && retv == PN->getOperand(1)) {
-                            newt = PN->getOperand(0); // Remember value we were storing in temp
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Store instruction
-                        }
-                        else if (PN->getOpcode() == Instruction::Load && retv == PN->getOperand(0)) {
-                            PN->replaceAllUsesWith(newt); // replace with stored value
-                            if (PI == PN)
-                                PI = PNN;
-                            PN->eraseFromParent(); // delete Load instruction
-                        }
-                        PN = PNN;
-                    }
-//printf("del1");
-                    II->eraseFromParent(); // delete Alloca instruction
+            switch (II->getOpcode()) {
+            case Instruction::Store:
+                if (Instruction *target = dyn_cast<Instruction>(II->getOperand(1)))
+                if (target->getOpcode() == Instruction::Alloca)
+                if (dyn_cast<Argument>(II->getOperand(0))) {
+                    // remember args stored in Alloca temps and their original values
+                    remapValue[II->getOperand(1)] = II->getOperand(0);
+                    recursiveDelete(II);
                 }
-//printf("\n");
+                break;
+            case Instruction::Load:
+                if (Value *val = remapValue[II->getOperand(0)]) {
+                    // replace loads from temp areas with original values
+                    II->replaceAllUsesWith(val);
+                    recursiveDelete(II);
+                }
+                break;
             };
             II = PI;
         }
