@@ -40,7 +40,6 @@ std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
 static int generateRegion = ProcessNone;
-static Function *currentFunction;
 
 std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
@@ -717,9 +716,6 @@ static std::string processInstruction(Instruction &I)
  */
 void processFunction(Function *func)
 {
-    std::string fname = func->getName();
-    currentFunction = func;
-
     NextAnonValueNumber = 0;
     readList.clear();
     writeList.clear();
@@ -727,14 +723,13 @@ void processFunction(Function *func)
     storeList.clear();
     functionList.clear();
     if (trace_call)
-        printf("PROCESSING %s\n", fname.c_str());
+        printf("PROCESSING %s\n", func->getName().str().c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         if (trace_translate && BI->hasName())         // Print out the label if it exists...
             printf("LLLLL: %s\n", BI->getName().str().c_str());
-        for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
-            auto INEXT = std::next(BasicBlock::iterator(II));
-            if (INEXT == IE || !isInlinableInst(*II)) {
+        for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
+            if (!isInlinableInst(*II)) {
                 std::string vout = processInstruction(*II);
                 if (vout != "") {
                     if (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
@@ -748,7 +743,6 @@ void processFunction(Function *func)
                         functionList.push_back(vout);
                 }
             }
-            II = INEXT;
         }
     }
 }
