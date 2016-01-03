@@ -281,9 +281,9 @@ static void pushWork(std::string mName, Function *func)
         return;
     pushSeen[func] = mName;
     table->method[mName] = func;
+    updateParameterNames(mName, func);
     if (inheritsModule(STy, "class.ModuleStub"))
         return;
-    updateParameterNames(mName, func);
     vtableWork.push_back(func);
     // inline intra-class method call bodies
     processAlloca(func);

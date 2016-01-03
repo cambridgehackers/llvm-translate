@@ -108,20 +108,17 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             Function *func = FI.second;
             std::string mname = FI.first;
             const Type *retTy = func->getReturnType();
-            std::string arrRange, wname = instPrefix + mname;
+            std::string arrRange;
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
-            std::string wparam = wname;
-            if (isAction)
-                wparam += "__ENA";
-            else
+            std::string wparam = inp + mname + (isAction ? "__ENA" : "");
+            if (!isAction)
                 arrRange = verilogArrRange(retTy);
             if (inlineValue(wparam, false) == "")
                 fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
             for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
-                wparam = wname + "_" + AI->getName().str();
-                arrRange = verilogArrRange(AI->getType());
+                wparam = instPrefix + AI->getName().str();
                 if (inlineValue(wparam, false) == "")
-                    fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
+                    fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wparam.c_str());
             }
         }
     }
@@ -131,7 +128,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         Function *func = FI.second;
         std::string mname = FI.first;
         const Type *retTy = func->getReturnType();
-        std::string wname = instPrefix + mname;
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         std::string wparam = inp + mname + (isAction ? "__ENA" : "");
         if (instance != "")
@@ -141,7 +137,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         paramList.push_back(wparam);
         for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
             if (instance != "")
-                wparam = inlineValue(wname + "_" + AI->getName().str(), true);
+                wparam = inlineValue(instPrefix + AI->getName().str(), true);
             else
                 wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
             paramList.push_back(wparam);
