@@ -39,7 +39,7 @@ static int trace_gep;//=1;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
-static int generateRegion = ProcessNone;
+int generateRegion = ProcessNone;
 static std::string globalCondition;
 
 std::list<Function *> vtableWork;
@@ -717,20 +717,20 @@ void processFunction(Function *func)
 /*
  * recursively walk a datatype and all subtypes it references, calling
  * a specified callback function to write the type definitions into
- * cpp or verilog output files
+ * cpp and verilog output files
  */
-static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, GEN_HEADER cb)
+static void generateContainedStructs(const Type *Ty, std::string ODir)
 {
     if (!Ty)
         return;
     if (const PointerType *PTy = dyn_cast<PointerType>(Ty)) {
         if (const StructType *subSTy = dyn_cast<StructType>(PTy->getElementType()))
-            printContainedStructs(subSTy, OStr, ODir, cb);
+            generateContainedStructs(subSTy, ODir);
     }
     else if (!structMap[Ty]) {
         structMap[Ty] = 1;
         for (auto I = Ty->subtype_begin(), E = Ty->subtype_end(); I != E; ++I)
-            printContainedStructs(*I, OStr, ODir, cb);
+            generateContainedStructs(*I, ODir);
         if (const StructType *STy = dyn_cast<StructType>(Ty))
         if (STy->hasName()) {
             if (!strncmp(STy->getName().str().c_str(), "class.std::", 11)
@@ -738,31 +738,21 @@ static void printContainedStructs(const Type *Ty, FILE *OStr, std::string ODir, 
                 return;   // don't generate anything for std classes
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
-            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                printContainedStructs(*I, OStr, ODir, cb);
-            }
+            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
+                generateContainedStructs(*I, ODir);
             Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                 const Type *element = *I;
                 if (table && table->replaceType[Idx])
                     element = table->replaceType[Idx];
-                printContainedStructs(element, OStr, ODir, cb);
+                generateContainedStructs(element, ODir);
             }
-            if (table)
-                cb(STy, OStr, ODir);
+            if (table) {
+                generateModuleDef(STy, ODir);
+                generateClassDef(STy, ODir);
+            }
         }
     }
-}
-
-/*
- * walk the list of all classes referenced in the IR image,
- * recursively generating cpp or verilog class definitions
- */
-static void generateStructs(FILE *OStr, std::string oDir, GEN_HEADER cb)
-{
-    structMap.clear();
-    for (auto current : classCreate)
-        printContainedStructs(current.first, OStr, oDir, cb);
 }
 
 /*
@@ -779,13 +769,10 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
     // Construct the address -> symbolic name map using actual data allocated/initialized
     constructAddressMap(Mod);
 
-    // Generate verilog for all rules
-    generateRegion = ProcessVerilog;
-    generateStructs(NULL, OutDirectory, generateModuleDef);
-
-    // Generate cpp code for all rules
-    generateRegion = ProcessCPP;
-    generateStructs(NULL, OutDirectory, generateClassBody); // generate class method bodies
-    generateStructs(NULL, OutDirectory, generateClassDef); // generate class definitions
+    // Walk the list of all classes referenced in the IR image,
+    // recursively generating cpp class and verilog module definitions
+    structMap.clear();
+    for (auto current : classCreate)
+        generateContainedStructs(current.first, OutDirectory);
     return false;
 }

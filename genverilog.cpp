@@ -192,7 +192,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 /*
  * Generate BSV file for generated class definition.
  */
-void generateBsvWrapper(const StructType *STy, FILE *aOStr, std::string oDir)
+void generateBsvWrapper(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
@@ -272,8 +272,9 @@ void muxValue(std::string signal, std::string value)
      muxValueList[signal].push_back(MUX_VALUE{globalCondition, value});
 }
 
-void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
+void generateModuleDef(const StructType *STy, std::string oDir)
 {
+    generateRegion = ProcessVerilog;
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<READY_INFO> rdyList;
@@ -393,5 +394,5 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());
     fclose(OStr);
-    generateBsvWrapper(STy, aOStr, oDir);
+    generateBsvWrapper(STy, oDir);
 }

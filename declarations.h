@@ -61,7 +61,7 @@ typedef struct {
     std::string item;
 } ReferenceType;
 
-typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
+typedef void (*GEN_HEADER)(const StructType *STy, std::string ODir);
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
@@ -75,6 +75,7 @@ extern std::list<std::string> functionList;
 extern std::map<std::string, ReferenceType> storeList;
 extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
+extern int generateRegion;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
@@ -96,9 +97,8 @@ void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);
 std::string getMethodName(std::string name);
 bool endswith(std::string str, std::string suffix);
-void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir);
-void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir);
-void generateModuleDef(const StructType *STy, FILE *OStr, std::string oDir);
+void generateClassDef(const StructType *STy, std::string oDir);
+void generateModuleDef(const StructType *STy, std::string oDir);
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance);
 const StructType *findThisArgumentType(const PointerType *PTy);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
