@@ -323,6 +323,9 @@ static void updateParameterNames(std::string mName, Function *func)
  */
 static void pushWork(std::string mName, Function *func)
 {
+    int valid = func->getValueID();
+    printf("[%s:%d] name %s func %p valid %d\n", __FUNCTION__, __LINE__, mName.c_str(), func, valid);
+    if (!valid || valid == 255) return;
     const StructType *STy = findThisArgumentType(func->getType());
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")

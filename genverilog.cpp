@@ -292,6 +292,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         std::string mname = FI.first;
         int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
+        if (endswith(func->getName(), "EC2Ev"))
+            continue;
         functionList.clear();
         processFunction(func);
         if (!isAction) {
