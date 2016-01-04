@@ -67,17 +67,3 @@ void prepareClone(Instruction *TI, const Instruction *I)
     for (auto AI = SourceF->arg_begin(), AE = SourceF->arg_end(); AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
 }
-Instruction *copyFunction(Instruction *TI, const Instruction *I, Function *func, Type *returnType)
-{
-    prepareClone(TI, I);
-    if (!returnType)
-        return cloneTree(I, TI);
-    Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0));
-    Value *new_thisp = I->getOperand(0);
-    if (orig_thisp)
-        new_thisp = cloneTree(orig_thisp, TI);
-    Value *Params[] = {new_thisp};
-    IRBuilder<> builder(TI->getParent());
-    builder.SetInsertPoint(TI);
-    return dyn_cast<Instruction>(builder.CreateCall(func, ArrayRef<Value*>(Params, 1)));
-}

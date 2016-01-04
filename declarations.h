@@ -91,7 +91,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
 Function *lookup_function(std::string className, std::string methodName);
-Instruction *copyFunction(Instruction *TI, const Instruction *I, Function *func, Type *returnType);
 Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
 void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);

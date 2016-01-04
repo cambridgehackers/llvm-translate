@@ -177,23 +177,41 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
     }
 }
 
+static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I, Function *func)
+{
+    prepareClone(insertPoint, I);
+    Value *new_thisp = I->getOperand(0);
+    if (Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0)))
+        new_thisp = cloneTree(orig_thisp, insertPoint);
+    Value *Params[] = {new_thisp};
+    IRBuilder<> builder(insertPoint->getParent());
+    builder.SetInsertPoint(insertPoint);
+    CallInst *newCall = builder.CreateCall(func, ArrayRef<Value*>(Params, 1));
+    newCall->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+    return dyn_cast<Instruction>(newCall);
+}
+
 /*
  * Add another condition to a guard function.
  */
 static void addGuard(Instruction *argI, Function *func, Function *currentFunction)
 {
+    /* get my function's guard function */
     Function *parentRDYName = ruleRDYFunction[currentFunction];
     if (!parentRDYName || !func)
         return;
     TerminatorInst *TI = parentRDYName->begin()->getTerminator();
+    /* make a call to the guard being promoted */
+    Instruction *newI = copyFunction(TI, argI, func);
+    /* if the promoted guard is in an 'if' block, 'or' with inverted condition of block */
+    if (Value *blockCond = getCondition(argI->getParent(), 1)) // get inverted condition, if any
+        newI = BinaryOperator::Create(Instruction::Or, newI, blockCond, "newor", TI);
+    /* get existing return value from my function's guard */
     Value *cond = TI->getOperand(0);
     const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
-    Instruction *newI = copyFunction(TI, argI, func, Type::getInt1Ty(TI->getContext()));
-    if (CallInst *nc = dyn_cast<CallInst>(newI))
-        nc->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
     if (CI && CI->getType()->isIntegerTy(1) && CI->getZExtValue())
-        TI->setOperand(0, newI);
-    else {
+        TI->setOperand(0, newI); /* if it was 'true', just replace it with new expr */
+    else { /* else 'and' new expression into guard expression */
         // 'And' return value into condition
         Instruction *newBool = BinaryOperator::Create(Instruction::And, newI, newI, "newand", TI);
         cond->replaceAllUsesWith(newBool);
