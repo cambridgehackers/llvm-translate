@@ -653,7 +653,6 @@ static std::string processInstruction(Instruction &I)
                 vout += ":";
             prevCond = opCond;
         }
-        I.getParent()->getParent()->dump();
         break;
         }
 #if 0
