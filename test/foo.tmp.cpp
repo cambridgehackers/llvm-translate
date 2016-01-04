@@ -24,6 +24,7 @@ unsigned int stop_main_program;
 #include "l_class_OC_Echo.h"
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_Fifo1.cpp"
+#include "l_class_OC_FifoPong.cpp"
 
 bool l_class_OC_EchoIndication::heard__RDY(void) {
         return true;
