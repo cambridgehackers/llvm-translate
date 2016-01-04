@@ -58,7 +58,7 @@ public:
 
 typedef struct {
     BasicBlock *cond;
-    std::string       name;
+    std::string item;
 } ReferenceType;
 
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
@@ -72,7 +72,7 @@ extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::list<ReferenceType> readList, writeList, invokeList;
 extern std::list<std::string> functionList;
-extern std::map<std::string, std::string> storeList;
+extern std::map<std::string, ReferenceType> storeList;
 extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
 

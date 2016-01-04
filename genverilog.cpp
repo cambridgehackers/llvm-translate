@@ -244,17 +244,17 @@ static void gatherInfo(std::string mname, std::string condition)
     if (!endswith(mname, "__RDY")) {
         std::string temp;
         for (auto item: readList)
-            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.name;
+            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
         if (temp != "")
             readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: writeList)
-            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.name;
+            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
         if (temp != "")
             readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: invokeList)
-            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.name;
+            temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
         if (temp != "")
             readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
     }
@@ -314,8 +314,12 @@ void generateModuleDef(const StructType *STy, FILE *aOStr, std::string oDir)
         }
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA_internal) begin");
-            for (auto info: storeList)
-                alwaysLines.push_back("    " + info.first + " <= " + info.second + ";");
+            for (auto info: storeList) {
+                Value *cond = getCondition(info.second.cond, 0);
+                if (cond)
+                    alwaysLines.push_back("    if (" + printOperand(cond, false) + ")");
+                alwaysLines.push_back("    " + info.first + " <= " + info.second.item + ";");
+            }
             alwaysLines.push_back("end; // End of " + mname);
         }
         std::string condition;

@@ -50,7 +50,7 @@ static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
 std::list<ReferenceType> readList, writeList, invokeList;
 std::list<std::string> functionList;
-std::map<std::string, std::string> storeList;
+std::map<std::string, ReferenceType> storeList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -575,7 +575,7 @@ static std::string processInstruction(Instruction &I)
         writeList.push_back(ReferenceType{I.getParent(), pdest});
         if (BitMask)
             sval = "((" + sval + ") & " + parenOperand(BitMask) + ")";
-        storeList[pdest] = sval;
+        storeList[pdest] = ReferenceType{I.getParent(), sval};
         return "";
         }
 
@@ -704,7 +704,7 @@ void processFunction(Function *func)
                         std::string resname = GetValueName(&*II);
                         if (generateRegion == ProcessCPP)
                             resname = printType(II->getType(), false, resname, "", "", false);
-                        storeList[resname] = vout;
+                        storeList[resname] = ReferenceType{II->getParent(), vout};
                     }
                     else
                         functionList.push_back(vout);

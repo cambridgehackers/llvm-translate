@@ -32,7 +32,9 @@ module l_class_OC_FifoPong (
       end // nRST
       else begin
         if (in_enq__ENA_internal) begin
+            if (pong ^ 1)
             element1 <= in_enq_v;
+            if (pong)
             element2 <= in_enq_v;
             full <= 1;
         end; // End of in_enq
@@ -47,6 +49,7 @@ endmodule
 //METAGUARD; in_enq__RDY;         full ^ 1;
 //METAGUARD; out_deq__RDY;         full;
 //METAGUARD; out_first__RDY;         full;
+//METAREAD; in_enq; :;pong:;pong;
 //METAWRITE; in_enq; :pong;element2:pong ^ 1;element1:;full;
 //METAREAD; out_deq; :;pong;
 //METAWRITE; out_deq; :;full:;pong;
