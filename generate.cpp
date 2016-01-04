@@ -785,9 +785,7 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Generate cpp code for all rules
     generateRegion = ProcessCPP;
-    generateStructs(fopen((OutDirectory + "/output.cpp").c_str(), "w"),
-        "", generateClassBody); // generate class method bodies
-    generateStructs(fopen((OutDirectory + "/output.h").c_str(), "w"),
-        "", generateClassDef); // generate class definitions
+    generateStructs(NULL, OutDirectory, generateClassBody); // generate class method bodies
+    generateStructs(NULL, OutDirectory, generateClassDef); // generate class definitions
     return false;
 }

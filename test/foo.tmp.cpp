@@ -21,10 +21,9 @@ printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 }
 
 unsigned int stop_main_program;
-#include "../generatedb/output.h"
-#include "../generatedb/output.cpp"
-#include "../generated/output.h"
-#include "../generated/output.cpp"
+#include "l_class_OC_Echo.h"
+#include "l_class_OC_Echo.cpp"
+#include "l_class_OC_Fifo1.cpp"
 
 bool l_class_OC_EchoIndication::heard__RDY(void) {
         return true;

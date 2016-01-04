@@ -1,3 +1,4 @@
+#include "l_class_OC_Echo.h"
 void l_class_OC_Echo::respond_rule(void) {
         unsigned int call = fifo.out_first();
         fifo.out_deq();

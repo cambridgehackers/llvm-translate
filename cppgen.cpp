@@ -99,13 +99,33 @@ static std::string printFunctionSignature(const Function *F, std::string altname
  * Generate class definition into output file.  Class methods are
  * only generated as prototypes.
  */
-void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
+void generateClassDef(const StructType *STy, FILE *OStrunused, std::string oDir)
 {
     if (inheritsModule(STy, "class.ModuleStub") || inheritsModule(STy, "class.InterfaceClass")
      || STy->getName() == "class.Module" || STy->getName() == "class.InterfaceClass")
         return;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
+    FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
+    fprintf(OStr, "#ifndef __%s_H__\n#define __%s_H__\n", name.c_str(), name.c_str());
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (ClassMethodTable *table = classCreate[STy])
+            if (const Type *newType = table->replaceType[Idx])
+                element = newType;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "") {
+            if (const StructType *iSTy = dyn_cast<StructType>(element))
+                if (!inheritsModule(iSTy, "class.InterfaceClass"))
+                    fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
+            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
+                if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
+                    if (!inheritsModule(iSTy, "class.InterfaceClass"))
+                        fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
+            }
+        }
+    }
     fprintf(OStr, "class %s {\n", name.c_str());
     extraMethods.clear();
     generateClassElements(STy, OStr);
@@ -116,18 +136,21 @@ void generateClassDef(const StructType *STy, FILE *OStr, std::string ODir)
         fprintf(OStr, "  void run();\n");
     for (auto item: extraMethods)
         fprintf(OStr, "  %s\n", item.c_str());
-    fprintf(OStr, "};\n\n");
+    fprintf(OStr, "};\n#endif  // __%s_H__\n", name.c_str());
+    fclose(OStr);
 }
 
 /*
  * Generate class method bodies for output classes
  */
-void generateClassBody(const StructType *STy, FILE *OStr, std::string ODir)
+void generateClassBody(const StructType *STy, FILE *OStrunused, std::string oDir)
 {
-    if (!inheritsModule(STy, "class.Module"))
+    if (!inheritsModule(STy, "class.Module") || STy->getName() == "class.Module")
         return;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
+    FILE *OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
+    fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());

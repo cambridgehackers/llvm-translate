@@ -2,6 +2,6 @@
 set -e
 set -x
 ./run
-clang++ -g test/foo.tmp.cpp 
+clang++ -Igenerated -Igeneratedb -g test/foo.tmp.cpp 
 ./a.out
 rm -f a.out
