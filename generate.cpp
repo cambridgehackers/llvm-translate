@@ -96,7 +96,7 @@ static bool isInlinableInst(const Instruction &I)
         return true;
     if (I.getType() == Type::getVoidTy(I.getContext())
 // || !I.hasOneUse()
-      || isa<TerminatorInst>(I) || isa<PHINode>(I)
+      || isa<TerminatorInst>(I)
       || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
       || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
         return false;
@@ -642,21 +642,18 @@ static std::string processInstruction(Instruction &I)
     case Instruction::PHI: {
         const PHINode *PN = dyn_cast<PHINode>(&I);
         ERRORIF(!PN);
-        for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, printOperand(PN->getIncomingValue(op), false).c_str());
-            //PN->getIncomingBlock(op);
-            TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-            printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
-            //TI->dump();
-            const BranchInst *BI = dyn_cast<BranchInst>(TI);
-            std::string trailch;
-            if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-                printOperand(BI->getCondition(), false);
-                trailch = ":";
-                //printOperand(BI->getSuccessor(0), false);
-                //printOperand(BI->getSuccessor(1), false);
-            }
+        Value *prevCond = NULL;
+        for (unsigned opIndex = 0, Eop = PN->getNumIncomingValues(); opIndex < Eop; opIndex++) {
+            BasicBlock *inBlock = PN->getIncomingBlock(opIndex);
+            Value *opCond = getCondition(inBlock, 0);
+            if (opIndex != Eop - 1 || getCondition(inBlock, 1) != prevCond)
+                vout += printOperand(opCond, false) + " ? ";
+            vout += printOperand(PN->getIncomingValue(opIndex), false);
+            if (opIndex != Eop - 1)
+                vout += ":";
+            prevCond = opCond;
         }
+        I.getParent()->getParent()->dump();
         break;
         }
 #if 0

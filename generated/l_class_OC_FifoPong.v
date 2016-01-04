@@ -20,7 +20,7 @@ module l_class_OC_FifoPong (
     reg full;
     assign in_enq__RDY_internal = full ^ 1;
     assign out_deq__RDY_internal = full;
-    assign out_first = cond;
+    assign out_first = pong ? element2:element1;
     assign out_first__RDY_internal = full;
 
     always @( posedge CLK) begin
@@ -50,4 +50,4 @@ endmodule
 //METAWRITE; in_enq; :pong;element2:pong ^ 1;element1:;full;
 //METAREAD; out_deq; :;pong;
 //METAWRITE; out_deq; :;full:;pong;
-//METAREAD; out_first; :pong;element2:pong ^ 1;element1:;pong:;pong;
+//METAREAD; out_first; :;pong:pong;element2:pong ^ 1;element1:;pong:;pong;
