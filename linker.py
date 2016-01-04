@@ -88,13 +88,13 @@ verilogActions = {'indications': ['indications_0', [['deq', []]]]}
 verilogValues  = {'indications': ['indications_0', [['notEmpty', ''], ['first', '[31:0]']]],
                   'intr':        ['intr',          [['status', ''], ['channel', '[31:0]']]]}
 userRequests =    {'request': [['say', [['v', '[31:0]']]]]}
-userIndications = [['ifc_heard', [['v', '[31:0]']], 'ind$heard']]
+userIndications = [['ifc_', 'heard', [['v', '[31:0]']], 'ind$']]
 
 verilogArgValue =     'output RDY_%(name)s, output %(paramDim)s%(name)s,'
 verilogArgAction =    'output RDY_%(name)s, input EN_%(name)s,'
 verilogArgActionArg = ' input %(paramDim)s%(name)s_%(paramName)s,'
 userArgAction =       '.%(uname)s__RDY(RDY_%(name)s), .%(uname)s__ENA(EN_%(name)s),'
-userArgActionArg =    ' .%(uname)s_%(paramName)s(%(name)s_%(paramName)s),'
+userArgActionArg =    ' .%(uname)s_%(paramNameM)s(%(name)s_%(paramName)s),'
 userArgLinkArg =      ' .%(name)s_%(paramName)s(%(name)s_%(paramName)s),'
 userArgWire =         'wire RDY_%(name)s, EN_%(name)s;'
 userArgWireArg =      'wire %(paramDim)s%(name)s_%(paramName)s;'
@@ -282,6 +282,7 @@ def parseExpression(string):
 def addAction(item, pmap):
     for aitem in item[1]:
         pmap['paramName'] = aitem[0]
+        pmap['paramNameM'] = aitem[0]
         pmap['paramDim'] = aitem[1]
         vArgs.append(verilogArgActionArg % pmap)
         uArgs.append(userArgActionArg % pmap)
@@ -335,9 +336,10 @@ if __name__=='__main__':
                 vArgs.append(verilogArgValue % pmap)
                 uLinks.append(verilogLink % pmap)
         for item in userIndications:
-            pmap = {'name':item[0], 'uname': item[2]}
-            for aitem in item[1]:
+            pmap = {'name':item[0]+item[1], 'uname': item[3]+item[1]}
+            for aitem in item[2]:
                 pmap['paramName'] = aitem[0]
+                pmap['paramNameM'] = item[1] + '_' + aitem[0]
                 pmap['paramDim'] = aitem[1]
                 uArgs.append(userArgActionArg % pmap)
                 uWires.append(userArgWireArg % pmap)
