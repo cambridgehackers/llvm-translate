@@ -51,7 +51,6 @@ static std::string processInstruction(Instruction &I);
 std::list<ReferenceType> readList, writeList, invokeList;
 std::list<std::string> functionList;
 std::map<std::string, std::string> storeList;
-std::map<const BasicBlock *, std::string> blockCondition;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -95,7 +94,8 @@ static bool isInlinableInst(const Instruction &I)
         return false; // needed to force guardedValue reads before Action calls
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
         return true;
-    if (I.getType() == Type::getVoidTy(I.getContext()) || !I.hasOneUse()
+    if (I.getType() == Type::getVoidTy(I.getContext())
+// || !I.hasOneUse()
       || isa<TerminatorInst>(I) || isa<PHINode>(I)
       || isa<VAArgInst>(I) || isa<InsertElementInst>(I)
       || isa<InsertValueInst>(I) || isa<AllocaInst>(I))
@@ -104,8 +104,8 @@ static bool isInlinableInst(const Instruction &I)
         const Instruction &User = cast<Instruction>(*I.user_back());
         if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
             return false;
+        ERRORIF ( I.getParent() != cast<Instruction>(I.user_back())->getParent());
     }
-    ERRORIF ( I.getParent() != cast<Instruction>(I.user_back())->getParent());
     return true;
 }
 static const AllocaInst *isDirectAlloca(const Value *V)

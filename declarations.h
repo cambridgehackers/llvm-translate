@@ -75,7 +75,7 @@ extern std::list<std::string> functionList;
 extern std::map<std::string, std::string> storeList;
 extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
-extern std::map<const BasicBlock *, std::string> blockCondition;
+extern std::map<const BasicBlock *, Value *> blockCondition;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);

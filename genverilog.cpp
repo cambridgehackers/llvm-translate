@@ -244,17 +244,17 @@ static void gatherInfo(std::string mname, std::string condition)
     if (!endswith(mname, "__RDY")) {
         std::string temp;
         for (auto item: readList)
-            temp += ":" + blockCondition[item.cond] + ";" + item.name;
+            temp += ":" + printOperand(blockCondition[item.cond],false) + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: writeList)
-            temp += ":" + blockCondition[item.cond] + ";" + item.name;
+            temp += ":" + printOperand(blockCondition[item.cond],false) + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: invokeList)
-            temp += ":" + blockCondition[item.cond] + ";" + item.name;
+            temp += ":" + printOperand(blockCondition[item.cond],false) + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
     }

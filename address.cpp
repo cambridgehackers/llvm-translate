@@ -63,6 +63,7 @@ typedef std::map<std::string, Function *>MethodMapType;
 
 #define GIANT_SIZE 1024
 std::map<const Function *, std::string> pushSeen;
+std::map<const BasicBlock *, Value *> blockCondition;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -255,8 +256,12 @@ static void processPromote(Function *currentFunction)
                 if (BI && BI->isConditional()) {
                     std::string cond = printOperand(BI->getCondition(), false);
                     printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
-                    blockCondition[BI->getSuccessor(0)] = cond;
-                    blockCondition[BI->getSuccessor(1)] = "!(" + cond + ")";
+                    IRBuilder<> builder(II->getParent());
+                    builder.SetInsertPoint(II);
+                    Instruction *iCond = BinaryOperator::Create(Instruction::Xor,
+                       BI->getCondition(), builder.getInt1(1), "invertCond", II);
+                    blockCondition[BI->getSuccessor(0)] = BI->getCondition();
+                    blockCondition[BI->getSuccessor(1)] = iCond;
                 }
                 else if (isa<IndirectBrInst>(II)) {
                     printf("[%s:%d] indirect\n", __FUNCTION__, __LINE__);
