@@ -57,7 +57,7 @@ public:
 };
 
 typedef struct {
-    const BasicBlock *cond;
+    BasicBlock *cond;
     std::string       name;
 } ReferenceType;
 
@@ -75,7 +75,6 @@ extern std::list<std::string> functionList;
 extern std::map<std::string, std::string> storeList;
 extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
-extern std::map<const BasicBlock *, Value *> blockCondition;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
@@ -109,3 +108,4 @@ std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy, const char *name);
 void muxValue(std::string signal, std::string value);
 void muxEnable(std::string signal);
+Value *getCondition(BasicBlock *bb, int invert);

@@ -63,7 +63,9 @@ typedef std::map<std::string, Function *>MethodMapType;
 
 #define GIANT_SIZE 1024
 std::map<const Function *, std::string> pushSeen;
-std::map<const BasicBlock *, Value *> blockCondition;
+struct {
+    std::map<const BasicBlock *, Value *> val;
+} blockCondition[2];
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 static std::list<MEMORY_REGION> memoryRegion;
 
@@ -256,12 +258,8 @@ static void processPromote(Function *currentFunction)
                 if (BI && BI->isConditional()) {
                     std::string cond = printOperand(BI->getCondition(), false);
                     printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
-                    IRBuilder<> builder(II->getParent());
-                    builder.SetInsertPoint(II);
-                    Instruction *iCond = BinaryOperator::Create(Instruction::Xor,
-                       BI->getCondition(), builder.getInt1(1), "invertCond", II);
-                    blockCondition[BI->getSuccessor(0)] = BI->getCondition();
-                    blockCondition[BI->getSuccessor(1)] = iCond;
+                    blockCondition[0].val[BI->getSuccessor(0)] = BI->getCondition(); // 'true' condition
+                    blockCondition[1].val[BI->getSuccessor(1)] = BI->getCondition(); // 'inverted' condition
                 }
                 else if (isa<IndirectBrInst>(II)) {
                     printf("[%s:%d] indirect\n", __FUNCTION__, __LINE__);
@@ -278,6 +276,20 @@ static void processPromote(Function *currentFunction)
             II = INEXT;
         }
     }
+}
+
+Value *getCondition(BasicBlock *bb, int invert)
+{
+    if (Value *val = blockCondition[invert].val[bb])
+        return val;
+    if (Value *val = blockCondition[1-invert].val[bb]) {
+        IRBuilder<> builder(bb);
+        builder.SetInsertPoint(bb->getTerminator());
+        blockCondition[invert].val[bb] = BinaryOperator::Create(Instruction::Xor,
+           val, builder.getInt1(1), "invertCond", bb->getTerminator());
+        return blockCondition[invert].val[bb];
+    }
+    return NULL;
 }
 
 // update parameter names to be prefixed by method name (so that
