@@ -56,6 +56,11 @@ public:
     {}
 };
 
+typedef struct {
+    const BasicBlock *cond;
+    std::string       name;
+} ReferenceType;
+
 typedef void (*GEN_HEADER)(const StructType *STy, FILE *OStr, std::string ODir);
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
@@ -65,10 +70,12 @@ extern int trace_translate;
 extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
-extern std::list<std::string> readList, writeList, invokeList, functionList;
+extern std::list<ReferenceType> readList, writeList, invokeList;
+extern std::list<std::string> functionList;
 extern std::map<std::string, std::string> storeList;
 extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
+extern std::map<const BasicBlock *, std::string> blockCondition;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);

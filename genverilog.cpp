@@ -38,7 +38,6 @@ typedef struct {
     std::string value;
 } MUX_VALUE;
 
-static std::string globalCondition;
 static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
 static std::map<std::string, std::string> assignList;
 
@@ -245,22 +244,23 @@ static void gatherInfo(std::string mname, std::string condition)
     if (!endswith(mname, "__RDY")) {
         std::string temp;
         for (auto item: readList)
-            temp += ":" + item;
+            temp += ":" + blockCondition[item.cond] + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: writeList)
-            temp += ":" + item;
+            temp += ":" + blockCondition[item.cond] + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAWRITE; " + mname + "; " + condition + temp + ";");
         temp = "";
         for (auto item: invokeList)
-            temp += ":" + item;
+            temp += ":" + blockCondition[item.cond] + ";" + item.name;
         if (temp != "")
             readWriteList.push_back("//METAINVOKE; " + mname + "; " + condition + temp + ";");
     }
 }
 
+static std::string globalCondition;
 void muxEnable(std::string signal)
 {
      if (assignList[signal] != "")

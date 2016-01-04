@@ -207,7 +207,9 @@ static void processPromote(Function *currentFunction)
     for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
-            if (CallInst *ICL = dyn_cast<CallInst>(II)) {
+            switch (II->getOpcode()) {
+            case Instruction::Call: {
+                CallInst *ICL = dyn_cast<CallInst>(II);
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 std::string mName = getMethodName(func->getName());
@@ -245,6 +247,27 @@ static void processPromote(Function *currentFunction)
                         addGuard(II, mfunc, currentFunction);
                         break;
                     }
+                }
+                break;
+                }
+            case Instruction::Br: {
+                const BranchInst *BI = dyn_cast<BranchInst>(II);
+                if (BI && BI->isConditional()) {
+                    std::string cond = printOperand(BI->getCondition(), false);
+                    printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
+                    blockCondition[BI->getSuccessor(0)] = cond;
+                    blockCondition[BI->getSuccessor(1)] = "!(" + cond + ")";
+                }
+                else if (isa<IndirectBrInst>(II)) {
+                    printf("[%s:%d] indirect\n", __FUNCTION__, __LINE__);
+                    for (unsigned i = 0, e = II->getNumOperands(); i != e; ++i) {
+                        printOperand(II->getOperand(i), false);
+                    }
+                }
+                else {
+                    printf("[%s:%d] BRUNCOND %p\n", __FUNCTION__, __LINE__, BI->getSuccessor(0));
+                }
+                break;
                 }
             }
             II = INEXT;

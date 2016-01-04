@@ -40,6 +40,7 @@ std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
 static int generateRegion = ProcessNone;
+static std::string globalCondition;
 
 std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
@@ -47,8 +48,10 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-std::list<std::string> readList, writeList, invokeList, functionList;
+std::list<ReferenceType> readList, writeList, invokeList;
+std::list<std::string> functionList;
 std::map<std::string, std::string> storeList;
+std::map<const BasicBlock *, std::string> blockCondition;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -507,7 +510,7 @@ static std::string printCall(Instruction &I)
             muxEnable(mname + "__ENA");
         else
             vout += mname;
-        invokeList.push_back(mname);
+        invokeList.push_back(ReferenceType{I.getParent(), mname});
     }
     else
         vout += pcalledFunction + mname + "(";
@@ -554,7 +557,7 @@ static std::string processInstruction(Instruction &I)
         ERRORIF (IL.isVolatile());
         std::string p = printOperand(I.getOperand(0), true);
         if (I.getType()->getTypeID() != Type::PointerTyID)
-            readList.push_back(p);
+            readList.push_back(ReferenceType{I.getParent(), p});
         return p;
         }
 
@@ -569,7 +572,7 @@ static std::string processInstruction(Instruction &I)
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(Operand, false);
-        writeList.push_back(pdest);
+        writeList.push_back(ReferenceType{I.getParent(), pdest});
         if (BitMask)
             sval = "((" + sval + ") & " + parenOperand(BitMask) + ")";
         storeList[pdest] = sval;
@@ -636,71 +639,38 @@ static std::string processInstruction(Instruction &I)
              + parenOperand(I.getOperand(1));
         break;
         }
-#if 0
-    case Instruction::Br:
-        {
-        if (isa<BranchInst>(I) && cast<BranchInst>(I).isConditional()) {
-          char temp[MAX_CHAR_BUFFER];
-          const BranchInst &BI(cast<BranchInst>(I));
-          prepareOperand(BI.getCondition());
-          int cond_item = getLocalSlot(BI.getCondition());
-          sprintf(temp, "%s" SEPARATOR "%s_cond", globalName.c_str(), I.getParent()->getName().str().c_str());
-          sprintf(vout, "%s = %s\n", temp, slotarray[cond_item].name);
-          prepareOperand(BI.getSuccessor(0));
-          prepareOperand(BI.getSuccessor(1));
-        } else if (isa<IndirectBrInst>(I)) {
-          for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-            prepareOperand(I.getOperand(i));
-          }
-        }
-        }
-        break;
-    //case Instruction::Switch:
-        //const SwitchInst& SI(cast<SwitchInst>(I));
-        //prepareOperand(SI.getCondition());
-        //prepareOperand(SI.getDefaultDest());
-        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-          //prepareOperand(i.getCaseValue());
-          //prepareOperand(i.getCaseSuccessor());
-        //}
-    case Instruction::PHI:
-        {
-        char temp[MAX_CHAR_BUFFER];
+    case Instruction::PHI: {
         const PHINode *PN = dyn_cast<PHINode>(&I);
-        if (!PN) {
-            printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-            exit(1);
-        }
-        I.getType()->dump();
-        sprintf(temp, "%s" SEPARATOR "%s_phival", globalName.c_str(), I.getParent()->getName().str().c_str());
-        vout += temp + " = ";
+        ERRORIF(!PN);
         for (unsigned op = 0, Eop = PN->getNumIncomingValues(); op < Eop; ++op) {
-            int valuein = getLocalSlot(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingValue(op));
-            prepareOperand(PN->getIncomingBlock(op));
+printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, printOperand(PN->getIncomingValue(op), false).c_str());
+            //PN->getIncomingBlock(op);
             TerminatorInst *TI = PN->getIncomingBlock(op)->getTerminator();
-            //printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
+            printf("[%s:%d] terminator\n", __FUNCTION__, __LINE__);
             //TI->dump();
             const BranchInst *BI = dyn_cast<BranchInst>(TI);
-            const char *trailch = "";
+            std::string trailch;
             if (isa<BranchInst>(TI) && cast<BranchInst>(TI)->isConditional()) {
-              prepareOperand(BI->getCondition());
-              int cond_item = getLocalSlot(BI->getCondition());
-              sprintf(temp, "%s ?", slotarray[cond_item].name);
-              trailch = ":";
-              //prepareOperand(BI->getSuccessor(0));
-              //prepareOperand(BI->getSuccessor(1));
-              vout += temp;
+                printOperand(BI->getCondition(), false);
+                trailch = ":";
+                //printOperand(BI->getSuccessor(0), false);
+                //printOperand(BI->getSuccessor(1), false);
             }
-            if (slotarray[valuein].name)
-                sprintf(temp, "%s %s", slotarray[valuein].name, trailch);
-            else
-                sprintf(temp, "%lld %s", (long long)slotarray[valuein].offset, trailch);
-            vout += temp;
-        }
         }
         break;
+        }
+#if 0
+    //case Instruction::Switch:
+        //const SwitchInst& SI(cast<SwitchInst>(I));
+        //printOperand(SI.getCondition(), false);
+        //printOperand(SI.getDefaultDest(), false);
+        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
+          //printOperand(i.getCaseValue(), false);
+          //printOperand(i.getCaseSuccessor(), false);
+        //}
 #endif
+    case Instruction::Br:
+        break;
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         I.getParent()->getParent()->dump();
