@@ -314,6 +314,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 temp += info.item;
             }
             assignList[mname] = temp;
+            readWriteList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
         }
         else {
             fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
@@ -399,14 +400,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "    end // always @ (posedge CLK)\n");
     }
     fprintf(OStr, "endmodule \n\n");
-    for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
-        fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
-        processFunction(PI->func);
-        for (auto info: functionList) {
-            ERRORIF(getCondition(info.cond, 0));
-            fprintf(OStr, "        %s;\n", info.item.c_str());
-        }
-    }
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());
     fclose(OStr);

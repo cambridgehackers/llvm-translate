@@ -186,7 +186,12 @@ def processFile(filename):
                         titem['methods'][tempName]['read'] = []
                         titem['methods'][tempName]['write'] = []
                         titem['methods'][tempName]['invoke'] = []
-                    elif inVector[0] == '//METAINTERNAL':
+            for inLine in inFile:
+                if inLine.startswith('//META'):
+                    inVector = map(str.strip, inLine.strip().split(';'))
+                    if inVector[-1] == '':
+                        inVector.pop()
+                    if inVector[0] == '//METAINTERNAL':
                         titem['internal'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METAEXTERNAL':
                         titem['external'][inVector[1]] = inVector[2]
@@ -196,7 +201,7 @@ def processFile(filename):
                         titem['methods'][inVector[1]]['read'].append(inVector[2].split(':'))
                     elif inVector[0] == '//METAWRITE':
                         titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
-                    else:
+                    elif inVector[0] != '//METAGUARD':
                         print 'Unknown case', inVector
     #print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
     for key, value in titem['internal'].iteritems():
