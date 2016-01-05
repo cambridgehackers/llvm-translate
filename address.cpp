@@ -325,9 +325,6 @@ static void updateParameterNames(std::string mName, Function *func)
  */
 static void pushWork(std::string mName, Function *func)
 {
-    int valid = func->getValueID();
-    printf("[%s:%d] name %s func %p valid %d\n", __FUNCTION__, __LINE__, mName.c_str(), func, valid);
-    if (!valid || valid == 255) return;
     const StructType *STy = findThisArgumentType(func->getType());
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
@@ -335,8 +332,6 @@ static void pushWork(std::string mName, Function *func)
     pushSeen[func] = mName;
     table->method[mName] = func;
     updateParameterNames(mName, func);
-    if (inheritsModule(STy, "class.ModuleStub"))
-        return;
     // inline intra-class method call bodies
     processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
@@ -694,7 +689,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
-    //STy->dump();
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
@@ -880,15 +874,11 @@ void constructAddressMap(Module *Mod)
 {
 printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
-        std::string name = MI->getName();
-        if ((name.length() < 4 || name.substr(0,4) != ".str")
-         && (name.length() < 18 || name.substr(0,18) != "__block_descriptor")) {
-            void *addr = EE->getPointerToGlobal(MI);
-            Type *Ty = MI->getType()->getElementType();
-            memoryRegion.push_back(MEMORY_REGION{addr,
-                EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
-            mapType(Mod, (char *)addr, Ty, name);
-        }
+        void *addr = EE->getPointerToGlobal(MI);
+        Type *Ty = MI->getType()->getElementType();
+        memoryRegion.push_back(MEMORY_REGION{addr,
+            EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
+        mapType(Mod, (char *)addr, Ty, MI->getName());
     }
 
     if (trace_malloc)

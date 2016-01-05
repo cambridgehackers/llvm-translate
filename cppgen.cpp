@@ -140,8 +140,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
         Function *func = FI.second;
-        if (endswith(func->getName(), "EC2Ev"))
-            continue;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
         processFunction(func);
         for (auto info: declareList)
