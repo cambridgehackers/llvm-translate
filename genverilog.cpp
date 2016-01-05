@@ -30,10 +30,6 @@ using namespace llvm;
 #include "declarations.h"
 
 typedef struct {
-    Function *func;
-    std::string name;
-} READY_INFO;
-typedef struct {
     std::string condition;
     std::string value;
 } MUX_VALUE;
@@ -298,6 +294,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     assignList.clear();
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     generateModuleSignature(OStr, STy, "");
+    // generate wires for internal methods RDY/ENA.  Collect state element assignments
+    // from each method
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
@@ -310,11 +308,14 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 ERRORIF(getCondition(info.cond, 0));
                 temp += info.item;
             }
-            assignList[mname] = temp;
+            assignList[mname] = temp;  // collect the text of the return value into a single 'assign'
             if (endswith(mname, "__RDY"))
                 readWriteList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
         }
         else {
+            // generate RDY_internal wire so that we can reference RDY expression inside module
+            // generate ENA_internal wire that is and'ed with RDY_internal, so that we can
+            // never be enabled unless we were actually ready.
             fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
             fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
             fprintf(OStr, "    assign %s__RDY = %s__RDY_internal;\n", mname.c_str(), mname.c_str());
@@ -340,6 +341,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         std::string condition;
         gatherInfo(mname, condition);
     }
+    // combine mux'ed assignments into a single 'assign' statement
+    // Context: before local state declarations, to allow inlining
     for (auto item: muxValueList) {
         int remain = item.second.size();
         std::string temp;
@@ -352,7 +355,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         }
         assignList[item.first] = temp;
     }
-
+    // generate local state element declarations
     int Idx = 0;
     std::list<std::string> resetList;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
@@ -367,8 +370,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
                 if (!inheritsModule(STy, "class.InterfaceClass")) {
-                generateModuleSignature(OStr, STy, fname);
-                readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
+                    generateModuleSignature(OStr, STy, fname);
+                    readWriteList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
                 }
             }
             else {
@@ -377,6 +380,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
         }
     }
+    // generate 'assign' items
     for (auto item: assignList)
         if (item.second != "") {
             std::string temp = item.first.c_str();
@@ -384,6 +388,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 temp += "_internal";
             fprintf(OStr, "    assign %s = %s;\n", temp.c_str(), item.second.c_str());
         }
+    // generate clocked updates to state elements
     if (resetList.size() > 0 || alwaysLines.size() > 0) {
         fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
         for (auto item: resetList)
