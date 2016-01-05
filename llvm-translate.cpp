@@ -38,8 +38,6 @@ cl::opt<std::string> MArch("march", cl::desc("Architecture to generate assembly 
 cl::list<std::string> MAttrs("mattr", cl::CommaSeparated, cl::desc("Target specific attributes (-mattr=help for details)"), cl::value_desc("a1,+a2,-a3,..."));
 cl::opt<std::string> OutputDir("odir", cl::init(""), cl::desc("<output directory>"));
 
-int trace_full;// = 1;
-static int dump_interpret;// = 1;
 ExecutionEngine *EE;
 
 /*
@@ -99,13 +97,12 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     assert(EE);
 
     GenerateRunOnModule(Mod, OutputDir);
+#if 0      // Run main
+    static int dump_interpret;// = 1;
     //ModulePass *DebugIRPass = createDebugIRPass();
     //DebugIRPass->runOnModule(*Mod);
-
     DebugFlag = dump_interpret != 0;
-#if 0
-printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
-    // Run main
+    printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     std::vector<std::string> InputArgv;
     InputArgv.push_back("param1");
     InputArgv.push_back("param2");
@@ -116,7 +113,7 @@ printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
     }
     char *envp[] = {NULL};
     int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-printf("[%s:%d] after 'main', return code = %d\n", __FUNCTION__, __LINE__, Result);
+    printf("[%s:%d] after 'main', return code = %d\n", __FUNCTION__, __LINE__, Result);
 #endif
 
     // write copy of optimized bitcode

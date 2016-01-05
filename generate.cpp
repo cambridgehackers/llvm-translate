@@ -758,13 +758,16 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
  */
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
-    // Construct the vtable map for classes, cleanup IR, build vtableWork function list
+    // Before running constructors, clean up and rewrite IR
     preprocessModule(Mod);
 
     // run Constructors from user program
     EE->runStaticConstructorsDestructors(false);
 
-    // Construct the address -> symbolic name map using actual data allocated/initialized
+    // Construct the address -> symbolic name map using actual data allocated/initialized.
+    // Pointer datatypes allocated by a class are hoisted and instantiated statically
+    // in the generated class.  (in cpp, only pointers can be overridden with derived
+    // class instances)
     constructAddressMap(Mod);
 
     // Walk the list of all classes referenced in the IR image,

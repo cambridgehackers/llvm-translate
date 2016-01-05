@@ -23,7 +23,6 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
 
-//#define SEPARATOR ":"
 #define MODULE_SEPARATOR "$"
 #define MODULE_ARROW (generateRegion == ProcessVerilog ? MODULE_SEPARATOR : "->")
 #define MODULE_DOT   (generateRegion == ProcessVerilog ? MODULE_SEPARATOR : ".")
@@ -61,13 +60,9 @@ typedef struct {
     std::string item;
 } ReferenceType;
 
-typedef void (*GEN_HEADER)(const StructType *STy, std::string ODir);
-
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
 extern ExecutionEngine *EE;
-extern int trace_translate;
-extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::list<ReferenceType> readList, writeList, invokeList, functionList;
