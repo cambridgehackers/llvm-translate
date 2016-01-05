@@ -34,7 +34,6 @@ using namespace llvm;
 #include "declarations.h"
 
 static int trace_call;//=1;
-int trace_translate;//=1;
 static int trace_gep;//=1;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
@@ -639,7 +638,6 @@ static std::string processInstruction(Instruction &I)
         }
     case Instruction::PHI: {
         const PHINode *PN = dyn_cast<PHINode>(&I);
-        ERRORIF(!PN);
         Value *prevCond = NULL;
         for (unsigned opIndex = 0, Eop = PN->getNumIncomingValues(); opIndex < Eop; opIndex++) {
             BasicBlock *inBlock = PN->getIncomingBlock(opIndex);
@@ -691,8 +689,6 @@ void processFunction(Function *func)
         printf("PROCESSING %s\n", func->getName().str().c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
-        if (trace_translate && BI->hasName())         // Print out the label if it exists...
-            printf("LLLLL: %s\n", BI->getName().str().c_str());
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
             if (!isInlinableInst(*II)) {
                 std::string vout = processInstruction(*II);
