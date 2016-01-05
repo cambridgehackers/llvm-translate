@@ -104,6 +104,6 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void preprocessModule(Module *Mod);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy, const char *name);
-void muxValue(std::string signal, std::string value);
-void muxEnable(std::string signal);
+void muxEnable(BasicBlock *bb, std::string signal);
+void muxValue(BasicBlock *bb, std::string signal, std::string value);
 Value *getCondition(BasicBlock *bb, int invert);

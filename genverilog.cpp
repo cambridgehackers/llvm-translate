@@ -38,6 +38,7 @@ typedef struct {
     std::string value;
 } MUX_VALUE;
 
+static int dontInlineValues;//=1;
 static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
 static std::map<std::string, std::string> assignList;
 
@@ -64,6 +65,8 @@ static bool findExact(std::string haystack, std::string needle)
  */
 static std::string inlineValue(std::string wname, bool clear)
 {
+    if (dontInlineValues)
+        return clear ? wname : "";
     std::string temp = assignList[wname];
     if (temp == "") {
         std::string exactMatch;
@@ -80,12 +83,12 @@ static std::string inlineValue(std::string wname, bool clear)
             return exactMatch;
         }
     }
-    if (!clear)
-        return temp;
-    else if (temp != "")
-        assignList[wname] = "";
-    else
-        return wname;
+    if (clear) {
+        if (temp != "")
+            assignList[wname] = "";
+        else
+            return wname;
+    }
     return temp;
 }
 
@@ -264,15 +267,23 @@ static void gatherInfo(std::string mname, std::string condition)
 }
 
 static std::string globalCondition;
-void muxEnable(std::string signal)
+void muxEnable(BasicBlock *bb, std::string signal)
 {
+printf("[%s:%d] signal %s glo %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
+     std::string tempCond = globalCondition;
+     if (Value *cond = getCondition(bb, 0))
+         tempCond += " & " + printOperand(cond, false);
      if (assignList[signal] != "")
          assignList[signal] += " || ";
-     assignList[signal] += globalCondition;
+     assignList[signal] += tempCond;
 }
-void muxValue(std::string signal, std::string value)
+void muxValue(BasicBlock *bb, std::string signal, std::string value)
 {
-     muxValueList[signal].push_back(MUX_VALUE{globalCondition, value});
+     std::string tempCond = globalCondition;
+     if (Value *cond = getCondition(bb, 0))
+         tempCond += " & " + printOperand(cond, false);
+printf("[%s:%d] signal %s val %s glo %s\n", __FUNCTION__, __LINE__, signal.c_str(), value.c_str(), tempCond.c_str());
+     muxValueList[signal].push_back(MUX_VALUE{tempCond, value});
 }
 
 void generateModuleDef(const StructType *STy, std::string oDir)

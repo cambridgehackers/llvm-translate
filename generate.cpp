@@ -506,7 +506,7 @@ static std::string printCall(Instruction &I)
     std::string mname = prefix + fname;
     if (generateRegion == ProcessVerilog) {
         if (func->getReturnType() == Type::getVoidTy(func->getContext()))
-            muxEnable(mname + "__ENA");
+            muxEnable(I.getParent(), mname + "__ENA");
         else
             vout += mname;
         invokeList.push_back(ReferenceType{I.getParent(), mname});
@@ -516,7 +516,7 @@ static std::string printCall(Instruction &I)
     for (; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
         std::string parg = printOperand(*AI, false);
         if (generateRegion == ProcessVerilog)
-            muxValue(mname + "_" + FAI->getName().str(), parg);
+            muxValue(I.getParent(), mname + "_" + FAI->getName().str(), parg);
         else
             vout += sep + parg;
         sep = ", ";
