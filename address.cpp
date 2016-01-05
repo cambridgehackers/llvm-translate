@@ -166,7 +166,6 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
-                    processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
@@ -337,7 +336,6 @@ static void pushWork(std::string mName, Function *func)
         return;
     vtableWork.push_back(func);
     // inline intra-class method call bodies
-    processAlloca(func);
     processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
@@ -707,7 +705,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
         pushSeen[func] = mName;
-        processAlloca(func);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II))
@@ -767,6 +764,10 @@ void preprocessModule(Module *Mod)
             }
             Declare->eraseFromParent();
         }
+
+    // Remove all excessive Alloca usages (were inserted for debug info)
+    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
+        processAlloca(FI);
 
     // remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};
