@@ -63,7 +63,7 @@ typedef std::map<std::string, Function *>MethodMapType;
 
 #define GIANT_SIZE 1024
 std::map<const Function *, std::string> pushSeen;
-struct {
+static struct {
     std::map<const BasicBlock *, Value *> val;
 } blockCondition[2];
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;

@@ -428,13 +428,12 @@ std::string printOperand(Value *Operand, bool Indirect)
         prefix = "&";  // Global variables are referenced as their addresses by llvm
     if (I && isInlinableInst(*I)) {
         std::string p = processInstruction(*I);
-        if (prefix == "")
-            cbuffer += p;
-        else if (prefix == "*" && p[0] == '&') {
+        if (prefix == "*" && p[0] == '&') {
             prefix = "";
             p = p.substr(1);
-            cbuffer += p;
         }
+        if (prefix == "")
+            cbuffer += p;
         else
             cbuffer += prefix + "(" + p + ")";
     }
@@ -736,16 +735,14 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
                 return;   // don't generate anything for std classes
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
-            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
-                generateContainedStructs(*I, ODir);
-            Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                 const Type *element = *I;
+                generateContainedStructs(*I, ODir);
                 if (table && table->replaceType[Idx])
                     element = table->replaceType[Idx];
                 generateContainedStructs(element, ODir);
             }
-            if (table && STy->getName() != "class.Module") {
+            if (STy->getName() != "class.Module") {
                 // Only generate verilog for modules derived from Module
                 generateRegion = ProcessVerilog;
                 if (inheritsModule(STy, "class.Module"))
@@ -776,7 +773,6 @@ bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 
     // Walk the list of all classes referenced in the IR image,
     // recursively generating cpp class and verilog module definitions
-    structMap.clear();
     for (auto current : classCreate)
         generateContainedStructs(current.first, OutDirectory);
     return false;
