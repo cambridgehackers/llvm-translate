@@ -42,6 +42,5 @@ endmodule
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAWRITE; out_deq; :;full;
 //METAGUARD; out_deq__RDY; full;
-//METAGUARD; out_first; element;
 //METAREAD; out_first; :;element;
 //METAGUARD; out_first__RDY; full;

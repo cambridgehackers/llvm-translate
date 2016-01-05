@@ -289,7 +289,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     generateRegion = ProcessVerilog;
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
-    std::list<READY_INFO> rdyList;
     std::list<std::string> alwaysLines;
 
     if (!inheritsModule(STy, "class.Module") || STy->getName() == "class.Module")
@@ -306,15 +305,14 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         globalCondition = mname + "__ENA_internal";
         processFunction(func);
         if (!isAction) {
-            if (endswith(mname, "__RDY"))
-                rdyList.push_back(READY_INFO{func, mname});
             std::string temp;
             for (auto info: functionList) {
                 ERRORIF(getCondition(info.cond, 0));
                 temp += info.item;
             }
             assignList[mname] = temp;
-            readWriteList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
+            if (endswith(mname, "__RDY"))
+                readWriteList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
         }
         else {
             fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
