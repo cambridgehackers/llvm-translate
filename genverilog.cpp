@@ -270,6 +270,10 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<std::string> alwaysLines;
+    std::string extraRules;
+    std::string ruleEnables;
+    std::string ruleReadys;
+    std::map<std::string, int> includeLines;
 
     muxValueList.clear();
     assignList.clear();
@@ -372,8 +376,17 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
                 if (!inheritsModule(STy, "class.InterfaceClass")) {
+                    std::string sname = getStructName(STy);
                     generateModuleSignature(OStr, STy, fname);
-                    metaList.push_back("//METAINTERNAL; " + fname + "; " + getStructName(STy) + ";");
+                    metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
+                    extraRules += " + `" + sname + "_RULE_COUNT";
+                    if (ruleEnables != "")
+                        ruleEnables += ", ";
+                    ruleEnables += fname + "$rule_enable";
+                    if (ruleReadys != "")
+                        ruleReadys += ", ";
+                    ruleReadys += fname + "$rule_ready";
+                    includeLines[sname] = 1;
                 }
             }
             else {
@@ -390,6 +403,26 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 temp += "_internal";
             fprintf(OStr, "    assign %s = %s;\n", temp.c_str(), item.second.c_str());
         }
+    if (ruleEnables != "" || table->rules.size() > 0) {
+        if (ruleEnables != "" && table->rules.size() > 0)
+            ruleEnables += ", ";
+        fprintf(OStr, "    assign {%s", ruleEnables.c_str());
+        const char *sep = "";
+        for (auto item : table->rules) {
+            fprintf(OStr, "%s%s_ENA", sep, item.c_str());
+            sep = ", ";
+        }
+        fprintf(OStr, "} = rule_enable;\n");
+        if (ruleReadys != "" && table->rules.size() > 0)
+            ruleReadys += ", ";
+        fprintf(OStr, "    assign rule_ready = {%s", ruleReadys.c_str());
+        sep = "";
+        for (auto item : table->rules) {
+            fprintf(OStr, "%s%s__RDY", sep, item.c_str());
+            sep = ", ";
+        }
+        fprintf(OStr, "};\n");
+    }
     // generate clocked updates to state elements
     if (resetList.size() > 0 || alwaysLines.size() > 0) {
         fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");
@@ -410,21 +443,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // now generate the verilog header file '.vh'
     OStr = fopen((oDir + "/" + name + ".vh").c_str(), "w");
     fprintf(OStr, "`ifndef __%s_VH__\n`define __%s_VH__\n\n", name.c_str(), name.c_str());
-    Idx = 0;
-    std::string extraRules;
-    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
-            element = newType;
-        if (fieldName(STy, Idx) != "") {
-            if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (!inheritsModule(iSTy, "class.InterfaceClass")) {
-                    std::string sname = getStructName(iSTy);
-                    fprintf(OStr, "`include \"%s.vh\"\n", sname.c_str());
-                    extraRules += " + `" + sname + "_RULE_COUNT";
-                }
-        }
-    }
+    for (auto item: includeLines)
+        fprintf(OStr, "`include \"%s.vh\"\n", item.first.c_str());
     fprintf(OStr, "`define %s_RULE_COUNT (%ld%s)\n\n", name.c_str(), (long)table->rules.size(), extraRules.c_str());
     // write out metadata comments at end of the file
     for (auto item : metaList)

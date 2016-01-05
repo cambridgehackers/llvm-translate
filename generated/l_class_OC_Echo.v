@@ -39,6 +39,8 @@ module l_class_OC_Echo (
     reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA_internal;
     assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
+    assign {fifo$rule_enable, respond_rule_ENA} = rule_enable;
+    assign rule_ready = {fifo$rule_ready, respond_rule__RDY};
 
     always @( posedge CLK) begin
       if (!nRST) begin

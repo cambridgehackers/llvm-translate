@@ -25,6 +25,8 @@ module l_class_OC_Fifo1 (
     assign out_deq__RDY_internal = full;
     assign out_first = element;
     assign out_first__RDY_internal = full;
+    assign {, } = rule_enable;
+    assign rule_ready = {, };
 
     always @( posedge CLK) begin
       if (!nRST) begin
