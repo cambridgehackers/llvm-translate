@@ -269,7 +269,6 @@ static void gatherInfo(std::string mname, std::string condition)
 static std::string globalCondition;
 void muxEnable(BasicBlock *bb, std::string signal)
 {
-printf("[%s:%d] signal %s glo %s\n", __FUNCTION__, __LINE__, signal.c_str(), globalCondition.c_str());
      std::string tempCond = globalCondition;
      if (Value *cond = getCondition(bb, 0))
          tempCond += " & " + printOperand(cond, false);
@@ -282,7 +281,6 @@ void muxValue(BasicBlock *bb, std::string signal, std::string value)
      std::string tempCond = globalCondition;
      if (Value *cond = getCondition(bb, 0))
          tempCond += " & " + printOperand(cond, false);
-printf("[%s:%d] signal %s val %s glo %s\n", __FUNCTION__, __LINE__, signal.c_str(), value.c_str(), tempCond.c_str());
      muxValueList[signal].push_back(MUX_VALUE{tempCond, value});
 }
 
