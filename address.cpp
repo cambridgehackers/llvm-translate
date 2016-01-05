@@ -203,8 +203,8 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     /* make a call to the guard being promoted */
     Instruction *newI = copyFunction(TI, argI, func);
     /* if the promoted guard is in an 'if' block, 'or' with inverted condition of block */
-    if (Value *blockCond = getCondition(argI->getParent(), 1)) // get inverted condition, if any
-        newI = BinaryOperator::Create(Instruction::Or, newI, blockCond, "newor", TI);
+    if (Instruction *blockCond = dyn_cast_or_null<Instruction>(getCondition(argI->getParent(), 1))) // get inverted condition, if any
+        newI = BinaryOperator::Create(Instruction::Or, newI, cloneTree(blockCond,TI), "newor", TI);
     /* get existing return value from my function's guard */
     Value *cond = TI->getOperand(0);
     const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
