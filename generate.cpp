@@ -42,15 +42,14 @@ static unsigned NextTypeID;
 int generateRegion = ProcessNone;
 static std::string globalCondition;
 
-std::list<Function *> vtableWork;
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static std::string processInstruction(Instruction &I);
-std::list<ReferenceType> readList, writeList, invokeList;
-std::list<std::string> functionList;
+std::list<ReferenceType> readList, writeList, invokeList, functionList;
 std::map<std::string, ReferenceType> storeList;
+std::list<std::string> declareList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -104,7 +103,8 @@ static bool isInlinableInst(const Instruction &I)
         const Instruction &User = cast<Instruction>(*I.user_back());
         if (isa<ExtractElementInst>(User) || isa<ShuffleVectorInst>(User))
             return false;
-        ERRORIF ( I.getParent() != cast<Instruction>(I.user_back())->getParent());
+        // doesn't seem to work for PHI references isa<PHINode>(I)
+        //ERRORIF (I.getParent() != cast<Instruction>(I.user_back())->getParent());
     }
     return true;
 }
@@ -688,6 +688,7 @@ void processFunction(Function *func)
     invokeList.clear();
     storeList.clear();
     functionList.clear();
+    declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
@@ -701,12 +702,11 @@ void processFunction(Function *func)
                     if (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
                          && II->getType() != Type::getVoidTy(BI->getContext())) {
                         std::string resname = GetValueName(&*II);
-                        if (generateRegion == ProcessCPP)
-                            resname = printType(II->getType(), false, resname, "", "", false);
+                        declareList.push_back(printType(II->getType(), false, resname, "", "", false));
                         storeList[resname] = ReferenceType{II->getParent(), vout};
                     }
                     else
-                        functionList.push_back(vout);
+                        functionList.push_back(ReferenceType{II->getParent(), vout});
                 }
             }
         }

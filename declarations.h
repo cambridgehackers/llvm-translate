@@ -70,10 +70,9 @@ extern int trace_translate;
 extern int trace_full;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
-extern std::list<ReferenceType> readList, writeList, invokeList;
-extern std::list<std::string> functionList;
+extern std::list<ReferenceType> readList, writeList, invokeList, functionList;
+extern std::list<std::string> declareList;
 extern std::map<std::string, ReferenceType> storeList;
-extern std::list<Function *> vtableWork;
 extern std::map<const Function *, std::string> pushSeen;
 extern int generateRegion;
 

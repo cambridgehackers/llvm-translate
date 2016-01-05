@@ -242,8 +242,11 @@ static std::list<std::string> readWriteList;
 static void gatherInfo(std::string mname, std::string condition)
 {
     if (!endswith(mname, "__RDY")) {
+        std::list<ReferenceType> tempRead; // to ensure that 'printOperand' doesn't add more things!
         std::string temp;
         for (auto item: readList)
+            tempRead.push_back(item);
+        for (auto item: tempRead)
             temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
         if (temp != "")
             readWriteList.push_back("//METAREAD; " + mname + "; " + condition + temp + ";");
@@ -294,14 +297,15 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         globalCondition = mname + "__ENA_internal";
         if (endswith(func->getName(), "EC2Ev"))
             continue;
-        functionList.clear();
         processFunction(func);
         if (!isAction) {
             if (endswith(mname, "__RDY"))
                 rdyList.push_back(READY_INFO{func, mname});
             std::string temp;
-            for (auto item: functionList)
-                temp += item;
+            for (auto info: functionList) {
+                ERRORIF(getCondition(info.cond, 0));
+                temp += info.item;
+            }
             assignList[mname] = temp;
         }
         else {
@@ -310,16 +314,18 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             fprintf(OStr, "    assign %s__RDY = %s__RDY_internal;\n", mname.c_str(), mname.c_str());
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
-                for (auto item: functionList)
-                    printf("%s\n", item.c_str());
+                for (auto info: functionList) {
+                    if (Value *cond = getCondition(info.cond, 0))
+                        printf("%s\n", ("    if (" + printOperand(cond, false) + ")").c_str());
+                    printf("%s\n", info.item.c_str());
+                }
                 exit(-1);
             }
         }
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA_internal) begin");
             for (auto info: storeList) {
-                Value *cond = getCondition(info.second.cond, 0);
-                if (cond)
+                if (Value *cond = getCondition(info.second.cond, 0))
                     alwaysLines.push_back("    if (" + printOperand(cond, false) + ")");
                 alwaysLines.push_back("    " + info.first + " <= " + info.second.item + ";");
             }
@@ -388,10 +394,11 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "endmodule \n\n");
     for (auto PI = rdyList.begin(); PI != rdyList.end(); PI++) {
         fprintf(OStr, "//METAGUARD; %s; ", PI->name.c_str());
-        functionList.clear();
         processFunction(PI->func);
-        for (auto item: functionList)
-            fprintf(OStr, "        %s;\n", item.c_str());
+        for (auto info: functionList) {
+            ERRORIF(getCondition(info.cond, 0));
+            fprintf(OStr, "        %s;\n", info.item.c_str());
+        }
     }
     for (auto item : readWriteList)
         fprintf(OStr, "%s\n", item.c_str());

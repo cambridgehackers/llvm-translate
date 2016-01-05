@@ -144,14 +144,18 @@ void generateClassDef(const StructType *STy, std::string oDir)
             continue;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
         processFunction(func);
+        for (auto info: declareList)
+            fprintf(OStr, "        %s;\n", info.c_str());
         for (auto info: storeList) {
-            Value *cond = getCondition(info.second.cond, 0);
-            if (cond)
+            if (Value *cond = getCondition(info.second.cond, 0))
                 fprintf(OStr, "        if (%s)\n    ", printOperand(cond, false).c_str());
             fprintf(OStr, "        %s = %s;\n", info.first.c_str(), info.second.item.c_str());
         }
-        for (auto item: functionList)
-            fprintf(OStr, "        %s;\n", item.c_str());
+        for (auto info: functionList) {
+            if (Value *cond = getCondition(info.cond, 0))
+                fprintf(OStr, "        if (%s)\n    ", printOperand(cond, false).c_str());
+            fprintf(OStr, "        %s;\n", info.item.c_str());
+        }
         fprintf(OStr, "}\n");
     }
     if (hasRun(STy)) {

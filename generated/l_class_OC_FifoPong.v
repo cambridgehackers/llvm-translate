@@ -49,8 +49,8 @@ endmodule
 //METAGUARD; in_enq__RDY;         full ^ 1;
 //METAGUARD; out_deq__RDY;         full;
 //METAGUARD; out_first__RDY;         full;
-//METAREAD; in_enq; :;pong:;pong;
+//METAREAD; in_enq; :pong ^ 1;pong:;pong;
 //METAWRITE; in_enq; :pong;element2:pong ^ 1;element1:;full;
 //METAREAD; out_deq; :;pong;
 //METAWRITE; out_deq; :;full:;pong;
-//METAREAD; out_first; :;pong:pong;element2:pong ^ 1;element1:;pong:;pong;
+//METAREAD; out_first; :;pong:pong;element2:pong ^ 1;element1;

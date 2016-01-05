@@ -220,7 +220,6 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
 }
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
-// Walk list of work items, cleaning up function references and adding to vtableWork
 static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
@@ -299,11 +298,15 @@ Value *getCondition(BasicBlock *bb, int invert)
 {
     if (Value *val = blockCondition[invert].val[bb])
         return val;
-    if (Value *val = blockCondition[1-invert].val[bb]) {
+    if (Instruction *val = dyn_cast_or_null<Instruction>(blockCondition[1-invert].val[bb])) {
+        BasicBlock *prevBB = val->getParent();
+        Instruction *TI = bb->getTerminator();
+        if (prevBB != bb)
+            val = cloneTree(val, TI);
         IRBuilder<> builder(bb);
-        builder.SetInsertPoint(bb->getTerminator());
+        builder.SetInsertPoint(TI);
         blockCondition[invert].val[bb] = BinaryOperator::Create(Instruction::Xor,
-           val, builder.getInt1(1), "invertCond", bb->getTerminator());
+           val, builder.getInt1(1), "invertCond", TI);
         return blockCondition[invert].val[bb];
     }
     return NULL;
@@ -334,7 +337,6 @@ static void pushWork(std::string mName, Function *func)
     updateParameterNames(mName, func);
     if (inheritsModule(STy, "class.ModuleStub"))
         return;
-    vtableWork.push_back(func);
     // inline intra-class method call bodies
     processMethodInlining(func, func);
     // promote guards from contained calls to be guards for this function
