@@ -266,7 +266,9 @@ void generateModuleDef(const StructType *STy, std::string oDir)
 
     muxValueList.clear();
     assignList.clear();
+    // first generate the verilog module file '.v'
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
+    fprintf(OStr, "\n`include \"%s.vh\"\n\n", name.c_str());
     generateModuleSignature(OStr, STy, "");
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
@@ -396,9 +398,33 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "    end // always @ (posedge CLK)\n");
     }
     fprintf(OStr, "endmodule \n\n");
+    fclose(OStr);
+
+    // now generate the verilog header file '.vh'
+    OStr = fopen((oDir + "/" + name + ".vh").c_str(), "w");
+    fprintf(OStr, "`ifndef __%s_VH__\n`define __%s_VH__\n\n", name.c_str(), name.c_str());
+    Idx = 0;
+    std::string extraRules;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
+        if (fieldName(STy, Idx) != "") {
+            if (const StructType *iSTy = dyn_cast<StructType>(element))
+                if (!inheritsModule(iSTy, "class.InterfaceClass")) {
+                    std::string sname = getStructName(iSTy);
+                    fprintf(OStr, "`include \"%s.vh\"\n", sname.c_str());
+                    extraRules += " + `" + sname + "_RULE_COUNT";
+                }
+        }
+    }
+    fprintf(OStr, "`define %s_RULE_COUNT (%ld%s)\n\n", name.c_str(), (long)table->rules.size(), extraRules.c_str());
     // write out metadata comments at end of the file
     for (auto item : metaList)
         fprintf(OStr, "%s\n", item.c_str());
+    fprintf(OStr, "`endif\n");
     fclose(OStr);
+
+    // now generate a BSV 'import BVI' file to make it easier to use the module from BSV
     generateBsvWrapper(STy, oDir);
 }

@@ -1,3 +1,6 @@
+
+`include "l_class_OC_Fifo1.vh"
+
 module l_class_OC_Fifo1 (
     input CLK,
     input nRST,
@@ -38,9 +41,3 @@ module l_class_OC_Fifo1 (
     end // always @ (posedge CLK)
 endmodule 
 
-//METAWRITE; in_enq; :;element:;full;
-//METAGUARD; in_enq__RDY; full ^ 1;
-//METAWRITE; out_deq; :;full;
-//METAGUARD; out_deq__RDY; full;
-//METAREAD; out_first; :;element;
-//METAGUARD; out_first__RDY; full;
