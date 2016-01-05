@@ -27,8 +27,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-std::list<std::string> extraMethods;
-
 /*
  * Recursively generate element definitions for a class.
  */
@@ -48,26 +46,10 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
                 if (inheritsModule(iSTy, "class.InterfaceClass"))
                     continue;
             fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
-            if (dyn_cast<PointerType>(element)) {
-                extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
-                    + ") { " + fname + " = v; }");
-            }
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);
     }
-}
-
-static int hasRun(const StructType *STy)
-{
-    if (STy && classCreate[STy]) {
-        if (classCreate[STy]->rules.size())
-            return 1;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I)
-            if (hasRun(dyn_cast<StructType>(*I)))
-                return 1;
-    }
-    return 0;
 }
 
 /*
@@ -101,12 +83,12 @@ static std::string printFunctionSignature(const Function *F, std::string altname
  */
 void generateClassDef(const StructType *STy, std::string oDir)
 {
-    generateRegion = ProcessCPP;
-    if (inheritsModule(STy, "class.ModuleStub") || inheritsModule(STy, "class.InterfaceClass")
-     || STy->getName() == "class.Module" || STy->getName() == "class.InterfaceClass")
-        return;
+    std::list<std::string> runLines;
+    std::list<std::string> extraMethods;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
+
+    // first generate '.h' file
     FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
     fprintf(OStr, "#ifndef __%s_H__\n#define __%s_H__\n", name.c_str(), name.c_str());
     int Idx = 0;
@@ -114,28 +96,31 @@ void generateClassDef(const StructType *STy, std::string oDir)
         const Type *element = *I;
         if (const Type *newType = table->replaceType[Idx])
             element = newType;
-        if (fieldName(STy, Idx) != "") {
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (!inheritsModule(iSTy, "class.InterfaceClass"))
+                if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
-            if (const PointerType *PTy = dyn_cast<PointerType>(element))
+                    runLines.push_back(fname);
+                }
+            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
                     fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
+                extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
+                    + ") { " + fname + " = v; }");
+            }
         }
     }
     fprintf(OStr, "class %s {\n", name.c_str());
-    extraMethods.clear();
     generateClassElements(STy, OStr);
-    fprintf(OStr, "public:\n");
+    fprintf(OStr, "public:\n  void run();\n");
     for (auto FI : table->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
-    if (hasRun(STy))
-        fprintf(OStr, "  void run();\n");
     for (auto item: extraMethods)
         fprintf(OStr, "  %s\n", item.c_str());
     fprintf(OStr, "};\n#endif  // __%s_H__\n", name.c_str());
     fclose(OStr);
-
+    // now generate '.cpp' file
     OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
@@ -156,18 +141,11 @@ void generateClassDef(const StructType *STy, std::string oDir)
         }
         fprintf(OStr, "}\n");
     }
-    if (hasRun(STy)) {
-        fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-        for (auto item : table->rules)
-            fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
-        int Idx = 0;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-            std::string fname = fieldName(STy, Idx);
-            const PointerType *PTy = dyn_cast<PointerType>(*I);
-            if (hasRun(!PTy ? dyn_cast<StructType>(*I)
-                            : dyn_cast<StructType>(PTy->getElementType())))
-                fprintf(OStr, "    %s%srun();\n", fname.c_str(), PTy ? "->" : ".");
-        }
-        fprintf(OStr, "}\n");
-    }
+    fprintf(OStr, "void %s::run()\n{\n", name.c_str());
+    for (auto item : table->rules)
+        fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
+    for (auto item : runLines)
+        fprintf(OStr, "    %s.run();\n", item.c_str());
+    fprintf(OStr, "}\n");
+    fclose(OStr);
 }

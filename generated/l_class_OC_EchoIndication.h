@@ -2,6 +2,7 @@
 #define __l_class_OC_EchoIndication_H__
 class l_class_OC_EchoIndication {
 public:
+  void run();
   void heard(unsigned int heard_v);
   bool heard__RDY(void);
 };

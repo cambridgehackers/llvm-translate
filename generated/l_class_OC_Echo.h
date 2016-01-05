@@ -7,11 +7,11 @@ class l_class_OC_Echo {
   class l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;
 public:
+  void run();
   void respond_rule(void);
   bool respond_rule__RDY(void);
   void say(unsigned int say_v);
   bool say__RDY(void);
-  void run();
   void setind(class l_class_OC_EchoIndication *v) { ind = v; }
 };
 #endif  // __l_class_OC_Echo_H__

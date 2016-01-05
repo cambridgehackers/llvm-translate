@@ -39,7 +39,7 @@ static int trace_gep;//=1;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
-int generateRegion = ProcessNone;
+static int generateRegion = ProcessNone;
 
 static std::map<const Type *, int> structMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
@@ -745,9 +745,16 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
                     element = table->replaceType[Idx];
                 generateContainedStructs(element, ODir);
             }
-            if (table) {
-                generateModuleDef(STy, ODir);
-                generateClassDef(STy, ODir);
+            if (table && STy->getName() != "class.Module") {
+                // Only generate verilog for modules derived from Module
+                generateRegion = ProcessVerilog;
+                if (inheritsModule(STy, "class.Module"))
+                    generateModuleDef(STy, ODir);
+                // Generate cpp for all modules except class.ModuleStub
+                generateRegion = ProcessCPP;
+                if (!inheritsModule(STy, "class.ModuleStub") && !inheritsModule(STy, "class.InterfaceClass")
+                 && STy->getName() != "class.InterfaceClass")
+                    generateClassDef(STy, ODir);
             }
         }
     }

@@ -282,13 +282,10 @@ void muxValue(BasicBlock *bb, std::string signal, std::string value)
 
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
-    generateRegion = ProcessVerilog;
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<std::string> alwaysLines;
 
-    if (!inheritsModule(STy, "class.Module") || STy->getName() == "class.Module")
-        return;
     readWriteList.clear();
     muxValueList.clear();
     assignList.clear();

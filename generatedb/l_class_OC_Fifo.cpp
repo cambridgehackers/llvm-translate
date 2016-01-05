@@ -15,3 +15,6 @@ unsigned int l_class_OC_Fifo::out_first(void) {
 bool l_class_OC_Fifo::out_first__RDY(void) {
         return 0;
 }
+void l_class_OC_Fifo::run()
+{
+}

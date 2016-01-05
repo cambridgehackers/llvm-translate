@@ -74,7 +74,6 @@ extern std::list<ReferenceType> readList, writeList, invokeList, functionList;
 extern std::list<std::string> declareList;
 extern std::map<std::string, ReferenceType> storeList;
 extern std::map<const Function *, std::string> pushSeen;
-extern int generateRegion;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);

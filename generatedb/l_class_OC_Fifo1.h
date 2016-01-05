@@ -4,6 +4,7 @@ class l_class_OC_Fifo1 {
   unsigned int element;
   bool full;
 public:
+  void run();
   void in_enq(unsigned int in_enq_v);
   bool in_enq__RDY(void);
   void out_deq(void);

@@ -25,4 +25,5 @@ bool l_class_OC_Echo::say__RDY(void) {
 void l_class_OC_Echo::run()
 {
     if (respond_rule__RDY()) respond_rule();
+    fifo.run();
 }

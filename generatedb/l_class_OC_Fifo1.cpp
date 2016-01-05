@@ -18,3 +18,6 @@ unsigned int l_class_OC_Fifo1::out_first(void) {
 bool l_class_OC_Fifo1::out_first__RDY(void) {
         return full;
 }
+void l_class_OC_Fifo1::run()
+{
+}

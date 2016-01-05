@@ -6,3 +6,6 @@ void l_class_OC_EchoIndication::heard(unsigned int heard_v) {
 bool l_class_OC_EchoIndication::heard__RDY(void) {
         return 1;
 }
+void l_class_OC_EchoIndication::run()
+{
+}
