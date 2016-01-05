@@ -6,6 +6,7 @@ class l_class_OC_FifoPong {
   bool pong;
   bool full;
 public:
+  void run();
   void in_enq(unsigned int in_enq_v);
   bool in_enq__RDY(void);
   void out_deq(void);

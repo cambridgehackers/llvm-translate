@@ -23,3 +23,6 @@ unsigned int l_class_OC_FifoPong::out_first(void) {
 bool l_class_OC_FifoPong::out_first__RDY(void) {
         return full;
 }
+void l_class_OC_FifoPong::run()
+{
+}

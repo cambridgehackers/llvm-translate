@@ -46,11 +46,11 @@ module l_class_OC_FifoPong (
     end // always @ (posedge CLK)
 endmodule 
 
-//METAGUARD; in_enq__RDY;         full ^ 1;
-//METAGUARD; out_deq__RDY;         full;
-//METAGUARD; out_first__RDY;         full;
 //METAREAD; in_enq; :pong ^ 1;pong:;pong;
 //METAWRITE; in_enq; :pong;element2:pong ^ 1;element1:;full;
+//METAGUARD; in_enq__RDY; full ^ 1;
 //METAREAD; out_deq; :;pong;
 //METAWRITE; out_deq; :;full:;pong;
+//METAGUARD; out_deq__RDY; full;
 //METAREAD; out_first; :;pong:pong;element2:pong ^ 1;element1;
+//METAGUARD; out_first__RDY; full;
