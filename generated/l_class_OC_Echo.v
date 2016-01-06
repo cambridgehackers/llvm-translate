@@ -16,10 +16,8 @@ module l_class_OC_Echo (
     output [`l_class_OC_Echo_RULE_COUNT:0]rule_ready);
     wire respond_rule__RDY_internal;
     wire respond_rule__ENA_internal = respond_rule__ENA && respond_rule__RDY_internal;
-    assign respond_rule__RDY = respond_rule__RDY_internal;
     wire say__RDY_internal;
     wire say__ENA_internal = say__ENA && say__RDY_internal;
-    assign say__RDY = say__RDY_internal;
     wire fifo$out_deq__RDY;
     wire fifo$out_first__RDY;
     wire [`l_class_OC_Fifo1_RULE_COUNT:0] fifo$rule_enable;
@@ -29,7 +27,7 @@ module l_class_OC_Echo (
         nRST,
         say__ENA_internal,
         say_v,
-        say__RDY,
+        say__RDY_internal,
         respond_rule__ENA_internal,
         fifo$out_deq__RDY,
         ind$heard_heard_v,
@@ -38,9 +36,11 @@ module l_class_OC_Echo (
         fifo$rule_ready);
     reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA_internal;
+    assign respond_rule__RDY = respond_rule__RDY_internal;
     assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-    assign {fifo$rule_enable, respond_rule_ENA} = rule_enable;
     assign rule_ready = {fifo$rule_ready, respond_rule__RDY};
+    assign say__RDY = say__RDY_internal;
+    assign {fifo$rule_enable, respond_rule_ENA} = rule_enable;
 
     always @( posedge CLK) begin
       if (!nRST) begin

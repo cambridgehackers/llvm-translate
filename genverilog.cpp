@@ -295,9 +295,12 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 ERRORIF(getCondition(info.cond, 0));
                 temp += info.item;
             }
-            assignList[mname] = temp;  // collect the text of the return value into a single 'assign'
-            if (endswith(mname, "__RDY"))
+            if (endswith(mname, "__RDY")) {
+                assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
                 metaList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
+            }
+            else
+                assignList[mname] = temp;  // collect the text of the return value into a single 'assign'
         }
         else {
             // generate RDY_internal wire so that we can reference RDY expression inside module
@@ -305,7 +308,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // never be enabled unless we were actually ready.
             fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
             fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
-            fprintf(OStr, "    assign %s__RDY = %s__RDY_internal;\n", mname.c_str(), mname.c_str());
+            assignList[mname + "__RDY"] = mname + "__RDY_internal";
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
                 for (auto info: functionList) {
@@ -395,34 +398,29 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
         }
     }
-    // generate 'assign' items
-    for (auto item: assignList)
-        if (item.second != "") {
-            std::string temp = item.first.c_str();
-            if (endswith(temp, "__RDY"))
-                temp += "_internal";
-            fprintf(OStr, "    assign %s = %s;\n", temp.c_str(), item.second.c_str());
-        }
     if (ruleEnables != "" || table->rules.size() > 0) {
         if (ruleEnables != "" && table->rules.size() > 0)
             ruleEnables += ", ";
-        fprintf(OStr, "    assign {%s", ruleEnables.c_str());
-        const char *sep = "";
+        std::string sep, temp = "{" + ruleEnables;
         for (auto item : table->rules) {
-            fprintf(OStr, "%s%s_ENA", sep, item.c_str());
+            temp += sep + item + "_ENA";
             sep = ", ";
         }
-        fprintf(OStr, "} = rule_enable;\n");
+        assignList[temp + "}"] = "rule_enable";
         if (ruleReadys != "" && table->rules.size() > 0)
             ruleReadys += ", ";
-        fprintf(OStr, "    assign rule_ready = {%s", ruleReadys.c_str());
+        temp = "{" + ruleReadys;
         sep = "";
         for (auto item : table->rules) {
-            fprintf(OStr, "%s%s__RDY", sep, item.c_str());
+            temp += sep + item + "__RDY";
             sep = ", ";
         }
-        fprintf(OStr, "};\n");
+        assignList["rule_ready"] = temp + "}";
     }
+    // generate 'assign' items
+    for (auto item: assignList)
+        if (item.second != "")
+            fprintf(OStr, "    assign %s = %s;\n", item.first.c_str(), item.second.c_str());
     // generate clocked updates to state elements
     if (resetList.size() > 0 || alwaysLines.size() > 0) {
         fprintf(OStr, "\n    always @( posedge CLK) begin\n      if (!nRST) begin\n");

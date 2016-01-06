@@ -15,18 +15,16 @@ module l_class_OC_Fifo1 (
     output [`l_class_OC_Fifo1_RULE_COUNT:0]rule_ready);
     wire in_enq__RDY_internal;
     wire in_enq__ENA_internal = in_enq__ENA && in_enq__RDY_internal;
-    assign in_enq__RDY = in_enq__RDY_internal;
     wire out_deq__RDY_internal;
     wire out_deq__ENA_internal = out_deq__ENA && out_deq__RDY_internal;
-    assign out_deq__RDY = out_deq__RDY_internal;
     reg[31:0] element;
     reg full;
+    assign in_enq__RDY = in_enq__RDY_internal;
     assign in_enq__RDY_internal = full ^ 1;
+    assign out_deq__RDY = out_deq__RDY_internal;
     assign out_deq__RDY_internal = full;
     assign out_first = element;
     assign out_first__RDY_internal = full;
-    assign {, } = rule_enable;
-    assign rule_ready = {, };
 
     always @( posedge CLK) begin
       if (!nRST) begin
