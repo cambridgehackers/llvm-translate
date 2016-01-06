@@ -176,10 +176,19 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         }
     }
     std::string ruleRange;
+    std::string mmm;
     if (instance == "")
         ruleRange = "[`" + name + "_RULE_COUNT:0]";
-    paramList.push_back(inp + ruleRange + "rule_enable");
-    paramList.push_back(outp + ruleRange + "rule_ready");
+    if (instance != "")
+        mmm = inlineValue(instPrefix + "rule_enable", true);
+    else
+        mmm = inp + ruleRange + "rule_enable";
+    paramList.push_back(mmm);
+    if (instance != "")
+        mmm = inlineValue(instPrefix + "rule_ready", true);
+    else
+        mmm = outp + ruleRange + "rule_ready";
+    paramList.push_back(mmm);
     if (instance != "")
         fprintf(OStr, "    %s %s (\n", name.c_str(), instance.c_str());
     else
