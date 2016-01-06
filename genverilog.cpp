@@ -306,9 +306,9 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     int ind = 0;
     for (auto item : table->rules)
         if (item.second) {
-            assignList["rule_ready[" + utostr(ind) + "]"] = item.first + "__RDY_internal";
             fprintf(OStr, "    wire %s__RDY_internal;\n", item.first.c_str());
             fprintf(OStr, "    wire %s__ENA_internal = rule_enable[%d] && %s__RDY_internal;\n", item.first.c_str(), ind, item.first.c_str());
+            assignList["rule_ready[" + utostr(ind) + "]"] = item.first + "__RDY_internal";
             ind++;
         }
     // generate local state element declarations
@@ -366,9 +366,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // never be enabled unless we were actually ready.
             if (!table->rules[mname]) {
                 fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
-                fprintf(OStr, "    wire %s__ENA_internal = ", mname.c_str());
-                fprintf(OStr, "%s__ENA", mname.c_str());
-                fprintf(OStr, " && %s__RDY_internal;\n", mname.c_str());
+                fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
                 assignList[mname + "__RDY"] = mname + "__RDY_internal";
             }
             if (functionList.size() > 0) {
