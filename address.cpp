@@ -473,11 +473,13 @@ static void dumpMemoryRegions(int arg)
  */
 int validateAddress(int arg, void *p)
 {
+    static int once;
     for (MEMORY_REGION info : memoryRegion) {
         if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
             return 0;
     }
     printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
+    if (!once)
     for (MEMORY_REGION info : memoryRegion) {
         const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
         const char *cp = "";
@@ -485,6 +487,7 @@ int validateAddress(int arg, void *p)
             cp = g->getName().str().c_str();
         printf("%p %s size 0x%lx\n", info.p, cp, info.size);
     }
+    once = 1;
     return 1;
 }
 
