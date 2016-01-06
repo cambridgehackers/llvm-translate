@@ -299,6 +299,34 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     ind = 0;
     for (auto item : table->rules)
         assignList["rule_ready[" + utostr(ind++) + "]"] = item + "__RDY";
+    // generate local state element declarations
+    int Idx = 0;
+    std::list<std::string> resetList;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        const Type *element = *I;
+        if (const Type *newType = table->replaceType[Idx])
+            element = newType;
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "") {
+            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
+                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
+                    metaList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
+            }
+            else if (const StructType *STy = dyn_cast<StructType>(element)) {
+                if (!inheritsModule(STy, "class.InterfaceClass")) {
+                    std::string sname = getStructName(STy);
+                    metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
+                    assignList[fname + "$rule_enable"] = "rule_enable[" + extraRules + ":`" + sname + "_RULE_COUNT]";
+                    assignList["rule_ready[" + extraRules + ":`" + sname + "_RULE_COUNT]"] = fname + "$rule_ready";
+                    extraRules += " + `" + sname + "_RULE_COUNT";
+                    includeLines[sname] = 1;
+                }
+            }
+            else {
+                resetList.push_back(fname);
+            }
+        }
+    }
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
     for (auto FI : table->method) {
@@ -383,33 +411,19 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         assignList[item.first] = temp;
     }
     // generate local state element declarations
-    int Idx = 0;
-    std::list<std::string> resetList;
+    Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
         if (const Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
-            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
-                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
-                    metaList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
-            }
-            else if (const StructType *STy = dyn_cast<StructType>(element)) {
-                if (!inheritsModule(STy, "class.InterfaceClass")) {
-                    std::string sname = getStructName(STy);
+            if (const StructType *STy = dyn_cast<StructType>(element)) {
+                if (!inheritsModule(STy, "class.InterfaceClass"))
                     generateModuleSignature(OStr, STy, fname);
-                    metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
-                    assignList[fname + "$rule_enable"] = "rule_enable[" + extraRules + ":`" + sname + "_RULE_COUNT]";
-                    assignList["rule_ready[" + extraRules + ":`" + sname + "_RULE_COUNT]"] = fname + "$rule_ready";
-                    extraRules += " + `" + sname + "_RULE_COUNT";
-                    includeLines[sname] = 1;
-                }
             }
-            else {
+            else if (!dyn_cast<PointerType>(element))
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
-                resetList.push_back(fname);
-            }
         }
     }
     // generate 'assign' items
