@@ -131,6 +131,9 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = FI.first;
+        if (table->rules[mname]
+         || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5)]))
+            continue;
         const Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         std::string wparam = inp + mname + (isAction ? "__ENA" : "");
@@ -295,10 +298,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // assign ENA/RDY lines for local rules
     int ind = 0;
     for (auto item : table->rules)
-        assignList[item + "_ENA"] = "rule_enable[" + utostr(ind++) + "]";
-    ind = 0;
-    for (auto item : table->rules)
-        assignList["rule_ready[" + utostr(ind++) + "]"] = item + "__RDY";
+        if (item.second)
+            assignList["rule_ready[" + utostr(ind++) + "]"] = item.first + "__RDY_internal";
     // generate local state element declarations
     int Idx = 0;
     std::list<std::string> resetList;
@@ -353,8 +354,21 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // generate ENA_internal wire that is and'ed with RDY_internal, so that we can
             // never be enabled unless we were actually ready.
             fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
-            fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
-            assignList[mname + "__RDY"] = mname + "__RDY_internal";
+            fprintf(OStr, "    wire %s__ENA_internal = ", mname.c_str());
+            if (table->rules[mname]) {
+                int i = 0;
+                for (auto item: table->rules)
+                    if (item.first == mname)
+                        break;
+                    else if (item.second)
+                        i++;
+                fprintf(OStr, "rule_enable[%d]", i);
+            }
+            else {
+                fprintf(OStr, "%s__ENA", mname.c_str());
+                assignList[mname + "__RDY"] = mname + "__RDY_internal";
+            }
+            fprintf(OStr, " && %s__RDY_internal;\n", mname.c_str());
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
                 for (auto info: functionList) {

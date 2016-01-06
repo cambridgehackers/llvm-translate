@@ -34,7 +34,7 @@ module EchoVerilog(%(verilogArgs)s
 
  %(userWires)s
 
- l_class_OC_Echo lEcho(%(userArgs)s .respond_rule__ENA(1));
+ l_class_OC_Echo lEcho(%(userArgs)s .rule_enable(1));
  mkEchoIndicationOutput myEchoIndicationOutput(%(userLinks)s
    .RDY_portalIfc_messageSize_size(RDY_messageSize_size), .portalIfc_messageSize_size_methodNumber(messageSize_size_methodNumber), .portalIfc_messageSize_size(messageSize_size));
 endmodule  // mkEcho

@@ -434,7 +434,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *enaFunc = fixupFunction(name, ENA[2]);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
-    table->rules.push_back(name);
+    table->rules[name] = enaFunc;
     if (trace_lookup)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));

@@ -143,7 +143,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
     for (auto item : table->rules)
-        fprintf(OStr, "    if (%s__RDY()) %s();\n", item.c_str(), item.c_str());
+        if (item.second)
+            fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.c_str(), item.first.c_str());
     for (auto item : runLines)
         fprintf(OStr, "    %s.run();\n", item.c_str());
     fprintf(OStr, "}\n");
