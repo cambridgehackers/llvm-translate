@@ -2,13 +2,6 @@
 set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
-#./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/fifo.ll ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 ./Debug+Asserts/bin/llvm-translate --odir=generatedb ../atomicc/examples/echo/fifo.ll
+#./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/fifo.ll ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 ./linker.py --directory generated --directory generatedb --output Echo l_class_OC_Echo
-
-#c++filt <generated/output.cpp >generated/output.tmp
-
-#   llvm-dis-mp-3.3 foo.tmp.bc
-#   ../llvm/build/Debug+Asserts/bin/llc -march=cpp foo.tmp.ll -o xx.jj
-#   sed -i.001 -e "s/llvm_translate_malloc/malloc/" foo.tmp.ll
-#   ../llvm/build/Debug+Asserts/bin/lli foo.tmp.ll dd 

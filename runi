@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+set -x
+./Debug+Asserts/bin/llvm-translate --odir=generatedi ../atomicc/examples/ivector/ivector.ll ../atomicc/examples/ivector/atomicc.ll
+./linker.py --directory generatedi --output Echo l_class_OC_IVector
+clang++ -Igeneratedi -g test/ivector.cpp
+./a.out
+rm -f a.out
+
