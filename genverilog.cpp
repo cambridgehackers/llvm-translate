@@ -61,11 +61,8 @@ static bool findExact(std::string haystack, std::string needle)
  */
 static std::string inlineValue(std::string wname, bool clear)
 {
-    if (dontInlineValues)
-        return clear ? wname : "";
-    std::string temp = assignList[wname];
-    if (temp == "") {
-        std::string exactMatch;
+    std::string temp, exactMatch;
+    if (!dontInlineValues && (temp = assignList[wname]) == "") {
         int referenceCount = 0;
         for (auto item: assignList) {
             if (item.second == wname)
