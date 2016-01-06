@@ -119,8 +119,12 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wparam.c_str());
             }
         }
-        fprintf(OStr, "    wire [`%s_RULE_COUNT:0] %srule_enable;\n", name.c_str(), instPrefix.c_str());
-        fprintf(OStr, "    wire [`%s_RULE_COUNT:0] %srule_ready;\n", name.c_str(), instPrefix.c_str());
+        std::string mmm = instPrefix + "rule_enable";
+        if (inlineValue(mmm, false) == "")
+            fprintf(OStr, "    wire [`%s_RULE_COUNT:0] %s;\n", name.c_str(), mmm.c_str());
+        mmm = instPrefix + "rule_ready";
+        if (inlineValue(mmm, false) == "")
+            fprintf(OStr, "    wire [`%s_RULE_COUNT:0] %s;\n", name.c_str(), mmm.c_str());
     }
     paramList.push_back(inpClk + "CLK");
     paramList.push_back(inpClk + "nRST");
