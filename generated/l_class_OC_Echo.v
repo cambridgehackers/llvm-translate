@@ -35,12 +35,14 @@ module l_class_OC_Echo (
         fifo$rule_enable,
         fifo$rule_ready);
     reg[31:0] pipetemp;
+    assign fifo$rule_enable = rule_enable[1:`l_class_OC_Fifo1_RULE_COUNT];
     assign ind$heard__ENA = respond_rule__ENA_internal;
+    assign respond_rule_ENA = rule_enable[0];
     assign respond_rule__RDY = respond_rule__RDY_internal;
     assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-    assign rule_ready = {fifo$rule_ready, respond_rule__RDY};
+    assign rule_ready[0] = respond_rule__RDY;
+    assign rule_ready[1:`l_class_OC_Fifo1_RULE_COUNT] = fifo$rule_ready;
     assign say__RDY = say__RDY_internal;
-    assign {fifo$rule_enable, respond_rule_ENA} = rule_enable;
 
     always @( posedge CLK) begin
       if (!nRST) begin

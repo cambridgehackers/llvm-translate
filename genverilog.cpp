@@ -270,9 +270,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<std::string> alwaysLines;
-    std::string extraRules;
-    std::string ruleEnables;
-    std::string ruleReadys;
+    std::string extraRules = utostr(table->rules.size());
     std::map<std::string, int> includeLines;
 
     muxValueList.clear();
@@ -281,6 +279,13 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     fprintf(OStr, "\n`include \"%s.vh\"\n\n", name.c_str());
     generateModuleSignature(OStr, STy, "");
+    // assign ENA/RDY lines for local rules
+    int ind = 0;
+    for (auto item : table->rules)
+        assignList[item + "_ENA"] = "rule_enable[" + utostr(ind++) + "]";
+    ind = 0;
+    for (auto item : table->rules)
+        assignList["rule_ready[" + utostr(ind++) + "]"] = item + "__RDY";
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
     for (auto FI : table->method) {
@@ -382,13 +387,9 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                     std::string sname = getStructName(STy);
                     generateModuleSignature(OStr, STy, fname);
                     metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
+                    assignList[fname + "$rule_enable"] = "rule_enable[" + extraRules + ":`" + sname + "_RULE_COUNT]";
+                    assignList["rule_ready[" + extraRules + ":`" + sname + "_RULE_COUNT]"] = fname + "$rule_ready";
                     extraRules += " + `" + sname + "_RULE_COUNT";
-                    if (ruleEnables != "")
-                        ruleEnables += ", ";
-                    ruleEnables += fname + "$rule_enable";
-                    if (ruleReadys != "")
-                        ruleReadys += ", ";
-                    ruleReadys += fname + "$rule_ready";
                     includeLines[sname] = 1;
                 }
             }
@@ -397,25 +398,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 resetList.push_back(fname);
             }
         }
-    }
-    if (ruleEnables != "" || table->rules.size() > 0) {
-        if (ruleEnables != "" && table->rules.size() > 0)
-            ruleEnables += ", ";
-        std::string sep, temp = "{" + ruleEnables;
-        for (auto item : table->rules) {
-            temp += sep + item + "_ENA";
-            sep = ", ";
-        }
-        assignList[temp + "}"] = "rule_enable";
-        if (ruleReadys != "" && table->rules.size() > 0)
-            ruleReadys += ", ";
-        temp = "{" + ruleReadys;
-        sep = "";
-        for (auto item : table->rules) {
-            temp += sep + item + "__RDY";
-            sep = ", ";
-        }
-        assignList["rule_ready"] = temp + "}";
     }
     // generate 'assign' items
     for (auto item: assignList)
@@ -443,7 +425,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "`ifndef __%s_VH__\n`define __%s_VH__\n\n", name.c_str(), name.c_str());
     for (auto item: includeLines)
         fprintf(OStr, "`include \"%s.vh\"\n", item.first.c_str());
-    fprintf(OStr, "`define %s_RULE_COUNT (%ld%s)\n\n", name.c_str(), (long)table->rules.size(), extraRules.c_str());
+    fprintf(OStr, "`define %s_RULE_COUNT (%s)\n\n", name.c_str(), extraRules.c_str());
     // write out metadata comments at end of the file
     for (auto item : metaList)
         fprintf(OStr, "%s\n", item.c_str());
