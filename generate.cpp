@@ -275,10 +275,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         break;
         }
     case Type::StructTyID:
-        if (generateRegion == ProcessVerilog)
-            cbuffer += "VERILOG_class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
-        else
-            cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+        cbuffer += getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
         ArrayType *ATy = cast<ArrayType>(Ty);
@@ -477,6 +474,8 @@ std::string parenOperand(Value *Operand)
 /*
  * Generate a string for any valid instruction DAG.
  */
+static Function *processIFunction;
+static Instruction *processIFunctionReturn;
 static std::string processInstruction(Instruction &I)
 {
     std::string vout;
@@ -604,6 +603,15 @@ static std::string processInstruction(Instruction &I)
 #endif
     case Instruction::Br:
         break;
+    case Instruction::Alloca:
+        if (processIFunction && !processIFunctionReturn) {
+            processIFunctionReturn = &I;
+//&& processIFunction->hasStructRetAttr() 
+printf("[%s:%d] remember struct return place\n", __FUNCTION__, __LINE__);
+            I.dump();
+            processIFunction->dump();
+            break;   // This is the only form of Alloca we support!
+        }
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         I.getParent()->getParent()->dump();
@@ -695,6 +703,8 @@ void processFunction(Function *func)
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
+    processIFunction = func;
+    processIFunctionReturn = NULL;
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
             if (!isInlinableInst(*II)) {
@@ -712,6 +722,8 @@ void processFunction(Function *func)
             }
         }
     }
+    processIFunction = NULL;
+    processIFunctionReturn = NULL;
 }
 
 /*

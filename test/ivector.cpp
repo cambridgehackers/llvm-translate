@@ -29,8 +29,8 @@ unsigned int stop_main_program;
 bool l_class_OC_IVectorIndication::heard__RDY(void) {
         return true;
 }
-void l_class_OC_IVectorIndication::heard(unsigned int v) {
-        printf((("Heard an echo: %d\n")), v);
+void l_class_OC_IVectorIndication::heard(l_struct_OC_ValuePair v) {
+        printf((("Heard an echo: %d\n")), v.a);
         stop_main_program = 1;
 }
 
@@ -59,7 +59,8 @@ int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zIVector.setind(&zIVectorIndication);
-    zIVector.say(22);
+    l_struct_OC_ValuePair tdata = {22, 44};
+    zIVector.say(tdata);
     while (!stop_main_program) {
         zIVector.run();
     }

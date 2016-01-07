@@ -119,16 +119,20 @@ void generateClassDef(const StructType *STy, std::string oDir)
             }
         }
     }
-    fprintf(OStr, "class %s {\n", name.c_str());
+    if (name.substr(0,12) == "l_struct_OC_")
+        fprintf(OStr, "typedef struct {\n");
+    else
+        fprintf(OStr, "class %s {\n", name.c_str());
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n");
     for (auto FI : table->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     for (auto item: extraMethods)
         fprintf(OStr, "  %s\n", item.c_str());
-    fprintf(OStr, "};\n#endif  // __%s_H__\n", name.c_str());
+    fprintf(OStr, "}%s;\n#endif  // __%s_H__\n", (name.substr(0,12) == "l_struct_OC_" ? name.c_str():""), name.c_str());
     fclose(OStr);
     // now generate '.cpp' file
+    if (name.substr(0,12) != "l_struct_OC_") {
     OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
@@ -157,4 +161,5 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "    %s.run();\n", item.c_str());
     fprintf(OStr, "}\n");
     fclose(OStr);
+    }
 }
