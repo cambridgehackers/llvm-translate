@@ -9,7 +9,7 @@ public:
   void run();
   void respond_rule(void);
   bool respond_rule__RDY(void);
-  void say(l_struct_OC_ValuePair *say_v);
+  void say(l_struct_OC_ValuePair say_v);
   bool say__RDY(void);
   void setind(l_class_OC_IVectorIndication *v) { ind = v; }
 };

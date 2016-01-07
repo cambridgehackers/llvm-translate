@@ -102,20 +102,23 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         outp = instPrefix;
         inpClk = "";
         for (auto FI : table->method) {
-            Function *func = FI.second;
+            const Function *func = FI.second;
             std::string mname = FI.first;
-            Type *retTy = func->getReturnType();
+            Type *retType = func->getReturnType();
+            auto AI = func->arg_begin(), AE = func->arg_end();
+            if (func->hasStructRetAttr()) {
+                if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                    retType = PTy->getElementType();
+                AI++;
+            }
             std::string arrRange;
-            int isAction = (retTy == Type::getVoidTy(func->getContext()));
+            int isAction = (retType == Type::getVoidTy(func->getContext()));
             std::string wparam = inp + mname + (isAction ? "__ENA" : "");
             if (!isAction)
-                arrRange = verilogArrRange(retTy);
+                arrRange = verilogArrRange(retType);
             if (inlineValue(wparam, false) == "")
                 fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
-            auto AI = ++func->arg_begin(), AE = func->arg_end();
-            if (func->hasStructRetAttr())
-                AI++;
-            for (; AI != AE; ++AI) {
+            for (AI++; AI != AE; ++AI) {
                 wparam = instPrefix + AI->getName().str();
                 if (inlineValue(wparam, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wparam.c_str());
@@ -136,18 +139,21 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         if (table->rules[mname]
          || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5)]))
             continue;
-        Type *retTy = func->getReturnType();
-        int isAction = (retTy == Type::getVoidTy(func->getContext()));
+        Type *retType = func->getReturnType();
+        auto AI = func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
+            AI++;
+        }
+        int isAction = (retType == Type::getVoidTy(func->getContext()));
         std::string wparam = inp + mname + (isAction ? "__ENA" : "");
         if (instance != "")
             wparam = inlineValue(wparam, true);
         else if (!isAction)
-            wparam = outp + verilogArrRange(retTy) + mname;
+            wparam = outp + verilogArrRange(retType) + mname;
         paramList.push_back(wparam);
-        auto AI = ++func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr())
-            AI++;
-        for (; AI != AE; ++AI) {
+        for (AI++; AI != AE; ++AI) {
             if (instance != "")
                 wparam = inlineValue(instPrefix + AI->getName().str(), true);
             else
@@ -169,17 +175,20 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 for (auto FI : table->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
-                    Type *retTy = func->getReturnType();
-                    int isAction = (retTy == Type::getVoidTy(func->getContext()));
+                    Type *retType = func->getReturnType();
+                    auto AI = func->arg_begin(), AE = func->arg_end();
+                    if (func->hasStructRetAttr()) {
+                        if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                            retType = PTy->getElementType();
+                        AI++;
+                    }
+                    int isAction = (retType == Type::getVoidTy(func->getContext()));
                     if (isAction)
                         wparam = outp + mname + "__ENA";
                     else
-                        wparam = inp + (instance == "" ? verilogArrRange(retTy):"") + mname;
+                        wparam = inp + (instance == "" ? verilogArrRange(retType):"") + mname;
                     paramList.push_back(wparam);
-                    auto AI = ++func->arg_begin(), AE = func->arg_end();
-                    if (func->hasStructRetAttr())
-                        AI++;
-                    for (; AI != AE; ++AI) {
+                    for (AI++; AI != AE; ++AI) {
                         wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
                         paramList.push_back(wparam);
                     }
@@ -230,15 +239,19 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
     fprintf(BStr, "interface %s;\n", ucName(name).c_str());
     for (auto FI : table->method) {
         Function *func = FI.second;
+        Type *retType = func->getReturnType();
+        auto AI = func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
+            AI++;
+        }
         std::string mname = FI.first;
-        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        int isAction = (retType == Type::getVoidTy(func->getContext()));
         if (endswith(mname, "__RDY"))
             continue;
         fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
-        auto AI = ++func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr())
-            AI++;
-        for (; AI != AE; ++AI)
+        for (AI++; AI != AE; ++AI)
             fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
         fprintf(BStr, ");\n");
     }
@@ -247,18 +260,22 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
     std::string sched = "", sep = "";
     for (auto FI : table->method) {
         Function *func = FI.second;
+        Type *retType = func->getReturnType();
+        auto AI = func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
+            AI++;
+        }
         std::string mname = FI.first;
         if (endswith(mname, "__RDY"))
             continue;
-        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        int isAction = (retType == Type::getVoidTy(func->getContext()));
         if (isAction)
             fprintf(BStr, "    method %s(", mname.c_str());
         else
             fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        auto AI = ++func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr())
-            AI++;
-        for (; AI != AE; ++AI)
+        for (AI++; AI != AE; ++AI)
             fprintf(BStr, "%s", AI->getName().str().c_str());
         if (isAction)
             fprintf(BStr, ") enable(%s__ENA", mname.c_str());
@@ -354,8 +371,15 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // from each method
     for (auto FI : table->method) {
         Function *func = FI.second;
+        Type *retType = func->getReturnType();
+        auto AI = func->arg_begin();
+        if (func->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
+            AI++;
+        }
         std::string mname = FI.first;
-        int isAction = (func->getReturnType() == Type::getVoidTy(func->getContext()));
+        int isAction = (retType == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
         processFunction(func);
         if (!isAction) {

@@ -9,7 +9,7 @@ module l_class_OC_Fifo1_OC_3 (
     output in_enq__RDY,
     input out_deq__ENA,
     output out_deq__RDY,
-    input out_first__ENA,
+    output [703:0]out_first,
     output out_first__RDY,
     input [`l_class_OC_Fifo1_OC_3_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_Fifo1_OC_3_RULE_COUNT:0]rule_ready);
@@ -17,8 +17,6 @@ module l_class_OC_Fifo1_OC_3 (
     wire in_enq__ENA_internal = in_enq__ENA && in_enq__RDY_internal;
     wire out_deq__RDY_internal;
     wire out_deq__ENA_internal = out_deq__ENA && out_deq__RDY_internal;
-    wire out_first__RDY_internal;
-    wire out_first__ENA_internal = out_first__ENA && out_first__RDY_internal;
     l_struct_OC_ValuePair element (
         CLK,
         nRST,
@@ -31,7 +29,6 @@ module l_class_OC_Fifo1_OC_3 (
     assign in_enq__RDY_internal = full ^ 1;
     assign out_deq__RDY = out_deq__RDY_internal;
     assign out_deq__RDY_internal = full;
-    assign out_first__RDY = out_first__RDY_internal;
     assign out_first__RDY_internal = full;
 
     always @( posedge CLK) begin

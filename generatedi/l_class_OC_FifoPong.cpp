@@ -1,5 +1,5 @@
 #include "l_class_OC_FifoPong.h"
-void l_class_OC_FifoPong::in_enq(l_struct_OC_ValuePair *in_enq_v) {
+void l_class_OC_FifoPong::in_enq(l_struct_OC_ValuePair in_enq_v) {
         if (pong)
             element2.in_enq(in_enq_v);
         if (pong ^ 1)
@@ -28,7 +28,7 @@ bool l_class_OC_FifoPong::out_deq__RDY(void) {
         tmp__2 = element1.out_deq__RDY();
         return (tmp__1 | (pong ^ 1)) & (tmp__2 | pong);
 }
-void l_class_OC_FifoPong::out_first(void) {
+l_struct_OC_ValuePair l_class_OC_FifoPong::out_first(void) {
         if (pong)
             element2.out_first();
         if (pong ^ 1)

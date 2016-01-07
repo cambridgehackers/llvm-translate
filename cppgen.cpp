@@ -60,29 +60,44 @@ static std::string printFunctionSignature(const Function *F, std::string altname
     std::string sep, statstr, tstr = altname + '(';
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
     ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || FT->isVarArg());
-// || F->hasStructRetAttr()
+    Type *retType = F->getReturnType();
     if (F->hasLocalLinkage()) statstr = "static ";
     if (F->isDeclaration()) {
-        auto AI = FT->param_begin()+1, AE = FT->param_end();
-        if (F->hasStructRetAttr())
+        auto AI = FT->param_begin(), AE = FT->param_end();
+        if (F->hasStructRetAttr()) {
+printf("[%s:%d] HAVENOWAYTOCONVERTCONSTTYPETOTYPE %s\n", __FUNCTION__, __LINE__, F->getName().str().c_str());
+            //if (auto PTy = dyn_cast<PointerType>(AI))
+                //retType = PTy->getElementType();
             AI++;
+        }
+        AI++;
         for (; AI != AE; ++AI) {
-            tstr += printType(*AI, /*isSigned=*/false, "", sep, "", false);
+            Type *element = *AI;
+            if (auto PTy = dyn_cast<PointerType>(element))
+                element = PTy->getElementType();
+            tstr += printType(element, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
     }
     else {
-        auto AI = ++F->arg_begin(), AE = F->arg_end();
-        if (F->hasStructRetAttr())
+        auto AI = F->arg_begin(), AE = F->arg_end();
+        if (F->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
             AI++;
+        }
+        AI++;
         for (; AI != AE; ++AI) {
-            tstr += printType(AI->getType(), /*isSigned=*/false, GetValueName(AI), sep, "", false);
+            Type *element = AI->getType();
+            if (auto PTy = dyn_cast<PointerType>(element))
+                element = PTy->getElementType();
+            tstr += printType(element, /*isSigned=*/false, GetValueName(AI), sep, "", false);
             sep = ", ";
         }
     }
     if (sep == "")
         tstr += "void";
-    return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, "", false);
+    return printType(retType, /*isSigned=*/false, tstr + ')', statstr, "", false);
 }
 
 /*

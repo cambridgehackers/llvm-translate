@@ -13,7 +13,7 @@ bool l_class_OC_IVector::respond_rule__RDY(void) {
         tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector::say(l_struct_OC_ValuePair *say_v) {
+void l_class_OC_IVector::say(l_struct_OC_ValuePair say_v) {
         fifo.in_enq(say_v);
 }
 bool l_class_OC_IVector::say__RDY(void) {
