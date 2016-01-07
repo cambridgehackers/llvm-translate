@@ -1,5 +1,5 @@
 #include "l_class_OC_Fifo_OC_0.h"
-void l_class_OC_Fifo_OC_0::in_enq(class l_struct_OC_ValuePair *in_enq_v) {
+void l_class_OC_Fifo_OC_0::in_enq(l_struct_OC_ValuePair *in_enq_v) {
 }
 bool l_class_OC_Fifo_OC_0::in_enq__RDY(void) {
         return 0;

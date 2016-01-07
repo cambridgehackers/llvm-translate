@@ -1,5 +1,5 @@
 #include "l_class_OC_FifoPong.h"
-void l_class_OC_FifoPong::in_enq(class l_struct_OC_ValuePair *in_enq_v) {
+void l_class_OC_FifoPong::in_enq(l_struct_OC_ValuePair *in_enq_v) {
         if (pong)
             element2.in_enq(in_enq_v);
         if (pong ^ 1)
