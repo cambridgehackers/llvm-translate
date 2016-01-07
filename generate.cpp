@@ -108,11 +108,11 @@ static bool isInlinableInst(const Instruction &I)
 }
 static const AllocaInst *isDirectAlloca(const Value *V)
 {
-    const AllocaInst *AI = dyn_cast<AllocaInst>(V);
-    if (!AI || AI->isArrayAllocation()
-     || AI->getParent() != &AI->getParent()->getParent()->getEntryBlock())
+    const AllocaInst *AA = dyn_cast<AllocaInst>(V);
+    if (!AA || AA->isArrayAllocation()
+     || AA->getParent() != &AA->getParent()->getParent()->getEntryBlock())
         return 0;
-    return AI;
+    return AA;
 }
 static bool isAddressExposed(const Value *V)
 {
@@ -487,6 +487,8 @@ static std::string printCall(Instruction &I)
     Function *func = ICL.getCalledFunction();
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+    if (func->hasStructRetAttr())
+        AI++;
     std::string pcalledFunction = printOperand(*AI++, false); // skips 'this' param
     std::string prefix = MODULE_ARROW;
 
@@ -498,6 +500,8 @@ static std::string printCall(Instruction &I)
     if (trace_call)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
     Function::const_arg_iterator FAI = ++func->arg_begin();
+    if (func->hasStructRetAttr())
+        FAI++;
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
         bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");

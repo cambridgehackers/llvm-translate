@@ -110,7 +110,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 arrRange = verilogArrRange(retTy);
             if (inlineValue(wparam, false) == "")
                 fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
-            for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+            auto AI = ++func->arg_begin(), AE = func->arg_end();
+            if (func->hasStructRetAttr())
+                AI++;
+            for (; AI != AE; ++AI) {
                 wparam = instPrefix + AI->getName().str();
                 if (inlineValue(wparam, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wparam.c_str());
@@ -139,7 +142,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         else if (!isAction)
             wparam = outp + verilogArrRange(retTy) + mname;
         paramList.push_back(wparam);
-        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+        auto AI = ++func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr())
+            AI++;
+        for (; AI != AE; ++AI) {
             if (instance != "")
                 wparam = inlineValue(instPrefix + AI->getName().str(), true);
             else
@@ -168,7 +174,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                     else
                         wparam = inp + (instance == "" ? verilogArrRange(retTy):"") + mname;
                     paramList.push_back(wparam);
-                    for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI) {
+                    auto AI = ++func->arg_begin(), AE = func->arg_end();
+                    if (func->hasStructRetAttr())
+                        AI++;
+                    for (; AI != AE; ++AI) {
                         wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
                         paramList.push_back(wparam);
                     }
@@ -224,7 +233,10 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
         if (endswith(mname, "__RDY"))
             continue;
         fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
-        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+        auto AI = ++func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr())
+            AI++;
+        for (; AI != AE; ++AI)
             fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
         fprintf(BStr, ");\n");
     }
@@ -241,7 +253,10 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
             fprintf(BStr, "    method %s(", mname.c_str());
         else
             fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+        auto AI = ++func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr())
+            AI++;
+        for (; AI != AE; ++AI)
             fprintf(BStr, "%s", AI->getName().str().c_str());
         if (isAction)
             fprintf(BStr, ") enable(%s__ENA", mname.c_str());

@@ -319,7 +319,10 @@ Value *getCondition(BasicBlock *bb, int invert)
 // all parameter names are unique across module for verilog instantiation)
 static void updateParameterNames(std::string mName, Function *func)
 {
-    for (auto AI = ++func->arg_begin(), AE = func->arg_end(); AI != AE; ++AI)
+    auto AI = ++func->arg_begin(), AE = func->arg_end();
+    if (func->hasStructRetAttr())
+        AI++;
+    for (; AI != AE; AI++)
         AI->setName(mName + "_" + AI->getName());
 }
 
