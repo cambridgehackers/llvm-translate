@@ -182,7 +182,7 @@ static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I,
     if (const CallInst *CI = dyn_cast<CallInst>(I))
         ind = CI->hasStructRetAttr();
     Value *new_thisp = I->getOperand(ind);
-    if (Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(ind)))
+    if (Instruction *orig_thisp = dyn_cast<Instruction>(new_thisp))
         new_thisp = cloneTree(orig_thisp, insertPoint);
     Value *Params[] = {new_thisp};
     IRBuilder<> builder(insertPoint->getParent());
@@ -261,11 +261,11 @@ static void processPromote(Function *currentFunction)
                 }
                 std::string rdyName = mName + "__RDY";
                 for (unsigned int i = 0; table && i < table->vtableCount; i++) {
-                    Function *mfunc = table->vtable[i];
+                    Function *calledFunctionGuard = table->vtable[i];
                     if (trace_hoist)
-                        printf("HOIST: act %s req %s\n", getMethodName(mfunc->getName()).c_str(), rdyName.c_str());
-                    if (getMethodName(mfunc->getName()) == rdyName) {
-                        addGuard(II, mfunc, currentFunction);
+                        printf("HOIST: act %s req %s\n", getMethodName(calledFunctionGuard->getName()).c_str(), rdyName.c_str());
+                    if (getMethodName(calledFunctionGuard->getName()) == rdyName) {
+                        addGuard(II, calledFunctionGuard, currentFunction);
                         break;
                     }
                 }

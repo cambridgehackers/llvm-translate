@@ -38,9 +38,11 @@ static int dontInlineValues;//=1;
 static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
 static std::map<std::string, std::string> assignList;
 
-std::string verilogArrRange(const Type *Ty)
+std::string verilogArrRange(Type *Ty)
 {
-    unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+    const DataLayout *TD = EE->getDataLayout();
+    unsigned NumBits = TD->getTypeAllocSize(Ty) * 8;
+
     if (NumBits > 8)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
@@ -102,7 +104,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         for (auto FI : table->method) {
             Function *func = FI.second;
             std::string mname = FI.first;
-            const Type *retTy = func->getReturnType();
+            Type *retTy = func->getReturnType();
             std::string arrRange;
             int isAction = (retTy == Type::getVoidTy(func->getContext()));
             std::string wparam = inp + mname + (isAction ? "__ENA" : "");
@@ -134,7 +136,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         if (table->rules[mname]
          || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5)]))
             continue;
-        const Type *retTy = func->getReturnType();
+        Type *retTy = func->getReturnType();
         int isAction = (retTy == Type::getVoidTy(func->getContext()));
         std::string wparam = inp + mname + (isAction ? "__ENA" : "");
         if (instance != "")
@@ -155,8 +157,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     }
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
+        Type *element = *I;
+        if (Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "")
@@ -167,7 +169,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 for (auto FI : table->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
-                    const Type *retTy = func->getReturnType();
+                    Type *retTy = func->getReturnType();
                     int isAction = (retTy == Type::getVoidTy(func->getContext()));
                     if (isAction)
                         wparam = outp + mname + "__ENA";
@@ -325,7 +327,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::list<std::string> resetList;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
+        if (Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
@@ -430,8 +432,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // generate local state element declarations
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
+        Type *element = *I;
+        if (Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {

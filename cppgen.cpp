@@ -34,9 +34,9 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
 {
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
+        Type *element = *I;
         if (ClassMethodTable *table = classCreate[STy])
-            if (const Type *newType = table->replaceType[Idx])
+            if (Type *newType = table->replaceType[Idx])
                 element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname == "unused_data_to_force_inheritance")
@@ -59,19 +59,27 @@ static std::string printFunctionSignature(const Function *F, std::string altname
 {
     std::string sep, statstr, tstr = altname + '(';
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
-    ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || F->hasStructRetAttr() || FT->isVarArg());
+    ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || FT->isVarArg());
+// || F->hasStructRetAttr()
     if (F->hasLocalLinkage()) statstr = "static ";
     if (F->isDeclaration()) {
-        for (auto I = FT->param_begin()+1, E = FT->param_end(); I != E; ++I) {
-            tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
+        auto AI = FT->param_begin()+1, AE = FT->param_end();
+        if (F->hasStructRetAttr())
+            AI++;
+        for (; AI != AE; ++AI) {
+            tstr += printType(*AI, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
     }
-    else
-        for (auto I = ++F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-            tstr += printType(I->getType(), /*isSigned=*/false, GetValueName(I), sep, "", false);
+    else {
+        auto AI = ++F->arg_begin(), AE = F->arg_end();
+        if (F->hasStructRetAttr())
+            AI++;
+        for (; AI != AE; ++AI) {
+            tstr += printType(AI->getType(), /*isSigned=*/false, GetValueName(AI), sep, "", false);
             sep = ", ";
         }
+    }
     if (sep == "")
         tstr += "void";
     return printType(F->getReturnType(), /*isSigned=*/false, tstr + ')', statstr, "", false);
@@ -93,8 +101,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "#ifndef __%s_H__\n#define __%s_H__\n", name.c_str(), name.c_str());
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-        const Type *element = *I;
-        if (const Type *newType = table->replaceType[Idx])
+        Type *element = *I;
+        if (Type *newType = table->replaceType[Idx])
             element = newType;
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {

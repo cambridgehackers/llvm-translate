@@ -200,7 +200,7 @@ const StructType *findThisArgument(Function *func)
  * Output type declarations.  Note that each case in the switch statement
  * is different for verilog and cpp.
  */
-std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
+std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::string prefix, std::string postfix, bool ptr)
 {
     std::string sep, cbuffer = prefix, sp = (isSigned?"signed":"unsigned");
     switch (Ty->getTypeID()) {
@@ -250,7 +250,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
         break;
         }
     case Type::FunctionTyID: {
-        const FunctionType *FTy = cast<FunctionType>(Ty);
+        FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
             tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
@@ -282,7 +282,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
             cbuffer += "class " + getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
-        const ArrayType *ATy = cast<ArrayType>(Ty);
+        ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();
         if (len == 0) len = 1;
         if (generateRegion == ProcessVerilog) {
@@ -291,7 +291,7 @@ std::string printType(const Type *Ty, bool isSigned, std::string NameSoFar, std:
         break;
         }
     case Type::PointerTyID: {
-        const PointerType *PTy = cast<PointerType>(Ty);
+        PointerType *PTy = cast<PointerType>(Ty);
         std::string ptrName = "*" + NameSoFar;
         if (PTy->getElementType()->isArrayTy() || PTy->getElementType()->isVectorTy())
             ptrName = "(" + ptrName + ")";
