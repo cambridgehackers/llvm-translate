@@ -1,10 +1,10 @@
-interface L_class_OC_FifoPong;
+interface L_class_OC_Fifo1_OC_3;
     method Action in_enq(Bit#(32) in_enq_v);
     method Action out_deq();
     method Action out_first();
 endinterface
-import "BVI" l_class_OC_FifoPong =
-module mkL_class_OC_FifoPong(L_class_OC_FifoPong);
+import "BVI" l_class_OC_Fifo1_OC_3 =
+module mkL_class_OC_Fifo1_OC_3(L_class_OC_Fifo1_OC_3);
     default_reset rst(nRST);
     default_clock clk(CLK);
     method in_enq(in_enq_v) enable(in_enq__ENA) ready(in_enq__RDY);
