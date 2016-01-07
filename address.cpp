@@ -114,16 +114,15 @@ static void processAlloca(Function *thisFunc)
             switch (II->getOpcode()) {
             case Instruction::Store:
                 if (Instruction *target = dyn_cast<Instruction>(II->getOperand(1)))
-                if (target->getOpcode() == Instruction::Alloca)
-                if (dyn_cast<Argument>(II->getOperand(0))) {
-                    // remember args stored in Alloca temps and their original values
+                if (target->getOpcode() == Instruction::Alloca) {
+                    // remember values stored in Alloca temps
                     remapValue[II->getOperand(1)] = II->getOperand(0);
                     recursiveDelete(II);
                 }
                 break;
             case Instruction::Load:
                 if (Value *val = remapValue[II->getOperand(0)]) {
-                    // replace loads from temp areas with original values
+                    // replace loads from temp areas with stored values
                     II->replaceAllUsesWith(val);
                     recursiveDelete(II);
                 }
@@ -273,6 +272,7 @@ static void processPromote(Function *currentFunction)
                 break;
                 }
             case Instruction::Br: {
+                // BUG BUG BUG -> combine the condition for the current block with the getConditions for this instruction
                 const BranchInst *BI = dyn_cast<BranchInst>(II);
                 if (BI && BI->isConditional()) {
                     std::string cond = printOperand(BI->getCondition(), false);
@@ -651,6 +651,11 @@ static void processMethodToFunction(CallInst *II)
             }
         }
     }
+    if (!store) {
+        printf("%s: store was NULL\n", __FUNCTION__);
+        II->getParent()->getParent()->dump();
+        exit(-1);
+    }
     recursiveDelete(store);
     II->replaceAllUsesWith(val);
     recursiveDelete(II);      // No longer need to call methodToFunction() !
@@ -805,18 +810,6 @@ void preprocessModule(Module *Mod)
             Declare->eraseFromParent();
         }
 
-    // Remove all excessive Alloca usages (were inserted for debug info)
-    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
-        processAlloca(FI);
-
-    // process calls to llvm.memcpy
-    if (Function *Declare = Mod->getFunction("llvm.memcpy.p0i8.p0i8.i64"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
-            auto NI = std::next(I);
-            processMemcpy(cast<CallInst>(*I));
-            I = NI;
-        }
-
     // remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};
     p = malloc_names;
@@ -856,6 +849,19 @@ void preprocessModule(Module *Mod)
             processMethodToFunction(cast<CallInst>(*I));
             I = NI;
         }
+
+    // process calls to llvm.memcpy
+    if (Function *Declare = Mod->getFunction("llvm.memcpy.p0i8.p0i8.i64"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
+            auto NI = std::next(I);
+            processMemcpy(cast<CallInst>(*I));
+            I = NI;
+        }
+
+    // Remove all excessive Alloca usages (were inserted for debug info)
+    // Context: Must be after processMethodToFunction
+    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
+        processAlloca(FI);
 }
 
 static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
