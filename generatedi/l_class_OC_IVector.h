@@ -5,7 +5,6 @@
 class l_class_OC_IVector {
   class l_class_OC_FifoPong fifo;
   class l_class_OC_IVectorIndication *ind;
-  unsigned int pipetemp;
 public:
   void run();
   void respond_rule(void);

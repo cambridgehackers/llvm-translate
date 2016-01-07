@@ -30,16 +30,9 @@ module l_class_OC_IVector (
         fifo$out_first__RDY,
         rule_enable[1:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[1:`l_class_OC_FifoPong_RULE_COUNT]);
-    reg[31:0] pipetemp;
     assign ind$heard__ENA = respond_rule__ENA_internal;
     assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond_rule__RDY_internal;
     assign say__RDY = say__RDY_internal;
-
-    always @( posedge CLK) begin
-      if (!nRST) begin
-        pipetemp <= 0;
-      end // nRST
-    end // always @ (posedge CLK)
 endmodule 
 
