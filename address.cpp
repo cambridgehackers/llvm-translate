@@ -147,7 +147,7 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Module *Mod = thisFunc->getParent();
                 std::string fname = thisFunc->getName();
-                const StructType *callingSTy = findThisArgumentType(thisFunc->getType());
+                const StructType *callingSTy = findThisArgument(thisFunc);
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
@@ -162,7 +162,7 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
                 }
-                const StructType *STy = findThisArgumentType(func->getType());
+                const StructType *STy = findThisArgument(func);
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
@@ -179,8 +179,11 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I, Function *func)
 {
     prepareClone(insertPoint, I);
-    Value *new_thisp = I->getOperand(0);
-    if (Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(0)))
+    int ind = 0;
+    if (const CallInst *CI = dyn_cast<CallInst>(I))
+        ind = CI->hasStructRetAttr();
+    Value *new_thisp = I->getOperand(ind);
+    if (Instruction *orig_thisp = dyn_cast<Instruction>(I->getOperand(ind)))
         new_thisp = cloneTree(orig_thisp, insertPoint);
     Value *Params[] = {new_thisp};
     IRBuilder<> builder(insertPoint->getParent());
@@ -232,7 +235,7 @@ static void processPromote(Function *currentFunction)
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 std::string mName = getMethodName(func->getName());
-                ClassMethodTable *table = classCreate[findThisArgumentType(func->getType())];
+                ClassMethodTable *table = classCreate[findThisArgument(func)];
                 if (trace_hoist)
                     printf("HOIST: CALLER %s calling '%s'[%s] table %p\n", currentFunction->getName().str().c_str(), func->getName().str().c_str(), mName.c_str(), table);
                 if (func->isDeclaration() && func->getName() == "_Z14PIPELINEMARKER") {
@@ -325,7 +328,7 @@ static void updateParameterNames(std::string mName, Function *func)
  */
 static void pushWork(std::string mName, Function *func)
 {
-    const StructType *STy = findThisArgumentType(func->getType());
+    const StructType *STy = findThisArgument(func);
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
         return;
@@ -357,7 +360,7 @@ static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, 
 extern "C" void exportRequest(Function *enaFunc)
 {
     //printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
-    ClassMethodTable *table = classCreate[findThisArgumentType(enaFunc->getType())];
+    ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
     std::string enaName = getMethodName(enaFunc->getName());
     std::string rdyName = enaName + "__RDY";
     for (unsigned int i = 0; i < table->vtableCount; i++)
@@ -433,7 +436,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
 {
     Function *enaFunc = fixupFunction(name, ENA[2]);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
-    ClassMethodTable *table = classCreate[findThisArgumentType(rdyFunc->getType())];
+    ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
     table->rules[name] = enaFunc;
     if (trace_lookup)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
@@ -619,7 +622,7 @@ static void processMethodToFunction(CallInst *II)
     Function *callingFunction = II->getParent()->getParent();
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
-    const StructType *STy = findThisArgumentType(callingFunction->getType());
+    const StructType *STy = findThisArgument(callingFunction);
     ClassMethodTable *table = classCreate[STy];
     Value *oldOp = II->getOperand(1);
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
@@ -665,7 +668,7 @@ static void processMalloc(CallInst *II)
     const Function *CF = dyn_cast<Function>(called);
     Instruction *PI = II->user_back();
     uint64_t tparam = 0;
-    uint64_t styparam = (uint64_t)findThisArgumentType(II->getParent()->getParent()->getType());
+    uint64_t styparam = (uint64_t)findThisArgument(II->getParent()->getParent());
     //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
     if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
         tparam = (uint64_t)PI->getType();
@@ -683,6 +686,41 @@ static void processMalloc(CallInst *II)
        {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
        "llvm_translate_malloc"));
     II->eraseFromParent();
+}
+
+/*
+ * Preprocess memcpy calls
+ */
+static void processMemcpy(CallInst *II)
+{
+    Module *Mod = II->getParent()->getParent()->getParent();
+    Function *func = II->getParent()->getParent();
+    Instruction *dest = dyn_cast<Instruction>(II->getOperand(0));
+    Argument *destArg = NULL;
+    if (dest->getOpcode() == Instruction::BitCast)
+        destArg = dyn_cast<Argument>(dest->getOperand(0));
+    Instruction *source = dyn_cast<Instruction>(II->getOperand(1));
+    Argument *sourceArg = NULL;
+    if (source->getOpcode() == Instruction::BitCast)
+        sourceArg = dyn_cast<Argument>(source->getOperand(0));
+    Value *len = II->getOperand(2);
+printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr());
+    if (sourceArg && dest->getOpcode() == Instruction::BitCast) {
+        //dest->dump();
+        Value *destTmp = dest->getOperand(0);
+        dest->getOperand(0);
+        destTmp->replaceAllUsesWith(sourceArg);
+        recursiveDelete(II);
+        recursiveDelete(destTmp);
+        //func->dump();
+        return;
+    }
+    dest->dump();
+    if (destArg->hasStructRetAttr()) {
+printf("[%s:%d] structret\n", __FUNCTION__, __LINE__);
+    }
+    source->dump();
+    len->dump();
 }
 
 static void registerInterface(char *addr, StructType *STy, const char *name)
@@ -716,6 +754,9 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             Function *enaFunc = methodMap[enaName];
             if (!enaFunc) {
                 printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
+                for (auto item: methodMap)
+                    if (item.second)
+                        printf("    %s\n", item.first.c_str());
                 exit(-1);
             }
             if (trace_lookup)
@@ -727,7 +768,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
 
 static void addMethodTable(Function *func)
 {
-    const StructType *STy = findThisArgumentType(func->getType());
+    const StructType *STy = findThisArgument(func);
     if (!STy || !STy->hasName())
         return;
     std::string sname = STy->getName();
@@ -767,6 +808,14 @@ void preprocessModule(Module *Mod)
     // Remove all excessive Alloca usages (were inserted for debug info)
     for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
         processAlloca(FI);
+
+    // process calls to llvm.memcpy
+    if (Function *Declare = Mod->getFunction("llvm.memcpy.p0i8.p0i8.i64"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
+            auto NI = std::next(I);
+            processMemcpy(cast<CallInst>(*I));
+            I = NI;
+        }
 
     // remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};

@@ -179,17 +179,21 @@ std::string GetValueName(const Value *Operand)
     return VarName;
 }
 
-const StructType *findThisArgumentType(const PointerType *PTy)
+static const StructType *findThisArgumentType(const PointerType *PTy, int ind)
 {
     if (PTy)
     if (const FunctionType *func = dyn_cast<FunctionType>(PTy->getElementType()))
     if (func->getNumParams() > 0)
-    if ((PTy = dyn_cast<PointerType>(func->getParamType(0))))
+    if ((PTy = dyn_cast<PointerType>(func->getParamType(ind))))
     if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
         getStructName(STy);
         return STy;
     }
     return NULL;
+}
+const StructType *findThisArgument(Function *func)
+{
+    return findThisArgumentType(func->getType(), func->hasStructRetAttr());
 }
 
 /*
@@ -337,10 +341,10 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         return referstr;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
      && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-     && (table = classCreate[findThisArgumentType(PTy)])) {
+     && (table = classCreate[findThisArgumentType(PTy, 0)])) {
         // Lookup method index in vtable
         referstr = lookupMethodName(table, Total/sizeof(void *));
-        if (trace_gep)
+        //if (trace_gep)
             printf("%s: Method invocation referstr %s\n", __FUNCTION__, referstr.c_str());
         I = E; // skip post processing
     }
@@ -496,7 +500,7 @@ static std::string printCall(Instruction &I)
     Function::const_arg_iterator FAI = ++func->arg_begin();
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
-        bool thisInterface = inheritsModule(findThisArgumentType(func->getType()), "class.InterfaceClass");
+        bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");
         prefix = thisInterface ? "" : ".";
     }
     if (generateRegion == ProcessVerilog)

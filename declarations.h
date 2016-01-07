@@ -93,7 +93,7 @@ bool endswith(std::string str, std::string suffix);
 void generateClassDef(const StructType *STy, std::string oDir);
 void generateModuleDef(const StructType *STy, std::string oDir);
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance);
-const StructType *findThisArgumentType(const PointerType *PTy);
+const StructType *findThisArgument(Function *func);
 std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void preprocessModule(Module *Mod);
 std::string GetValueName(const Value *Operand);
