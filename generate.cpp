@@ -453,25 +453,31 @@ static std::string printCall(Instruction &I)
     Argument *calledRet = callingFunction->arg_begin();
     if (Instruction *dest = dyn_cast<Instruction>(I.getOperand(0)))
     if (dest->getOpcode() == Instruction::BitCast) {
-    if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
     if (cgetName == "llvm.memcpy.p0i8.p0i8.i64") {
         if (Instruction *src = dyn_cast<Instruction>(I.getOperand(1)))
         if (src->getOpcode() == Instruction::BitCast) {
-            if (generateRegion == ProcessCPP)
-                vout += "return ";
-            return vout + printOperand(src->getOperand(0), true);
+            std::string sval = printOperand(src->getOperand(0), dyn_cast<Argument>(src->getOperand(0)) == NULL);
+            if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
+                if (generateRegion == ProcessCPP)
+                    vout += "return ";
+                vout += sval;
+            }
+            else
+                storeList[printOperand(dest->getOperand(0), true)] = ReferenceType{I.getParent(), sval};
+            return vout;
         }
     }
     else if (cgetName == "llvm.memset.p0i8.i64") {
-        if (generateRegion == ProcessCPP)
-            return "return {0}";
-        return "0";
+        if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
+            if (generateRegion == ProcessCPP)
+                return "return {0}";
+            return "0";
+        }
+        else
+            printf("[%s:%d] NOTARG memset\n", __FUNCTION__, __LINE__);
     }
     else
-        printf("[%s:%d] not memcpy %s\n", __FUNCTION__, __LINE__, cgetName.c_str());
-    }
-    else
-        printf("[%s:%d] NOTARG\n", __FUNCTION__, __LINE__);
+        printf("[%s:%d] not memcpy/memset %s\n", __FUNCTION__, __LINE__, cgetName.c_str());
     }
     if (generateRegion == ProcessVerilog) {
         if (retType == Type::getVoidTy(func->getContext()))
@@ -496,10 +502,8 @@ static std::string printCall(Instruction &I)
     }
     if (generateRegion != ProcessVerilog)
         vout += ")";
-    if (structRet != "") {
-        storeList[structRet] = ReferenceType{I.getParent(), vout};
-        return "";
-    }
+    if (generateRegion == ProcessCPP && structRet != "")
+        vout = structRet + " = " + vout;
     return vout;
 }
 
@@ -564,7 +568,7 @@ static std::string processInstruction(Instruction &I)
                 vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(I.getOperand(0), false);
-            if (processIFunction && processIFunction->hasStructRetAttr())
+            if (generateRegion == ProcessCPP && processIFunction && processIFunction->hasStructRetAttr())
                 vout += GetValueName(processIFunction->arg_begin());
         }
         break;
@@ -742,6 +746,10 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
+//if (func->getName() == "_ZN8FifoPongI9ValuePairE5firstEv") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//func->dump();
+//}
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     processIFunction = func;
     processIFunctionReturn = NULL;
@@ -750,8 +758,6 @@ void processFunction(Function *func)
         std::string sname = GetValueName(func->arg_begin());
         declareList[sname] = printType(PTy->getElementType(), false,
             sname, "", "", false);
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//func->dump();
     }
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
@@ -766,6 +772,9 @@ void processFunction(Function *func)
                     }
                     else
                         functionList.push_back(ReferenceType{II->getParent(), vout});
+if (func->getName() == "_ZN8FifoPongI9ValuePairE5firstEv") {
+printf("[%s:%d] %d vout %s\n", __FUNCTION__, __LINE__, generateRegion, vout.c_str());
+}
                 }
             }
         }

@@ -335,6 +335,10 @@ static void pushWork(std::string mName, Function *func)
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
         return;
+//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//func->dump();
+//}
     pushSeen[func] = mName;
     table->method[mName] = func;
     updateParameterNames(mName, func);
@@ -713,14 +717,23 @@ static void processMemcpy(CallInst *II)
         sourceArg = dyn_cast<Argument>(source->getOperand(0));
     Value *len = II->getOperand(2);
 printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr());
+//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//func->dump();
+//}
     if (sourceArg && dest->getOpcode() == Instruction::BitCast) {
         //dest->dump();
-        Value *destTmp = dest->getOperand(0);
-        dest->getOperand(0);
-        destTmp->replaceAllUsesWith(sourceArg);
-        recursiveDelete(II);
-        recursiveDelete(destTmp);
-        //func->dump();
+        Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0));
+        if (destTmp->getOpcode() == Instruction::Alloca) {
+            dest->getOperand(0);
+            destTmp->replaceAllUsesWith(sourceArg);
+            recursiveDelete(II);
+            recursiveDelete(destTmp);
+        }
+//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//func->dump();
+//}
         return;
     }
     dest->dump();

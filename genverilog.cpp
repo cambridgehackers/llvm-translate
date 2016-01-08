@@ -41,6 +41,8 @@ static std::map<std::string, std::string> assignList;
 std::string verilogArrRange(Type *Ty)
 {
     const DataLayout *TD = EE->getDataLayout();
+    if (auto PTy = dyn_cast<PointerType>(Ty))
+        Ty = PTy->getElementType();
     unsigned NumBits = TD->getTypeAllocSize(Ty) * 8;
 
     if (NumBits > 8)
@@ -315,6 +317,26 @@ static std::string gatherList(std::list<ReferenceType> &list)
         temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
     return temp;
 }
+static std::string combineCondList(std::list<ReferenceType> &functionList)
+{
+    std::string temp, valsep;
+    Value *prevCond = NULL;
+    int remain = functionList.size();
+    for (auto info: functionList) {
+        remain--;
+        temp += valsep;
+        valsep = "";
+        Value *opCond = getCondition(info.cond, 0);
+        if (opCond && (remain || getCondition(info.cond, 1) != prevCond))
+            temp += printOperand(opCond, false) + " ? ";
+        temp += info.item;
+        if (opCond && remain)
+            valsep = " : ";
+        prevCond = opCond;
+    }
+    return temp;
+}
+
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::list<std::string> metaList;
@@ -353,8 +375,12 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                     metaList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
             }
             else if (const StructType *STy = dyn_cast<StructType>(element)) {
-                if (!inheritsModule(STy, "class.InterfaceClass")) {
-                    std::string sname = getStructName(STy);
+                std::string sname = getStructName(STy);
+                if (sname.substr(0,12) == "l_struct_OC_") {
+                    includeLines[sname] = 1;
+                    resetList.push_back(fname);
+                }
+                else if (!inheritsModule(STy, "class.InterfaceClass")) {
                     metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
                     assignList[fname + "$rule_enable"] = "rule_enable[" + extraRules + ":`" + sname + "_RULE_COUNT]";
                     assignList["rule_ready[" + extraRules + ":`" + sname + "_RULE_COUNT]"] = fname + "$rule_ready";
@@ -362,9 +388,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                     includeLines[sname] = 1;
                 }
             }
-            else {
+            else
                 resetList.push_back(fname);
-            }
         }
     }
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
@@ -383,17 +408,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         globalCondition = mname + "__ENA_internal";
         processFunction(func);
         if (!isAction) {
-            std::string temp, valsep;
-            for (auto info: functionList) {
-                Value *cond = getCondition(info.cond, 0);
-                temp += valsep;
-                valsep = "";
-                if (cond)
-                    temp += printOperand(cond, false) + " ? ";
-                temp += info.item;
-                if (cond)
-                    valsep = " : ";
-            }
+            std::string temp = combineCondList(functionList);
             if (endswith(mname, "__RDY")) {
                 assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
                 metaList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
@@ -469,7 +484,10 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
             if (const StructType *STy = dyn_cast<StructType>(element)) {
-                if (!inheritsModule(STy, "class.InterfaceClass"))
+                std::string sname = getStructName(STy);
+                if (sname.substr(0,12) == "l_struct_OC_")
+                    fprintf(OStr, "    reg%s %s;\n", verilogArrRange(element).c_str(), fname.c_str());
+                else if (!inheritsModule(STy, "class.InterfaceClass"))
                     generateModuleSignature(OStr, STy, fname);
             }
             else if (!dyn_cast<PointerType>(element))
