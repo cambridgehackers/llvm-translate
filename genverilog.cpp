@@ -433,7 +433,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                         printf("%s\n", ("    if (" + printOperand(cond, false) + ")").c_str());
                     printf("%s\n", info.item.c_str());
                 }
-                //exit(-1);
+                exit(-1);
             }
         }
         if (storeList.size() > 0) {

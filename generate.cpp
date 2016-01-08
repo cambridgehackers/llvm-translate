@@ -41,6 +41,7 @@ static unsigned NextTypeID;
 static int generateRegion = ProcessNone;
 
 static std::map<const Type *, int> structMap;
+static std::map<const Value *, std::string> allocaMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
@@ -165,6 +166,9 @@ std::string GetValueName(const Value *Operand)
         Name = "tmp__" + utostr(No);
     }
     std::string VarName;
+    if (generateRegion == ProcessVerilog)
+        VarName = allocaMap[Operand];
+    if (VarName == "")
     for (auto charp = Name.begin(), E = Name.end(); charp != E; ++charp) {
         char ch = *charp;
         if (isalnum(ch) || ch == '_')
@@ -417,6 +421,7 @@ static std::string printCall(Instruction &I)
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();
     Type *retType = func->getReturnType();
+    Value *structRetTemp = NULL;
     auto FAI = func->arg_begin();
     if (func->hasStructRetAttr()) {
         retType = cast<PointerType>(FAI->getType())->getElementType();
@@ -425,7 +430,9 @@ static std::string printCall(Instruction &I)
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
     if (func->hasStructRetAttr()) {
+        structRetTemp = *AI;
         structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
+printf("[%s:%d] func %s rettemp %s\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), structRet.c_str());
         if (declareList[structRet] == "")
             declareList[structRet] = printType(cast<PointerType>((*AI)->getType())
                 ->getElementType(), false, structRet, "", "", false);
@@ -502,8 +509,14 @@ static std::string printCall(Instruction &I)
     }
     if (generateRegion != ProcessVerilog)
         vout += ")";
-    if (generateRegion == ProcessCPP && structRet != "")
-        vout = structRet + " = " + vout;
+    if (structRet != "") {
+        if (generateRegion == ProcessCPP)
+            vout = structRet + " = " + vout;
+        else {
+            allocaMap[structRetTemp] = vout;
+            vout = "";
+        }
+    }
     return vout;
 }
 
@@ -520,7 +533,6 @@ std::string parenOperand(Value *Operand)
  * Generate a string for any valid instruction DAG.
  */
 static Function *processIFunction;
-static Instruction *processIFunctionReturn;
 static std::string processInstruction(Instruction &I)
 {
     std::string vout;
@@ -651,9 +663,8 @@ static std::string processInstruction(Instruction &I)
     case Instruction::Br:
         break;
     case Instruction::Alloca:
-        if (processIFunction && !processIFunctionReturn) {
-            processIFunctionReturn = &I;
-//&& processIFunction->hasStructRetAttr() 
+        if (processIFunction) {
+            printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
             break;   // This is the only form of Alloca we support!
         }
     default:
@@ -752,7 +763,6 @@ void processFunction(Function *func)
 //}
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     processIFunction = func;
-    processIFunctionReturn = NULL;
     if (func->hasStructRetAttr())
     if (auto PTy = dyn_cast<PointerType>(func->arg_begin()->getType())) {
         std::string sname = GetValueName(func->arg_begin());
@@ -772,15 +782,11 @@ void processFunction(Function *func)
                     }
                     else
                         functionList.push_back(ReferenceType{II->getParent(), vout});
-if (func->getName() == "_ZN8FifoPongI9ValuePairE5firstEv") {
-printf("[%s:%d] %d vout %s\n", __FUNCTION__, __LINE__, generateRegion, vout.c_str());
-}
                 }
             }
         }
     }
     processIFunction = NULL;
-    processIFunctionReturn = NULL;
 }
 
 /*

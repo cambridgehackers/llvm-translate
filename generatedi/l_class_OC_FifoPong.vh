@@ -13,7 +13,6 @@
 //METAWRITE; out_deq; :;pong;
 //METAINVOKE; out_deq; :pong;element2$out_deq:pong ^ 1;element1$out_deq;
 //METAGUARD; out_deq__RDY; (element2$out_deq__RDY | (pong ^ 1)) & (element1$out_deq__RDY | pong);
-//METAREAD; out_first; :;pong:;pong;
 //METAINVOKE; out_first; :pong;element2$out_first:pong ^ 1;element1$out_first;
 //METAGUARD; out_first__RDY; (element2$out_first__RDY | (pong ^ 1)) & (element1$out_first__RDY | pong);
 `endif

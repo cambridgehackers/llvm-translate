@@ -5,7 +5,7 @@ module l_class_OC_FifoPong (
     input CLK,
     input nRST,
     input in_enq__ENA,
-    input [63:0]in_enq_v,
+    input [703:0]in_enq_v,
     output in_enq__RDY,
     input out_deq__ENA,
     output out_deq__RDY,
@@ -50,8 +50,6 @@ module l_class_OC_FifoPong (
         rule_enable[0 + `l_class_OC_Fifo1_OC_3_RULE_COUNT:`l_class_OC_Fifo1_OC_3_RULE_COUNT],
         rule_ready[0 + `l_class_OC_Fifo1_OC_3_RULE_COUNT:`l_class_OC_Fifo1_OC_3_RULE_COUNT]);
     reg pong;
-    assign element1$out_first__ENA = out_first__ENA_internal & pong ^ 1;
-    assign element2$out_first__ENA = out_first__ENA_internal & pong;
     assign in_enq__RDY = in_enq__RDY_internal;
     assign in_enq__RDY_internal = (element2$in_enq__RDY | (pong ^ 1)) & (element1$in_enq__RDY | pong);
     assign out_deq__RDY = out_deq__RDY_internal;

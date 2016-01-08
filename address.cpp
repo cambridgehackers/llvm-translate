@@ -715,8 +715,7 @@ static void processMemcpy(CallInst *II)
     Argument *sourceArg = NULL;
     if (source->getOpcode() == Instruction::BitCast)
         sourceArg = dyn_cast<Argument>(source->getOperand(0));
-    Value *len = II->getOperand(2);
-printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr());
+//printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr());
 //if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
 //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 //func->dump();
@@ -736,12 +735,9 @@ printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr
 //}
         return;
     }
-    dest->dump();
     if (destArg->hasStructRetAttr()) {
-printf("[%s:%d] structret\n", __FUNCTION__, __LINE__);
+//printf("[%s:%d] structret\n", __FUNCTION__, __LINE__);
     }
-    source->dump();
-    len->dump();
 }
 
 static void registerInterface(char *addr, StructType *STy, const char *name)

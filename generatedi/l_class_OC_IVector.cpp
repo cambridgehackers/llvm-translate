@@ -1,8 +1,9 @@
 #include "l_class_OC_IVector.h"
 void l_class_OC_IVector::respond_rule(void) {
+        l_struct_OC_ValuePair agg_2e_tmp;
         fifo.out_deq();
-        fifo.out_first();
-        ind->heard(&agg_2e_tmp);
+        agg_2e_tmp = fifo.out_first();
+        ind->heard(agg_2e_tmp);
 }
 bool l_class_OC_IVector::respond_rule__RDY(void) {
         bool tmp__1;

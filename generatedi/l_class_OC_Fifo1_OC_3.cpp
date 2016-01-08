@@ -1,5 +1,6 @@
 #include "l_class_OC_Fifo1_OC_3.h"
 void l_class_OC_Fifo1_OC_3::in_enq(l_struct_OC_ValuePair in_enq_v) {
+        element = in_enq_v;
         full = 1;
 }
 bool l_class_OC_Fifo1_OC_3::in_enq__RDY(void) {
@@ -12,12 +13,12 @@ bool l_class_OC_Fifo1_OC_3::out_deq__RDY(void) {
         return full;
 }
 l_struct_OC_ValuePair l_class_OC_Fifo1_OC_3::out_first(void) {
-        agg_2e_result->(&element, 88, 4, 0);
+        l_struct_OC_ValuePair agg_2e_result;
+        return element;
 }
 bool l_class_OC_Fifo1_OC_3::out_first__RDY(void) {
         return full;
 }
 void l_class_OC_Fifo1_OC_3::run()
 {
-    element.run();
 }

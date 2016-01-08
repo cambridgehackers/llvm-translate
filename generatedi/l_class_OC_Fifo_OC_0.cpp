@@ -10,7 +10,8 @@ bool l_class_OC_Fifo_OC_0::out_deq__RDY(void) {
         return 0;
 }
 l_struct_OC_ValuePair l_class_OC_Fifo_OC_0::out_first(void) {
-        agg_2e_result->(0, 88, 4, 0);
+        l_struct_OC_ValuePair agg_2e_result;
+        return {0};
 }
 bool l_class_OC_Fifo_OC_0::out_first__RDY(void) {
         return 0;
