@@ -707,38 +707,21 @@ static void processMalloc(CallInst *II)
  */
 static void processMemcpy(CallInst *II)
 {
-    Module *Mod = II->getParent()->getParent()->getParent();
-    Function *func = II->getParent()->getParent();
     Instruction *dest = dyn_cast<Instruction>(II->getOperand(0));
     Argument *destArg = NULL;
     if (dest->getOpcode() == Instruction::BitCast)
         destArg = dyn_cast<Argument>(dest->getOperand(0));
     Instruction *source = dyn_cast<Instruction>(II->getOperand(1));
-    Argument *sourceArg = NULL;
     if (source->getOpcode() == Instruction::BitCast)
-        sourceArg = dyn_cast<Argument>(source->getOperand(0));
-//printf("[%s:%d] fstructret %d\n", __FUNCTION__, __LINE__, func->hasStructRetAttr());
-//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//func->dump();
-//}
-    if (sourceArg && dest->getOpcode() == Instruction::BitCast) {
-        //dest->dump();
-        Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0));
-        if (destTmp->getOpcode() == Instruction::Alloca) {
-            dest->getOperand(0);
-            destTmp->replaceAllUsesWith(sourceArg);
-            recursiveDelete(II);
-            recursiveDelete(destTmp);
-        }
-//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//func->dump();
-//}
+    if (Argument *sourceArg = dyn_cast<Argument>(source->getOperand(0)))
+    if (dest->getOpcode() == Instruction::BitCast)
+    if (Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0)))
+    if (destTmp->getOpcode() == Instruction::Alloca) {
+        dest->getOperand(0);
+        destTmp->replaceAllUsesWith(sourceArg);
+        recursiveDelete(II);
+        recursiveDelete(destTmp);
         return;
-    }
-    if (destArg->hasStructRetAttr()) {
-//printf("[%s:%d] structret\n", __FUNCTION__, __LINE__);
     }
 }
 

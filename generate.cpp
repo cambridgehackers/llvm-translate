@@ -756,10 +756,10 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-//if (func->getName() == "_ZN8FifoPongI9ValuePairE5firstEv") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//func->dump();
-//}
+if (func->getName() == "_ZN7IVector3sayEii") {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+func->dump();
+}
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     processIFunction = func;
     if (func->hasStructRetAttr())
