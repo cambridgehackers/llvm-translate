@@ -155,7 +155,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
         processFunction(func);
         for (auto info: declareList)
-            fprintf(OStr, "        %s;\n", info.c_str());
+            fprintf(OStr, "        %s;\n", info.second.c_str());
         for (auto info: storeList) {
             if (Value *cond = getCondition(info.second.cond, 0))
                 fprintf(OStr, "        if (%s)\n    ", printOperand(cond, false).c_str());

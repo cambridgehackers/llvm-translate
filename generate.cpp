@@ -46,7 +46,7 @@ static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 std::list<ReferenceType> readList, writeList, invokeList, functionList;
 std::map<std::string, ReferenceType> storeList;
-std::list<std::string> declareList;
+std::map<std::string, std::string> declareList;
 
 static INTMAP_TYPE predText[] = {
     {FCmpInst::FCMP_FALSE, "false"}, {FCmpInst::FCMP_OEQ, "oeq"},
@@ -412,13 +412,25 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
 static std::string printCall(Instruction &I)
 {
     Function *callingFunction = I.getParent()->getParent();
-    std::string vout, sep;
+    std::string vout, sep, structRet;
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();
+    Type *retType = func->getReturnType();
+    auto FAI = func->arg_begin();
+    if (func->hasStructRetAttr()) {
+        retType = cast<PointerType>(FAI->getType())->getElementType();
+        FAI++;
+    }
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-    if (func->hasStructRetAttr())
+    if (func->hasStructRetAttr()) {
+        Argument *AA = dyn_cast<Argument>(*AI);
+        structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
+        if (declareList[structRet] == "")
+            declareList[structRet] = printType(cast<PointerType>((*AI)->getType())
+                ->getElementType(), false, structRet, "", "", false);
         AI++;
+    }
     std::string pcalledFunction = printOperand(*AI++, false); // skips 'this' param
     std::string prefix = MODULE_ARROW;
 
@@ -429,9 +441,6 @@ static std::string printCall(Instruction &I)
     std::string fname = pushSeen[func];
     if (trace_call)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
-    Function::const_arg_iterator FAI = ++func->arg_begin();
-    if (func->hasStructRetAttr())
-        FAI++;
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
         bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");
@@ -441,16 +450,20 @@ static std::string printCall(Instruction &I)
         prefix = pcalledFunction + prefix;
     std::string mname = prefix + fname;
     if (generateRegion == ProcessVerilog) {
-        if (func->getReturnType() == Type::getVoidTy(func->getContext()))
+        if (retType == Type::getVoidTy(func->getContext()))
             muxEnable(I.getParent(), mname + "__ENA");
         else
             vout += mname;
         invokeList.push_back(ReferenceType{I.getParent(), mname});
     }
-    else
+    else {
         vout += pcalledFunction + mname + "(";
-    for (; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
-        std::string parg = printOperand(*AI, false);
+    }
+    for (FAI++; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
+        bool indirect = dyn_cast<PointerType>((*AI)->getType()) != NULL;
+        if (dyn_cast<Argument>(*AI))
+            indirect = false;
+        std::string parg = printOperand(*AI, indirect);
         if (generateRegion == ProcessVerilog)
             muxValue(I.getParent(), mname + "_" + FAI->getName().str(), parg);
         else
@@ -459,6 +472,10 @@ static std::string printCall(Instruction &I)
     }
     if (generateRegion != ProcessVerilog)
         vout += ")";
+    if (structRet != "") {
+        storeList[structRet] = ReferenceType{I.getParent(), vout};
+        return "";
+    }
     return vout;
 }
 
@@ -523,6 +540,8 @@ static std::string processInstruction(Instruction &I)
                 vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(I.getOperand(0), false);
+            if (processIFunction && processIFunction->hasStructRetAttr())
+                vout += GetValueName(processIFunction->arg_begin());
         }
         break;
     case Instruction::Unreachable:
@@ -607,9 +626,6 @@ static std::string processInstruction(Instruction &I)
         if (processIFunction && !processIFunctionReturn) {
             processIFunctionReturn = &I;
 //&& processIFunction->hasStructRetAttr() 
-printf("[%s:%d] remember struct return place\n", __FUNCTION__, __LINE__);
-            I.dump();
-            processIFunction->dump();
             break;   // This is the only form of Alloca we support!
         }
     default:
@@ -705,6 +721,12 @@ void processFunction(Function *func)
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     processIFunction = func;
     processIFunctionReturn = NULL;
+    if (func->hasStructRetAttr())
+    if (auto PTy = dyn_cast<PointerType>(func->arg_begin()->getType())) {
+        std::string sname = GetValueName(func->arg_begin());
+        declareList[sname] = printType(PTy->getElementType(), false,
+            sname, "", "", false);
+    }
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
             if (!isInlinableInst(*II)) {
@@ -713,7 +735,7 @@ void processFunction(Function *func)
                     if (!isDirectAlloca(&*II) && II->use_begin() != II->use_end()
                          && II->getType() != Type::getVoidTy(BI->getContext())) {
                         std::string resname = GetValueName(&*II);
-                        declareList.push_back(printType(II->getType(), false, resname, "", "", false));
+                        declareList[resname] = printType(II->getType(), false, resname, "", "", false);
                         storeList[resname] = ReferenceType{II->getParent(), vout};
                     }
                     else

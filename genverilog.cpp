@@ -383,10 +383,16 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         globalCondition = mname + "__ENA_internal";
         processFunction(func);
         if (!isAction) {
-            std::string temp;
+            std::string temp, valsep;
             for (auto info: functionList) {
-                ERRORIF(getCondition(info.cond, 0));
+                Value *cond = getCondition(info.cond, 0);
+                temp += valsep;
+                valsep = "";
+                if (cond)
+                    temp += printOperand(cond, false) + " ? ";
                 temp += info.item;
+                if (cond)
+                    valsep = " : ";
             }
             if (endswith(mname, "__RDY")) {
                 assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
@@ -406,12 +412,13 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
+                func->dump();
                 for (auto info: functionList) {
                     if (Value *cond = getCondition(info.cond, 0))
                         printf("%s\n", ("    if (" + printOperand(cond, false) + ")").c_str());
                     printf("%s\n", info.item.c_str());
                 }
-                exit(-1);
+                //exit(-1);
             }
         }
         if (storeList.size() > 0) {
