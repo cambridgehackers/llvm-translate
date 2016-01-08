@@ -412,6 +412,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
 static std::string printCall(Instruction &I)
 {
     Function *callingFunction = I.getParent()->getParent();
+    std::string callingName = callingFunction->getName();
     std::string vout, sep, structRet;
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();
@@ -424,7 +425,6 @@ static std::string printCall(Instruction &I)
     CallSite CS(&I);
     CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
     if (func->hasStructRetAttr()) {
-        Argument *AA = dyn_cast<Argument>(*AI);
         structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
         if (declareList[structRet] == "")
             declareList[structRet] = printType(cast<PointerType>((*AI)->getType())
@@ -438,9 +438,10 @@ static std::string printCall(Instruction &I)
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
+    std::string cgetName = func->getName();
     std::string fname = pushSeen[func];
     if (trace_call)
-        printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingFunction->getName().str().c_str(), func->getName().str().c_str(), func, pcalledFunction.c_str(), fname.c_str());
+        printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), cgetName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
         bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");
@@ -449,6 +450,29 @@ static std::string printCall(Instruction &I)
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
     std::string mname = prefix + fname;
+    Argument *calledRet = callingFunction->arg_begin();
+    if (Instruction *dest = dyn_cast<Instruction>(I.getOperand(0)))
+    if (dest->getOpcode() == Instruction::BitCast) {
+    if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
+    if (cgetName == "llvm.memcpy.p0i8.p0i8.i64") {
+        if (Instruction *src = dyn_cast<Instruction>(I.getOperand(1)))
+        if (src->getOpcode() == Instruction::BitCast) {
+            if (generateRegion == ProcessCPP)
+                vout += "return ";
+            return vout + printOperand(src->getOperand(0), true);
+        }
+    }
+    else if (cgetName == "llvm.memset.p0i8.i64") {
+        if (generateRegion == ProcessCPP)
+            return "return {0}";
+        return "0";
+    }
+    else
+        printf("[%s:%d] not memcpy %s\n", __FUNCTION__, __LINE__, cgetName.c_str());
+    }
+    else
+        printf("[%s:%d] NOTARG\n", __FUNCTION__, __LINE__);
+    }
     if (generateRegion == ProcessVerilog) {
         if (retType == Type::getVoidTy(func->getContext()))
             muxEnable(I.getParent(), mname + "__ENA");
@@ -726,6 +750,8 @@ void processFunction(Function *func)
         std::string sname = GetValueName(func->arg_begin());
         declareList[sname] = printType(PTy->getElementType(), false,
             sname, "", "", false);
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//func->dump();
     }
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {

@@ -123,8 +123,10 @@ void generateClassDef(const StructType *STy, std::string oDir)
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.InterfaceClass")) {
-                    fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
-                    runLines.push_back(fname);
+                    std::string sname = getStructName(iSTy);
+                    fprintf(OStr, "#include \"%s.h\"\n", sname.c_str());
+                    if (sname.substr(0,12) != "l_struct_OC_")
+                        runLines.push_back(fname);
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
