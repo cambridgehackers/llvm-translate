@@ -31,7 +31,7 @@ module l_class_OC_IVector (
         rule_enable[1:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[1:`l_class_OC_FifoPong_RULE_COUNT]);
     assign ind$heard__ENA = respond_rule__ENA_internal;
-    assign respond_rule__RDY_internal = (fifo$out_deq__RDY & fifo$out_first__RDY) & ind$heard__RDY;
+    assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond_rule__RDY_internal;
     assign say__RDY = say__RDY_internal;
 endmodule 

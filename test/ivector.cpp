@@ -14,7 +14,7 @@ bool l_class_OC_IVectorIndication::heard__RDY(void) {
         return true;
 }
 void l_class_OC_IVectorIndication::heard(l_struct_OC_ValuePair v) {
-        printf((("Heard an echo: %d\n")), v.a);
+        printf((("Heard an echo: %d %d\n")), v.a, v.b);
         stop_main_program = 1;
 }
 

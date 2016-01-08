@@ -432,7 +432,6 @@ static std::string printCall(Instruction &I)
     if (func->hasStructRetAttr()) {
         structRetTemp = *AI;
         structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
-printf("[%s:%d] func %s rettemp %s\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), structRet.c_str());
         if (declareList[structRet] == "")
             declareList[structRet] = printType(cast<PointerType>((*AI)->getType())
                 ->getElementType(), false, structRet, "", "", false);
@@ -664,7 +663,7 @@ static std::string processInstruction(Instruction &I)
         break;
     case Instruction::Alloca:
         if (processIFunction) {
-            printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
+            //printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
             break;   // This is the only form of Alloca we support!
         }
     default:
