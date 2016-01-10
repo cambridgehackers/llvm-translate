@@ -94,7 +94,7 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
     for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
         Value *OpV = I->getOperand(i);
         I->setOperand(i, nullptr);
-        if (OpV->use_empty())
+        if (OpV && OpV->use_empty())
             recursiveDelete(OpV);
     }
     I->eraseFromParent();
@@ -713,15 +713,31 @@ static void processMemcpy(CallInst *II)
         destArg = dyn_cast<Argument>(dest->getOperand(0));
     Instruction *source = dyn_cast<Instruction>(II->getOperand(1));
     if (source->getOpcode() == Instruction::BitCast)
-    if (Argument *sourceArg = dyn_cast<Argument>(source->getOperand(0)))
     if (dest->getOpcode() == Instruction::BitCast)
     if (Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0)))
     if (destTmp->getOpcode() == Instruction::Alloca) {
-        dest->getOperand(0);
-        destTmp->replaceAllUsesWith(sourceArg);
-        recursiveDelete(II);
-        recursiveDelete(destTmp);
-        return;
+        if (Argument *sourceArg = dyn_cast<Argument>(source->getOperand(0))) {
+            dest->getOperand(0);
+            destTmp->replaceAllUsesWith(sourceArg);
+            recursiveDelete(II);
+            recursiveDelete(destTmp);
+        }
+        else if (Instruction *sourceTmp = dyn_cast<Instruction>(source->getOperand(0))) {
+            if (sourceTmp->getOpcode() == Instruction::Alloca) {
+//printf("[%s:%d] A->A\n", __FUNCTION__, __LINE__);
+//destTmp->dump();
+//sourceTmp->dump();
+                Function *func = II->getParent()->getParent();
+//func->dump();
+                destTmp->replaceAllUsesWith(sourceTmp);
+                dest->setOperand(0, NULL);
+                recursiveDelete(destTmp);
+//destTmp->dump();
+                recursiveDelete(II);
+//printf("[%s:%d] aft\n", __FUNCTION__, __LINE__);
+//func->dump();
+            }
+        }
     }
 }
 

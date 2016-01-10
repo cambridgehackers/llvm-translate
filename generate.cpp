@@ -497,6 +497,10 @@ static std::string printCall(Instruction &I)
     }
     for (FAI++; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
         bool indirect = dyn_cast<PointerType>((*AI)->getType()) != NULL;
+        if (auto *ins = dyn_cast<Instruction>(*AI)) {
+            if (ins->getOpcode() == Instruction::GetElementPtr)
+                indirect = true;
+        }
         if (dyn_cast<Argument>(*AI))
             indirect = false;
         std::string parg = printOperand(*AI, indirect);
@@ -559,6 +563,8 @@ static std::string processInstruction(Instruction &I)
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
         std::string pdest = printOperand(IS.getPointerOperand(), true);
+        if (pdest[0] == '&')
+            pdest = pdest.substr(1);
         Value *Operand = I.getOperand(0);
         Constant *BitMask = 0;
         IntegerType* ITy = dyn_cast<IntegerType>(Operand->getType());
@@ -661,10 +667,12 @@ static std::string processInstruction(Instruction &I)
 #endif
     case Instruction::Br:
         break;
-    case Instruction::Alloca:
-        if (processIFunction) {
-            //printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
-            break;   // This is the only form of Alloca we support!
+    case Instruction::Alloca: {
+        std::string resname = GetValueName(&I);
+        if (auto *PTy = dyn_cast<PointerType>(I.getType()))
+            declareList[resname] = printType(PTy->getElementType(), false, resname, "", "", false);
+        //printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
+        break;
         }
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
@@ -705,6 +713,8 @@ std::string printOperand(Value *Operand, bool Indirect)
         else
             cbuffer += prefix + "(" + p + ")";
     }
+    else if (I && I->getOpcode() == Instruction::Alloca)
+        cbuffer += GetValueName(Operand);
     else {
         cbuffer += prefix;
         Constant* CPV = dyn_cast<Constant>(Operand);
@@ -756,7 +766,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN7IVector3sayEii") {
+if (func->getName() == "zz_ZN7IVector3sayEii") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

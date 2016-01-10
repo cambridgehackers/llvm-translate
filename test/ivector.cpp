@@ -13,7 +13,7 @@ class l_class_OC_IVector zIVector;
 bool l_class_OC_IVectorIndication::heard__RDY(void) {
         return true;
 }
-void l_class_OC_IVectorIndication::heard(int meth, int v) {
+void l_class_OC_IVectorIndication::heard(unsigned int meth, unsigned int v) {
         printf("Heard an echo: %d %d\n", meth, v);
         stop_main_program = 1;
 }
