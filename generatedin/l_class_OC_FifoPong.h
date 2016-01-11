@@ -1,7 +1,7 @@
 #ifndef __l_class_OC_FifoPong_H__
 #define __l_class_OC_FifoPong_H__
 #include "l_class_OC_Fifo1_OC_3.h"
-#include "l_class_OC_Fifo1_OC_3.h"
+#include "l_struct_OC_ValuePair.h"
 class l_class_OC_FifoPong {
   l_class_OC_Fifo1_OC_3 element1;
   l_class_OC_Fifo1_OC_3 element2;

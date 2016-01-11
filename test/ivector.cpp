@@ -22,7 +22,7 @@ int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zIVector.setind(&zIVectorIndication);
-    zIVector.say(22, 44);
+    zIVector.say(2, 44);
     while (!stop_main_program) {
         zIVector.run();
     }

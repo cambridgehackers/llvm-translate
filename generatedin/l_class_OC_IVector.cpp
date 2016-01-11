@@ -28,5 +28,4 @@ bool l_class_OC_IVector::say__RDY(void) {
 void l_class_OC_IVector::run()
 {
     if (respond_rule__RDY()) respond_rule();
-    fifo.run();
 }

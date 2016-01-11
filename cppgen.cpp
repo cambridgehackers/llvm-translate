@@ -110,6 +110,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     std::list<std::string> extraMethods;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
+    std::map<std::string, int> includeList;
 
     // first generate '.h' file
     FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
@@ -124,18 +125,40 @@ void generateClassDef(const StructType *STy, std::string oDir)
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     std::string sname = getStructName(iSTy);
-                    fprintf(OStr, "#include \"%s.h\"\n", sname.c_str());
+                    includeList[sname] = 1;
                     if (sname.substr(0,12) != "l_struct_OC_")
                         runLines.push_back(fname);
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
-                    fprintf(OStr, "#include \"%s.h\"\n", getStructName(iSTy).c_str());
+                    includeList[getStructName(iSTy)] = 1;
                 extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
                     + ") { " + fname + " = v; }");
             }
         }
     }
+    for (auto FI : table->method) {
+        Function *func = FI.second;
+        Type *retType = func->getReturnType();
+        auto AI = func->arg_begin(), AE = func->arg_end();
+        if (func->hasStructRetAttr()) {
+            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+                retType = PTy->getElementType();
+            AI++;
+        }
+        if (const StructType *iSTy = dyn_cast<StructType>(retType))
+            includeList[getStructName(iSTy)] = 1;
+        AI++;
+        for (; AI != AE; ++AI) {
+            Type *element = AI->getType();
+            if (auto PTy = dyn_cast<PointerType>(element))
+                element = PTy->getElementType();
+            if (const StructType *iSTy = dyn_cast<StructType>(element))
+                includeList[getStructName(iSTy)] = 1;
+        }
+    }
+    for (auto item: includeList)
+        fprintf(OStr, "#include \"%s.h\"\n", item.first.c_str());
     if (name.substr(0,12) == "l_struct_OC_")
         fprintf(OStr, "typedef struct {\n");
     else

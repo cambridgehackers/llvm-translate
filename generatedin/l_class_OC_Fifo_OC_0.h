@@ -1,5 +1,6 @@
 #ifndef __l_class_OC_Fifo_OC_0_H__
 #define __l_class_OC_Fifo_OC_0_H__
+#include "l_struct_OC_ValuePair.h"
 class l_class_OC_Fifo_OC_0 {
 public:
   void run();

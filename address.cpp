@@ -142,6 +142,22 @@ static void processAlloca(Function *thisFunc)
         item->moveBefore(item->getParent()->getTerminator());
 }
 
+static void processSelect(Function *thisFunc)
+{
+    for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
+        for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
+            auto PI = std::next(BasicBlock::iterator(II));
+            switch (II->getOpcode()) {
+            case Instruction::Select:
+                II->replaceAllUsesWith(II->getOperand(2));
+                recursiveDelete(II);
+                break;
+            };
+            II = PI;
+        }
+    }
+}
+
 /*
  * Lookup vtable-referenced functions, changing IR to reference actual bound
  * function directly.  Also inline references to methods from the same class,
@@ -703,6 +719,33 @@ static void processMalloc(CallInst *II)
 }
 
 /*
+ * replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
+ */
+static void processOverflow(CallInst *II)
+{
+    Function *callingFunc = II->getParent()->getParent();
+    Function *func = dyn_cast<Function>(II->getCalledValue());
+    std::string fname = func->getName();
+    IRBuilder<> builder(II->getParent());
+    builder.SetInsertPoint(II);
+    Value *LHS = II->getOperand(0);
+    Value *RHS = II->getOperand(1);
+    Value *newins = (fname == "llvm.umul.with.overflow.i64") ? builder.CreateMul(LHS, RHS)
+         : builder.CreateAdd(LHS, RHS);
+printf("[%s:%d] func %s\n", __FUNCTION__, __LINE__, fname.c_str());
+    //newins->dump();
+    for(auto UI = II->user_begin(), UE = II->user_end(); UI != UE;) {
+        auto UIN = std::next(UI);
+        UI->replaceAllUsesWith(newins);
+        recursiveDelete(*UI);
+        UI = UIN;
+    }
+  //Rem->dropAllReferences();
+  //Rem->eraseFromParent();
+    //callingFunc->dump();
+}
+
+/*
  * Preprocess memcpy calls
  */
 static void processMemcpy(CallInst *II)
@@ -822,6 +865,17 @@ void preprocessModule(Module *Mod)
             }
             Declare->eraseFromParent();
         }
+
+    // remove Select statements
+    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
+        processSelect(FI);
+    // replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
+    const char *overflow_names[] = { "llvm.umul.with.overflow.i64", "llvm.uadd.with.overflow.i64", NULL};
+    p = overflow_names;
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++))
+            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
+                processOverflow(cast<CallInst>(*I));
 
     // remap all calls to 'malloc' and 'new' to our runtime.
     const char *malloc_names[] = { "_Znwm", "malloc", NULL};

@@ -1,10 +1,9 @@
 `ifndef __l_class_OC_IVector_VH__
 `define __l_class_OC_IVector_VH__
 
-`include "l_class_OC_FifoPong.vh"
-`define l_class_OC_IVector_RULE_COUNT (1 + `l_class_OC_FifoPong_RULE_COUNT)
+`define l_class_OC_IVector_RULE_COUNT (1)
 
-//METAINTERNAL; fifo; l_class_OC_FifoPong;
+//METAEXTERNAL; fifo; l_class_OC_Fifo_OC_0;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
 //METAREAD; respond_rule; :;fifo$out_first$a:;fifo$out_first$b;
 //METAINVOKE; respond_rule; :;fifo$out_first:;fifo$out_deq:;ind$heard;
