@@ -35,17 +35,23 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         Type *element = *I;
+        int64_t vecCount = -1;
         if (ClassMethodTable *table = classCreate[STy])
-            if (Type *newType = table->replaceType[Idx])
+            if (Type *newType = table->replaceType[Idx]) {
                 element = newType;
+                vecCount = table->replaceCount[Idx];
+            }
         std::string fname = fieldName(STy, Idx);
+        std::string vecDim;
+        if (vecCount != -1)
+            vecDim = "[" + utostr(vecCount) + "]";
         if (fname == "unused_data_to_force_inheritance")
             continue;
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (inheritsModule(iSTy, "class.InterfaceClass"))
                     continue;
-            fprintf(OStr, "%s", printType(element, false, fname, "  ", ";\n", false).c_str());
+            fprintf(OStr, "%s", printType(element, false, fname, "  ", vecDim + ";\n", false).c_str());
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);

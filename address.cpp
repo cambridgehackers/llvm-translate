@@ -44,6 +44,7 @@ typedef  struct {
     size_t size;
     Type *type;
     const StructType *STy;
+    uint64_t   vecCount;
 } MEMORY_REGION;
 
 typedef struct {
@@ -72,14 +73,14 @@ static std::list<MEMORY_REGION> memoryRegion;
 /*
  * Allocated memory region management
  */
-extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType *STy)
+extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType *STy, uint64_t vecCount)
 {
     size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
     void *ptr = malloc(newsize);
     memset(ptr, 0x5a, newsize);
     if (trace_malloc)
-        printf("[%s:%d] %ld = %p type %p sty %p\n", __FUNCTION__, __LINE__, size, ptr, type, STy);
-    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy});
+        printf("[%s:%d] %ld = %p type %p sty %p vecCount %ld\n", __FUNCTION__, __LINE__, size, ptr, type, STy, vecCount);
+    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy, vecCount});
     return ptr;
 }
 
@@ -693,27 +694,57 @@ static void processMethodToFunction(CallInst *II)
  */
 static void processMalloc(CallInst *II)
 {
+    Function *callingFunc = II->getParent()->getParent();
     Module *Mod = II->getParent()->getParent()->getParent();
     Value *called = II->getOperand(II->getNumOperands()-1);
     const Function *CF = dyn_cast<Function>(called);
-    Instruction *PI = II->user_back();
-    uint64_t tparam = 0;
-    uint64_t styparam = (uint64_t)findThisArgument(II->getParent()->getParent());
-    //printf("[%s:%d] %s calling %s styparam %lx\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str(), CF->getName().str().c_str(), styparam);
-    if (PI->getOpcode() == Instruction::BitCast && &*II == PI->getOperand(0))
-        tparam = (uint64_t)PI->getType();
+    const Type *Typ = NULL;
+    const StructType *STy = findThisArgument(II->getParent()->getParent());
+    uint64_t styparam = (uint64_t)STy;
+    Value *vecparam = NULL;
+    for(auto PI = II->user_begin(), PE = II->user_end(); PI != PE; PI++) {
+        Instruction *ins = dyn_cast<Instruction>(*PI);
+        printf("[%s:%d] ins %p opcode %s\n", __FUNCTION__, __LINE__, ins, ins->getOpcodeName());
+        ins->dump();
+        if (ins->getOpcode() == Instruction::BitCast) {
+            if (!Typ)
+                Typ = ins->getType();
+            else {
+                Instruction *PI = ins->user_back();
+                PI->dump();
+                if (PI->getOpcode() == Instruction::Store)
+                    vecparam = PI->getOperand(0);
+            }
+        }
+        if (ins->getOpcode() == Instruction::GetElementPtr) {
+            Instruction *PI = ins->user_back();
+            PI->dump();
+            if (PI->getOpcode() == Instruction::BitCast)
+                Typ = PI->getType();
+        }
+    }
+    uint64_t tparam = (uint64_t)Typ;
+    printf("%s: %s calling %s styparam %lx tparam %lx vecparam %p\n",
+        __FUNCTION__, callingFunc->getName().str().c_str(), CF->getName().str().c_str(), styparam, tparam, vecparam);
+    STy->dump();
+    if (Typ)
+        Typ->dump();
+    II->dump();
     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
-        Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext())};
+        Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext()),
+        Type::getInt64Ty(Mod->getContext())};
     FunctionType *fty = FunctionType::get(Type::getInt8PtrTy(Mod->getContext()),
-        ArrayRef<Type*>(Params, 3), false);
+        ArrayRef<Type*>(Params, 4), false);
     Function *F = dyn_cast<Function>(Mod->getOrInsertFunction("llvm_translate_malloc", fty));
     F->setCallingConv(CF->getCallingConv());
     F->setDoesNotAlias(0);
     F->setAttributes(CF->getAttributes());
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
+    if (!vecparam)
+        vecparam = builder.getInt64(-1);
     II->replaceAllUsesWith(builder.CreateCall(F,
-       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam)},
+       {II->getOperand(0), builder.getInt64(tparam), builder.getInt64(styparam), vecparam},
        "llvm_translate_malloc"));
     II->eraseFromParent();
 }
@@ -878,7 +909,7 @@ void preprocessModule(Module *Mod)
                 processOverflow(cast<CallInst>(*I));
 
     // remap all calls to 'malloc' and 'new' to our runtime.
-    const char *malloc_names[] = { "_Znwm", "malloc", NULL};
+    const char *malloc_names[] = { "_Znwm", "_Znam", "malloc", NULL};
     p = malloc_names;
     while(*p)
         if (Function *Declare = Mod->getFunction(*p++))
@@ -929,6 +960,8 @@ void preprocessModule(Module *Mod)
     // Context: Must be after processMethodToFunction
     for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
         processAlloca(FI);
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //Mod->getFunction("_ZN7IVectorC2EP17IVectorIndicationi")->dump();
 }
 
 static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
@@ -963,6 +996,7 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
                         classCreate[STy]->replaceType[Idx] = info.type;
+                        classCreate[STy]->replaceCount[Idx] = info.vecCount;
                         if (STy == info.STy) {
                             classCreate[STy]->allocateLocally[Idx] = true;
                             inlineReferences(Mod, STy, Idx, info.type);

@@ -19,6 +19,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <list>
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
@@ -47,6 +48,7 @@ class ClassMethodTable {
 public:
     std::map<std::string, Function *> method;
     std::map<int, Type *>             replaceType;
+    std::map<int, uint64_t>           replaceCount;
     std::map<int, bool>               allocateLocally;
     std::map<std::string, Function *> rules;
     unsigned int                      vtableCount;
