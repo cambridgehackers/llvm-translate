@@ -38,6 +38,7 @@ static int trace_malloc;//= 1;
 static int trace_fixup;// = 1;
 static int trace_hoist;//= 1;
 static int trace_lookup;//= 1;
+static int trace_pair;//= 1;
 
 typedef  struct {
     void *p;
@@ -105,6 +106,7 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
  * Remove Alloca items inserted by clang as part of dwarf debug support.
  * (the 'this' pointer was copied into a stack temp rather than being
  * referenced directly from the parameter)
+ * Context: Must be after processMethodToFunction
  */
 static void processAlloca(Function *thisFunc)
 {
@@ -191,6 +193,7 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
                 if (callingSTy == STy) {
                     fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
+                    processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
@@ -352,6 +355,11 @@ static void updateParameterNames(std::string mName, Function *func)
         AI->setName(mName + "_" + AI->getName());
 }
 
+static void setSeen(Function *func, std::string mName)
+{
+    pushSeen[func] = mName;
+    processAlloca(func);
+}
 /*
  * Add a function to the processing list for generation of cpp and verilog.
  */
@@ -365,7 +373,7 @@ static void pushWork(std::string mName, Function *func)
 //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 //func->dump();
 //}
-    pushSeen[func] = mName;
+    setSeen(func, mName);
     table->method[mName] = func;
     updateParameterNames(mName, func);
     // inline intra-class method call bodies
@@ -392,10 +400,11 @@ static void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, 
  */
 extern "C" void exportRequest(Function *enaFunc)
 {
-    //printf("[%s:%d] func %p\n", __FUNCTION__, __LINE__, enaFunc);
     ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
     std::string enaName = getMethodName(enaFunc->getName());
     std::string rdyName = enaName + "__RDY";
+    if (trace_pair)
+        printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), rdyName.c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++)
         if (getMethodName(table->vtable[i]->getName()) == rdyName)
             pushPair(enaFunc, enaName, table->vtable[i], rdyName);
@@ -464,7 +473,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2]);
     ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
     table->rules[name] = enaFunc;
-    if (trace_lookup)
+    if (trace_pair)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
@@ -823,24 +832,35 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
     int Idx = 0;
+    if (trace_pair)
+        printf("[%s:%d] addr %p struct %s name %s vtableCount %d\n", __FUNCTION__, __LINE__, addr, STy->getName().str().c_str(), name, table->vtableCount);
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
             char *eaddr = addr + SLO->getElementOffset(Idx);
             std::string fname = fieldName(STy, Idx);
             callMap[fname] = *(Function **)eaddr;
+            if (trace_pair)
+                printf("[%s:%d] callMap[%s] = %p\n", __FUNCTION__, __LINE__, fname.c_str(), eaddr);
         }
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
-        pushSeen[func] = mName;
+        setSeen(func, mName);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
-                if (CallInst *ICL = dyn_cast<CallInst>(II))
-                if (Function *calledFunc = callMap[printOperand(ICL->getCalledValue(), false)])
-                    methodMap[name + std::string("_") + mName] = calledFunc;
+                if (CallInst *ICL = dyn_cast<CallInst>(II)) {
+                    std::string sname = printOperand(ICL->getCalledValue(), false);
+                    Function *calledFunc = callMap[sname];
+                    if (trace_pair)
+                        printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());
+                    if (calledFunc)
+                        methodMap[name + std::string("_") + mName] = calledFunc;
+                }
     }
-    for (auto item: methodMap)
+    for (auto item: methodMap) {
+        if (trace_pair)
+            printf("[%s:%d] methodMap %s\n", __FUNCTION__, __LINE__, item.first.c_str());
         if (endswith(item.first, "__RDY")) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
             Function *enaFunc = methodMap[enaName];
@@ -851,11 +871,12 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                         printf("    %s\n", item.first.c_str());
                 exit(-1);
             }
-            if (trace_lookup)
+            if (trace_pair)
                 printf("%s: seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
                     pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
             pushPair(enaFunc, enaName, item.second, item.first);
         }
+    }
 }
 
 static void addMethodTable(Function *func)
@@ -956,10 +977,6 @@ void preprocessModule(Module *Mod)
             I = NI;
         }
 
-    // Remove all excessive Alloca usages (were inserted for debug info)
-    // Context: Must be after processMethodToFunction
-    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
-        processAlloca(FI);
 //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     //Mod->getFunction("_ZN7IVectorC2EP17IVectorIndicationi")->dump();
 }
