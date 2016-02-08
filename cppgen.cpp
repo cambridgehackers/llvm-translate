@@ -42,16 +42,19 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
                 vecCount = table->replaceCount[Idx];
             }
         std::string fname = fieldName(STy, Idx);
-        std::string vecDim;
-        if (vecCount != -1)
-            vecDim = "[" + utostr(vecCount) + "]";
         if (fname == "unused_data_to_force_inheritance")
             continue;
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (inheritsModule(iSTy, "class.InterfaceClass"))
                     continue;
-            fprintf(OStr, "%s", printType(element, false, fname, "  ", vecDim + ";\n", false).c_str());
+            int dimIndex = 0;
+            std::string vecDim;
+            do {
+                if (vecCount != -1)
+                    vecDim = utostr(dimIndex++);
+                fprintf(OStr, "%s", printType(element, false, fname + vecDim, "  ", ";\n", false).c_str());
+            } while(vecCount-- > 0);
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
             generateClassElements(inherit, OStr);
@@ -124,16 +127,25 @@ void generateClassDef(const StructType *STy, std::string oDir)
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         Type *element = *I;
-        if (Type *newType = table->replaceType[Idx])
+        int64_t vecCount = -1;
+        if (Type *newType = table->replaceType[Idx]) {
             element = newType;
+            vecCount = table->replaceCount[Idx];
+        }
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     std::string sname = getStructName(iSTy);
                     includeList[sname] = 1;
+                    int dimIndex = 0;
+                    std::string vecDim;
                     if (sname.substr(0,12) != "l_struct_OC_")
-                        runLines.push_back(fname);
+                    do {
+                        if (vecCount != -1)
+                            vecDim = utostr(dimIndex++);
+                        runLines.push_back(fname + vecDim);
+                    } while(vecCount-- > 0);
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))

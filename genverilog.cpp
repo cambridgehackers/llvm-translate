@@ -366,10 +366,18 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::list<std::string> resetList;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         const Type *element = *I;
-        if (Type *newType = table->replaceType[Idx])
+        int64_t vecCount = -1;
+        int dimIndex = 0;
+        std::string vecDim;
+        if (Type *newType = table->replaceType[Idx]) {
             element = newType;
+            vecCount = table->replaceCount[Idx];
+        }
+        do {
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
+            if (vecCount != -1)
+                fname += utostr(dimIndex++);
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
                     metaList.push_back("//METAEXTERNAL; " + fname + "; " + getStructName(STy) + ";");
@@ -391,6 +399,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             else
                 resetList.push_back(fname);
         }
+        } while(vecCount-- > 0);
     }
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
@@ -479,10 +488,18 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         Type *element = *I;
-        if (Type *newType = table->replaceType[Idx])
+        int64_t vecCount = -1;
+        int dimIndex = 0;
+        std::string vecDim;
+        if (Type *newType = table->replaceType[Idx]) {
             element = newType;
+            vecCount = table->replaceCount[Idx];
+        }
+        do {
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
+            if (vecCount != -1)
+                fname += utostr(dimIndex++);
             if (const StructType *STy = dyn_cast<StructType>(element)) {
                 std::string sname = getStructName(STy);
                 if (sname.substr(0,12) == "l_struct_OC_")
@@ -493,6 +510,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             else if (!dyn_cast<PointerType>(element))
                 fprintf(OStr, "    %s;\n", printType(element, false, fname, "", "", false).c_str());
         }
+        } while(vecCount-- > 0);
     }
     // generate 'assign' items
     for (auto item: assignList)

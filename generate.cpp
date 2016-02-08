@@ -393,10 +393,15 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         else {
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s cbuffer %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str());
-            cbuffer += referstr;
-            if ((*I)->isArrayTy() || !(*I)->isVectorTy())
-                cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
+            if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
+                if (referstr[0] == '&')
+                    referstr = referstr.substr(1);
+                cbuffer += referstr;
+                //cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
+                cbuffer += printOperand(I.getOperand(), false);
+            }
             else {
+                cbuffer += referstr;
                 if (!isa<Constant>(I.getOperand()) || !cast<Constant>(I.getOperand())->isNullValue())
                     cbuffer += ")+(" + printOperand(I.getOperand(), false);
                 cbuffer += "))";

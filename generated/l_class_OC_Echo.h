@@ -1,7 +1,7 @@
 #ifndef __l_class_OC_Echo_H__
 #define __l_class_OC_Echo_H__
-#include "l_class_OC_Fifo1.h"
 #include "l_class_OC_EchoIndication.h"
+#include "l_class_OC_Fifo1.h"
 class l_class_OC_Echo {
   l_class_OC_Fifo1 fifo;
   l_class_OC_EchoIndication *ind;
