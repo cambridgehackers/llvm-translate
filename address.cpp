@@ -415,11 +415,18 @@ extern "C" void exportRequest(Function *enaFunc)
  * The blocks context is removed; the functions are transformed into
  * a method (and its associated RDY method), attached to the containing class.
  */
-static Function *fixupFunction(std::string methodName, Function *func, uint8_t *blockData)
+static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_t *blockData)
 {
     Function *fnew = NULL;
     ValueToValueMapTy VMap;
-    std::map<const Value *,Value *> remapValue;
+    SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
+    ValueToValueMapTy VMapfunc;
+    SmallVector<ReturnInst*, 8> Returnsfunc;  // Ignore returns cloned.
+    Function *func = Function::Create(FunctionType::get(argFunc->getReturnType(),
+                        argFunc->getFunctionType()->params(), false), GlobalValue::LinkOnceODRLinkage,
+                        "TEMPFUNC", argFunc->getParent());
+    VMapfunc[argFunc->arg_begin()] = func->arg_begin();
+    CloneFunctionInto(func, argFunc, VMapfunc, false, Returnsfunc, "", nullptr);
     processAlloca(func);
     if (trace_fixup) {
         printf("[%s:%d] BEFORE method %s func %p\n", __FUNCTION__, __LINE__, methodName.c_str(), func);
@@ -429,7 +436,6 @@ static Function *fixupFunction(std::string methodName, Function *func, uint8_t *
         for (auto II = BB->begin(), IE = BB->end(); II != IE; ) {
             BasicBlock::iterator PI = std::next(BasicBlock::iterator(II));
             switch (II->getOpcode()) {
-#if 1
             case Instruction::Load:
                 if (II->getName() == "this") {
                     PointerType *PTy = dyn_cast<PointerType>(II->getType());
@@ -456,57 +462,28 @@ static Function *fixupFunction(std::string methodName, Function *func, uint8_t *
                     if (dyn_cast<Argument>(ptr->getOperand(0))) {
                         VectorType *LastIndexIsVector = NULL;
                         uint64_t Total = getGEPOffset(&LastIndexIsVector, gep_type_begin(IG), gep_type_end(IG));
-                        uint32_t val = *(uint32_t *)(blockData + Total);
-                        printf("[%s:%d] blockD %p Total %ld val %d\n", __FUNCTION__, __LINE__, blockData, Total, val);
                         IRBuilder<> builder(II->getParent());
                         builder.SetInsertPoint(II);
-                        Value *param = builder.getInt32(val);
+                        Value *param = builder.getInt32(*(uint32_t *)(blockData + Total));
                         II->replaceAllUsesWith(param);
                         recursiveDelete(II);
-                        memdump(blockData + Total, 8, "DATA");
                     }
                 break;
-            case Instruction::Store: {
-                std::string name = II->getOperand(0)->getName();
-                //if (name == ".block_descriptor" || name == "block")
-                    //recursiveDelete(II);
+            case Instruction::SExt: {
+                if (const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0))) {
+                    IRBuilder<> builder(II->getParent());
+                    builder.SetInsertPoint(II);
+                    Value *param = builder.getInt64(CI->getZExtValue());
+                    II->replaceAllUsesWith(param);
+                    recursiveDelete(II);
+                }
                 break;
                 }
-#else
-            case Instruction::Load:
-                if (II->getName() == "this") {
-                    PointerType *PTy = dyn_cast<PointerType>(II->getType());
-                    const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
-                    std::string className = STy->getName().substr(6);
-                    Type *Params[] = {PTy};
-                    fnew = Function::Create(FunctionType::get(func->getReturnType(),
-                        ArrayRef<Type*>(Params, 1), false), GlobalValue::LinkOnceODRLinkage,
-                        "_ZN" + utostr(className.length()) + className
-                              + utostr(methodName.length()) + methodName + "Ev",
-                        func->getParent());
-                    fnew->arg_begin()->setName("this");
-                    Argument *newArg = new Argument(PTy, "temporary_this", func);
-                    II->replaceAllUsesWith(newArg);
-                    VMap[newArg] = fnew->arg_begin();
-                    recursiveDelete(II);
-                    func->getArgumentList().pop_front(); // remove original argument
-                }
-                else if (II->use_empty())
-                    recursiveDelete(II);
-                break;
-            case Instruction::Store: {
-                std::string name = II->getOperand(0)->getName();
-                if (name == ".block_descriptor" || name == "block")
-                    recursiveDelete(II);
-                break;
-                }
-#endif
             }
             II = PI;
         }
     }
     func->getArgumentList().pop_front(); // remove original argument
-    SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
     CloneFunctionInto(fnew, func, VMap, false, Returns, "", nullptr);
     if (trace_fixup) {
         printf("[%s:%d] AFTER method %s\n", __FUNCTION__, __LINE__, methodName.c_str());

@@ -357,6 +357,13 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     }
     else if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
+        if (I == E) {
+            // HACK HACK HACK HACK for 'fifo0'
+            printf("[%s:%d] amper %s expose %d referstr %s\n", __FUNCTION__, __LINE__, amper.c_str(), expose, referstr.c_str());
+            (*I)->dump();
+            amper = "";
+            referstr += "0";
+        } else
         if (I != E && (*I)->isArrayTy())
             if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand())) {
                 uint64_t val = CI->getZExtValue();

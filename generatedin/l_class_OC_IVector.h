@@ -18,8 +18,26 @@ class l_class_OC_IVector {
   unsigned int vsize;
 public:
   void run();
-  void respond_rule(void);
-  bool respond_rule__RDY(void);
+  void respond0(void);
+  bool respond0__RDY(void);
+  void respond1(void);
+  bool respond1__RDY(void);
+  void respond2(void);
+  bool respond2__RDY(void);
+  void respond3(void);
+  bool respond3__RDY(void);
+  void respond4(void);
+  bool respond4__RDY(void);
+  void respond5(void);
+  bool respond5__RDY(void);
+  void respond6(void);
+  bool respond6__RDY(void);
+  void respond7(void);
+  bool respond7__RDY(void);
+  void respond8(void);
+  bool respond8__RDY(void);
+  void respond9(void);
+  bool respond9__RDY(void);
   void say(unsigned int say_meth, unsigned int say_v);
   bool say__RDY(void);
   void setind(l_class_OC_IVectorIndication *v) { ind = v; }
