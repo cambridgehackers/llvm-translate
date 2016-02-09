@@ -23,6 +23,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 
 #define MODULE_SEPARATOR "$"
 #define MODULE_ARROW (generateRegion == ProcessVerilog ? MODULE_SEPARATOR : "->")
@@ -103,3 +104,4 @@ int inheritsModule(const StructType *STy, const char *name);
 void muxEnable(BasicBlock *bb, std::string signal);
 void muxValue(BasicBlock *bb, std::string signal, std::string value);
 Value *getCondition(BasicBlock *bb, int invert);
+uint64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E);

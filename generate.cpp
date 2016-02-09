@@ -306,6 +306,23 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
     cbuffer += postfix;
     return cbuffer;
 }
+uint64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E)
+{
+    uint64_t Total = 0;
+    const DataLayout *TD = EE->getDataLayout();
+
+    for (auto TmpI = I; TmpI != E; ++TmpI) {
+        *LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
+        const ConstantInt *CI = cast<ConstantInt>(TmpI.getOperand());
+        if (StructType *STy = dyn_cast<StructType>(*TmpI))
+            Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
+        else {
+            ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
+            Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
+        }
+    }
+    return Total;
+}
 
 /*
  * Generate a string for the value represented by a GEP DAG
@@ -318,21 +335,11 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     ConstantDataArray *CPA;
     uint64_t Total = 0;
     VectorType *LastIndexIsVector = 0;
-    const DataLayout *TD = EE->getDataLayout();
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
     std::string referstr = printOperand(Ptr, false);
 
-    for (auto TmpI = I; TmpI != E; ++TmpI) {
-        LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-        const ConstantInt *CI = cast<ConstantInt>(TmpI.getOperand());
-        if (StructType *STy = dyn_cast<StructType>(*TmpI))
-            Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
-        else {
-            ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
-            Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
-        }
-    }
+    Total = getGEPOffset(&LastIndexIsVector, I, E);
     if (LastIndexIsVector)
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(", false);
     if (trace_gep)
