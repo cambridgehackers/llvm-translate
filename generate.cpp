@@ -685,16 +685,15 @@ static std::string processInstruction(Instruction &I)
         }
         break;
         }
-#if 0
-    //case Instruction::Switch:
-        //const SwitchInst& SI(cast<SwitchInst>(I));
-        //printOperand(SI.getCondition(), false);
-        //printOperand(SI.getDefaultDest(), false);
-        //for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-          //printOperand(i.getCaseValue(), false);
-          //printOperand(i.getCaseSuccessor(), false);
-        //}
-#endif
+    case Instruction::Switch: {
+        const SwitchInst* SI = cast<SwitchInst>(&I);
+        printOperand(SI->getCondition(), false);
+        printOperand(SI->getDefaultDest(), false);
+        for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end(); i != e; ++i) {
+printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, i.getCaseValue()->getZExtValue(), i.getCaseSuccessor()->getName().str().c_str());
+        }
+        break;
+        }
     case Instruction::Br:
         break;
     case Instruction::Alloca: {
@@ -796,7 +795,8 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN7IVector8say__RDYEv") {
+//if (func->getName() == "zz_ZN7IVector8say__RDYEv") {
+if (func->getName() == "_ZN7IVector3sayEii") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

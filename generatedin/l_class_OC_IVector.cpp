@@ -157,27 +157,7 @@ void l_class_OC_IVector::say(unsigned int say_meth, unsigned int say_v) {
         return ;
 }
 bool l_class_OC_IVector::say__RDY(void) {
-        bool tmp__1;
-        bool tmp__10;
-        bool tmp__2;
-        bool tmp__3;
-        bool tmp__4;
-        bool tmp__5;
-        bool tmp__6;
-        bool tmp__7;
-        bool tmp__8;
-        bool tmp__9;
-        tmp__1 = fifo0.in_enq__RDY();
-        tmp__10 = fifo9.in_enq__RDY();
-        tmp__2 = fifo1.in_enq__RDY();
-        tmp__3 = fifo2.in_enq__RDY();
-        tmp__4 = fifo3.in_enq__RDY();
-        tmp__5 = fifo4.in_enq__RDY();
-        tmp__6 = fifo5.in_enq__RDY();
-        tmp__7 = fifo6.in_enq__RDY();
-        tmp__8 = fifo7.in_enq__RDY();
-        tmp__9 = fifo8.in_enq__RDY();
-        return ((((((((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6) & tmp__7) & tmp__8) & tmp__9) & tmp__10;
+        return 1;
 }
 void l_class_OC_IVector::run()
 {

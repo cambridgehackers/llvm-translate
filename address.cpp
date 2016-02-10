@@ -238,11 +238,6 @@ static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I,
     Value *new_thisp = I->getOperand(ind);
     if (Instruction *orig_thisp = dyn_cast<Instruction>(new_thisp))
         new_thisp = cloneTree(orig_thisp, insertPoint);
-//if (insertPoint->getParent()->getParent()->getName() == "_ZN7IVector8say__RDYEv") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//new_thisp->dump();
-//insertPoint->getParent()->dump();
-//}
     preCopy.push_back(dyn_cast<Instruction>(new_thisp));
     for (auto item: preCopy) {
         defactorTree(insertPoint, item, item);
@@ -259,10 +254,6 @@ static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I,
         else
             retItem = newCall;
     }
-//if (insertPoint->getParent()->getParent()->getName() == "_ZN7IVector8say__RDYEv") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//insertPoint->getParent()->dump();
-//}
     return retItem;
 }
 
@@ -357,12 +348,57 @@ static void processPromote(Function *currentFunction)
                 else if (isa<IndirectBrInst>(II)) {
                     printf("[%s:%d] indirect\n", __FUNCTION__, __LINE__);
                     for (unsigned i = 0, e = II->getNumOperands(); i != e; ++i) {
-                        printOperand(II->getOperand(i), false);
+                        printf("[%d] = %s\n", i, printOperand(II->getOperand(i), false).c_str());
                     }
                 }
                 else {
                     printf("[%s:%d] BRUNCOND %p\n", __FUNCTION__, __LINE__, BI->getSuccessor(0));
                 }
+                break;
+                }
+            case Instruction::GetElementPtr: {
+                    int maxop = II->getNumOperands();
+                    if (maxop == 2)
+                    if (Instruction *ind = dyn_cast<Instruction>(II->getOperand(1))) {
+printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
+                    int Values_size = 10;
+                    BasicBlock *BB = II->getParent();
+                    BasicBlock *NewBB = BB->splitBasicBlock(II, "afterswitch");
+                    // If there are PHI nodes in EdgeBB, then we need to add a new entry to them
+                    // for the edge we just added.
+                    //AddPredecessorToBlock(EdgeBB, BB, NewBB);
+                    Value *switchIndex = ind->getOperand(0);
+                    IRBuilder<> builder(II->getParent());
+                    builder.SetInsertPoint(BB->getTerminator());
+                    SwitchInst *New = builder.CreateSwitch(switchIndex, BB, Values_size);
+                    BB->getTerminator()->eraseFromParent();
+                    IRBuilder<> dbuilder(II->getParent());
+                    dbuilder.SetInsertPoint(II);
+                    PHINode *phi = dbuilder.CreatePHI(II->getType(), Values_size, "phi");
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+                    // Add all of the 'cases' to the switch instruction.
+                    for (int i = 0; i < Values_size; ++i) {
+printf("[%s:%d] i %d\n", __FUNCTION__, __LINE__, i);
+                        BasicBlock *caseBB = BasicBlock::Create(currentFunction->getContext(), "switchcase", currentFunction, NewBB);
+                        ConstantInt *vv = builder.getInt64(i);
+                        New->addCase(vv, caseBB);
+                        IRBuilder<> cbuilder(caseBB);
+                        Value *Cmp = cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,
+                                    ConstantInt::get(switchIndex->getType(), i));
+                        cbuilder.CreateBr(NewBB);
+                        Instruction *TI = caseBB->getTerminator();
+                        Instruction *val = cloneTree(II, TI);
+                        val->setOperand(1, vv);
+                        phi->addIncoming(val, caseBB);
+                        if (i != Values_size - 1)
+                            blockCondition[0].val[caseBB] = Cmp; // 'true' condition
+                    }
+                    II->replaceAllUsesWith(phi);
+                    recursiveDelete(II);
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+currentFunction->dump();
+return;
+                    }
                 break;
                 }
             }
