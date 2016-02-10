@@ -3,7 +3,7 @@ void l_class_OC_IVector::respond0(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo0.out_first();
         fifo0.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(0, temp.b);
 }
 bool l_class_OC_IVector::respond0__RDY(void) {
         bool tmp__1;
@@ -18,7 +18,7 @@ void l_class_OC_IVector::respond1(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo1.out_first();
         fifo1.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(1, temp.b);
 }
 bool l_class_OC_IVector::respond1__RDY(void) {
         bool tmp__1;
@@ -33,7 +33,7 @@ void l_class_OC_IVector::respond2(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo2.out_first();
         fifo2.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(2, temp.b);
 }
 bool l_class_OC_IVector::respond2__RDY(void) {
         bool tmp__1;
@@ -48,7 +48,7 @@ void l_class_OC_IVector::respond3(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo3.out_first();
         fifo3.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(3, temp.b);
 }
 bool l_class_OC_IVector::respond3__RDY(void) {
         bool tmp__1;
@@ -63,7 +63,7 @@ void l_class_OC_IVector::respond4(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo4.out_first();
         fifo4.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(4, temp.b);
 }
 bool l_class_OC_IVector::respond4__RDY(void) {
         bool tmp__1;
@@ -78,7 +78,7 @@ void l_class_OC_IVector::respond5(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo5.out_first();
         fifo5.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(5, temp.b);
 }
 bool l_class_OC_IVector::respond5__RDY(void) {
         bool tmp__1;
@@ -93,7 +93,7 @@ void l_class_OC_IVector::respond6(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo6.out_first();
         fifo6.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(6, temp.b);
 }
 bool l_class_OC_IVector::respond6__RDY(void) {
         bool tmp__1;
@@ -108,7 +108,7 @@ void l_class_OC_IVector::respond7(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo7.out_first();
         fifo7.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(7, temp.b);
 }
 bool l_class_OC_IVector::respond7__RDY(void) {
         bool tmp__1;
@@ -123,7 +123,7 @@ void l_class_OC_IVector::respond8(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo8.out_first();
         fifo8.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(8, temp.b);
 }
 bool l_class_OC_IVector::respond8__RDY(void) {
         bool tmp__1;
@@ -138,7 +138,7 @@ void l_class_OC_IVector::respond9(void) {
         l_struct_OC_ValuePair temp;
         temp = fifo9.out_first();
         fifo9.out_deq();
-        ind->heard(temp.a, temp.b);
+        ind->heard(9, temp.b);
 }
 bool l_class_OC_IVector::respond9__RDY(void) {
         bool tmp__1;
@@ -151,7 +151,7 @@ bool l_class_OC_IVector::respond9__RDY(void) {
 }
 void l_class_OC_IVector::say(unsigned int say_meth, unsigned int say_v) {
         l_struct_OC_ValuePair temp;
-        temp.a = say_meth;
+        temp.a = 99;
         temp.b = say_v;
         (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)->in_enq(temp);
         return ;
