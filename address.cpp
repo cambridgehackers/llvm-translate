@@ -204,8 +204,33 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
     }
 }
 
+static std::list<Instruction *> preCopy;
+static Instruction *defactorTree(Instruction *insertPoint, Instruction *top, Instruction *arg)
+{
+    if (const PHINode *PN = dyn_cast<PHINode>(arg)) {
+        for (unsigned opIndex = 1, Eop = PN->getNumIncomingValues(); opIndex < Eop; opIndex++) {
+            prepareReplace(arg, PN->getIncomingValue(opIndex));
+            preCopy.push_back(cloneTree(top, insertPoint));
+        }
+        return dyn_cast<Instruction>(PN->getIncomingValue(0));
+    }
+    else
+        for (unsigned int i = 0; i < arg->getNumOperands(); i++) {
+            if (Instruction *param = dyn_cast<Instruction>(arg->getOperand(i))) {
+                Instruction *ret = defactorTree(insertPoint, top, param);
+                if (ret) {
+                    arg->setOperand(i, ret);
+                    recursiveDelete(param);
+                }
+            }
+        }
+    return NULL;
+}
 static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I, Function *func)
 {
+    std::list<Instruction *> postCopy;
+    preCopy.clear();
+    Instruction *retItem = NULL;
     prepareClone(insertPoint, I);
     int ind = 0;
     if (const CallInst *CI = dyn_cast<CallInst>(I))
@@ -213,12 +238,32 @@ static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I,
     Value *new_thisp = I->getOperand(ind);
     if (Instruction *orig_thisp = dyn_cast<Instruction>(new_thisp))
         new_thisp = cloneTree(orig_thisp, insertPoint);
-    Value *Params[] = {new_thisp};
-    IRBuilder<> builder(insertPoint->getParent());
-    builder.SetInsertPoint(insertPoint);
-    CallInst *newCall = builder.CreateCall(func, ArrayRef<Value*>(Params, 1));
-    newCall->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
-    return dyn_cast<Instruction>(newCall);
+//if (insertPoint->getParent()->getParent()->getName() == "_ZN7IVector8say__RDYEv") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//new_thisp->dump();
+//insertPoint->getParent()->dump();
+//}
+    preCopy.push_back(dyn_cast<Instruction>(new_thisp));
+    for (auto item: preCopy) {
+        defactorTree(insertPoint, item, item);
+        postCopy.push_back(item);
+    }
+    for (auto item: postCopy) {
+        Value *Params[] = {item};
+        IRBuilder<> builder(insertPoint->getParent());
+        builder.SetInsertPoint(insertPoint);
+        CallInst *newCall = builder.CreateCall(func, ArrayRef<Value*>(Params, 1));
+        newCall->addAttribute(AttributeSet::ReturnIndex, Attribute::ZExt);
+        if (retItem)
+            retItem = BinaryOperator::Create(Instruction::And, retItem, newCall, "newand", insertPoint);
+        else
+            retItem = newCall;
+    }
+//if (insertPoint->getParent()->getParent()->getName() == "_ZN7IVector8say__RDYEv") {
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//insertPoint->getParent()->dump();
+//}
+    return retItem;
 }
 
 /*

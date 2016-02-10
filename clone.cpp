@@ -70,3 +70,9 @@ void prepareClone(Instruction *TI, const Instruction *I)
     for (; AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
 }
+
+void prepareReplace(const Value *olda, Value *newa)
+{
+    cloneVmap.clear();
+    cloneVmap[olda] = newa;
+}

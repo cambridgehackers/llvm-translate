@@ -306,20 +306,23 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
     cbuffer += postfix;
     return cbuffer;
 }
-uint64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E)
+int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E)
 {
     uint64_t Total = 0;
     const DataLayout *TD = EE->getDataLayout();
 
     for (auto TmpI = I; TmpI != E; ++TmpI) {
         *LastIndexIsVector = dyn_cast<VectorType>(*TmpI);
-        const ConstantInt *CI = cast<ConstantInt>(TmpI.getOperand());
-        if (StructType *STy = dyn_cast<StructType>(*TmpI))
-            Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
-        else {
-            ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
-            Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
+        if (const ConstantInt *CI = dyn_cast<ConstantInt>(TmpI.getOperand())) {
+            if (StructType *STy = dyn_cast<StructType>(*TmpI))
+                Total += TD->getStructLayout(STy)->getElementOffset(CI->getZExtValue());
+            else {
+                ERRORIF(isa<GlobalValue>(TmpI.getOperand()));
+                Total += TD->getTypeAllocSize(cast<SequentialType>(*TmpI)->getElementType()) * CI->getZExtValue();
+            }
         }
+        else
+            return -1;
     }
     return Total;
 }
@@ -333,7 +336,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     ClassMethodTable *table;
     PointerType *PTy;
     ConstantDataArray *CPA;
-    uint64_t Total = 0;
+    int64_t Total = 0;
     VectorType *LastIndexIsVector = 0;
     Constant *FirstOp = dyn_cast<Constant>(I.getOperand());
     bool expose = isAddressExposed(Ptr);
@@ -344,6 +347,9 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         cbuffer += printType(PointerType::getUnqual(LastIndexIsVector->getElementType()), false, "", "((", ")(", false);
     if (trace_gep)
         printf("[%s:%d] referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
+    if (Total == -1) {
+        printf("[%s:%d] non-constant offset referstr %s Total %ld\n", __FUNCTION__, __LINE__, referstr.c_str(), (unsigned long)Total);
+    }
     if (I == E)
         return referstr;
     if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
@@ -400,8 +406,10 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
                 referstr += dot;
             else if (referstr == "this")
                 referstr = "";
-            else
+            else {
+                referstr = "(" + referstr + ")";
                 referstr += arrow;
+            }
             cbuffer += referstr + fname;
         }
         else {
@@ -424,7 +432,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         referstr = "";
     }
     cbuffer += referstr;
-    if (trace_gep)
+    if (trace_gep || Total == -1)
         printf("%s: return %s\n", __FUNCTION__, cbuffer.c_str());
     return cbuffer;
 }
@@ -665,8 +673,11 @@ static std::string processInstruction(Instruction &I)
         for (unsigned opIndex = 0, Eop = PN->getNumIncomingValues(); opIndex < Eop; opIndex++) {
             BasicBlock *inBlock = PN->getIncomingBlock(opIndex);
             Value *opCond = getCondition(inBlock, 0);
-            if (opIndex != Eop - 1 || getCondition(inBlock, 1) != prevCond)
-                vout += printOperand(opCond, false) + " ? ";
+            if (opIndex != Eop - 1 || getCondition(inBlock, 1) != prevCond) {
+                std::string cStr = printOperand(opCond, false);
+                if (cStr != "")
+                    vout += cStr + " ? ";
+            }
             vout += printOperand(PN->getIncomingValue(opIndex), false);
             if (opIndex != Eop - 1)
                 vout += ":";
@@ -785,7 +796,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN7IVector3sayEii") {
+if (func->getName() == "zz_ZN7IVector8say__RDYEv") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

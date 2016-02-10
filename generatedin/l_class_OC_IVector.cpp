@@ -153,12 +153,31 @@ void l_class_OC_IVector::say(unsigned int say_meth, unsigned int say_v) {
         l_struct_OC_ValuePair temp;
         temp.a = say_meth;
         temp.b = say_v;
-        fifo1.in_enq(temp);
+        (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)->in_enq(temp);
+        return ;
 }
 bool l_class_OC_IVector::say__RDY(void) {
         bool tmp__1;
-        tmp__1 = fifo1.in_enq__RDY();
-        return tmp__1;
+        bool tmp__10;
+        bool tmp__2;
+        bool tmp__3;
+        bool tmp__4;
+        bool tmp__5;
+        bool tmp__6;
+        bool tmp__7;
+        bool tmp__8;
+        bool tmp__9;
+        tmp__1 = fifo0.in_enq__RDY();
+        tmp__10 = fifo9.in_enq__RDY();
+        tmp__2 = fifo1.in_enq__RDY();
+        tmp__3 = fifo2.in_enq__RDY();
+        tmp__4 = fifo3.in_enq__RDY();
+        tmp__5 = fifo4.in_enq__RDY();
+        tmp__6 = fifo5.in_enq__RDY();
+        tmp__7 = fifo6.in_enq__RDY();
+        tmp__8 = fifo7.in_enq__RDY();
+        tmp__9 = fifo8.in_enq__RDY();
+        return ((((((((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6) & tmp__7) & tmp__8) & tmp__9) & tmp__10;
 }
 void l_class_OC_IVector::run()
 {
