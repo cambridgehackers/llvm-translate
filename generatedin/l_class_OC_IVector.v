@@ -262,7 +262,7 @@ module l_class_OC_IVector (
     assign rule_ready[8] = respond8__RDY_internal;
     assign rule_ready[9] = respond9__RDY_internal;
     assign say__RDY = say__RDY_internal;
-    assign say__RDY_internal = 1;
+    assign say__RDY_internal = ((((((((fifo0$in_enq__RDY & fifo1$in_enq__RDY) & fifo2$in_enq__RDY) & fifo3$in_enq__RDY) & fifo4$in_enq__RDY) & fifo5$in_enq__RDY) & fifo6$in_enq__RDY) & fifo7$in_enq__RDY) & fifo8$in_enq__RDY) & fifo9$in_enq__RDY;
 
     always @( posedge CLK) begin
       if (!nRST) begin
