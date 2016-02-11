@@ -302,32 +302,37 @@ restart:
 printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
                     int Values_size = 10;
                     BasicBlock *NewBB = BI->splitBasicBlock(II, "afterswitch");
+                    BasicBlock *lastCaseBB = BasicBlock::Create(BI->getContext(), "lastcase", currentFunction, NewBB);
                     // Build Switch instruction in starting block
                     Value *switchIndex = ind->getOperand(0);
                     IRBuilder<> builder(BI);
                     builder.SetInsertPoint(BI->getTerminator());
-                    SwitchInst *switchInst = builder.CreateSwitch(switchIndex, NewBB, Values_size);
+                    SwitchInst *switchInst = builder.CreateSwitch(switchIndex, lastCaseBB, Values_size - 1);
                     BI->getTerminator()->eraseFromParent();
                     // Build PHI in end block
                     IRBuilder<> dbuilder(NewBB);
                     dbuilder.SetInsertPoint(II);
                     PHINode *phi = dbuilder.CreatePHI(II->getType(), Values_size, "phi");
                     // Add all of the 'cases' to the switch instruction.
-                    for (int i = 0; i < Values_size; ++i) {
+                    for (int i = 0; i < Values_size - 1; ++i) {
                         BasicBlock *caseBB = BasicBlock::Create(BI->getContext(), "switchcase", currentFunction, NewBB);
                         IRBuilder<> cbuilder(caseBB);
+                        blockCondition[0].val[caseBB] = // 'true' condition
+                            cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,
+                                ConstantInt::get(switchIndex->getType(), i));
                         cbuilder.CreateBr(NewBB);
                         ConstantInt *vv = builder.getInt64(i);
                         switchInst->addCase(vv, caseBB);
-                        Instruction *TI = caseBB->getTerminator();
-                        Instruction *val = cloneTree(II, TI);
+                        Instruction *val = cloneTree(II, caseBB->getTerminator());
                         val->setOperand(1, vv);
                         phi->addIncoming(val, caseBB);
-                        if (i != Values_size - 1)
-                            blockCondition[0].val[caseBB] = // 'true' condition
-                                cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,
-                                    ConstantInt::get(switchIndex->getType(), i));
                     }
+                    // Now define the final case ('default' for switch statement)
+                    IRBuilder<> cbuilder(lastCaseBB);
+                    cbuilder.CreateBr(NewBB);
+                    Instruction *val = cloneTree(II, lastCaseBB->getTerminator());
+                    val->setOperand(1, builder.getInt64(Values_size - 1));
+                    phi->addIncoming(val, lastCaseBB);
                     II->replaceAllUsesWith(phi);
                     recursiveDelete(II);
                     goto restart;  // the instruction INEXT is no longer in the block BI
