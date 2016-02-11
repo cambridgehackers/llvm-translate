@@ -287,62 +287,11 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
 }
 
 // Preprocess the body rules, creating shadow variables and moving items to RDY() and ENA()
-static void processMultiplex(Function *currentFunction)
-{
-restart:
-    for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE;) {
-        auto BNEXT = std::next(Function::iterator(BI));
-        for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
-            auto INEXT = std::next(BasicBlock::iterator(II));
-            switch (II->getOpcode()) {
-            case Instruction::GetElementPtr: {
-                    int maxop = II->getNumOperands();
-                    if (maxop == 2)
-                    if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
-printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
-                    int Values_size = 10;
-                    BasicBlock *afterswitchBB = BI->splitBasicBlock(II, "afterswitch");
-                    IRBuilder<> afterBuilder(afterswitchBB);
-                    // Build Switch instruction in starting block
-                    IRBuilder<> startBuilder(BI);
-                    startBuilder.SetInsertPoint(BI->getTerminator());
-                    BasicBlock *lastCaseBB = BasicBlock::Create(BI->getContext(), "lastcase", currentFunction, afterswitchBB);
-                    SwitchInst *switchInst = startBuilder.CreateSwitch(switchIndex, lastCaseBB, Values_size - 1);
-                    BI->getTerminator()->eraseFromParent();
-                    // Build PHI in end block
-                    PHINode *phi = afterBuilder.CreatePHI(II->getType(), Values_size, "phi");
-                    // Add all of the 'cases' to the switch instruction.
-                    for (int caseIndex = 0; caseIndex < Values_size; ++caseIndex) {
-                        ConstantInt *caseInt = startBuilder.getInt64(caseIndex);
-                        BasicBlock *caseBB = lastCaseBB;
-                        if (caseIndex != Values_size - 1) { // already created a block for 'default'
-                            caseBB = BasicBlock::Create(BI->getContext(), "switchcase", currentFunction, afterswitchBB);
-                            switchInst->addCase(caseInt, caseBB);
-                        }
-                        IRBuilder<> cbuilder(caseBB);
-                        cbuilder.CreateBr(afterswitchBB);
-                        Instruction *val = cloneTree(II, caseBB->getTerminator());
-                        val->setOperand(1, caseInt);
-                        phi->addIncoming(val, caseBB);
-                    }
-                    II->replaceAllUsesWith(phi);
-                    recursiveDelete(II);
-                    goto restart;  // the instruction INEXT is no longer in the block BI
-                    }
-                break;
-                }
-            }
-            II = INEXT;
-        }
-        BI = BNEXT;
-    }
-}
-
 static void processPromote(Function *currentFunction)
 {
     Module *Mod = currentFunction->getParent();
-    for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE;) {
-        auto BNEXT = std::next(Function::iterator(BI));
+restart:
+    for (auto BI = currentFunction->begin(), BE = currentFunction->end(); BI != BE; BI++) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;) {
             auto INEXT = std::next(BasicBlock::iterator(II));
             switch (II->getOpcode()) {
@@ -408,10 +357,45 @@ static void processPromote(Function *currentFunction)
                 }
                 break;
                 }
+            case Instruction::GetElementPtr: {
+                    int maxop = II->getNumOperands();
+                    if (maxop == 2)
+                    if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
+printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
+                    int Values_size = 10;
+                    BasicBlock *afterswitchBB = BI->splitBasicBlock(II, "afterswitch");
+                    IRBuilder<> afterBuilder(afterswitchBB);
+                    // Build Switch instruction in starting block
+                    IRBuilder<> startBuilder(BI);
+                    startBuilder.SetInsertPoint(BI->getTerminator());
+                    BasicBlock *lastCaseBB = BasicBlock::Create(BI->getContext(), "lastcase", currentFunction, afterswitchBB);
+                    SwitchInst *switchInst = startBuilder.CreateSwitch(switchIndex, lastCaseBB, Values_size - 1);
+                    BI->getTerminator()->eraseFromParent();
+                    // Build PHI in end block
+                    PHINode *phi = afterBuilder.CreatePHI(II->getType(), Values_size, "phi");
+                    // Add all of the 'cases' to the switch instruction.
+                    for (int caseIndex = 0; caseIndex < Values_size; ++caseIndex) {
+                        ConstantInt *caseInt = startBuilder.getInt64(caseIndex);
+                        BasicBlock *caseBB = lastCaseBB;
+                        if (caseIndex != Values_size - 1) { // already created a block for 'default'
+                            caseBB = BasicBlock::Create(BI->getContext(), "switchcase", currentFunction, afterswitchBB);
+                            switchInst->addCase(caseInt, caseBB);
+                        }
+                        IRBuilder<> cbuilder(caseBB);
+                        cbuilder.CreateBr(afterswitchBB);
+                        Instruction *val = cloneTree(II, caseBB->getTerminator());
+                        val->setOperand(1, caseInt);
+                        phi->addIncoming(val, caseBB);
+                    }
+                    II->replaceAllUsesWith(phi);
+                    recursiveDelete(II);
+                    goto restart;  // the instruction INEXT is no longer in the block BI
+                    }
+                break;
+                }
             }
             II = INEXT;
         }
-        BI = BNEXT;
     }
 }
 
@@ -472,7 +456,6 @@ static void pushWork(std::string mName, Function *func)
     updateParameterNames(mName, func);
     // inline intra-class method call bodies
     processMethodInlining(func, func);
-    processMultiplex(func);
     // promote guards from contained calls to be guards for this function
     processPromote(func);
 }
@@ -887,7 +870,6 @@ static void processMalloc(CallInst *II)
  */
 static void processOverflow(CallInst *II)
 {
-    Function *callingFunc = II->getParent()->getParent();
     Function *func = dyn_cast<Function>(II->getCalledValue());
     std::string fname = func->getName();
     IRBuilder<> builder(II->getParent());
@@ -904,8 +886,9 @@ printf("[%s:%d] func %s\n", __FUNCTION__, __LINE__, fname.c_str());
         recursiveDelete(*UI);
         UI = UIN;
     }
-  //Rem->dropAllReferences();
-  //Rem->eraseFromParent();
+    //Rem->dropAllReferences();
+    //Rem->eraseFromParent();
+    //Function *callingFunc = II->getParent()->getParent();
     //callingFunc->dump();
 }
 
@@ -934,7 +917,7 @@ static void processMemcpy(CallInst *II)
 //printf("[%s:%d] A->A\n", __FUNCTION__, __LINE__);
 //destTmp->dump();
 //sourceTmp->dump();
-                Function *func = II->getParent()->getParent();
+//Function *func = II->getParent()->getParent();
 //func->dump();
                 destTmp->replaceAllUsesWith(sourceTmp);
                 dest->setOperand(0, NULL);
