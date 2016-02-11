@@ -28,6 +28,7 @@
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
+#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
@@ -686,11 +687,20 @@ static std::string processInstruction(Instruction &I)
         break;
         }
     case Instruction::Switch: {
-        const SwitchInst* SI = cast<SwitchInst>(&I);
-        printOperand(SI->getCondition(), false);
-        printOperand(SI->getDefaultDest(), false);
-        for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end(); i != e; ++i) {
-printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, i.getCaseValue()->getZExtValue(), i.getCaseSuccessor()->getName().str().c_str());
+        SwitchInst* SI = cast<SwitchInst>(&I);
+        Value *switchIndex = SI->getCondition();
+        BasicBlock *defaultBB = SI->getDefaultDest();
+        for (SwitchInst::CaseIt CI = SI->case_begin(), CE = SI->case_end(); CI != CE; ++CI) {
+            BasicBlock *caseBB = CI.getCaseSuccessor();
+            int64_t val = CI.getCaseValue()->getZExtValue();
+printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().str().c_str());
+            if (!getCondition(caseBB, 0)) { // 'true' condition
+printf("[%s:%d] fill in\n", __FUNCTION__, __LINE__);
+                IRBuilder<> cbuilder(caseBB);
+                setCondition(caseBB, 0,
+                    cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,
+                        ConstantInt::get(switchIndex->getType(), val)));
+            }
         }
         break;
         }

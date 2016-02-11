@@ -106,3 +106,4 @@ void muxValue(BasicBlock *bb, std::string signal, std::string value);
 Value *getCondition(BasicBlock *bb, int invert);
 int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E);
 void prepareReplace(const Value *olda, Value *newa);
+void setCondition(BasicBlock *bb, int invert, Value *val);

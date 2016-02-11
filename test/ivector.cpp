@@ -8,6 +8,7 @@
 #include "l_class_OC_FifoPong.cpp"
 
 unsigned int stop_main_program;
+int testCount;
 class l_class_OC_IVectorIndication zIVectorIndication;
 class l_class_OC_IVector zIVector;
 
@@ -16,14 +17,17 @@ bool l_class_OC_IVectorIndication::heard__RDY(void) {
 }
 void l_class_OC_IVectorIndication::heard(unsigned int meth, unsigned int v) {
         printf("Heard an echo: %d %d\n", meth, v);
-        stop_main_program = 1;
+        if (--testCount <= 0)
+            stop_main_program = 1;
 }
 
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zIVector.setind(&zIVectorIndication);
-    zIVector.say(2, 44);
+    for (int i = 0; i < 10; i++) {
+        zIVector.say(i, 44 * i); testCount++;
+    }
     while (!stop_main_program) {
         zIVector.run();
     }

@@ -298,41 +298,33 @@ restart:
             case Instruction::GetElementPtr: {
                     int maxop = II->getNumOperands();
                     if (maxop == 2)
-                    if (Instruction *ind = dyn_cast<Instruction>(II->getOperand(1))) {
+                    if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
 printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
                     int Values_size = 10;
-                    BasicBlock *NewBB = BI->splitBasicBlock(II, "afterswitch");
-                    BasicBlock *lastCaseBB = BasicBlock::Create(BI->getContext(), "lastcase", currentFunction, NewBB);
+                    BasicBlock *afterswitchBB = BI->splitBasicBlock(II, "afterswitch");
+                    IRBuilder<> afterBuilder(afterswitchBB);
                     // Build Switch instruction in starting block
-                    Value *switchIndex = ind->getOperand(0);
-                    IRBuilder<> builder(BI);
-                    builder.SetInsertPoint(BI->getTerminator());
-                    SwitchInst *switchInst = builder.CreateSwitch(switchIndex, lastCaseBB, Values_size - 1);
+                    IRBuilder<> startBuilder(BI);
+                    startBuilder.SetInsertPoint(BI->getTerminator());
+                    BasicBlock *lastCaseBB = BasicBlock::Create(BI->getContext(), "lastcase", currentFunction, afterswitchBB);
+                    SwitchInst *switchInst = startBuilder.CreateSwitch(switchIndex, lastCaseBB, Values_size - 1);
                     BI->getTerminator()->eraseFromParent();
                     // Build PHI in end block
-                    IRBuilder<> dbuilder(NewBB);
-                    dbuilder.SetInsertPoint(II);
-                    PHINode *phi = dbuilder.CreatePHI(II->getType(), Values_size, "phi");
+                    PHINode *phi = afterBuilder.CreatePHI(II->getType(), Values_size, "phi");
                     // Add all of the 'cases' to the switch instruction.
-                    for (int i = 0; i < Values_size - 1; ++i) {
-                        BasicBlock *caseBB = BasicBlock::Create(BI->getContext(), "switchcase", currentFunction, NewBB);
+                    for (int caseIndex = 0; caseIndex < Values_size; ++caseIndex) {
+                        ConstantInt *caseInt = startBuilder.getInt64(caseIndex);
+                        BasicBlock *caseBB = lastCaseBB;
+                        if (caseIndex != Values_size - 1) { // already created a block for 'default'
+                            caseBB = BasicBlock::Create(BI->getContext(), "switchcase", currentFunction, afterswitchBB);
+                            switchInst->addCase(caseInt, caseBB);
+                        }
                         IRBuilder<> cbuilder(caseBB);
-                        blockCondition[0].val[caseBB] = // 'true' condition
-                            cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,
-                                ConstantInt::get(switchIndex->getType(), i));
-                        cbuilder.CreateBr(NewBB);
-                        ConstantInt *vv = builder.getInt64(i);
-                        switchInst->addCase(vv, caseBB);
+                        cbuilder.CreateBr(afterswitchBB);
                         Instruction *val = cloneTree(II, caseBB->getTerminator());
-                        val->setOperand(1, vv);
+                        val->setOperand(1, caseInt);
                         phi->addIncoming(val, caseBB);
                     }
-                    // Now define the final case ('default' for switch statement)
-                    IRBuilder<> cbuilder(lastCaseBB);
-                    cbuilder.CreateBr(NewBB);
-                    Instruction *val = cloneTree(II, lastCaseBB->getTerminator());
-                    val->setOperand(1, builder.getInt64(Values_size - 1));
-                    phi->addIncoming(val, lastCaseBB);
                     II->replaceAllUsesWith(phi);
                     recursiveDelete(II);
                     goto restart;  // the instruction INEXT is no longer in the block BI
@@ -421,6 +413,11 @@ static void processPromote(Function *currentFunction)
         }
         BI = BNEXT;
     }
+}
+
+void setCondition(BasicBlock *bb, int invert, Value *val)
+{
+    blockCondition[invert].val[bb] = val;
 }
 
 Value *getCondition(BasicBlock *bb, int invert)
