@@ -796,7 +796,7 @@ void processFunction(Function *func)
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
 //if (func->getName() == "zz_ZN7IVector8say__RDYEv") {
-if (func->getName() == "_ZN7IVector3sayEii") {
+if (func->getName() == "zz_ZN7IVector3sayEii") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }
