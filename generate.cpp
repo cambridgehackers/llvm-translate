@@ -689,13 +689,12 @@ static std::string processInstruction(Instruction &I)
     case Instruction::Switch: {
         SwitchInst* SI = cast<SwitchInst>(&I);
         Value *switchIndex = SI->getCondition();
-        BasicBlock *defaultBB = SI->getDefaultDest();
+        //BasicBlock *defaultBB = SI->getDefaultDest();
         for (SwitchInst::CaseIt CI = SI->case_begin(), CE = SI->case_end(); CI != CE; ++CI) {
             BasicBlock *caseBB = CI.getCaseSuccessor();
             int64_t val = CI.getCaseValue()->getZExtValue();
-printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().str().c_str());
             if (!getCondition(caseBB, 0)) { // 'true' condition
-printf("[%s:%d] fill in\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().str().c_str());
                 IRBuilder<> cbuilder(caseBB);
                 setCondition(caseBB, 0,
                     cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,

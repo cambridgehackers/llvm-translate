@@ -65,6 +65,7 @@ typedef std::map<std::string, Function *>MethodMapType;
 
 #define GIANT_SIZE 1024
 std::map<const Function *, std::string> pushSeen;
+std::list<Function *> fixupFuncList;
 static struct {
     std::map<const BasicBlock *, Value *> val;
 } blockCondition[2];
@@ -361,8 +362,25 @@ restart:
                     int maxop = II->getNumOperands();
                     if (maxop == 2)
                     if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
+                    int Values_size = 2;
 printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
-                    int Values_size = 10;
+                    if (Instruction *ins = dyn_cast<Instruction>(II->getOperand(0))) {
+                        if (PointerType *PTy = dyn_cast<PointerType>(ins->getOperand(0)->getType()))
+                        if (StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
+                            int Idx = 0, eleIndex = -1;
+                            if (const ConstantInt *CI = dyn_cast<ConstantInt>(ins->getOperand(2)))
+                                eleIndex = CI->getZExtValue();
+                            for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
+                                if (Idx == eleIndex)
+                                if (ClassMethodTable *table = classCreate[STy])
+                                    if (table->replaceType[Idx]) {
+                                        Values_size = table->replaceCount[Idx];
+printf("[%s:%d] get dyn size (static not handled)\n", __FUNCTION__, __LINE__);
+                                    }
+                        }
+                        ins->getOperand(0)->dump();
+                    }
+                    II->getOperand(0)->dump();
                     BasicBlock *afterswitchBB = BI->splitBasicBlock(II, "afterswitch");
                     IRBuilder<> afterBuilder(afterswitchBB);
                     // Build Switch instruction in starting block
@@ -447,17 +465,12 @@ static void pushWork(std::string mName, Function *func)
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
         return;
-//if (func->getName() == "_ZN5Fifo1I9ValuePairE3enqES0_") {
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-//func->dump();
-//}
     setSeen(func, mName);
     table->method[mName] = func;
     updateParameterNames(mName, func);
     // inline intra-class method call bodies
     processMethodInlining(func, func);
-    // promote guards from contained calls to be guards for this function
-    processPromote(func);
+    fixupFuncList.push_back(func);
 }
 
 /*
@@ -1163,6 +1176,9 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
             EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
         mapType(Mod, (char *)addr, Ty, MI->getName());
     }
+    // promote guards from contained calls to be guards for this function
+    for (auto item: fixupFuncList)
+        processPromote(item);
 
     if (trace_malloc)
         dumpMemoryRegions(4010);
