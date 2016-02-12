@@ -6,11 +6,11 @@ module l_class_OC_IVector (
     input nRST,
     input say__ENA,
     input [31:0]say_meth,
-    input [31:0]say_v,
+    input [63:0]say_v.coerce,
     output say__RDY,
     output ind$heard__ENA,
     output [31:0]ind$heard_heard_meth,
-    output [31:0]ind$heard_heard_v,
+    output [63:0]ind$heard_heard_v.coerce,
     input ind$heard__RDY,
     input [`l_class_OC_IVector_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_IVector_RULE_COUNT:0]rule_ready);
@@ -37,10 +37,10 @@ module l_class_OC_IVector (
     wire say__RDY_internal;
     wire say__ENA_internal = say__ENA && say__RDY_internal;
     wire fifo0$in_enq__ENA;
-    wire [703:0]fifo0$in_enq_v;
+    wire [767:0]fifo0$in_enq_v;
     wire fifo0$in_enq__RDY;
     wire fifo0$out_deq__RDY;
-    wire [703:0]fifo0$out_first;
+    wire [767:0]fifo0$out_first;
     wire fifo0$out_first__RDY;
     l_class_OC_FifoPong fifo0 (
         CLK,
@@ -55,10 +55,10 @@ module l_class_OC_IVector (
         rule_enable[10:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo1$in_enq__ENA;
-    wire [703:0]fifo1$in_enq_v;
+    wire [767:0]fifo1$in_enq_v;
     wire fifo1$in_enq__RDY;
     wire fifo1$out_deq__RDY;
-    wire [703:0]fifo1$out_first;
+    wire [767:0]fifo1$out_first;
     wire fifo1$out_first__RDY;
     l_class_OC_FifoPong fifo1 (
         CLK,
@@ -73,10 +73,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo2$in_enq__ENA;
-    wire [703:0]fifo2$in_enq_v;
+    wire [767:0]fifo2$in_enq_v;
     wire fifo2$in_enq__RDY;
     wire fifo2$out_deq__RDY;
-    wire [703:0]fifo2$out_first;
+    wire [767:0]fifo2$out_first;
     wire fifo2$out_first__RDY;
     l_class_OC_FifoPong fifo2 (
         CLK,
@@ -91,10 +91,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo3$in_enq__ENA;
-    wire [703:0]fifo3$in_enq_v;
+    wire [767:0]fifo3$in_enq_v;
     wire fifo3$in_enq__RDY;
     wire fifo3$out_deq__RDY;
-    wire [703:0]fifo3$out_first;
+    wire [767:0]fifo3$out_first;
     wire fifo3$out_first__RDY;
     l_class_OC_FifoPong fifo3 (
         CLK,
@@ -109,10 +109,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo4$in_enq__ENA;
-    wire [703:0]fifo4$in_enq_v;
+    wire [767:0]fifo4$in_enq_v;
     wire fifo4$in_enq__RDY;
     wire fifo4$out_deq__RDY;
-    wire [703:0]fifo4$out_first;
+    wire [767:0]fifo4$out_first;
     wire fifo4$out_first__RDY;
     l_class_OC_FifoPong fifo4 (
         CLK,
@@ -127,10 +127,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo5$in_enq__ENA;
-    wire [703:0]fifo5$in_enq_v;
+    wire [767:0]fifo5$in_enq_v;
     wire fifo5$in_enq__RDY;
     wire fifo5$out_deq__RDY;
-    wire [703:0]fifo5$out_first;
+    wire [767:0]fifo5$out_first;
     wire fifo5$out_first__RDY;
     l_class_OC_FifoPong fifo5 (
         CLK,
@@ -145,10 +145,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo6$in_enq__ENA;
-    wire [703:0]fifo6$in_enq_v;
+    wire [767:0]fifo6$in_enq_v;
     wire fifo6$in_enq__RDY;
     wire fifo6$out_deq__RDY;
-    wire [703:0]fifo6$out_first;
+    wire [767:0]fifo6$out_first;
     wire fifo6$out_first__RDY;
     l_class_OC_FifoPong fifo6 (
         CLK,
@@ -163,10 +163,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo7$in_enq__ENA;
-    wire [703:0]fifo7$in_enq_v;
+    wire [767:0]fifo7$in_enq_v;
     wire fifo7$in_enq__RDY;
     wire fifo7$out_deq__RDY;
-    wire [703:0]fifo7$out_first;
+    wire [767:0]fifo7$out_first;
     wire fifo7$out_first__RDY;
     l_class_OC_FifoPong fifo7 (
         CLK,
@@ -181,10 +181,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo8$in_enq__ENA;
-    wire [703:0]fifo8$in_enq_v;
+    wire [767:0]fifo8$in_enq_v;
     wire fifo8$in_enq__RDY;
     wire fifo8$out_deq__RDY;
-    wire [703:0]fifo8$out_first;
+    wire [767:0]fifo8$out_first;
     wire fifo8$out_first__RDY;
     l_class_OC_FifoPong fifo8 (
         CLK,
@@ -199,10 +199,10 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo9$in_enq__ENA;
-    wire [703:0]fifo9$in_enq_v;
+    wire [767:0]fifo9$in_enq_v;
     wire fifo9$in_enq__RDY;
     wire fifo9$out_deq__RDY;
-    wire [703:0]fifo9$out_first;
+    wire [767:0]fifo9$out_first;
     wire fifo9$out_first__RDY;
     l_class_OC_FifoPong fifo9 (
         CLK,
@@ -217,11 +217,11 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     wire fifo10$in_enq__ENA;
-    wire [703:0]fifo10$in_enq_v;
+    wire [767:0]fifo10$in_enq_v;
     wire fifo10$in_enq__RDY;
     wire fifo10$out_deq__ENA;
     wire fifo10$out_deq__RDY;
-    wire [703:0]fifo10$out_first;
+    wire [767:0]fifo10$out_first;
     wire fifo10$out_first__RDY;
     l_class_OC_FifoPong fifo10 (
         CLK,
@@ -240,7 +240,7 @@ module l_class_OC_IVector (
     assign (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)$in_enq_v = temp;
     assign ind$heard__ENA = respond0__ENA_internal || respond1__ENA_internal || respond2__ENA_internal || respond3__ENA_internal || respond4__ENA_internal || respond5__ENA_internal || respond6__ENA_internal || respond7__ENA_internal || respond8__ENA_internal || respond9__ENA_internal;
     assign ind$heard_heard_meth = respond0__ENA_internal ? 0 : respond1__ENA_internal ? 1 : respond2__ENA_internal ? 2 : respond3__ENA_internal ? 3 : respond4__ENA_internal ? 4 : respond5__ENA_internal ? 5 : respond6__ENA_internal ? 6 : respond7__ENA_internal ? 7 : respond8__ENA_internal ? 8 : 9;
-    assign ind$heard_heard_v = respond0__ENA_internal ? fifo0$out_first$b : respond1__ENA_internal ? fifo1$out_first$b : respond2__ENA_internal ? fifo2$out_first$b : respond3__ENA_internal ? fifo3$out_first$b : respond4__ENA_internal ? fifo4$out_first$b : respond5__ENA_internal ? fifo5$out_first$b : respond6__ENA_internal ? fifo6$out_first$b : respond7__ENA_internal ? fifo7$out_first$b : respond8__ENA_internal ? fifo8$out_first$b : fifo9$out_first$b;
+    assign ind$heard_heard_v.coerce = respond0__ENA_internal ? agg_2e_tmp$data : respond1__ENA_internal ? agg_2e_tmp$data : respond2__ENA_internal ? agg_2e_tmp$data : respond3__ENA_internal ? agg_2e_tmp$data : respond4__ENA_internal ? agg_2e_tmp$data : respond5__ENA_internal ? agg_2e_tmp$data : respond6__ENA_internal ? agg_2e_tmp$data : respond7__ENA_internal ? agg_2e_tmp$data : respond8__ENA_internal ? agg_2e_tmp$data : agg_2e_tmp$data;
     assign respond0__RDY_internal = (fifo0$out_first__RDY & fifo0$out_deq__RDY) & ind$heard__RDY;
     assign respond1__RDY_internal = (fifo1$out_first__RDY & fifo1$out_deq__RDY) & ind$heard__RDY;
     assign respond2__RDY_internal = (fifo2$out_first__RDY & fifo2$out_deq__RDY) & ind$heard__RDY;
@@ -263,14 +263,46 @@ module l_class_OC_IVector (
     assign rule_ready[9] = respond9__RDY_internal;
     assign say__RDY = say__RDY_internal;
     assign say__RDY_internal = ((((((((fifo0$in_enq__RDY & fifo1$in_enq__RDY) & fifo2$in_enq__RDY) & fifo3$in_enq__RDY) & fifo4$in_enq__RDY) & fifo5$in_enq__RDY) & fifo6$in_enq__RDY) & fifo7$in_enq__RDY) & fifo8$in_enq__RDY) & fifo9$in_enq__RDY;
+    assign temp$ValuePair__ENA = say__ENA_internal;
 
     always @( posedge CLK) begin
       if (!nRST) begin
         vsize <= 0;
       end // nRST
       else begin
+        if (respond0__ENA_internal) begin
+            agg_2e_tmp <= fifo0$out_first$b;
+        end; // End of respond0
+        if (respond1__ENA_internal) begin
+            agg_2e_tmp <= fifo1$out_first$b;
+        end; // End of respond1
+        if (respond2__ENA_internal) begin
+            agg_2e_tmp <= fifo2$out_first$b;
+        end; // End of respond2
+        if (respond3__ENA_internal) begin
+            agg_2e_tmp <= fifo3$out_first$b;
+        end; // End of respond3
+        if (respond4__ENA_internal) begin
+            agg_2e_tmp <= fifo4$out_first$b;
+        end; // End of respond4
+        if (respond5__ENA_internal) begin
+            agg_2e_tmp <= fifo5$out_first$b;
+        end; // End of respond5
+        if (respond6__ENA_internal) begin
+            agg_2e_tmp <= fifo6$out_first$b;
+        end; // End of respond6
+        if (respond7__ENA_internal) begin
+            agg_2e_tmp <= fifo7$out_first$b;
+        end; // End of respond7
+        if (respond8__ENA_internal) begin
+            agg_2e_tmp <= fifo8$out_first$b;
+        end; // End of respond8
+        if (respond9__ENA_internal) begin
+            agg_2e_tmp <= fifo9$out_first$b;
+        end; // End of respond9
         if (say__ENA_internal) begin
-            temp$b <= say_v;
+            temp$b <= v;
+            v$data <= say_v_2e_coerce;
         end; // End of say
       end
     end // always @ (posedge CLK)

@@ -1,9 +1,11 @@
 #include "l_class_OC_IVector.h"
 void l_class_OC_IVector::respond0(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo0.out_first();
         fifo0.out_deq();
-        ind->heard(0, temp.b);
+        ind->heard(0, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond0__RDY(void) {
         bool tmp__1;
@@ -15,10 +17,12 @@ bool l_class_OC_IVector::respond0__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond1(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo1.out_first();
         fifo1.out_deq();
-        ind->heard(1, temp.b);
+        ind->heard(1, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond1__RDY(void) {
         bool tmp__1;
@@ -30,10 +34,12 @@ bool l_class_OC_IVector::respond1__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond2(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo2.out_first();
         fifo2.out_deq();
-        ind->heard(2, temp.b);
+        ind->heard(2, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond2__RDY(void) {
         bool tmp__1;
@@ -45,10 +51,12 @@ bool l_class_OC_IVector::respond2__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond3(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo3.out_first();
         fifo3.out_deq();
-        ind->heard(3, temp.b);
+        ind->heard(3, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond3__RDY(void) {
         bool tmp__1;
@@ -60,10 +68,12 @@ bool l_class_OC_IVector::respond3__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond4(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo4.out_first();
         fifo4.out_deq();
-        ind->heard(4, temp.b);
+        ind->heard(4, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond4__RDY(void) {
         bool tmp__1;
@@ -75,10 +85,12 @@ bool l_class_OC_IVector::respond4__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond5(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo5.out_first();
         fifo5.out_deq();
-        ind->heard(5, temp.b);
+        ind->heard(5, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond5__RDY(void) {
         bool tmp__1;
@@ -90,10 +102,12 @@ bool l_class_OC_IVector::respond5__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond6(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo6.out_first();
         fifo6.out_deq();
-        ind->heard(6, temp.b);
+        ind->heard(6, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond6__RDY(void) {
         bool tmp__1;
@@ -105,10 +119,12 @@ bool l_class_OC_IVector::respond6__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond7(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo7.out_first();
         fifo7.out_deq();
-        ind->heard(7, temp.b);
+        ind->heard(7, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond7__RDY(void) {
         bool tmp__1;
@@ -120,10 +136,12 @@ bool l_class_OC_IVector::respond7__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond8(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo8.out_first();
         fifo8.out_deq();
-        ind->heard(8, temp.b);
+        ind->heard(8, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond8__RDY(void) {
         bool tmp__1;
@@ -135,10 +153,12 @@ bool l_class_OC_IVector::respond8__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector::respond9(void) {
+        l_class_OC_FixedPoint agg_2e_tmp;
         l_struct_OC_ValuePair temp;
+        agg_2e_tmp = temp.b;
         temp = fifo9.out_first();
         fifo9.out_deq();
-        ind->heard(9, temp.b);
+        ind->heard(9, agg_2e_tmp.data);
 }
 bool l_class_OC_IVector::respond9__RDY(void) {
         bool tmp__1;
@@ -149,9 +169,12 @@ bool l_class_OC_IVector::respond9__RDY(void) {
         tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector::say(unsigned int say_meth, unsigned int say_v) {
+void l_class_OC_IVector::say(unsigned int say_meth, unsigned long long say_v_2e_coerce) {
         l_struct_OC_ValuePair temp;
-        temp.b = say_v;
+        l_class_OC_FixedPoint v;
+        temp.b = v;
+        v.data = say_v_2e_coerce;
+        temp->ValuePair();
         (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)->in_enq(temp);
         return ;
 }
