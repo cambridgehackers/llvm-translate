@@ -1,7 +1,7 @@
 
-`include "l_class_OC_Fifo1_OC_3.vh"
+`include "l_class_OC_Fifo1_OC_4.vh"
 
-module l_class_OC_Fifo1_OC_3 (
+module l_class_OC_Fifo1_OC_4 (
     input CLK,
     input nRST,
     input in_enq__ENA,
@@ -11,8 +11,8 @@ module l_class_OC_Fifo1_OC_3 (
     output out_deq__RDY,
     output [767:0]out_first,
     output out_first__RDY,
-    input [`l_class_OC_Fifo1_OC_3_RULE_COUNT:0]rule_enable,
-    output [`l_class_OC_Fifo1_OC_3_RULE_COUNT:0]rule_ready);
+    input [`l_class_OC_Fifo1_OC_4_RULE_COUNT:0]rule_enable,
+    output [`l_class_OC_Fifo1_OC_4_RULE_COUNT:0]rule_ready);
     wire in_enq__RDY_internal;
     wire in_enq__ENA_internal = in_enq__ENA && in_enq__RDY_internal;
     wire out_deq__RDY_internal;
