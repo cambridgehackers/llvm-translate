@@ -11,8 +11,7 @@ bool l_class_OC_Fifo_OC_1::out_deq__RDY(void) {
 }
 l_struct_OC_ValueType l_class_OC_Fifo_OC_1::out_first(void) {
         l_struct_OC_ValueType agg_2e_result;
-        (agg_2e_result)->a.FixedPoint();
-        (agg_2e_result)->b.FixedPoint();
+        agg_2e_result->();
 }
 bool l_class_OC_Fifo_OC_1::out_first__RDY(void) {
         return 0;

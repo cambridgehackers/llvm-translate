@@ -24,8 +24,8 @@ bool l_class_OC_IVector::respond__RDY(void) {
 void l_class_OC_IVector::say(BITS6 say_meth, BITS4 say_v) {
         l_struct_OC_ValueType agg_2e_tmp;
         l_struct_OC_ValueType temp;
-        temp.a.operator=(say_meth);
-        temp.b.operator=(say_v);
+        temp.a.data = (say_meth)->data;
+        temp.b.data = (say_v)->data;
         temp->();
         agg_2e_tmp->(temp);
         fifo.in_enq(agg_2e_tmp);
@@ -41,6 +41,4 @@ void l_class_OC_IVector::run()
 {
     if (respond__RDY()) respond();
     fifo.run();
-    counter.run();
-    gcounter.run();
 }

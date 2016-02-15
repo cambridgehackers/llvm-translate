@@ -33,19 +33,6 @@ module l_class_OC_IVector (
         fifo$out_first__RDY,
         rule_enable[1:`l_class_OC_Fifo_OC_1_RULE_COUNT],
         rule_ready[1:`l_class_OC_Fifo_OC_1_RULE_COUNT]);
-    wire [`l_class_OC_FixedPointV_RULE_COUNT:0] counter$rule_ready;
-    l_class_OC_FixedPointV counter (
-        CLK,
-        nRST,
-        counter$  reg data,
-        rule_enable[1 + `l_class_OC_Fifo_OC_1_RULE_COUNT:`l_class_OC_FixedPointV_RULE_COUNT],
-        counter$rule_ready);
-    l_class_OC_FixedPointV gcounter (
-        CLK,
-        nRST,
-        gcounter$  reg data,
-        rule_enable[1 + `l_class_OC_Fifo_OC_1_RULE_COUNT + `l_class_OC_FixedPointV_RULE_COUNT:`l_class_OC_FixedPointV_RULE_COUNT],
-        rule_ready[1 + `l_class_OC_Fifo_OC_1_RULE_COUNT + `l_class_OC_FixedPointV_RULE_COUNT:`l_class_OC_FixedPointV_RULE_COUNT]);
     assign agg_2e_tmp$FixedPoint_ = fifo$out_first$a;
     assign agg_2e_tmp$FixedPoint__ENA = respond__ENA_internal;
     assign agg_2e_tmp$_ = temp;
@@ -60,8 +47,18 @@ module l_class_OC_IVector (
     assign ind$heard_heard_v = agg_2e_tmp3;
     assign respond__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond__RDY_internal;
-    assign rule_ready[1 + `l_class_OC_Fifo_OC_1_RULE_COUNT:`l_class_OC_FixedPointV_RULE_COUNT] = counter$rule_ready;
     assign say__RDY = say__RDY_internal;
     assign temp$__ENA = say__ENA_internal || say__ENA_internal;
+
+    always @( posedge CLK) begin
+      if (!nRST) begin
+      end // nRST
+      else begin
+        if (say__ENA_internal) begin
+            temp$a$data <= (say_meth)$data;
+            temp$b$data <= (say_v)$data;
+        end; // End of say
+      end
+    end // always @ (posedge CLK)
 endmodule 
 

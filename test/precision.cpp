@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Connectal Project
+// Copyright (c) 2015 The Connectal Project
 
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
@@ -23,6 +23,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+
+typedef uint32_t BITS4;
+typedef uint32_t BITS6;
+typedef uint32_t BITS; // for FixedPointV
 #include "l_class_OC_IVector.cpp"
 //#include "l_class_OC_Fifo_OC_0.cpp"
 #include "l_class_OC_Fifo1_OC_3.cpp"
@@ -55,4 +60,5 @@ int main(int argc, const char *argv[])
   printf("[%s:%d] ending\n", __FUNCTION__, __LINE__);
   return 0;
 }
+
 

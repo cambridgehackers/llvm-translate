@@ -174,15 +174,15 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
             auto PI = std::next(BasicBlock::iterator(II));
             if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                 Module *Mod = thisFunc->getParent();
-                std::string fname = thisFunc->getName();
+                std::string callingName = thisFunc->getName();
                 const StructType *callingSTy = findThisArgument(thisFunc);
                 Value *callV = ICL->getCalledValue();
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
-                    std::string fname = printOperand(callV, false);
-                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(fname));
+                    std::string opName = printOperand(callV, false);
+                    func = dyn_cast_or_null<Function>(Mod->getNamedValue(opName));
                     if (!func) {
-                        printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), fname.c_str());
+                        printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), opName.c_str());
                         callingSTy->dump();
                         parentFunc->dump();
                         exit(-1);
@@ -190,10 +190,12 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                     II->setOperand(II->getNumOperands()-1, func);
                     recursiveDelete(oldOp);
                 }
+                std::string calledName = func->getName();
                 const StructType *STy = findThisArgument(func);
-                //printf("%s: %s CALLS %s cSTy %p STy %p\n", __FUNCTION__, fname.c_str(), func->getName().str().c_str(), callingSTy, STy);
-                if (callingSTy == STy) {
-                    fprintf(stdout,"callProcess: cName %s single!!!!\n", func->getName().str().c_str());
+                int ind = calledName.find("EEaSERKS0_");
+                printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
+                if (callingSTy == STy || ind > 0) {
+                    fprintf(stdout,"callProcess: cName %s single!!!!\n", calledName.c_str());
                     processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
