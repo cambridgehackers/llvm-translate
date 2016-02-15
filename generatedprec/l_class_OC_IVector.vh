@@ -9,10 +9,8 @@
 //METAINTERNAL; counter; l_class_OC_FixedPointV;
 //METAINTERNAL; gcounter; l_class_OC_FixedPointV;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
-//METAWRITE; respond; :;(temp)$:;(temp)$;
-//METAINVOKE; respond; :;fifo$out_deq:;ind$heard;
+//METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard:;agg_2e_tmp3$~FixedPoint:;agg_2e_tmp$~FixedPoint:;fifo$out_first$;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAWRITE; say; :;meth$data:;v$data;
-//METAINVOKE; say; :;temp$:;fifo$in_enq;
+//METAINVOKE; say; :;temp$:;fifo$in_enq:;temp$:;temp$;
 //METAGUARD; say__RDY; fifo$in_enq__RDY;
 `endif

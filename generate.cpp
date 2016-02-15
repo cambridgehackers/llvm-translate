@@ -280,7 +280,11 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         break;
         }
     case Type::StructTyID:
-        cbuffer += getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+        if (inheritsModule(cast<StructType>(Ty), "class.BitsClass")) {
+            cbuffer += "BITS " + NameSoFar;
+        }
+        else
+            cbuffer += getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
         break;
     case Type::ArrayTyID: {
         ArrayType *ATy = cast<ArrayType>(Ty);
@@ -712,6 +716,7 @@ printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().st
         //printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
         break;
         }
+#if 0
     case Instruction::ExtractValue: {
         ExtractValueInst *EI = cast<ExtractValueInst>(&I);
         //ExecutionContext &SF = ECStack.back();
@@ -753,6 +758,7 @@ printf("[%s:%d] ExtractValue %d\n", __FUNCTION__, __LINE__, Num);
 #endif
         break;
         }
+#endif
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         I.getParent()->getParent()->dump();
@@ -893,6 +899,7 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
         structMap[Ty] = 1;
         if (const StructType *STy = dyn_cast<StructType>(Ty))
         if (STy->hasName() && !inheritsModule(STy, "class.InterfaceClass")
+         && !inheritsModule(STy, "class.BitsClass")
          && strncmp(STy->getName().str().c_str(), "class.std::", 11) // don't generate anything for std classes
          && strncmp(STy->getName().str().c_str(), "struct.std::", 12)) {
             ClassMethodTable *table = classCreate[STy];

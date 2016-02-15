@@ -1,15 +1,16 @@
 #include "l_class_OC_IVector.h"
 void l_class_OC_IVector::respond(void) {
-        l_class_OC_FixedPoint agg_2e_tmp;
-        l_class_OC_FixedPoint_OC_0 agg_2e_tmp3;
-        l_unnamed_2 call;
+        BITS agg_2e_tmp;
+        BITS agg_2e_tmp3;
         l_struct_OC_ValueType temp;
-        (temp)-> = ;
         agg_2e_tmp = temp.a;
         agg_2e_tmp3 = temp.b;
-        call = fifo.out_first();
+        temp = fifo.out_first();
         fifo.out_deq();
-        ind->heard(*(agg_2e_tmp.data), *(agg_2e_tmp3.data));
+        ind->heard(agg_2e_tmp, agg_2e_tmp3);
+        agg_2e_tmp3->~FixedPoint();
+        agg_2e_tmp->~FixedPoint();
+        temp->();
 }
 bool l_class_OC_IVector::respond__RDY(void) {
         bool tmp__1;
@@ -20,16 +21,14 @@ bool l_class_OC_IVector::respond__RDY(void) {
         tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector::say(bool say_meth_2e_coerce, bool say_v_2e_coerce) {
-        l_class_OC_FixedPoint meth;
+void l_class_OC_IVector::say(BITS say_meth, BITS say_v) {
         l_struct_OC_ValueType temp;
-        l_class_OC_FixedPoint_OC_0 v;
-        meth.data = say_meth_2e_coerce;
-        temp.a = meth;
-        temp.b = v;
-        v.data = say_v_2e_coerce;
+        temp.a = say_meth;
+        temp.b = say_v;
         temp->();
-        fifo.in_enq(*((temp)->), *((temp)->));
+        fifo.in_enq(temp);
+        temp->();
+        temp->();
 }
 bool l_class_OC_IVector::say__RDY(void) {
         bool tmp__1;

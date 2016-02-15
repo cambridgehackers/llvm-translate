@@ -3,8 +3,8 @@
 #include "l_class_OC_FixedPoint.h"
 #include "l_class_OC_FixedPoint_OC_0.h"
 typedef struct {
-  l_class_OC_FixedPoint a;
-  l_class_OC_FixedPoint_OC_0 b;
+  BITS a;
+  BITS b;
 public:
   void run();
 }l_struct_OC_ValueType;
