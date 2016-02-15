@@ -1,7 +1,7 @@
-#ifndef __l_class_OC_Fifo_OC_1_H__
-#define __l_class_OC_Fifo_OC_1_H__
+#ifndef __l_class_OC_Fifo_OC_2_H__
+#define __l_class_OC_Fifo_OC_2_H__
 #include "l_struct_OC_ValueType.h"
-class l_class_OC_Fifo_OC_1 {
+class l_class_OC_Fifo_OC_2 {
 public:
   void run();
   void in_enq(l_struct_OC_ValueType in_enq_v);
@@ -11,4 +11,4 @@ public:
   l_struct_OC_ValueType out_first(void);
   bool out_first__RDY(void);
 };
-#endif  // __l_class_OC_Fifo_OC_1_H__
+#endif  // __l_class_OC_Fifo_OC_2_H__

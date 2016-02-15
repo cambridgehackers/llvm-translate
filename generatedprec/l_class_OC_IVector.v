@@ -21,7 +21,7 @@ module l_class_OC_IVector (
     wire fifo$out_deq__RDY;
     wire [383:0]fifo$out_first;
     wire fifo$out_first__RDY;
-    l_class_OC_Fifo_OC_1 fifo (
+    l_class_OC_Fifo1_OC_1 fifo (
         CLK,
         nRST,
         say__ENA_internal,
@@ -31,8 +31,8 @@ module l_class_OC_IVector (
         fifo$out_deq__RDY,
         fifo$out_first,
         fifo$out_first__RDY,
-        rule_enable[1:`l_class_OC_Fifo_OC_1_RULE_COUNT],
-        rule_ready[1:`l_class_OC_Fifo_OC_1_RULE_COUNT]);
+        rule_enable[1:`l_class_OC_Fifo1_OC_1_RULE_COUNT],
+        rule_ready[1:`l_class_OC_Fifo1_OC_1_RULE_COUNT]);
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;

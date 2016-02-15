@@ -1,9 +1,9 @@
 #ifndef __l_class_OC_IVector_H__
 #define __l_class_OC_IVector_H__
-#include "l_class_OC_Fifo_OC_1.h"
+#include "l_class_OC_Fifo1_OC_1.h"
 #include "l_class_OC_IVectorIndication.h"
 class l_class_OC_IVector {
-  l_class_OC_Fifo_OC_1 fifo;
+  l_class_OC_Fifo1_OC_1 fifo;
   l_class_OC_IVectorIndication *ind;
 public:
   void run();

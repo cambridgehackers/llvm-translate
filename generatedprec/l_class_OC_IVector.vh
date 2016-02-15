@@ -1,10 +1,10 @@
 `ifndef __l_class_OC_IVector_VH__
 `define __l_class_OC_IVector_VH__
 
-`include "l_class_OC_Fifo_OC_1.vh"
-`define l_class_OC_IVector_RULE_COUNT (1 + `l_class_OC_Fifo_OC_1_RULE_COUNT)
+`include "l_class_OC_Fifo1_OC_1.vh"
+`define l_class_OC_IVector_RULE_COUNT (1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT)
 
-//METAINTERNAL; fifo; l_class_OC_Fifo_OC_1;
+//METAINTERNAL; fifo; l_class_OC_Fifo1_OC_1;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
 //METAREAD; respond; :;fifo$out_first$a$data:;fifo$out_first$b$data;
 //METAWRITE; respond; :;agg_2e_tmp$data:;agg_2e_tmp3$data;
