@@ -1,12 +1,12 @@
 #include "l_class_OC_IVector.h"
 void l_class_OC_IVector::respond(void) {
-        BITS agg_2e_tmp;
-        BITS agg_2e_tmp3;
+        BITS6 agg_2e_tmp;
+        BITS4 agg_2e_tmp3;
         l_struct_OC_ValueType temp;
-        agg_2e_tmp = temp.a;
-        agg_2e_tmp3 = temp.b;
         temp = fifo.out_first();
         fifo.out_deq();
+        agg_2e_tmp->FixedPoint(temp.a);
+        agg_2e_tmp3->FixedPoint(temp.b);
         ind->heard(agg_2e_tmp, agg_2e_tmp3);
         agg_2e_tmp3->~FixedPoint();
         agg_2e_tmp->~FixedPoint();
@@ -21,13 +21,15 @@ bool l_class_OC_IVector::respond__RDY(void) {
         tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector::say(BITS say_meth, BITS say_v) {
+void l_class_OC_IVector::say(BITS6 say_meth, BITS4 say_v) {
+        l_struct_OC_ValueType agg_2e_tmp;
         l_struct_OC_ValueType temp;
-        temp.a = say_meth;
-        temp.b = say_v;
+        temp.a.operator=(say_meth);
+        temp.b.operator=(say_v);
         temp->();
-        fifo.in_enq(temp);
-        temp->();
+        agg_2e_tmp->(temp);
+        fifo.in_enq(agg_2e_tmp);
+        agg_2e_tmp->();
         temp->();
 }
 bool l_class_OC_IVector::say__RDY(void) {

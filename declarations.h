@@ -53,6 +53,7 @@ public:
     std::map<int, bool>               allocateLocally;
     std::map<std::string, Function *> rules;
     unsigned int                      vtableCount;
+    std::string                       instance;
     Function                          *vtable[MAX_MEMBER_SIZE];
     ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
     {}

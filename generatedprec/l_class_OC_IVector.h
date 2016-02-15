@@ -11,7 +11,7 @@ public:
   void run();
   void respond(void);
   bool respond__RDY(void);
-  void say(BITS say_meth, BITS say_v);
+  void say(BITS6 say_meth, BITS4 say_v);
   bool say__RDY(void);
   void setind(l_class_OC_IVectorIndication *v) { ind = v; }
 };

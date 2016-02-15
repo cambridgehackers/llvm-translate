@@ -3,7 +3,7 @@
 class l_class_OC_IVectorRequest {
 public:
   void run();
-  void say(BITS say_meth, BITS say_v);
+  void say(BITS6 say_meth, BITS4 say_v);
   bool say__RDY(void);
 };
 #endif  // __l_class_OC_IVectorRequest_H__

@@ -279,13 +279,16 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         cbuffer += printType(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
         break;
         }
-    case Type::StructTyID:
-        if (inheritsModule(cast<StructType>(Ty), "class.BitsClass")) {
-            cbuffer += "BITS " + NameSoFar;
+    case Type::StructTyID: {
+        const StructType *STy = cast<StructType>(Ty);
+        if (inheritsModule(STy, "class.BitsClass")) {
+            ClassMethodTable *table = classCreate[STy];
+            cbuffer += "BITS" + table->instance + " " + NameSoFar;
         }
         else
-            cbuffer += getStructName(cast<StructType>(Ty)) + " " + NameSoFar;
+            cbuffer += getStructName(STy) + " " + NameSoFar;
         break;
+        }
     case Type::ArrayTyID: {
         ArrayType *ATy = cast<ArrayType>(Ty);
         unsigned len = ATy->getNumElements();

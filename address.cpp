@@ -1009,8 +1009,32 @@ static void addMethodTable(Function *func)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
     ClassMethodTable *table = classCreate[STy];
+    std::string fname = func->getName();
+    int status;
+    const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+    std::string fdname = ret;
+    std::string cname = sname.substr(6);
+    if (sname.substr(0, 6) == "class.") {
+        int ind = cname.find(".");
+        if (ind > 0)
+            cname = cname.substr(0,ind);
+    }
+    int dind = fdname.find("::");
+    if (dind > 0)
+        fdname = fdname.substr(0,dind);
+    if (fdname.substr(0, cname.length()) == cname) {
+        fdname = fdname.substr(cname.length());
+        if (fdname[0] == '<' && fdname[fdname.length()-1] == '>')
+            fdname = fdname.substr(1, fdname.length() - 2);
+        if (table->instance == "")
+            table->instance = fdname;
+        if (table->instance != fdname) {
+            printf("[%s:%d] instance name does not match '%s' '%s'\n", __FUNCTION__, __LINE__, table->instance.c_str(), fdname.c_str());
+            exit(-1);
+        }
+    }
     if (trace_lookup)
-        printf("%s: %s[%d] = %s\n", __FUNCTION__, sname.c_str(), table->vtableCount, func->getName().str().c_str());
+        printf("%s: %s[%d] = %s [%s]\n", __FUNCTION__, sname.c_str(), table->vtableCount, fname.c_str(), fdname.c_str());
     table->vtable[table->vtableCount++] = func;
 }
 

@@ -3,7 +3,7 @@
 class l_class_OC_IVectorIndication {
 public:
   void run();
-  void heard(BITS heard_meth, BITS heard_v);
+  void heard(BITS6 heard_meth, BITS4 heard_v);
   bool heard__RDY(void);
 };
 #endif  // __l_class_OC_IVectorIndication_H__
