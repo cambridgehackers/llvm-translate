@@ -113,14 +113,21 @@ printf("[%s:%d] HAVENOWAYTOCONVERTCONSTTYPETOTYPE %s\n", __FUNCTION__, __LINE__,
  * Generate class definition into output file.  Class methods are
  * only generated as prototypes.
  */
+static std::map<std::string, int> includeList;
+static void addIncludeName(const StructType *iSTy)
+{
+     std::string sname = getStructName(iSTy);
+     if (!inheritsModule(iSTy, "class.BitsClass"))
+         includeList[sname] = 1;
+}
 void generateClassDef(const StructType *STy, std::string oDir)
 {
     std::list<std::string> runLines;
     std::list<std::string> extraMethods;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
-    std::map<std::string, int> includeList;
 
+    includeList.clear();
     // first generate '.h' file
     FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
     fprintf(OStr, "#ifndef __%s_H__\n#define __%s_H__\n", name.c_str(), name.c_str());
@@ -137,7 +144,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     std::string sname = getStructName(iSTy);
-                    includeList[sname] = 1;
+                    addIncludeName(iSTy);
                     int dimIndex = 0;
                     std::string vecDim;
                     if (sname.substr(0,12) != "l_struct_OC_")
@@ -149,7 +156,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
                 if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
-                    includeList[getStructName(iSTy)] = 1;
+                    addIncludeName(iSTy);
                 extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
                     + ") { " + fname + " = v; }");
             }
@@ -165,14 +172,14 @@ void generateClassDef(const StructType *STy, std::string oDir)
             AI++;
         }
         if (const StructType *iSTy = dyn_cast<StructType>(retType))
-            includeList[getStructName(iSTy)] = 1;
+            addIncludeName(iSTy);
         AI++;
         for (; AI != AE; ++AI) {
             Type *element = AI->getType();
             if (auto PTy = dyn_cast<PointerType>(element))
                 element = PTy->getElementType();
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                includeList[getStructName(iSTy)] = 1;
+                addIncludeName(iSTy);
         }
     }
     for (auto item: includeList)
