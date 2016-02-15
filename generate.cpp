@@ -712,6 +712,47 @@ printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().st
         //printf("[%s:%d] ALLOCAA %s -> %s\n", __FUNCTION__, __LINE__, processIFunction->getName().str().c_str(), allocaMap[&I].c_str());
         break;
         }
+    case Instruction::ExtractValue: {
+        ExtractValueInst *EI = cast<ExtractValueInst>(&I);
+        //ExecutionContext &SF = ECStack.back();
+        Value *Agg = EI->getAggregateOperand();
+        GenericValue Dest, Src;// = getOperandValue(Agg, SF);
+        ExtractValueInst::idx_iterator IdxBegin = EI->idx_begin();
+        unsigned Num = EI->getNumIndices();
+printf("[%s:%d] ExtractValue %d\n", __FUNCTION__, __LINE__, Num);
+#if 0
+        GenericValue *pSrc = &Src;
+        for (unsigned i = 0 ; i < Num; ++i) {
+            pSrc = &pSrc->AggregateVal[*IdxBegin];
+            ++IdxBegin;
+        }
+        Type *IndexedType = ExtractValueInst::getIndexedType(Agg->getType(), EI->getIndices());
+        switch (IndexedType->getTypeID()) {
+        default:
+            llvm_unreachable("Unhandled dest type for extractelement instruction");
+            break;
+        case Type::IntegerTyID:
+            Dest.IntVal = pSrc->IntVal;
+            break;
+        case Type::FloatTyID:
+            Dest.FloatVal = pSrc->FloatVal;
+            break;
+        case Type::DoubleTyID:
+            Dest.DoubleVal = pSrc->DoubleVal;
+            break;
+        case Type::ArrayTyID:
+        case Type::StructTyID:
+        case Type::VectorTyID:
+            Dest.AggregateVal = pSrc->AggregateVal;
+            break;
+        case Type::PointerTyID:
+            Dest.PointerVal = pSrc->PointerVal;
+            break;
+        }
+        //SetValue(EI->, Dest, SF);
+#endif
+        break;
+        }
     default:
         printf("Other opcode %d.=%s\n", opcode, I.getOpcodeName());
         I.getParent()->getParent()->dump();
