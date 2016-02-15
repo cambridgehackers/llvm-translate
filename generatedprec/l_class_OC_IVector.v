@@ -33,28 +33,24 @@ module l_class_OC_IVector (
         fifo$out_first__RDY,
         rule_enable[1:`l_class_OC_Fifo_OC_1_RULE_COUNT],
         rule_ready[1:`l_class_OC_Fifo_OC_1_RULE_COUNT]);
-    assign agg_2e_tmp$FixedPoint_ = fifo$out_first$a;
-    assign agg_2e_tmp$FixedPoint__ENA = respond__ENA_internal;
-    assign agg_2e_tmp$_ = temp;
-    assign agg_2e_tmp$__ENA = say__ENA_internal || say__ENA_internal;
-    assign agg_2e_tmp$~FixedPoint__ENA = respond__ENA_internal;
-    assign agg_2e_tmp3$FixedPoint_ = fifo$out_first$b;
-    assign agg_2e_tmp3$FixedPoint__ENA = respond__ENA_internal;
-    assign agg_2e_tmp3$~FixedPoint__ENA = respond__ENA_internal;
-    assign fifo$out_first$__ENA = respond__ENA_internal;
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;
     assign respond__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond__RDY_internal;
     assign say__RDY = say__RDY_internal;
-    assign temp$__ENA = say__ENA_internal || say__ENA_internal;
 
     always @( posedge CLK) begin
       if (!nRST) begin
       end // nRST
       else begin
+        if (respond__ENA_internal) begin
+            agg_2e_tmp$data <= fifo$out_first$a$data;
+            agg_2e_tmp3$data <= fifo$out_first$b$data;
+        end; // End of respond
         if (say__ENA_internal) begin
+            agg_2e_tmp$a$data <= temp$a$data;
+            agg_2e_tmp$b$data <= temp$b$data;
             temp$a$data <= (say_meth)$data;
             temp$b$data <= (say_v)$data;
         end; // End of say

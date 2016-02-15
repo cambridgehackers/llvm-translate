@@ -3,14 +3,11 @@ void l_class_OC_IVector::respond(void) {
         BITS6 agg_2e_tmp;
         BITS4 agg_2e_tmp3;
         l_struct_OC_ValueType temp;
+        agg_2e_tmp.data = temp.a.data;
+        agg_2e_tmp3.data = temp.b.data;
         temp = fifo.out_first();
         fifo.out_deq();
-        agg_2e_tmp->FixedPoint(temp.a);
-        agg_2e_tmp3->FixedPoint(temp.b);
         ind->heard(agg_2e_tmp, agg_2e_tmp3);
-        agg_2e_tmp3->~FixedPoint();
-        agg_2e_tmp->~FixedPoint();
-        temp->();
 }
 bool l_class_OC_IVector::respond__RDY(void) {
         bool tmp__1;
@@ -24,13 +21,11 @@ bool l_class_OC_IVector::respond__RDY(void) {
 void l_class_OC_IVector::say(BITS6 say_meth, BITS4 say_v) {
         l_struct_OC_ValueType agg_2e_tmp;
         l_struct_OC_ValueType temp;
+        agg_2e_tmp.a.data = temp.a.data;
+        agg_2e_tmp.b.data = temp.b.data;
         temp.a.data = (say_meth)->data;
         temp.b.data = (say_v)->data;
-        temp->();
-        agg_2e_tmp->(temp);
         fifo.in_enq(agg_2e_tmp);
-        agg_2e_tmp->();
-        temp->();
 }
 bool l_class_OC_IVector::say__RDY(void) {
         bool tmp__1;

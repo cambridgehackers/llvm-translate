@@ -6,10 +6,12 @@
 
 //METAINTERNAL; fifo; l_class_OC_Fifo_OC_1;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
-//METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;agg_2e_tmp$FixedPoint:;agg_2e_tmp3$FixedPoint:;ind$heard:;agg_2e_tmp3$~FixedPoint:;agg_2e_tmp$~FixedPoint:;fifo$out_first$;
+//METAREAD; respond; :;fifo$out_first$a$data:;fifo$out_first$b$data;
+//METAWRITE; respond; :;agg_2e_tmp$data:;agg_2e_tmp3$data;
+//METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAREAD; say; :;(say_meth)$data:;(say_v)$data;
-//METAWRITE; say; :;temp$a$data:;temp$b$data;
-//METAINVOKE; say; :;temp$:;agg_2e_tmp$:;fifo$in_enq:;agg_2e_tmp$:;temp$;
+//METAREAD; say; :;(say_meth)$data:;(say_v)$data:;temp$a$data:;temp$b$data;
+//METAWRITE; say; :;temp$a$data:;temp$b$data:;agg_2e_tmp$a$data:;agg_2e_tmp$b$data;
+//METAINVOKE; say; :;fifo$in_enq;
 //METAGUARD; say__RDY; fifo$in_enq__RDY;
 `endif

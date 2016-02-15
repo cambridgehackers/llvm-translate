@@ -118,11 +118,17 @@ static void processAlloca(Function *func)
             auto PI = std::next(BasicBlock::iterator(II));
             switch (II->getOpcode()) {
             case Instruction::Store:
-                if (Instruction *target = dyn_cast<Instruction>(II->getOperand(1)))
+                if (Instruction *target = dyn_cast<Instruction>(II->getOperand(1))) {
                 if (target->getOpcode() == Instruction::Alloca) {
                     // remember values stored in Alloca temps
                     remapValue[II->getOperand(1)] = II->getOperand(0);
                     recursiveDelete(II);
+                }
+                else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) {
+                    printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
+                    CE->dump();
+                    recursiveDelete(II);
+                }
                 }
                 break;
             case Instruction::Load:
@@ -192,14 +198,20 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 }
                 std::string calledName = func->getName();
                 const StructType *STy = findThisArgument(func);
-                int ind = calledName.find("EEaSERKS0_");
-                printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
-                if (callingSTy == STy || ind > 0) {
-                    fprintf(stdout,"callProcess: cName %s single!!!!\n", calledName.c_str());
+                //int ind = calledName.find("EEaSERKS0_");
+                int ind = calledName.find("ERKS");
+//_ZN10FixedPointILi6EEC2ERKS0_
+                //printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
+                if (callingSTy == STy || ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_") {
+                    fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
                     processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
+                }
+                else if (endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
+                    fprintf(stdout,"callProcess: %s delete call to %s !!!!\n", callingName.c_str(), calledName.c_str());
+                    recursiveDelete(II);
                 }
             };
             II = PI;
@@ -919,7 +931,7 @@ static void processMemcpy(CallInst *II)
     Instruction *source = dyn_cast<Instruction>(II->getOperand(1));
     if (source->getOpcode() == Instruction::BitCast)
     if (dest->getOpcode() == Instruction::BitCast)
-    if (Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0)))
+    if (Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0))) {
     if (destTmp->getOpcode() == Instruction::Alloca) {
         if (Argument *sourceArg = dyn_cast<Argument>(source->getOperand(0))) {
             dest->getOperand(0);
@@ -943,6 +955,14 @@ static void processMemcpy(CallInst *II)
 //func->dump();
             }
         }
+    }
+    else if (const PointerType *PTy = dyn_cast<PointerType>(destTmp->getType())) {
+        if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType()))
+        if (STy->getName() == "class.BitsClass") {
+            printf("[%s:%d] remove memcpy(BitsClass)\n", __FUNCTION__, __LINE__);
+            recursiveDelete(II);
+        }
+    }
     }
 }
 
