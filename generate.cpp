@@ -404,6 +404,8 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             std::string fname = fieldName(STy, foffset);
             if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
                 fname += '_';
+            else
+                arrow = MODULE_DOT;
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s fname %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str(), fname.c_str());
             if (!expose && referstr[0] == '&') {
@@ -854,7 +856,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN7IVector3sayE10FixedPointILi6EES0_ILi4EE") {
+if (func->getName() == "zz_ZN7IVector3sayE10FixedPointILi6EES0_ILi4EE") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

@@ -202,16 +202,13 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 int ind = calledName.find("ERKS");
 //_ZN10FixedPointILi6EEC2ERKS0_
                 //printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
-                if (callingSTy == STy || ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_") {
+                if (callingSTy == STy || ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_"
+                || endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
                     fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
                     processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
                     InlineFunction(ICL, IFI, false);
-                }
-                else if (endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
-                    fprintf(stdout,"callProcess: %s delete call to %s !!!!\n", callingName.c_str(), calledName.c_str());
-                    recursiveDelete(II);
                 }
             };
             II = PI;
