@@ -482,10 +482,10 @@ static std::string printCall(Instruction &I)
         printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
         exit(-1);
     }
-    std::string cgetName = func->getName();
+    std::string calledName = func->getName();
     std::string fname = pushSeen[func];
     if (trace_call)
-        printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), cgetName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
+        printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
         bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");
@@ -495,9 +495,22 @@ static std::string printCall(Instruction &I)
         prefix = pcalledFunction + prefix;
     std::string mname = prefix + fname;
     Argument *calledRet = callingFunction->arg_begin();
+    if (calledName == "fixedGet") {
+        std::string str = printOperand(I.getOperand(0), false);
+        if (str[0] == '&')
+            str = str.substr(1);
+        return str;
+    }
+    if (calledName == "fixedSet") {
+        std::string str = printOperand(I.getOperand(0), false);
+        if (str[0] == '&')
+            str = str.substr(1);
+        storeList[str] = ReferenceType{I.getParent(), printOperand(I.getOperand(1), false)};
+        return "";
+    }
     if (Instruction *dest = dyn_cast<Instruction>(I.getOperand(0)))
     if (dest->getOpcode() == Instruction::BitCast) {
-    if (cgetName == "llvm.memcpy.p0i8.p0i8.i64") {
+    if (calledName == "llvm.memcpy.p0i8.p0i8.i64") {
         if (Instruction *src = dyn_cast<Instruction>(I.getOperand(1)))
         if (src->getOpcode() == Instruction::BitCast) {
             std::string sval = printOperand(src->getOperand(0), dyn_cast<Argument>(src->getOperand(0)) == NULL);
@@ -511,7 +524,7 @@ static std::string printCall(Instruction &I)
             return vout;
         }
     }
-    else if (cgetName == "llvm.memset.p0i8.i64") {
+    else if (calledName == "llvm.memset.p0i8.i64") {
         if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
             if (generateRegion == ProcessCPP)
                 return "return {0}";
@@ -521,7 +534,7 @@ static std::string printCall(Instruction &I)
             printf("[%s:%d] NOTARG memset\n", __FUNCTION__, __LINE__);
     }
     else
-        printf("[%s:%d] not memcpy/memset %s\n", __FUNCTION__, __LINE__, cgetName.c_str());
+        printf("[%s:%d] not memcpy/memset %s\n", __FUNCTION__, __LINE__, calledName.c_str());
     }
     if (generateRegion == ProcessVerilog) {
         if (retType == Type::getVoidTy(func->getContext()))
@@ -861,7 +874,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN7IVector3sayE10FixedPointILi6EES0_ILi4EE") {
+if (func->getName() == "_ZN7IVector3sayE10FixedPointILi6EES0_ILi4EE") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

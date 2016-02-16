@@ -48,15 +48,15 @@ module l_class_OC_IVector (
       end // nRST
       else begin
         if (respond__ENA_internal) begin
-            agg_2e_tmp$data <= fifo$out_first$a$data;
-            agg_2e_tmp3$data <= fifo$out_first$b$data;
-            gcounter$data <= gcounter$data + 1;
+            agg_2e_tmp <= fifo$out_first$a;
+            agg_2e_tmp3 <= fifo$out_first$b;
+            gcounter <= gcounter + 1;
         end; // End of respond
         if (say__ENA_internal) begin
-            agg_2e_tmp$a$data <= temp$a$data;
-            agg_2e_tmp$b$data <= temp$b$data;
-            temp$a$data <= say_meth$data;
-            temp$b$data <= say_v$data;
+            agg_2e_tmp$a <= temp$a;
+            agg_2e_tmp$b <= temp$b;
+            temp$a <= say_meth;
+            temp$b <= say_v;
         end; // End of say
       end
     end // always @ (posedge CLK)

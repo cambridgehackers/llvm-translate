@@ -25,36 +25,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#if 0
-typedef uint32_t BITS4;
-typedef uint32_t BITS6;
-typedef uint32_t BITS; // for FixedPointV
-#else
-class BITS {
-public:
-    uint32_t data;
-    BITS(): data(0) {}
-    BITS(uint32_t arg): data(arg) {}
-    ~BITS() {}
-    inline BITS & operator=(const BITS & arg) {
-        this->data = arg.data;
-        return *this;
-    }
-};
+typedef uint32_t BITS;
 typedef BITS BITS1;
 typedef BITS BITS4;
 typedef BITS BITS6;
 typedef BITS BITS10;
 typedef BITS BITS23;
-#endif
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
-//#include "l_class_OC_Fifo1.cpp"
-//#define __l_class_OC_Fifo_OC_1_H__
-//typedef l_class_OC_Fifo1 l_class_OC_Fifo_OC_1;
 #include "l_class_OC_IVector.cpp"
 #include "l_class_OC_Fifo1_OC_1.cpp"
-//#include "l_class_OC_Fifo1_OC_3.cpp"
-//#include "l_class_OC_FifoPong.cpp"
 
 unsigned int stop_main_program;
 int testCount;
@@ -65,7 +44,7 @@ bool l_class_OC_IVectorIndication::heard__RDY(void) {
         return true;
 }
 void l_class_OC_IVectorIndication::heard(BITS4 meth, BITS6 v) {
-        printf("Heard an echo: %d %d\n", meth.data, v.data);
+        printf("Heard an echo: %d %d\n", meth, v);
         if (--testCount <= 0)
             stop_main_program = 1;
 }
@@ -74,9 +53,7 @@ int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zIVector.setind(&zIVectorIndication);
-    //for (int i = 0; i < 10; i++) {
-        zIVector.say(1, 44 * 1); testCount++;
-    //}
+    zIVector.say(1, 44 * 1); testCount++;
     while (!stop_main_program) {
         zIVector.run();
     }
