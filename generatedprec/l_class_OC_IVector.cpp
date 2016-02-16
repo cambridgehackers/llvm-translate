@@ -23,8 +23,8 @@ void l_class_OC_IVector::say(BITS6 say_meth, BITS4 say_v) {
         l_struct_OC_ValueType temp;
         agg_2e_tmp.a.data = temp.a.data;
         agg_2e_tmp.b.data = temp.b.data;
-        temp.a.data = (say_meth).data;
-        temp.b.data = (say_v).data;
+        temp.a.data = say_meth.data;
+        temp.b.data = say_v.data;
         fifo.in_enq(agg_2e_tmp);
 }
 bool l_class_OC_IVector::say__RDY(void) {

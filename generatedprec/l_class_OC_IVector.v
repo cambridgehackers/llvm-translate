@@ -51,8 +51,8 @@ module l_class_OC_IVector (
         if (say__ENA_internal) begin
             agg_2e_tmp$a$data <= temp$a$data;
             agg_2e_tmp$b$data <= temp$b$data;
-            temp$a$data <= (say_meth)$data;
-            temp$b$data <= (say_v)$data;
+            temp$a$data <= say_meth$data;
+            temp$b$data <= say_v$data;
         end; // End of say
       end
     end // always @ (posedge CLK)

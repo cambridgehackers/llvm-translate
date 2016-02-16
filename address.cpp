@@ -125,8 +125,8 @@ static void processAlloca(Function *func)
                     recursiveDelete(II);
                 }
                 else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) {
-                    printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
-                    CE->dump();
+                    //printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
+                    //CE->dump();
                     recursiveDelete(II);
                 }
                 }
@@ -451,13 +451,15 @@ Value *getCondition(BasicBlock *bb, int invert)
     return NULL;
 }
 
-// update parameter names to be prefixed by method name (so that
+// rename parameter names so that they are prefixed by method name (so that
 // all parameter names are unique across module for verilog instantiation)
 static void updateParameterNames(std::string mName, Function *func)
 {
     auto AI = ++func->arg_begin(), AE = func->arg_end();
-    if (func->hasStructRetAttr())
+    if (func->hasStructRetAttr()) {
+        func->arg_begin()->setName(mName);
         AI++;
+    }
     for (; AI != AE; AI++)
         AI->setName(mName + "_" + AI->getName());
 }

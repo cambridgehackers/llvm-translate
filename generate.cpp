@@ -417,7 +417,8 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             else if (referstr == "this")
                 referstr = "";
             else {
-                referstr = "(" + referstr + ")";
+                if (arrow == "->")
+                    referstr = "(" + referstr + ")";
                 referstr += arrow;
             }
             cbuffer += referstr + fname;

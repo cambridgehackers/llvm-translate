@@ -32,16 +32,16 @@ module l_class_OC_Fifo1_OC_1 (
       end // nRST
       else begin
         if (in_enq__ENA_internal) begin
-            element$a$data <= (in_enq_v)$a$data;
-            element$b$data <= (in_enq_v)$b$data;
+            element$a$data <= in_enq_v$a$data;
+            element$b$data <= in_enq_v$b$data;
             full <= 1;
         end; // End of in_enq
         if (out_deq__ENA_internal) begin
             full <= 0;
         end; // End of out_deq
         if (out_first__ENA_internal) begin
-            (agg_2e_result)$a$data <= element$a$data;
-            (agg_2e_result)$b$data <= element$b$data;
+            out_first$a$data <= element$a$data;
+            out_first$b$data <= element$b$data;
         end; // End of out_first
       end
     end // always @ (posedge CLK)

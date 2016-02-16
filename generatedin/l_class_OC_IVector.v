@@ -236,8 +236,6 @@ module l_class_OC_IVector (
         rule_enable[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT],
         rule_ready[10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT:`l_class_OC_FifoPong_RULE_COUNT]);
     reg[31:0] vsize;
-    assign (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)$in_enq__ENA = say__ENA_internal;
-    assign (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)$in_enq_v = temp;
     assign ind$heard__ENA = respond0__ENA_internal || respond1__ENA_internal || respond2__ENA_internal || respond3__ENA_internal || respond4__ENA_internal || respond5__ENA_internal || respond6__ENA_internal || respond7__ENA_internal || respond8__ENA_internal || respond9__ENA_internal;
     assign ind$heard_heard_meth = respond0__ENA_internal ? 0 : respond1__ENA_internal ? 1 : respond2__ENA_internal ? 2 : respond3__ENA_internal ? 3 : respond4__ENA_internal ? 4 : respond5__ENA_internal ? 5 : respond6__ENA_internal ? 6 : respond7__ENA_internal ? 7 : respond8__ENA_internal ? 8 : 9;
     assign ind$heard_heard_v = respond0__ENA_internal ? fifo0$out_first$b : respond1__ENA_internal ? fifo1$out_first$b : respond2__ENA_internal ? fifo2$out_first$b : respond3__ENA_internal ? fifo3$out_first$b : respond4__ENA_internal ? fifo4$out_first$b : respond5__ENA_internal ? fifo5$out_first$b : respond6__ENA_internal ? fifo6$out_first$b : respond7__ENA_internal ? fifo7$out_first$b : respond8__ENA_internal ? fifo8$out_first$b : fifo9$out_first$b;
@@ -263,6 +261,8 @@ module l_class_OC_IVector (
     assign rule_ready[9] = respond9__RDY_internal;
     assign say__RDY = say__RDY_internal;
     assign say__RDY_internal = ((((((((fifo0$in_enq__RDY & fifo1$in_enq__RDY) & fifo2$in_enq__RDY) & fifo3$in_enq__RDY) & fifo4$in_enq__RDY) & fifo5$in_enq__RDY) & fifo6$in_enq__RDY) & fifo7$in_enq__RDY) & fifo8$in_enq__RDY) & fifo9$in_enq__RDY;
+    assign say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9$in_enq__ENA = say__ENA_internal;
+    assign say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9$in_enq_v = temp;
 
     always @( posedge CLK) begin
       if (!nRST) begin

@@ -27,12 +27,12 @@ bool l_class_OC_FifoPong::out_deq__RDY(void) {
         return (tmp__1 | (pong ^ 1)) & (tmp__2 | pong);
 }
 l_struct_OC_ValuePair l_class_OC_FifoPong::out_first(void) {
-        l_struct_OC_ValuePair agg_2e_result;
+        l_struct_OC_ValuePair out_first;
         if (pong)
-            agg_2e_result = element2.out_first();
+            out_first = element2.out_first();
         if (pong ^ 1)
-            agg_2e_result = element1.out_first();
-        return agg_2e_result;
+            out_first = element1.out_first();
+        return out_first;
 }
 bool l_class_OC_FifoPong::out_first__RDY(void) {
         bool tmp__1;
