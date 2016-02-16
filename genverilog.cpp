@@ -388,7 +388,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                     includeLines[sname] = 1;
                     resetList.push_back(fname);
                 }
-                else if (!inheritsModule(STy, "class.InterfaceClass")) {
+                else if (!inheritsModule(STy, "class.InterfaceClass") && !inheritsModule(STy, "class.BitsClass")) {
                     metaList.push_back("//METAINTERNAL; " + fname + "; " + sname + ";");
                     assignList[fname + "$rule_enable"] = "rule_enable[" + extraRules + ":`" + sname + "_RULE_COUNT]";
                     assignList["rule_ready[" + extraRules + ":`" + sname + "_RULE_COUNT]"] = fname + "$rule_ready";
@@ -504,6 +504,10 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 std::string sname = getStructName(STy);
                 if (sname.substr(0,12) == "l_struct_OC_")
                     fprintf(OStr, "    reg%s %s;\n", verilogArrRange(element).c_str(), fname.c_str());
+                else if (inheritsModule(STy, "class.BitsClass")) {
+                    ClassMethodTable *table = classCreate[STy];
+                    fprintf(OStr, "    reg[%s:0] %s;\n", table->instance.c_str(), fname.c_str());
+                }
                 else if (!inheritsModule(STy, "class.InterfaceClass"))
                     generateModuleSignature(OStr, STy, fname);
             }

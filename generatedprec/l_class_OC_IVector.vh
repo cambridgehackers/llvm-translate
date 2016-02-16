@@ -6,8 +6,8 @@
 
 //METAINTERNAL; fifo; l_class_OC_Fifo1_OC_1;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
-//METAREAD; respond; :;fifo$out_first$a$data:;fifo$out_first$b$data;
-//METAWRITE; respond; :;agg_2e_tmp$data:;agg_2e_tmp3$data;
+//METAREAD; respond; :;gcounter$data:;fifo$out_first$a$data:;fifo$out_first$b$data;
+//METAWRITE; respond; :;gcounter$data:;agg_2e_tmp$data:;agg_2e_tmp3$data;
 //METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
 //METAREAD; say; :;say_meth$data:;say_v$data:;temp$a$data:;temp$b$data;

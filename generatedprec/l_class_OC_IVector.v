@@ -33,6 +33,9 @@ module l_class_OC_IVector (
         fifo$out_first__RDY,
         rule_enable[1:`l_class_OC_Fifo1_OC_1_RULE_COUNT],
         rule_ready[1:`l_class_OC_Fifo1_OC_1_RULE_COUNT]);
+    reg[23:0] fcounter;
+    reg[1:0] counter;
+    reg[10:0] gcounter;
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;
@@ -47,6 +50,7 @@ module l_class_OC_IVector (
         if (respond__ENA_internal) begin
             agg_2e_tmp$data <= fifo$out_first$a$data;
             agg_2e_tmp3$data <= fifo$out_first$b$data;
+            gcounter$data <= gcounter$data + 1;
         end; // End of respond
         if (say__ENA_internal) begin
             agg_2e_tmp$a$data <= temp$a$data;

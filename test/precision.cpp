@@ -41,8 +41,11 @@ public:
         return *this;
     }
 };
+typedef BITS BITS1;
 typedef BITS BITS4;
 typedef BITS BITS6;
+typedef BITS BITS10;
+typedef BITS BITS23;
 #endif
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 //#include "l_class_OC_Fifo1.cpp"

@@ -5,6 +5,7 @@ void l_class_OC_IVector::respond(void) {
         l_struct_OC_ValueType temp;
         agg_2e_tmp.data = temp.a.data;
         agg_2e_tmp3.data = temp.b.data;
+        gcounter.data = (gcounter.data) + 1;
         temp = fifo.out_first();
         fifo.out_deq();
         ind->heard(agg_2e_tmp, agg_2e_tmp3);

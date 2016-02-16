@@ -4,6 +4,9 @@
 #include "l_class_OC_IVectorIndication.h"
 class l_class_OC_IVector {
   l_class_OC_Fifo1_OC_1 fifo;
+  BITS23 fcounter;
+  BITS1 counter;
+  BITS10 gcounter;
   l_class_OC_IVectorIndication *ind;
 public:
   void run();

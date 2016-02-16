@@ -142,7 +142,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (!inheritsModule(iSTy, "class.InterfaceClass")) {
+                if (!inheritsModule(iSTy, "class.InterfaceClass") && !inheritsModule(iSTy, "class.BitsClass")) {
                     std::string sname = getStructName(iSTy);
                     addIncludeName(iSTy);
                     int dimIndex = 0;
