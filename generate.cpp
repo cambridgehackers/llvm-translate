@@ -617,13 +617,17 @@ static std::string processInstruction(Instruction &I)
 
     // Terminators
     case Instruction::Ret:
-        if (I.getNumOperands() != 0 || I.getParent()->getParent()->size() != 1) {
+        if (I.getNumOperands() != 0) {
             if (generateRegion == ProcessCPP)
                 vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(I.getOperand(0), false);
-            if (generateRegion == ProcessCPP && processIFunction && processIFunction->hasStructRetAttr())
-                vout += GetValueName(processIFunction->arg_begin());
+        }
+        else if (processIFunction && processIFunction->hasStructRetAttr()) {
+            if (generateRegion == ProcessCPP)
+                vout += "return ";
+            if (generateRegion == ProcessCPP)
+            vout += GetValueName(processIFunction->arg_begin());
         }
         break;
     case Instruction::Unreachable:

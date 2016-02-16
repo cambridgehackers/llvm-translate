@@ -15,6 +15,7 @@ bool l_class_OC_Fifo1_OC_3::out_deq__RDY(void) {
 l_struct_OC_ValuePair l_class_OC_Fifo1_OC_3::out_first(void) {
         l_struct_OC_ValuePair agg_2e_result;
         return element;
+        return agg_2e_result;
 }
 bool l_class_OC_Fifo1_OC_3::out_first__RDY(void) {
         return full;

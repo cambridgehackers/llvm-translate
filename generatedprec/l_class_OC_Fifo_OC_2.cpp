@@ -11,6 +11,7 @@ bool l_class_OC_Fifo_OC_2::out_deq__RDY(void) {
 }
 l_struct_OC_ValueType l_class_OC_Fifo_OC_2::out_first(void) {
         l_struct_OC_ValueType agg_2e_result;
+        return agg_2e_result;
 }
 bool l_class_OC_Fifo_OC_2::out_first__RDY(void) {
         return 0;

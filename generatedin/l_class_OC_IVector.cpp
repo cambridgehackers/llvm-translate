@@ -153,7 +153,6 @@ void l_class_OC_IVector::say(unsigned int say_meth, unsigned int say_v) {
         l_struct_OC_ValuePair temp;
         temp.b = say_v;
         (say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)->in_enq(temp);
-        return ;
 }
 bool l_class_OC_IVector::say__RDY(void) {
         bool tmp__1;
