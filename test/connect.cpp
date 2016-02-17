@@ -25,6 +25,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+typedef struct {
+} l_class_OC_PipeIn_OC_6;
+typedef struct {
+} l_unnamed_6;
+typedef struct {
+} l_struct_OC_MemreadRequest_data;
+
 typedef uint32_t BITS;
 typedef BITS BITS1;
 typedef BITS BITS4;

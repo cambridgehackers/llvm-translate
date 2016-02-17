@@ -135,6 +135,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         Type *element = *I;
         int64_t vecCount = -1;
+        if (table)
         if (Type *newType = table->replaceType[Idx]) {
             element = newType;
             vecCount = table->replaceCount[Idx];
@@ -162,6 +163,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
             }
         }
     }
+    if (table)
     for (auto FI : table->method) {
         Function *func = FI.second;
         Type *retType = func->getReturnType();
@@ -190,6 +192,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "class %s {\n", name.c_str());
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n");
+    if (table)
     for (auto FI : table->method)
         fprintf(OStr, "  %s;\n", printFunctionSignature(FI.second, FI.first).c_str());
     for (auto item: extraMethods)
@@ -200,6 +203,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     if (name.substr(0,12) != "l_struct_OC_") {
     OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
+    if (table)
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "::" + FI.first).c_str());
@@ -219,6 +223,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "}\n");
     }
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
+    if (table)
     for (auto item : table->rules)
         if (item.second)
             fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.c_str(), item.first.c_str());
