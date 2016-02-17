@@ -1,3 +1,9 @@
 #!/bin/bash
+set -e
 set -x
-./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc.ll 
+./Debug+Asserts/bin/llvm-translate --odir=generatedconn ../atomicc/examples/connect/connect.ll ../atomicc/examples/connect/atomicc.ll
+./linker.py --directory generatedconn --output Echo l_class_OC_IVector
+clang++ -Igeneratedconn -g test/connect.cpp
+./a.out
+rm -f a.out
+
