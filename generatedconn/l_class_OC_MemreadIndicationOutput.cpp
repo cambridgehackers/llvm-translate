@@ -2,5 +2,4 @@
 void l_class_OC_MemreadIndicationOutput::run()
 {
     ifc.run();
-    pipes.run();
 }

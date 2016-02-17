@@ -50,7 +50,6 @@ typedef BITS BITS23;
 #include "l_class_OC_MMUIndicationOutput.cpp"
 #include "l_class_OC_MMURequest.cpp"
 #include "l_class_OC_MMURequestInput.cpp"
-#include "l_class_OC_Pipes.cpp"
 #include "l_class_OC_XsimTop.cpp"
 
 unsigned int stop_main_program;
