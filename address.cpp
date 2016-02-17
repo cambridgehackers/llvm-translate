@@ -945,11 +945,19 @@ static void processMemcpy(CallInst *II)
 //sourceTmp->dump();
 //Function *func = II->getParent()->getParent();
 //func->dump();
+                if (destTmp->getType() == sourceTmp->getType()) {
                 destTmp->replaceAllUsesWith(sourceTmp);
                 dest->setOperand(0, NULL);
                 recursiveDelete(destTmp);
 //destTmp->dump();
                 recursiveDelete(II);
+                }
+                else {
+printf("[%s:%d] memcpy/alloca, types not match %s\n", __FUNCTION__, __LINE__, II->getParent()->getParent()->getName().str().c_str());
+II->dump();
+destTmp->getType()->dump();
+sourceTmp->getType()->dump();
+                }
 //printf("[%s:%d] aft\n", __FUNCTION__, __LINE__);
 //func->dump();
             }
