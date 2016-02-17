@@ -34,6 +34,24 @@ typedef BITS BITS23;
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Fifo1_OC_1.cpp"
+#include "l_class_OC_CnocTop.cpp"
+#include "l_class_OC_Memread.cpp"
+#include "l_class_OC_MemreadIndication.cpp"
+#include "l_class_OC_MemreadRequest.cpp"
+#include "l_class_OC_MemreadIndicationOutput.cpp"
+#include "l_class_OC_MemreadRequestInput.cpp"
+#include "l_class_OC_MemServer.cpp"
+#include "l_class_OC_MemServerIndication.cpp"
+#include "l_class_OC_MemServerIndicationOutput.cpp"
+#include "l_class_OC_MemServerRequest.cpp"
+#include "l_class_OC_MemServerRequestInput.cpp"
+#include "l_class_OC_MMU.cpp"
+#include "l_class_OC_MMUIndication.cpp"
+#include "l_class_OC_MMUIndicationOutput.cpp"
+#include "l_class_OC_MMURequest.cpp"
+#include "l_class_OC_MMURequestInput.cpp"
+#include "l_class_OC_Pipes.cpp"
+#include "l_class_OC_XsimTop.cpp"
 
 unsigned int stop_main_program;
 int testCount;
