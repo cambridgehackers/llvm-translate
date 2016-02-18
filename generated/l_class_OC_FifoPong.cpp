@@ -5,7 +5,6 @@ void l_class_OC_FifoPong::in_enq(unsigned int in_enq_v) {
         if (pong)
             element2 = in_enq_v;
         full = 1;
-        return ;
 }
 bool l_class_OC_FifoPong::in_enq__RDY(void) {
         return full ^ 1;
