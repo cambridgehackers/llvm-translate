@@ -536,7 +536,6 @@ static std::string printCall(Instruction &I)
     else
         printf("[%s:%d] not memcpy/memset %s\n", __FUNCTION__, __LINE__, calledName.c_str());
     }
-printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
     if (mname == ".operator=" || mname == "->FixedPoint" || mname == "->ValueType") {
         vout += pcalledFunction + " = (";
     }

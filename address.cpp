@@ -192,7 +192,8 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                         II->dump();
                         thisFunc->dump();
                         callingSTy->dump();
-                        parentFunc->dump();
+                        if (parentFunc != thisFunc)
+                            parentFunc->dump();
                         exit(-1);
                     }
                     II->setOperand(II->getNumOperands()-1, func);
@@ -201,11 +202,8 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 std::string calledName = func->getName();
                 const StructType *STy = findThisArgument(func);
                 //int ind = calledName.find("EEaSERKS0_");
-                int ind = -1;//calledName.find("ERKS");
-//_ZN10FixedPointILi6EEC2ERKS0_
                 //printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
-                if (callingSTy == STy //|| ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_"
-                || endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
+                if (callingSTy == STy || endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
                     fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
                     processAlloca(func);
                     processMethodInlining(func, parentFunc);
