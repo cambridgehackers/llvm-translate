@@ -824,6 +824,9 @@ std::string printOperand(Value *Operand, bool Indirect)
     else if (I && I->getOpcode() == Instruction::Alloca)
         cbuffer += GetValueName(Operand);
     else {
+        //we need pointer to pass struct params (PipeIn)
+        if (prefix == "*")
+            prefix = "";
         cbuffer += prefix;
         Constant* CPV = dyn_cast<Constant>(Operand);
         if (!CPV || isa<GlobalValue>(CPV))

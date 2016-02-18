@@ -186,9 +186,12 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     std::string opName = printOperand(callV, false);
+printf("[%s:%d] func %s calling %s\n", __FUNCTION__, __LINE__, thisFunc->getName().str().c_str(), opName.c_str());
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(opName));
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), opName.c_str());
+                        II->dump();
+                        thisFunc->dump();
                         callingSTy->dump();
                         parentFunc->dump();
                         exit(-1);
