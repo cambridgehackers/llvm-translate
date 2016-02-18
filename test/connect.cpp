@@ -25,16 +25,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-//typedef struct {
-//} l_class_OC_PipeIn_OC_6;
-//typedef struct {
-//} l_unnamed_6;
-//typedef struct {
-//int tag;
-//} l_struct_OC_MemreadRequest_data;
-
 typedef struct {
 } l_class_OC_PipeIn_OC_6;
+class l_class_OC_MemreadRequest {
+public:
+    void say(int say_meth, int say_v) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+    bool say__RDY(void) { return true;}
+};
 
 typedef uint32_t BITS;
 typedef BITS BITS1;
@@ -51,17 +50,6 @@ typedef BITS BITS23;
 #include "l_class_OC_MemreadRequest.cpp"
 #include "l_class_OC_MemreadIndicationOutput.cpp"
 #include "l_class_OC_MemreadRequestInput.cpp"
-//#include "l_class_OC_MemServer.cpp"
-//#include "l_class_OC_MemServerIndication.cpp"
-//#include "l_class_OC_MemServerIndicationOutput.cpp"
-//#include "l_class_OC_MemServerRequest.cpp"
-//#include "l_class_OC_MemServerRequestInput.cpp"
-//#include "l_class_OC_MMU.cpp"
-//#include "l_class_OC_MMUIndication.cpp"
-//#include "l_class_OC_MMUIndicationOutput.cpp"
-//#include "l_class_OC_MMURequest.cpp"
-//#include "l_class_OC_MMURequestInput.cpp"
-//#include "l_class_OC_XsimTop.cpp"
 
 unsigned int stop_main_program;
 int testCount;
