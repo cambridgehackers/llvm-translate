@@ -29,9 +29,12 @@
 //} l_class_OC_PipeIn_OC_6;
 //typedef struct {
 //} l_unnamed_6;
+//typedef struct {
+//int tag;
+//} l_struct_OC_MemreadRequest_data;
+
 typedef struct {
-int tag;
-} l_struct_OC_MemreadRequest_data;
+} l_class_OC_PipeIn_OC_6;
 
 typedef uint32_t BITS;
 typedef BITS BITS1;

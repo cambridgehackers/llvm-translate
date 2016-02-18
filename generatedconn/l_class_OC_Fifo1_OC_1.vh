@@ -8,5 +8,6 @@
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAWRITE; out_deq; :;full;
 //METAGUARD; out_deq__RDY; full;
+//METAINVOKE; out_first; :;out_first$ValueType;
 //METAGUARD; out_first__RDY; full;
 `endif

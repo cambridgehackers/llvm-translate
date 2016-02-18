@@ -186,7 +186,6 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 Function *func = dyn_cast<Function>(callV);
                 if (Instruction *oldOp = dyn_cast<Instruction>(callV)) {
                     std::string opName = printOperand(callV, false);
-printf("[%s:%d] func %s calling %s\n", __FUNCTION__, __LINE__, thisFunc->getName().str().c_str(), opName.c_str());
                     func = dyn_cast_or_null<Function>(Mod->getNamedValue(opName));
                     if (!func) {
                         printf("%s: %s not an instantiable call!!!! %s\n", __FUNCTION__, parentFunc->getName().str().c_str(), opName.c_str());
@@ -202,10 +201,10 @@ printf("[%s:%d] func %s calling %s\n", __FUNCTION__, __LINE__, thisFunc->getName
                 std::string calledName = func->getName();
                 const StructType *STy = findThisArgument(func);
                 //int ind = calledName.find("EEaSERKS0_");
-                int ind = calledName.find("ERKS");
+                int ind = -1;//calledName.find("ERKS");
 //_ZN10FixedPointILi6EEC2ERKS0_
                 //printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
-                if (callingSTy == STy || ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_"
+                if (callingSTy == STy //|| ind > 0 || calledName == "_ZN9ValueTypeC2ERKS_"
                 || endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
                     fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
                     processAlloca(func);

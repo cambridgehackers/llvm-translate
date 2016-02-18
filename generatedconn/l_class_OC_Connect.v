@@ -25,7 +25,7 @@ module l_class_OC_Connect (
         CLK,
         nRST,
         say__ENA_internal,
-        agg_2e_tmp,
+        temp,
         say__RDY_internal,
         respond__ENA_internal,
         fifo$out_deq__RDY,
@@ -41,6 +41,10 @@ module l_class_OC_Connect (
         nRST,
         rule_enable[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_CnocTop_RULE_COUNT],
         rule_ready[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_CnocTop_RULE_COUNT]);
+    assign agg_2e_tmp$FixedPoint__ENA = respond__ENA_internal;
+    assign agg_2e_tmp$FixedPoint_arg = fifo$out_first$a;
+    assign agg_2e_tmp3$FixedPoint__ENA = respond__ENA_internal;
+    assign agg_2e_tmp3$FixedPoint_arg = fifo$out_first$b;
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;
@@ -53,16 +57,8 @@ module l_class_OC_Connect (
       end // nRST
       else begin
         if (respond__ENA_internal) begin
-            agg_2e_tmp <= fifo$out_first$a;
-            agg_2e_tmp3 <= fifo$out_first$b;
             gcounter <= gcounter + 1;
         end; // End of respond
-        if (say__ENA_internal) begin
-            agg_2e_tmp$a <= temp$a;
-            agg_2e_tmp$b <= temp$b;
-            temp$a <= say_meth;
-            temp$b <= say_v;
-        end; // End of say
       end
     end // always @ (posedge CLK)
 endmodule 

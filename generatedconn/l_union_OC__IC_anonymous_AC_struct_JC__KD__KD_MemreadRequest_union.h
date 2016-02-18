@@ -1,9 +1,0 @@
-#ifndef __l_union_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_H__
-#define __l_union_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_H__
-#include "l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say.h"
-class l_union_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union {
-  l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say say;
-public:
-  void run();
-};
-#endif  // __l_union_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_H__

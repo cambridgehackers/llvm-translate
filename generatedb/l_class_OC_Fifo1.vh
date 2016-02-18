@@ -3,6 +3,7 @@
 
 `define l_class_OC_Fifo1_RULE_COUNT (0)
 
+//METAREAD; in_enq; :;in_enq_v;
 //METAWRITE; in_enq; :;element:;full;
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAWRITE; out_deq; :;full;
