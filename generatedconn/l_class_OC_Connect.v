@@ -36,11 +36,11 @@ module l_class_OC_Connect (
     reg[23:0] fcounter;
     reg[1:0] counter;
     reg[10:0] gcounter;
-    l_class_OC_XsimTop lXsimTop (
+    l_class_OC_CnocTop top (
         CLK,
         nRST,
-        rule_enable[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_XsimTop_RULE_COUNT],
-        rule_ready[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_XsimTop_RULE_COUNT]);
+        rule_enable[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_CnocTop_RULE_COUNT],
+        rule_ready[1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT:`l_class_OC_CnocTop_RULE_COUNT]);
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;

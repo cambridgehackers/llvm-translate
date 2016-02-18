@@ -1,0 +1,9 @@
+#ifndef __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say_H__
+#define __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say_H__
+typedef struct {
+  unsigned int meth;
+  unsigned int v;
+public:
+  void run();
+}l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say;
+#endif  // __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_MemreadRequest_union_KD__KD_MemreadRequest_say_H__

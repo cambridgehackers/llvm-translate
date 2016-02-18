@@ -51,5 +51,5 @@ void l_class_OC_Connect::run()
 {
     if (respond__RDY()) respond();
     fifo.run();
-    lXsimTop.run();
+    top.run();
 }
