@@ -113,6 +113,10 @@ static void processAlloca(Function *func)
 {
     std::map<const Value *,Value *> remapValue;
     std::list<Instruction *> moveList;
+if (func->getName() == "_ZN7Connect7respondEv") {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+func->dump();
+}
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
@@ -120,11 +124,14 @@ static void processAlloca(Function *func)
             case Instruction::Store:
                 if (Instruction *target = dyn_cast<Instruction>(II->getOperand(1))) {
                 if (target->getOpcode() == Instruction::Alloca) {
+                    if (!dyn_cast<CallInst>(II->getOperand(0))) { // don't do remapping for calls
                     // remember values stored in Alloca temps
                     remapValue[II->getOperand(1)] = II->getOperand(0);
                     recursiveDelete(II);
+                    }
                 }
                 else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) {
+                    (void)CE;
                     //printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
                     //CE->dump();
                     recursiveDelete(II);
@@ -526,6 +533,10 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
     SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
     ValueToValueMapTy VMapfunc;
     SmallVector<ReturnInst*, 8> Returnsfunc;  // Ignore returns cloned.
+    if (trace_fixup) {
+        printf("[%s:%d] BEFORECLONE method %s func %p\n", __FUNCTION__, __LINE__, methodName.c_str(), argFunc);
+        argFunc->dump();
+    }
     Function *func = Function::Create(FunctionType::get(argFunc->getReturnType(),
                         argFunc->getFunctionType()->params(), false), GlobalValue::LinkOnceODRLinkage,
                         "TEMPFUNC", argFunc->getParent());
