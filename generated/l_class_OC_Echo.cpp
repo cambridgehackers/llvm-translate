@@ -1,7 +1,9 @@
 #include "l_class_OC_Echo.h"
 void l_class_OC_Echo::respond_rule(void) {
+        unsigned int call;
         unsigned int temp;
-        temp = fifo.out_first();
+        call = fifo.out_first();
+        temp = call;
         fifo.out_deq();
         ind->heard(temp);
 }
