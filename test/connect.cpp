@@ -43,6 +43,7 @@ public:
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"
 #include "l_class_OC_EchoRequestInput.cpp"
+#include "l_class_OC_Fifo1_OC_0.cpp"
 
 unsigned int stop_main_program;
 int testCount;

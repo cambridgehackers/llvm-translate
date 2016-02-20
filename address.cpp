@@ -113,7 +113,7 @@ static void processAlloca(Function *func)
 {
     std::map<const Value *,Value *> remapValue;
     std::list<Instruction *> moveList;
-if (func->getName() == "_ZN7Connect7respondEv") {
+if (func->getName() == "zz_ZN7Connect7respondEv") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }
