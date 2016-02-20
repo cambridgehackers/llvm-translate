@@ -1,15 +1,21 @@
 `ifndef __l_class_OC_Connect_VH__
 `define __l_class_OC_Connect_VH__
 
-`include "l_class_OC_CnocTop.vh"
-`include "l_class_OC_Fifo1_OC_1.vh"
-`define l_class_OC_Connect_RULE_COUNT (1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT + `l_class_OC_CnocTop_RULE_COUNT)
+`include "l_class_OC_Echo.vh"
+`include "l_class_OC_EchoIndicationOutput.vh"
+`include "l_class_OC_EchoRequestInput.vh"
+`include "l_class_OC_Fifo1_OC_0.vh"
+`define l_class_OC_Connect_RULE_COUNT (1 + `l_class_OC_Fifo1_OC_0_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT)
 
-//METAINTERNAL; fifo; l_class_OC_Fifo1_OC_1;
+//METAINTERNAL; fifo; l_class_OC_Fifo1_OC_0;
 //METAEXTERNAL; ind; l_class_OC_ConnectIndication;
-//METAINTERNAL; top; l_class_OC_CnocTop;
-//METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;agg_2e_tmp$FixedPoint:;agg_2e_tmp3$FixedPoint:;ind$heard;
+//METAINTERNAL; lEchoIndicationOutput; l_class_OC_EchoIndicationOutput;
+//METAINTERNAL; lEchoRequestInput; l_class_OC_EchoRequestInput;
+//METAINTERNAL; lEcho; l_class_OC_Echo;
+//METAREAD; respond; :;fifo$out_first$a:;fifo$out_first$b;
+//METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
+//METAWRITE; say; :;temp$a:;temp$b;
 //METAINVOKE; say; :;fifo$in_enq;
 //METAGUARD; say__RDY; fifo$in_enq__RDY;
 `endif

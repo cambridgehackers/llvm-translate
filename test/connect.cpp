@@ -26,30 +26,23 @@
 #include <stdint.h>
 
 typedef struct {
-} l_class_OC_PipeIn_OC_6;
-class l_class_OC_MemreadRequest {
+} l_class_OC_PipeIn_OC_4;
+class l_class_OC_EchoRequest {
 public:
     void say(int say_meth, int say_v) {
         printf("[%s:%d]\n", __FUNCTION__, __LINE__);
     }
     bool say__RDY(void) { return true;}
 };
+class l_class_OC_EchoIndication {
+public:
+};
 
-typedef uint32_t BITS;
-typedef BITS BITS1;
-typedef BITS BITS4;
-typedef BITS BITS6;
-typedef BITS BITS10;
-typedef BITS BITS23;
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 #include "l_class_OC_Connect.cpp"
-#include "l_class_OC_Fifo1_OC_1.cpp"
-#include "l_class_OC_CnocTop.cpp"
-#include "l_class_OC_Memread.cpp"
-#include "l_class_OC_MemreadIndication.cpp"
-#include "l_class_OC_MemreadRequest.cpp"
-#include "l_class_OC_MemreadIndicationOutput.cpp"
-#include "l_class_OC_MemreadRequestInput.cpp"
+#include "l_class_OC_Echo.cpp"
+#include "l_class_OC_EchoIndicationOutput.cpp"
+#include "l_class_OC_EchoRequestInput.cpp"
 
 unsigned int stop_main_program;
 int testCount;
@@ -59,7 +52,7 @@ class l_class_OC_Connect zConnect;
 bool l_class_OC_ConnectIndication::heard__RDY(void) {
         return true;
 }
-void l_class_OC_ConnectIndication::heard(BITS4 meth, BITS6 v) {
+void l_class_OC_ConnectIndication::heard(unsigned int meth, unsigned int v) {
         printf("Heard an echo: %d %d\n", meth, v);
         if (--testCount <= 0)
             stop_main_program = 1;

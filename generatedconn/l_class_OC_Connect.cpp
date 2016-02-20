@@ -1,16 +1,9 @@
 #include "l_class_OC_Connect.h"
 void l_class_OC_Connect::respond(void) {
-        BITS6 agg_2e_tmp;
-        BITS4 agg_2e_tmp3;
-        unsigned long long call;
         l_struct_OC_ValueType temp;
-        call = gcounter;
-        gcounter = call + 1;
         temp = fifo.out_first();
         fifo.out_deq();
-        agg_2e_tmp = (temp.a);
-        agg_2e_tmp3 = (temp.b);
-        ind->heard(agg_2e_tmp, agg_2e_tmp3);
+        ind->heard(temp.a, temp.b);
 }
 bool l_class_OC_Connect::respond__RDY(void) {
         bool tmp__1;
@@ -21,10 +14,10 @@ bool l_class_OC_Connect::respond__RDY(void) {
         tmp__3 = ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_Connect::say(BITS6 say_meth, BITS4 say_v) {
+void l_class_OC_Connect::say(unsigned int say_meth, unsigned int say_v) {
         l_struct_OC_ValueType temp;
-        temp.a = (say_meth);
-        temp.b = (say_v);
+        temp.a = say_meth;
+        temp.b = say_v;
         fifo.in_enq(temp);
 }
 bool l_class_OC_Connect::say__RDY(void) {
@@ -36,5 +29,7 @@ void l_class_OC_Connect::run()
 {
     if (respond__RDY()) respond();
     fifo.run();
-    top.run();
+    lEchoIndicationOutput.run();
+    lEchoRequestInput.run();
+    lEcho.run();
 }

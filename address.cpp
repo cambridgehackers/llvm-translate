@@ -938,7 +938,7 @@ static void processMemcpy(CallInst *II)
     Argument *destArg = NULL;
     if (dest->getOpcode() == Instruction::BitCast)
         destArg = dyn_cast<Argument>(dest->getOperand(0));
-    Instruction *source = dyn_cast<Instruction>(II->getOperand(1));
+    if (Instruction *source = dyn_cast<Instruction>(II->getOperand(1)))
     if (source->getOpcode() == Instruction::BitCast)
     if (dest->getOpcode() == Instruction::BitCast)
     if (Instruction *destTmp = dyn_cast<Instruction>(dest->getOperand(0))) {

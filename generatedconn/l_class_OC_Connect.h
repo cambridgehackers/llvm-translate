@@ -1,20 +1,21 @@
 #ifndef __l_class_OC_Connect_H__
 #define __l_class_OC_Connect_H__
-#include "l_class_OC_CnocTop.h"
 #include "l_class_OC_ConnectIndication.h"
-#include "l_class_OC_Fifo1_OC_1.h"
+#include "l_class_OC_Echo.h"
+#include "l_class_OC_EchoIndicationOutput.h"
+#include "l_class_OC_EchoRequestInput.h"
+#include "l_class_OC_Fifo1_OC_0.h"
 class l_class_OC_Connect {
-  l_class_OC_Fifo1_OC_1 fifo;
-  BITS23 fcounter;
-  BITS1 counter;
-  BITS10 gcounter;
+  l_class_OC_Fifo1_OC_0 fifo;
   l_class_OC_ConnectIndication *ind;
-  l_class_OC_CnocTop top;
+  l_class_OC_EchoIndicationOutput lEchoIndicationOutput;
+  l_class_OC_EchoRequestInput lEchoRequestInput;
+  l_class_OC_Echo lEcho;
 public:
   void run();
   void respond(void);
   bool respond__RDY(void);
-  void say(BITS6 say_meth, BITS4 say_v);
+  void say(unsigned int say_meth, unsigned int say_v);
   bool say__RDY(void);
   void setind(l_class_OC_ConnectIndication *v) { ind = v; }
 };

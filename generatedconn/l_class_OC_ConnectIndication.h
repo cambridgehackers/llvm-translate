@@ -3,7 +3,7 @@
 class l_class_OC_ConnectIndication {
 public:
   void run();
-  void heard(BITS6 heard_meth, BITS4 heard_v);
+  void heard(unsigned int heard_meth, unsigned int heard_v);
   bool heard__RDY(void);
 };
 #endif  // __l_class_OC_ConnectIndication_H__

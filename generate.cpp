@@ -88,8 +88,14 @@ const char *intmapLookup(INTMAP_TYPE *map, int value)
 
 static bool isInlinableInst(const Instruction &I)
 {
-    if (isa<CallInst>(I) && generateRegion == ProcessCPP)
+    if (isa<CallInst>(I) && generateRegion == ProcessCPP) {
+        if (I.hasOneUse()) {
+            const Instruction &User = cast<Instruction>(*I.user_back());
+            if (isa<StoreInst>(User))
+                return true;
+        }
         return false; // needed to force guardedValue reads before Action calls
+    }
     if (isa<CmpInst>(I) || isa<LoadInst>(I))
         return true;
     if (I.getType() == Type::getVoidTy(I.getContext())
@@ -617,6 +623,12 @@ static std::string processInstruction(Instruction &I)
         StoreInst &IS = static_cast<StoreInst&>(I);
         ERRORIF (IS.isVolatile());
         std::string pdest = printOperand(IS.getPointerOperand(), true);
+        if (Instruction *dest = dyn_cast<Instruction>(IS.getPointerOperand()))
+        if (dest->getOpcode() == Instruction::BitCast) {
+            // for weird case of recasting target pointer when returning
+            // a struct that happens to fit in an i64
+            pdest = printOperand(dest->getOperand(0), true);
+        }
         if (pdest[0] == '&')
             pdest = pdest.substr(1);
         Value *Operand = I.getOperand(0);
@@ -880,7 +892,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN7IVector3sayE10FixedPointILi6EES0_ILi4EE") {
+if (func->getName() == "_ZN7Connect7respondEv") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }
