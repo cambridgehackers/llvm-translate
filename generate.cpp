@@ -590,6 +590,13 @@ std::string parenOperand(Value *Operand)
  * Generate a string for any valid instruction DAG.
  */
 static Function *processIFunction;
+static bool isAlloca(Value *arg)
+{
+    if (Instruction *source = dyn_cast<Instruction>(arg))
+    if (source->getOpcode() == Instruction::Alloca)
+        return true;
+    return false;
+}
 static std::string processInstruction(Instruction &I)
 {
     std::string vout;
@@ -607,7 +614,7 @@ static std::string processInstruction(Instruction &I)
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
         std::string p = printOperand(I.getOperand(0), true);
-        if (I.getType()->getTypeID() != Type::PointerTyID)
+        if (I.getType()->getTypeID() != Type::PointerTyID && !isAlloca(I.getOperand(0)))
             readList.push_back(ReferenceType{I.getParent(), p});
         return p;
         }
@@ -625,10 +632,15 @@ static std::string processInstruction(Instruction &I)
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(Operand, false);
-        writeList.push_back(ReferenceType{I.getParent(), pdest});
+        if (!isAlloca(IS.getPointerOperand()))
+            writeList.push_back(ReferenceType{I.getParent(), pdest});
         if (BitMask)
             sval = "((" + sval + ") & " + parenOperand(BitMask) + ")";
-        storeList[pdest] = ReferenceType{I.getParent(), sval};
+        Instruction *dest = dyn_cast<Instruction>(IS.getPointerOperand());
+        if (generateRegion == ProcessVerilog && dest && dest->getOpcode() == Instruction::Alloca)
+            setAssign(pdest, sval);
+        else
+            storeList[pdest] = ReferenceType{I.getParent(), sval};
         return "";
         }
 

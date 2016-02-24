@@ -25,7 +25,7 @@ module l_class_OC_FifoPong (
         CLK,
         nRST,
         in_enq__ENA_internal & pong ^ 1,
-        in_enq_v,
+        element2$in_enq_v,
         element1$in_enq__RDY,
         out_deq__ENA_internal & pong ^ 1,
         element1$out_deq__RDY,
@@ -33,6 +33,7 @@ module l_class_OC_FifoPong (
         element1$out_first__RDY,
         rule_enable[0:`l_class_OC_Fifo1_OC_3_RULE_COUNT],
         rule_ready[0:`l_class_OC_Fifo1_OC_3_RULE_COUNT]);
+    wire [703:0]element2$in_enq_v;
     wire element2$in_enq__RDY;
     wire element2$out_deq__RDY;
     wire [703:0]element2$out_first;
@@ -41,7 +42,7 @@ module l_class_OC_FifoPong (
         CLK,
         nRST,
         in_enq__ENA_internal & pong,
-        in_enq_v,
+        element2$in_enq_v,
         element2$in_enq__RDY,
         out_deq__ENA_internal & pong,
         element2$out_deq__RDY,

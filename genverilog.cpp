@@ -52,7 +52,7 @@ std::string verilogArrRange(Type *Ty)
 static bool findExact(std::string haystack, std::string needle)
 {
     std::string::size_type sz = haystack.find(needle);
-    if (sz == std::string::npos)
+    if (sz == std::string::npos || needle == "")
         return false;
     sz += needle.length();
     if (isalnum(haystack[sz]) || haystack[sz] == '_' || haystack[sz] == '$')
@@ -87,6 +87,11 @@ static std::string inlineValue(std::string wname, bool clear)
             return wname;
     }
     return temp;
+}
+
+void setAssign(std::string target, std::string value)
+{
+     assignList[target] = inlineValue(value, true);
 }
 
 /*
@@ -422,8 +427,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
                 metaList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
             }
-            else
-                assignList[mname] = temp;  // collect the text of the return value into a single 'assign'
+            else if (temp != "")
+                setAssign(mname, temp);  // collect the text of the return value into a single 'assign'
         }
         else {
             // generate RDY_internal wire so that we can reference RDY expression inside module
@@ -482,7 +487,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             if (remain)
                 temp += " : ";
         }
-        assignList[item.first] = temp;
+        setAssign(item.first, temp);
     }
     // generate local state element declarations
     Idx = 0;

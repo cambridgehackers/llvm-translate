@@ -108,3 +108,4 @@ Value *getCondition(BasicBlock *bb, int invert);
 int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E);
 void prepareReplace(const Value *olda, Value *newa);
 void setCondition(BasicBlock *bb, int invert, Value *val);
+void setAssign(std::string target, std::string value);
