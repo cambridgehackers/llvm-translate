@@ -26,6 +26,8 @@
 #include <stdint.h>
 
 typedef struct {
+} l_class_OC_PipeIn_OC_1;
+typedef struct {
 } l_class_OC_PipeIn_OC_4;
 class l_class_OC_EchoRequest {
 public:
@@ -36,6 +38,10 @@ public:
 };
 class l_class_OC_EchoIndication {
 public:
+    void heard(int heard_meth, int heard_v) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+    bool heard__RDY(void) { return true;}
 };
 
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
@@ -43,7 +49,9 @@ public:
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"
 #include "l_class_OC_EchoRequestInput.cpp"
+#include "l_class_OC_EchoIndicationInput.cpp"
 #include "l_class_OC_Fifo1_OC_0.cpp"
+#include "l_class_OC_Fifo1_OC_2.cpp"
 
 unsigned int stop_main_program;
 int testCount;

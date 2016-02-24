@@ -3,5 +3,5 @@
 
 `define l_class_OC_EchoIndicationOutput_RULE_COUNT (0)
 
-//METAEXTERNAL; pipe; l_class_OC_PipeIn_OC_4;
+//METAEXTERNAL; pipe; l_class_OC_PipeIn_OC_1;
 `endif

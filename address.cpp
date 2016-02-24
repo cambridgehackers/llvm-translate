@@ -38,7 +38,7 @@ static int trace_malloc;//= 1;
 static int trace_fixup;//= 1;
 static int trace_hoist;//= 1;
 static int trace_lookup;//= 1;
-static int trace_pair;//= 1;
+static int trace_pair= 1;
 
 typedef  struct {
     void *p;
@@ -1014,6 +1014,12 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());
+#if 1
+if (mName == "heard") {
+ICL->dump();
+func->dump();
+}
+#endif
                     if (calledFunc)
                         methodMap[name + std::string("_") + mName] = calledFunc;
                 }
@@ -1129,13 +1135,18 @@ void preprocessModule(Module *Mod)
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
         if (ret && !strncmp(ret, "vtable for ", 11)
          && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
+bool traceme = name == "_ZTV20EchoIndicationOutput";
             if (trace_lookup)
                 printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
                 if (Function *func = dyn_cast<Function>(vinit->getOperand(0)))
+{
+if (traceme)
+printf("[%s:%d] ZZZZZ func %p name %s\n", __FUNCTION__, __LINE__, func, func->getName().str().c_str());
                     addMethodTable(func);
+}
             }
         }
     }
