@@ -54,6 +54,11 @@ module l_class_OC_Connect (
         nRST,
         rule_enable[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT],
         rule_ready[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT]);
+    l_class_OC_EchoRequestOutput lEchoRequestOutput_test (
+        CLK,
+        nRST,
+        rule_enable[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoRequestOutput_RULE_COUNT],
+        rule_ready[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoRequestOutput_RULE_COUNT]);
     wire lEchoIndicationInput_test$pipe_enq__ENA;
     wire [95:0]lEchoIndicationInput_test$pipe_enq_v;
     wire lEchoIndicationInput_test$pipe_enq__RDY;
@@ -63,8 +68,8 @@ module l_class_OC_Connect (
         lEchoIndicationInput_test$pipe_enq__ENA,
         lEchoIndicationInput_test$pipe_enq_v,
         lEchoIndicationInput_test$pipe_enq__RDY,
-        rule_enable[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT],
-        rule_ready[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT]);
+        rule_enable[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT + `l_class_OC_EchoRequestOutput_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT],
+        rule_ready[1 + `l_class_OC_Fifo1_OC_2_RULE_COUNT + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT + `l_class_OC_EchoRequestOutput_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT]);
     assign ind$heard__ENA = respond__ENA_internal;
     assign ind$heard_heard_meth = fifo$out_first$a;
     assign ind$heard_heard_v = fifo$out_first$b;

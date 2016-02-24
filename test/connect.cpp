@@ -26,6 +26,8 @@
 #include <stdint.h>
 
 typedef struct {
+} l_class_OC_PipeIn_OC_0;
+typedef struct {
 } l_class_OC_PipeIn_OC_1;
 typedef struct {
 } l_class_OC_PipeIn_OC_4;
@@ -49,6 +51,7 @@ public:
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"
 #include "l_class_OC_EchoRequestInput.cpp"
+#include "l_class_OC_EchoRequestOutput.cpp"
 #include "l_class_OC_EchoIndicationInput.cpp"
 #include "l_class_OC_Fifo1_OC_0.cpp"
 #include "l_class_OC_Fifo1_OC_2.cpp"

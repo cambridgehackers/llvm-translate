@@ -5,6 +5,7 @@
 #include "l_class_OC_EchoIndicationInput.h"
 #include "l_class_OC_EchoIndicationOutput.h"
 #include "l_class_OC_EchoRequestInput.h"
+#include "l_class_OC_EchoRequestOutput.h"
 #include "l_class_OC_Fifo1_OC_2.h"
 class l_class_OC_Connect {
   l_class_OC_Fifo1_OC_2 fifo;
@@ -12,6 +13,7 @@ class l_class_OC_Connect {
   l_class_OC_EchoIndicationOutput lEchoIndicationOutput;
   l_class_OC_EchoRequestInput lEchoRequestInput;
   l_class_OC_Echo lEcho;
+  l_class_OC_EchoRequestOutput lEchoRequestOutput_test;
   l_class_OC_EchoIndicationInput lEchoIndicationInput_test;
 public:
   void run();
