@@ -25,24 +25,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "l_struct_OC_EchoRequest_data.h"
-#include "l_struct_OC_EchoIndication_data.h"
-#define request_say say
-#define request_say__RDY say__RDY
-typedef struct {
-    void enq(l_struct_OC_EchoRequest_data enq_v) {
-        printf("[%s:%d]OC0\n", __FUNCTION__, __LINE__);
-    }
-    bool enq__RDY(void) { return true; }
-} l_class_OC_PipeIn_OC_0;
-typedef struct {
-    void enq(l_struct_OC_EchoIndication_data enq_v) {
-        printf("[%s:%d]OC1\n", __FUNCTION__, __LINE__);
-    }
-    bool enq__RDY(void) { return true; }
-} l_class_OC_PipeIn_OC_1;
-typedef struct {
-} l_class_OC_PipeIn_OC_4;
 class l_class_OC_EchoRequest {
 public:
     void say(int say_meth, int say_v) {
@@ -58,6 +40,15 @@ public:
     bool heard__RDY(void) { return true;}
 };
 
+#include "l_struct_OC_EchoRequest_data.h"
+#include "l_struct_OC_EchoIndication_data.h"
+#define request_say say
+#define request_say__RDY say__RDY
+#include "l_class_OC_EchoRequestInput.h"
+#include "l_class_OC_EchoIndicationInput.h"
+typedef l_class_OC_EchoRequestInput l_class_OC_PipeIn;
+typedef l_class_OC_EchoIndicationInput l_class_OC_PipeIn_OC_0;
+
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Echo.cpp"
@@ -65,7 +56,6 @@ public:
 #include "l_class_OC_EchoRequestInput.cpp"
 #include "l_class_OC_EchoRequestOutput.cpp"
 #include "l_class_OC_EchoIndicationInput.cpp"
-#include "l_class_OC_Fifo1_OC_2.cpp"
 
 unsigned int stop_main_program;
 int testCount;
