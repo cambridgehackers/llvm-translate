@@ -1,6 +1,6 @@
 #include "l_class_OC_EchoRequestInput.h"
 void l_class_OC_EchoRequestInput::enq(l_struct_OC_EchoRequest_data enq_v) {
-        printf("entered EchoRequestInput::enq\n");
+        printf("entered EchoRequestInput::enq %p\n", request);
         if ((enq_v.tag) == 1)
             request->say(enq_v.data.say.meth, enq_v.data.say.v);
 }

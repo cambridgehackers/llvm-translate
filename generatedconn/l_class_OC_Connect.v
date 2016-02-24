@@ -40,9 +40,17 @@ module l_class_OC_Connect (
         lEchoRequestInput$enq__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT]);
+    wire lEcho$say__ENA;
+    wire [31:0]lEcho$say_meth;
+    wire [31:0]lEcho$say_v;
+    wire lEcho$say__RDY;
     l_class_OC_Echo lEcho (
         CLK,
         nRST,
+        lEcho$say__ENA,
+        lEcho$say_meth,
+        lEcho$say_v,
+        lEcho$say__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT]);
     wire lEchoRequestOutput_test$say__ENA;

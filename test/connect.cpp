@@ -27,17 +27,17 @@
 
 class l_class_OC_EchoRequest {
 public:
-    void say(int say_meth, int say_v) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    }
-    bool say__RDY(void) { return true;}
+    virtual void say(unsigned int say_meth, unsigned int say_v){};// {
+        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //}
+    virtual bool say__RDY(void) { return true;}
 };
 class l_class_OC_EchoIndication {
 public:
-    void heard(int heard_meth, int heard_v) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    }
-    bool heard__RDY(void) { return true;}
+    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {};// {
+        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    //}
+    virtual bool heard__RDY(void) { return true;}
 };
 
 #include "l_struct_OC_EchoRequest_data.h"
@@ -70,11 +70,24 @@ void l_class_OC_ConnectIndication::heard(unsigned int meth, unsigned int v) {
         if (--testCount <= 0)
             stop_main_program = 1;
 }
+class foo: public l_class_OC_EchoIndication {
+    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {
+printf("[%s:%d] foo\n", __FUNCTION__, __LINE__);
+zConnectIndication.heard(heard_meth, heard_v);
+    };
+    virtual bool heard__RDY(void) { return true;}
+};
+class foo zConnectresp;
 
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zConnect.setind(&zConnectIndication);
+zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);
+zConnect.lEchoRequestInput.setrequest(&zConnect.lEcho);
+zConnect.lEcho.setindication(&zConnect.lEchoIndicationOutput);
+zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
+zConnect.lEchoIndicationInput_test.setrequest(&zConnectresp);
     zConnect.say(1, 44 * 1); testCount++;
     while (!stop_main_program) {
         zConnect.run();

@@ -8,12 +8,12 @@
 #include "l_class_OC_EchoRequestOutput.h"
 class l_class_OC_Connect {
   l_class_OC_ConnectIndication *ind;
+public:
   l_class_OC_EchoIndicationOutput lEchoIndicationOutput;
   l_class_OC_EchoRequestInput lEchoRequestInput;
   l_class_OC_Echo lEcho;
   l_class_OC_EchoRequestOutput lEchoRequestOutput_test;
   l_class_OC_EchoIndicationInput lEchoIndicationInput_test;
-public:
   void run();
   void say(unsigned int say_meth, unsigned int say_v);
   bool say__RDY(void);

@@ -1,5 +1,6 @@
 #include "l_class_OC_EchoIndicationInput.h"
 void l_class_OC_EchoIndicationInput::enq(l_struct_OC_EchoIndication_data enq_v) {
+printf("[%s:%d] EII request %p\n", __FUNCTION__, __LINE__, request);
         if ((enq_v.tag) == 1)
             request->heard(enq_v.data.heard.meth, enq_v.data.heard.v);
 }
