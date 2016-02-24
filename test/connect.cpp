@@ -25,9 +25,28 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "l_struct_OC_EchoRequest_data.h"
+#include "l_struct_OC_EchoIndication_data.h"
+#define request_say say
+#define request_say__RDY say__RDY
 typedef struct {
+    void enq(l_struct_OC_EchoRequest_data enq_v) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+#if 0
+    void enq(l_struct_OC_EchoIndication_data enq_v) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+#endif
+    bool enq__RDY(void) { return true; }
 } l_class_OC_PipeIn_OC_0;
 typedef struct {
+    void enq(l_struct_OC_EchoIndication_data enq_v) {
+        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+    }
+    bool enq__RDY(void) { return true; }
 } l_class_OC_PipeIn_OC_1;
 typedef struct {
 } l_class_OC_PipeIn_OC_4;

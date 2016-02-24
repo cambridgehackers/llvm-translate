@@ -18,6 +18,6 @@
 //METAINTERNAL; lEchoIndicationInput_test; l_class_OC_EchoIndicationInput;
 //METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAINVOKE; say; :;fifo$in_enq;
-//METAGUARD; say__RDY; fifo$in_enq__RDY;
+//METAINVOKE; say; :;lEchoRequestOutput_test$request_say;
+//METAGUARD; say__RDY; lEchoRequestOutput_test$request_say__RDY;
 `endif

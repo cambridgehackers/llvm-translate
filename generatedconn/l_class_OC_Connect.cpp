@@ -15,14 +15,11 @@ bool l_class_OC_Connect::respond__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_Connect::say(unsigned int say_meth, unsigned int say_v) {
-        l_struct_OC_ValueType temp;
-        temp.a = say_meth;
-        temp.b = say_v;
-        fifo.in_enq(temp);
+        lEchoRequestOutput_test.request_say(say_meth, say_v);
 }
 bool l_class_OC_Connect::say__RDY(void) {
         bool tmp__1;
-        tmp__1 = fifo.in_enq__RDY();
+        tmp__1 = lEchoRequestOutput_test.request_say__RDY();
         return tmp__1;
 }
 void l_class_OC_Connect::run()
