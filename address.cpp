@@ -1014,7 +1014,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());
-#if 1
+#if 0
 if (mName == "heard") {
 ICL->dump();
 func->dump();

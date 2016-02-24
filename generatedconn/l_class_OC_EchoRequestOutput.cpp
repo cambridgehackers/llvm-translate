@@ -4,6 +4,7 @@ void l_class_OC_EchoRequestOutput::say(unsigned int say_meth, unsigned int say_v
         ind.data.say.meth = say_meth;
         ind.data.say.v = say_v;
         ind.tag = 1;
+        printf("entered EchoRequestOutput::say\n");
         pipe->enq(ind);
 }
 bool l_class_OC_EchoRequestOutput::say__RDY(void) {

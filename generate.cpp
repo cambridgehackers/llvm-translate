@@ -549,6 +549,11 @@ static std::string printCall(Instruction &I)
     if (mname == ".operator=" || mname == "->FixedPoint" || mname == "->ValueType") {
         vout += pcalledFunction + " = (";
     }
+    else if (calledName == "printf") {
+        printf("CALL: PRINTFCALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
+        vout = "printf(" + pcalledFunction.substr(1, pcalledFunction.length()-2);
+        sep = ", ";
+    }
     else if (generateRegion == ProcessVerilog) {
         if (retType == Type::getVoidTy(func->getContext()))
             muxEnable(I.getParent(), mname + "__ENA");

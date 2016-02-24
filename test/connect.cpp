@@ -31,20 +31,13 @@
 #define request_say__RDY say__RDY
 typedef struct {
     void enq(l_struct_OC_EchoRequest_data enq_v) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        printf("[%s:%d]OC0\n", __FUNCTION__, __LINE__);
     }
-#if 0
-    void enq(l_struct_OC_EchoIndication_data enq_v) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    }
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    }
-#endif
     bool enq__RDY(void) { return true; }
 } l_class_OC_PipeIn_OC_0;
 typedef struct {
     void enq(l_struct_OC_EchoIndication_data enq_v) {
-        printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+        printf("[%s:%d]OC1\n", __FUNCTION__, __LINE__);
     }
     bool enq__RDY(void) { return true; }
 } l_class_OC_PipeIn_OC_1;
@@ -72,7 +65,6 @@ public:
 #include "l_class_OC_EchoRequestInput.cpp"
 #include "l_class_OC_EchoRequestOutput.cpp"
 #include "l_class_OC_EchoIndicationInput.cpp"
-#include "l_class_OC_Fifo1_OC_0.cpp"
 #include "l_class_OC_Fifo1_OC_2.cpp"
 
 unsigned int stop_main_program;

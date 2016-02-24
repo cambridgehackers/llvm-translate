@@ -15,6 +15,7 @@ bool l_class_OC_Connect::respond__RDY(void) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_Connect::say(unsigned int say_meth, unsigned int say_v) {
+        printf("entered Connect::say\n");
         lEchoRequestOutput_test.request_say(say_meth, say_v);
 }
 bool l_class_OC_Connect::say__RDY(void) {
