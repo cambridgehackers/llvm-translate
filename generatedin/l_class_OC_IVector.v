@@ -263,16 +263,12 @@ module l_class_OC_IVector (
     assign say__RDY_internal = ((((((((fifo0$in_enq__RDY & fifo1$in_enq__RDY) & fifo2$in_enq__RDY) & fifo3$in_enq__RDY) & fifo4$in_enq__RDY) & fifo5$in_enq__RDY) & fifo6$in_enq__RDY) & fifo7$in_enq__RDY) & fifo8$in_enq__RDY) & fifo9$in_enq__RDY;
     assign say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9$in_enq__ENA = say__ENA_internal;
     assign say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9$in_enq_v = temp;
+    assign temp$b = say_v;
 
     always @( posedge CLK) begin
       if (!nRST) begin
         vsize <= 0;
       end // nRST
-      else begin
-        if (say__ENA_internal) begin
-            temp$b <= say_v;
-        end; // End of say
-      end
     end // always @ (posedge CLK)
 endmodule 
 

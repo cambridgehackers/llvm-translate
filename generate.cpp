@@ -115,6 +115,15 @@ static const AllocaInst *isDirectAlloca(const Value *V)
         return 0;
     return AA;
 }
+static bool isAlloca(Value *arg)
+{
+    if (GetElementPtrInst *IG = dyn_cast_or_null<GetElementPtrInst>(arg))
+        arg = dyn_cast<Instruction>(IG->getPointerOperand());
+    if (Instruction *source = dyn_cast_or_null<Instruction>(arg))
+    if (source->getOpcode() == Instruction::Alloca)
+            return true;
+    return false;
+}
 static bool isAddressExposed(const Value *V)
 {
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
@@ -536,6 +545,7 @@ static std::string printCall(Instruction &I)
     else
         printf("[%s:%d] not memcpy/memset %s\n", __FUNCTION__, __LINE__, calledName.c_str());
     }
+//HACK HACK HACK HACK HACK
     if (mname == ".operator=" || mname == "->FixedPoint" || mname == "->ValueType") {
         vout += pcalledFunction + " = (";
     }
@@ -590,13 +600,6 @@ std::string parenOperand(Value *Operand)
  * Generate a string for any valid instruction DAG.
  */
 static Function *processIFunction;
-static bool isAlloca(Value *arg)
-{
-    if (Instruction *source = dyn_cast<Instruction>(arg))
-    if (source->getOpcode() == Instruction::Alloca)
-        return true;
-    return false;
-}
 static std::string processInstruction(Instruction &I)
 {
     std::string vout;
@@ -632,15 +635,14 @@ static std::string processInstruction(Instruction &I)
         if (ITy && !ITy->isPowerOf2ByteWidth())
             BitMask = ConstantInt::get(ITy, ITy->getBitMask());
         std::string sval = printOperand(Operand, false);
-        if (!isAlloca(IS.getPointerOperand()))
-            writeList.push_back(ReferenceType{I.getParent(), pdest});
         if (BitMask)
             sval = "((" + sval + ") & " + parenOperand(BitMask) + ")";
-        Instruction *dest = dyn_cast<Instruction>(IS.getPointerOperand());
-        if (generateRegion == ProcessVerilog && dest && dest->getOpcode() == Instruction::Alloca)
+        if (generateRegion == ProcessVerilog && isAlloca(IS.getPointerOperand()))
             setAssign(pdest, sval);
-        else
+        else {
+            writeList.push_back(ReferenceType{I.getParent(), pdest});
             storeList[pdest] = ReferenceType{I.getParent(), sval};
+        }
         return "";
         }
 

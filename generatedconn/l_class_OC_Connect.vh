@@ -12,10 +12,8 @@
 //METAINTERNAL; lEchoIndicationOutput; l_class_OC_EchoIndicationOutput;
 //METAINTERNAL; lEchoRequestInput; l_class_OC_EchoRequestInput;
 //METAINTERNAL; lEcho; l_class_OC_Echo;
-//METAREAD; respond; :;fifo$out_first$a:;fifo$out_first$b;
 //METAINVOKE; respond; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAWRITE; say; :;temp$a:;temp$b;
 //METAINVOKE; say; :;fifo$in_enq;
 //METAGUARD; say__RDY; fifo$in_enq__RDY;
 `endif

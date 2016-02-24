@@ -60,16 +60,7 @@ module l_class_OC_Connect (
     assign respond__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond__RDY_internal;
     assign say__RDY = say__RDY_internal;
-
-    always @( posedge CLK) begin
-      if (!nRST) begin
-      end // nRST
-      else begin
-        if (say__ENA_internal) begin
-            temp$a <= say_meth;
-            temp$b <= say_v;
-        end; // End of say
-      end
-    end // always @ (posedge CLK)
+    assign temp$a = say_meth;
+    assign temp$b = say_v;
 endmodule 
 
