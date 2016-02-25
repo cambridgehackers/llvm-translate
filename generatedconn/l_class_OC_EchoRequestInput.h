@@ -8,8 +8,6 @@ public:
   void run();
   void enq(l_struct_OC_EchoRequest_data enq_v);
   bool enq__RDY(void);
-  void setrequest(l_class_OC_EchoRequest *v) { request = v; 
-printf("[%s:%d] ERI %p\n", __FUNCTION__, __LINE__, request);
-}
+  void setrequest(l_class_OC_EchoRequest *v) { request = v; }
 };
 #endif  // __l_class_OC_EchoRequestInput_H__

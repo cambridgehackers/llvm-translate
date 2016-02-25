@@ -1,6 +1,5 @@
 #include "l_class_OC_Echo.h"
 void l_class_OC_Echo::say(unsigned int say_meth, unsigned int say_v) {
-printf("[%s:%d]OC_ECHO %p\n", __FUNCTION__, __LINE__, indication);
         indication->heard(say_meth, say_v);
 }
 bool l_class_OC_Echo::say__RDY(void) {

@@ -88,7 +88,7 @@ zConnect.lEchoRequestInput.setrequest(&zConnect.lEcho);
 zConnect.lEcho.setindication(&zConnect.lEchoIndicationOutput);
 zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
 zConnect.lEchoIndicationInput_test.setrequest(&zConnectresp);
-    zConnect.say(1, 44 * 1); testCount++;
+    zConnect.lEchoRequestOutput_test.say(1, 44 * 1); testCount++;
     while (!stop_main_program) {
         zConnect.run();
     }

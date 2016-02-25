@@ -8,12 +8,9 @@
 `include "l_class_OC_EchoRequestOutput.vh"
 `define l_class_OC_Connect_RULE_COUNT (0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT + `l_class_OC_EchoRequestOutput_RULE_COUNT + `l_class_OC_EchoIndicationInput_RULE_COUNT)
 
-//METAEXTERNAL; ind; l_class_OC_ConnectIndication;
 //METAINTERNAL; lEchoIndicationOutput; l_class_OC_EchoIndicationOutput;
 //METAINTERNAL; lEchoRequestInput; l_class_OC_EchoRequestInput;
 //METAINTERNAL; lEcho; l_class_OC_Echo;
 //METAINTERNAL; lEchoRequestOutput_test; l_class_OC_EchoRequestOutput;
 //METAINTERNAL; lEchoIndicationInput_test; l_class_OC_EchoIndicationInput;
-//METAINVOKE; say; :;lEchoRequestOutput_test$request_say;
-//METAGUARD; say__RDY; lEchoRequestOutput_test$request_say__RDY;
 `endif
