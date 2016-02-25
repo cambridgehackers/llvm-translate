@@ -59,21 +59,13 @@ typedef l_class_OC_EchoIndicationInput l_class_OC_PipeIn_OC_0;
 
 unsigned int stop_main_program;
 int testCount;
-class l_class_OC_ConnectIndication zConnectIndication;
 class l_class_OC_Connect zConnect;
 
-bool l_class_OC_ConnectIndication::heard__RDY(void) {
-        return true;
-}
-void l_class_OC_ConnectIndication::heard(unsigned int meth, unsigned int v) {
-        printf("Heard an echo: %d %d\n", meth, v);
-        if (--testCount <= 0)
-            stop_main_program = 1;
-}
 class foo: public l_class_OC_EchoIndication {
     virtual void heard(unsigned int heard_meth, unsigned int heard_v) {
-printf("[%s:%d] foo\n", __FUNCTION__, __LINE__);
-zConnectIndication.heard(heard_meth, heard_v);
+        printf("Heard an echo: %d %d\n", heard_meth, heard_v);
+        if (--testCount <= 0)
+            stop_main_program = 1;
     };
     virtual bool heard__RDY(void) { return true;}
 };
@@ -82,7 +74,6 @@ class foo zConnectresp;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-    zConnect.setind(&zConnectIndication);
 zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);
 zConnect.lEchoRequestInput.setrequest(&zConnect.lEcho);
 zConnect.lEcho.setindication(&zConnect.lEchoIndicationOutput);
