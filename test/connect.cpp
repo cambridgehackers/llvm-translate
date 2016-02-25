@@ -54,10 +54,11 @@ class foo zConnectresp;
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);
 zConnect.lEchoRequestInput.setrequest(&zConnect.lEcho);
 zConnect.lEcho.setindication(&zConnect.lEchoIndicationOutput);
 zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
+
+zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);
 zConnect.lEchoIndicationInput_test.setrequest(&zConnectresp);
     zConnect.lEchoRequestOutput_test.say(1, 44 * 1); testCount++;
     while (!stop_main_program) {
