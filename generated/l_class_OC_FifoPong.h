@@ -1,6 +1,7 @@
 #ifndef __l_class_OC_FifoPong_H__
 #define __l_class_OC_FifoPong_H__
 class l_class_OC_FifoPong {
+public:
   unsigned int element1;
   unsigned int element2;
   bool pong;

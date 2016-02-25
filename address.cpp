@@ -211,7 +211,7 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
                 //int ind = calledName.find("EEaSERKS0_");
                 //printf("%s: %s CALLS %s cSTy %p STy %p ind %d\n", __FUNCTION__, callingName.c_str(), calledName.c_str(), callingSTy, STy, ind);
                 if (callingSTy == STy || endswith(calledName, "C2Ev") || endswith(calledName, "D2Ev")) {
-                    fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
+                    //fprintf(stdout,"callProcess: %s cName %s single!!!!\n", callingName.c_str(), calledName.c_str());
                     processAlloca(func);
                     processMethodInlining(func, parentFunc);
                     InlineFunctionInfo IFI;
@@ -486,6 +486,7 @@ static void pushWork(std::string mName, Function *func)
     if (pushSeen[func] != "")
         return;
     setSeen(func, mName);
+    //printf("[%s:%d] mname %s funcname %s\n", __FUNCTION__, __LINE__, mName.c_str(), func->getName().str().c_str());
     table->method[mName] = func;
     updateParameterNames(mName, func);
     // inline intra-class method call bodies
@@ -818,14 +819,22 @@ static void processMethodToFunction(CallInst *II)
             if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
                 Value *vop = CS->getOperand(0);
                 Function *func = NULL;
-                if (ConstantInt *CI = dyn_cast<ConstantInt>(vop))
-                    func = table->vtable[CI->getZExtValue()/sizeof(uint64_t)];
+                int64_t offset = -1;
+                if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
+                    offset = CI->getZExtValue()/sizeof(uint64_t);
+                    if (offset >= table->vtableCount) {
+                        printf("[%s:%d] offset %ld too large %d\n", __FUNCTION__, __LINE__, offset, table->vtableCount);
+                        exit(-1);
+                    }
+                    func = table->vtable[offset];
+                }
                 else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
                     ERRORIF(CE->getOpcode() != Instruction::PtrToInt);
                     func = dyn_cast<Function>(CE->getOperand(0));
                 }
                 else
                     ERRORIF(1);
+                //printf("[%s:%d] STY %s offset %ld. func %p [%s]\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), offset, func, func->getName().str().c_str());
                 val = ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func);
             }
         }
@@ -999,9 +1008,10 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
             char *eaddr = addr + SLO->getElementOffset(Idx);
             std::string fname = fieldName(STy, Idx);
-            callMap[fname] = *(Function **)eaddr;
+            Function *func = *(Function **)eaddr;
+            callMap[fname] = func;
             if (trace_pair)
-                printf("[%s:%d] callMap[%s] = %p\n", __FUNCTION__, __LINE__, fname.c_str(), eaddr);
+                printf("[%s:%d] addr %p callMap[%s] = %p [%p = %s]\n", __FUNCTION__, __LINE__, addr, fname.c_str(), eaddr, func, func->getName().str().c_str());
         }
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
@@ -1016,12 +1026,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());
-#if 0
-if (mName == "heard") {
-ICL->dump();
-func->dump();
-}
-#endif
                     if (calledFunc)
                         methodMap[name + std::string("_") + mName] = calledFunc;
                 }

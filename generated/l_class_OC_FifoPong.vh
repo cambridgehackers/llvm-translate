@@ -3,7 +3,7 @@
 
 `define l_class_OC_FifoPong_RULE_COUNT (0)
 
-//METAREAD; in_enq; :pong ^ 1;pong:;pong;
+//METAREAD; in_enq; :pong;in_enq_v:pong ^ 1;in_enq_v:pong ^ 1;pong:;pong;
 //METAWRITE; in_enq; :pong;element2:pong ^ 1;element1:;full;
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAREAD; out_deq; :;pong;
