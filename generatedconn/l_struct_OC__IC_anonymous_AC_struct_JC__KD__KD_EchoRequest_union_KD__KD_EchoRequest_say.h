@@ -1,6 +1,7 @@
 #ifndef __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_KD__KD_EchoRequest_say_H__
 #define __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_KD__KD_EchoRequest_say_H__
 typedef struct {
+public:
   unsigned int meth;
   unsigned int v;
 public:

@@ -3,6 +3,7 @@
 #include "l_class_OC_EchoIndication.h"
 #include "l_struct_OC_EchoIndication_data.h"
 class l_class_OC_EchoIndicationInput {
+public:
   l_class_OC_EchoIndication *request;
 public:
   void run();

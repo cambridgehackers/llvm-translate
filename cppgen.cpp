@@ -190,6 +190,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "typedef struct {\n");
     else
         fprintf(OStr, "class %s {\n", name.c_str());
+    fprintf(OStr, "public:\n");
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n");
     if (table)

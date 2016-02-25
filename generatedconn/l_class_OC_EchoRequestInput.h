@@ -3,6 +3,7 @@
 #include "l_class_OC_EchoRequest.h"
 #include "l_struct_OC_EchoRequest_data.h"
 class l_class_OC_EchoRequestInput {
+public:
   l_class_OC_EchoRequest *request;
 public:
   void run();

@@ -12,6 +12,7 @@ public:
   l_class_OC_Echo lEcho;
   l_class_OC_EchoRequestOutput lEchoRequestOutput_test;
   l_class_OC_EchoIndicationInput lEchoIndicationInput_test;
+public:
   void run();
 };
 #endif  // __l_class_OC_Connect_H__

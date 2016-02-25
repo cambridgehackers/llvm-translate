@@ -2,6 +2,7 @@
 #define __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union_H__
 #include "l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union_KD__KD_EchoIndication_heard.h"
 typedef struct {
+public:
   l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union_KD__KD_EchoIndication_heard heard;
 public:
   void run();
