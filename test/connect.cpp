@@ -24,15 +24,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-
-#include "l_struct_OC_EchoRequest_data.h"
-#include "l_struct_OC_EchoIndication_data.h"
-#include "l_class_OC_EchoRequestInput.h"
-#include "l_class_OC_EchoIndicationInput.h"
-typedef l_class_OC_EchoRequestInput l_class_OC_PipeIn;
-typedef l_class_OC_EchoIndicationInput l_class_OC_PipeIn_OC_0;
-
-#include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
+#define l_class_OC_PipeIn l_class_OC_EchoRequestInput 
+#define l_class_OC_PipeIn_OC_0 l_class_OC_EchoIndicationInput 
+#define l_class_OC_foo l_class_OC_EchoIndication
+#define request0 request
+#include "l_class_OC_EchoIndication.h"
+#include "l_class_OC_EchoRequest.h"
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"
