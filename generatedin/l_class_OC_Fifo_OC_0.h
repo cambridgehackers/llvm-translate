@@ -3,6 +3,7 @@
 #include "l_struct_OC_ValuePair.h"
 class l_class_OC_Fifo_OC_0 {
 public:
+public:
   void run();
   void in_enq(l_struct_OC_ValuePair in_enq_v);
   bool in_enq__RDY(void);

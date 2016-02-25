@@ -38,7 +38,7 @@ static int trace_malloc;//= 1;
 static int trace_fixup;//= 1;
 static int trace_hoist;//= 1;
 static int trace_lookup;//= 1;
-static int trace_pair= 1;
+static int trace_pair;//= 1;
 
 typedef  struct {
     void *p;
@@ -1011,6 +1011,8 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II)) {
                     std::string sname = printOperand(ICL->getCalledValue(), false);
+                    if (sname.substr(0,6) == "this->")
+                        sname = sname.substr(6);
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());

@@ -2,6 +2,7 @@
 #define __l_class_OC_Fifo_H__
 class l_class_OC_Fifo {
 public:
+public:
   void run();
   void in_enq(unsigned int in_enq_v);
   bool in_enq__RDY(void);

@@ -3,6 +3,7 @@
 #include "l_class_OC_Fifo1_OC_3.h"
 #include "l_struct_OC_ValuePair.h"
 class l_class_OC_FifoPong {
+public:
   l_class_OC_Fifo1_OC_3 element1;
   l_class_OC_Fifo1_OC_3 element2;
   bool pong;

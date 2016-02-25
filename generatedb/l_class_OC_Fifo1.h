@@ -1,6 +1,7 @@
 #ifndef __l_class_OC_Fifo1_H__
 #define __l_class_OC_Fifo1_H__
 class l_class_OC_Fifo1 {
+public:
   unsigned int element;
   bool full;
 public:

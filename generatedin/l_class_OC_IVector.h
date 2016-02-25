@@ -3,6 +3,7 @@
 #include "l_class_OC_FifoPong.h"
 #include "l_class_OC_IVectorIndication.h"
 class l_class_OC_IVector {
+public:
   l_class_OC_FifoPong fifo0;
   l_class_OC_FifoPong fifo1;
   l_class_OC_FifoPong fifo2;

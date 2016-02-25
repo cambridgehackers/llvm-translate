@@ -2,6 +2,7 @@
 #define __l_class_OC_EchoRequest_H__
 class l_class_OC_EchoRequest {
 public:
+public:
   void run();
   void say(unsigned int say_v);
   bool say__RDY(void);

@@ -3,6 +3,7 @@
 #include "l_class_OC_EchoIndication.h"
 #include "l_class_OC_Fifo1.h"
 class l_class_OC_Echo {
+public:
   l_class_OC_Fifo1 fifo;
   l_class_OC_EchoIndication *ind;
   unsigned int pipetemp;

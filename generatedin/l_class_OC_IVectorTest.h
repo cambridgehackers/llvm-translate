@@ -2,6 +2,7 @@
 #define __l_class_OC_IVectorTest_H__
 #include "l_class_OC_IVector.h"
 class l_class_OC_IVectorTest {
+public:
   l_class_OC_IVector *ivector;
 public:
   void run();

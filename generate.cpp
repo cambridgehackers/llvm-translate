@@ -423,10 +423,16 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             }
             if (expose)
                 referstr += dot;
-            else if (referstr == "this")
+            else if (referstr == "this"
+#if 0  // turn on to generate "this->" in cpp code
+                   && generateRegion == ProcessVerilog
+#endif
+                )
                 referstr = "";
             else {
-                if (arrow == "->")
+                if (referstr == "this")
+                    arrow = MODULE_ARROW;
+                if (arrow == "->" && referstr != "this")
                     referstr = "(" + referstr + ")";
                 referstr += arrow;
             }

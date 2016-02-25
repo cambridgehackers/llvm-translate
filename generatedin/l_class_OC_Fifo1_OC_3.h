@@ -2,6 +2,7 @@
 #define __l_class_OC_Fifo1_OC_3_H__
 #include "l_struct_OC_ValuePair.h"
 class l_class_OC_Fifo1_OC_3 {
+public:
   l_struct_OC_ValuePair element;
   bool full;
 public:
