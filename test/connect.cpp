@@ -25,21 +25,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-class l_class_OC_EchoRequest {
-public:
-    virtual void say(unsigned int say_meth, unsigned int say_v){};
-    virtual bool say__RDY(void) { return true;}
-};
-class l_class_OC_EchoIndication {
-public:
-    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {};
-    virtual bool heard__RDY(void) { return true;}
-};
-
 #include "l_struct_OC_EchoRequest_data.h"
 #include "l_struct_OC_EchoIndication_data.h"
-#define request_say say
-#define request_say__RDY say__RDY
 #include "l_class_OC_EchoRequestInput.h"
 #include "l_class_OC_EchoIndicationInput.h"
 typedef l_class_OC_EchoRequestInput l_class_OC_PipeIn;
