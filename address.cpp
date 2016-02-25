@@ -1051,7 +1051,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     }
 }
 
-static void addMethodTable(Function *func)
+static void addMethodTable(std::string className, Function *func)
 {
     const StructType *STy = findThisArgument(func);
     if (!STy || !STy->hasName())
@@ -1066,6 +1066,8 @@ static void addMethodTable(Function *func)
     const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
     std::string fdname = ret;
     std::string cname = sname.substr(6);
+    //if (className != "")
+        //printf("[%s:%d] className %s cname %s\n", __FUNCTION__, __LINE__, className.c_str(), cname.c_str());
     if (sname.substr(0, 6) == "class.") {
         int ind = cname.find(".");
         if (ind > 0)
@@ -1144,6 +1146,7 @@ void preprocessModule(Module *Mod)
 bool traceme = name == "_ZTV20EchoIndicationOutput";
             if (trace_lookup)
                 printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
+            std::string className = ret+11;
             for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
                 if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
                 if (vinit->getOpcode() == Instruction::BitCast)
@@ -1151,7 +1154,7 @@ bool traceme = name == "_ZTV20EchoIndicationOutput";
 {
 if (traceme)
 printf("[%s:%d] ZZZZZ func %p name %s\n", __FUNCTION__, __LINE__, func, func->getName().str().c_str());
-                    addMethodTable(func);
+                    addMethodTable(className, func);
 }
             }
         }
@@ -1159,7 +1162,7 @@ printf("[%s:%d] ZZZZZ func %p name %s\n", __FUNCTION__, __LINE__, func, func->ge
     // now add all non-virtual functions to end of vtable
     // Context: must be run after vtable extraction (so that functions are appended to end)
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        addMethodTable(FB);  // append to end of vtable (must run after vtable processing)
+        addMethodTable("", FB);  // append to end of vtable (must run after vtable processing)
 
     // replace calls to methodToFunction with "Function *" values.
     // Context: Must be after all vtable processing.
@@ -1213,6 +1216,7 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                      && checkDerived(info.type, PTy)) {
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
+                        classCreate[STy]->STy = STy;
                         classCreate[STy]->replaceType[Idx] = info.type;
                         classCreate[STy]->replaceCount[Idx] = info.vecCount;
                         if (STy == info.STy) {
@@ -1243,9 +1247,12 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                     Type *EltTys[] = {bitc, Type::getInt64Ty(Mod->getContext())};
                     StructType *nSTy = StructType::create(EltTys, "newStructName");
                     classCreate[nSTy] = new ClassMethodTable;
+                    classCreate[nSTy]->STy = nSTy;
                     classCreate[nSTy]->instance = utostr(size);
-                    if (!classCreate[STy])
+                    if (!classCreate[STy]) {
                         classCreate[STy] = new ClassMethodTable;
+                        classCreate[STy]->STy = STy;
+                    }
                     classCreate[STy]->replaceType[Idx] = nSTy;
                     classCreate[STy]->replaceCount[Idx] = -1;
                 }

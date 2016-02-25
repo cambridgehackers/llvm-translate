@@ -47,6 +47,7 @@ typedef struct {
 #define MAX_MEMBER_SIZE 100
 class ClassMethodTable {
 public:
+    const StructType                  *STy;
     std::map<std::string, Function *> method;
     std::map<int, Type *>             replaceType;
     std::map<int, uint64_t>           replaceCount;

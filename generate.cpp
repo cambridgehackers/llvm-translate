@@ -151,8 +151,10 @@ int inheritsModule(const StructType *STy, const char *name)
 std::string getStructName(const StructType *STy)
 {
     assert(STy);
-    if (!classCreate[STy])
+    if (!classCreate[STy]) {
         classCreate[STy] = new ClassMethodTable;
+        classCreate[STy]->STy = STy;
+    }
     if (!STy->isLiteral() && !STy->getName().empty())
         return CBEMangle("l_"+STy->getName().str());
     if (!UnnamedStructIDs[STy])
