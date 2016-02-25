@@ -1,0 +1,26 @@
+diff --git a/generatedconn/l_class_OC_Echo.h b/generatedconn/l_class_OC_Echo.h
+index 8009f13..828f0b3 100644
+--- a/generatedconn/l_class_OC_Echo.h
++++ b/generatedconn/l_class_OC_Echo.h
+@@ -1,7 +1,7 @@
+ #ifndef __l_class_OC_Echo_H__
+ #define __l_class_OC_Echo_H__
+ #include "l_class_OC_EchoIndication.h"
+-class l_class_OC_Echo {
++class l_class_OC_Echo : public l_class_OC_EchoRequest {
+ public:
+   l_class_OC_EchoIndication *indication;
+ public:
+diff --git a/generatedconn/l_class_OC_EchoIndicationOutput.h b/generatedconn/l_class_OC_EchoIndicationOutput.h
+index 880f516..f21df07 100644
+--- a/generatedconn/l_class_OC_EchoIndicationOutput.h
++++ b/generatedconn/l_class_OC_EchoIndicationOutput.h
+@@ -1,7 +1,7 @@
+ #ifndef __l_class_OC_EchoIndicationOutput_H__
+ #define __l_class_OC_EchoIndicationOutput_H__
+ #include "l_class_OC_PipeIn_OC_0.h"
+-class l_class_OC_EchoIndicationOutput {
++class l_class_OC_EchoIndicationOutput: public l_class_OC_EchoIndication {
+ public:
+   l_class_OC_PipeIn_OC_0 *pipe;
+ public:
