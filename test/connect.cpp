@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "runtime.h"
 #define l_class_OC_PipeIn l_class_OC_EchoRequestInput 
 #define l_class_OC_PipeIn_OC_0 l_class_OC_EchoIndicationInput 
 #define l_class_OC_foo l_class_OC_EchoIndication
