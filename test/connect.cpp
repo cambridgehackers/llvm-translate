@@ -27,16 +27,12 @@
 
 class l_class_OC_EchoRequest {
 public:
-    virtual void say(unsigned int say_meth, unsigned int say_v){};// {
-        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //}
+    virtual void say(unsigned int say_meth, unsigned int say_v){};
     virtual bool say__RDY(void) { return true;}
 };
 class l_class_OC_EchoIndication {
 public:
-    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {};// {
-        //printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //}
+    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {};
     virtual bool heard__RDY(void) { return true;}
 };
 
@@ -62,12 +58,12 @@ int testCount;
 class l_class_OC_Connect zConnect;
 
 class foo: public l_class_OC_EchoIndication {
-    virtual void heard(unsigned int heard_meth, unsigned int heard_v) {
+    void heard(unsigned int heard_meth, unsigned int heard_v) {
         printf("Heard an echo: %d %d\n", heard_meth, heard_v);
         if (--testCount <= 0)
             stop_main_program = 1;
     };
-    virtual bool heard__RDY(void) { return true;}
+    bool heard__RDY(void) { return true;}
 };
 class foo zConnectresp;
 
