@@ -8,6 +8,10 @@ module l_class_OC_Echo (
     input [31:0]say_meth,
     input [31:0]say_v,
     output say__RDY,
+    output indication$heard__ENA,
+    output [31:0]indication$heard_meth,
+    output [31:0]indication$heard_v,
+    input indication$heard__RDY,
     input [`l_class_OC_Echo_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_Echo_RULE_COUNT:0]rule_ready);
     wire say__RDY_internal;

@@ -17,6 +17,9 @@ module l_class_OC_Connect (
         lEchoIndicationOutput$heard_meth,
         lEchoIndicationOutput$heard_v,
         lEchoIndicationOutput$heard__RDY,
+        lEchoIndicationOutput$pipe$enq__ENA,
+        lEchoIndicationOutput$pipe$enq_v,
+        lEchoIndicationOutput$pipe$enq__RDY,
         rule_enable[0:`l_class_OC_EchoIndicationOutput_RULE_COUNT],
         rule_ready[0:`l_class_OC_EchoIndicationOutput_RULE_COUNT]);
     wire lEchoRequestInput$enq__ENA;
@@ -28,6 +31,10 @@ module l_class_OC_Connect (
         lEchoRequestInput$enq__ENA,
         lEchoRequestInput$enq_v,
         lEchoRequestInput$enq__RDY,
+        lEchoRequestInput$request$say__ENA,
+        lEchoRequestInput$request$say_meth,
+        lEchoRequestInput$request$say_v,
+        lEchoRequestInput$request$say__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT]);
     wire lEcho$say__ENA;
@@ -41,6 +48,10 @@ module l_class_OC_Connect (
         lEcho$say_meth,
         lEcho$say_v,
         lEcho$say__RDY,
+        lEcho$indication$heard__ENA,
+        lEcho$indication$heard_meth,
+        lEcho$indication$heard_v,
+        lEcho$indication$heard__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT]);
     wire lEchoRequestOutput_test$say__ENA;
@@ -54,6 +65,9 @@ module l_class_OC_Connect (
         lEchoRequestOutput_test$say_meth,
         lEchoRequestOutput_test$say_v,
         lEchoRequestOutput_test$say__RDY,
+        lEchoRequestOutput_test$pipe$enq__ENA,
+        lEchoRequestOutput_test$pipe$enq_v,
+        lEchoRequestOutput_test$pipe$enq__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoRequestOutput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT:`l_class_OC_EchoRequestOutput_RULE_COUNT]);
     wire lEchoIndicationInput_test$enq__ENA;

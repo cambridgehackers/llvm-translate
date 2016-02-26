@@ -7,6 +7,10 @@ module l_class_OC_EchoRequestInput (
     input enq__ENA,
     input [95:0]enq_v,
     output enq__RDY,
+    output request$say__ENA,
+    output [31:0]request$say_meth,
+    output [31:0]request$say_v,
+    input request$say__RDY,
     input [`l_class_OC_EchoRequestInput_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_EchoRequestInput_RULE_COUNT:0]rule_ready);
     wire enq__RDY_internal;

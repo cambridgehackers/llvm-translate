@@ -183,6 +183,7 @@ printf("[%s:%d] indication interface sname %s fname %s\n", __FUNCTION__, __LINE_
                 for (auto FI : table->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
+printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                     Type *retType = func->getReturnType();
                     auto AI = func->arg_begin(), AE = func->arg_end();
                     if (func->hasStructRetAttr()) {

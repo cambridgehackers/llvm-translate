@@ -177,8 +177,6 @@ static void addMethodTable(const StructType *STy, Function *func)
     const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
     std::string fdname = ret;
     std::string cname = sname.substr(6);
-    //if (className != "")
-        //printf("[%s:%d] className %s cname %s\n", __FUNCTION__, __LINE__, className.c_str(), cname.c_str());
     if (sname.substr(0, 6) == "class.") {
         int ind = cname.find(".");
         if (ind > 0)
@@ -205,19 +203,16 @@ static void addMethodTable(const StructType *STy, Function *func)
 
 void initializeVtable(const StructType *STy, const GlobalVariable *GV)
 {
-    std::string name = GV->getName();
     if (GV->hasInitializer())
     if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
-        //if (trace_lookup)
+        std::string name = GV->getName();
+        if (trace_lookup)
             printf("%s: global %s\n", __FUNCTION__, name.c_str());
         for (auto initI = CA->op_begin(), initE = CA->op_end(); initI != initE; initI++) {
             if (ConstantExpr *CE = dyn_cast<ConstantExpr>((*initI)))
             if (CE->getOpcode() == Instruction::BitCast)
-            if (Function *func = dyn_cast<Function>(CE->getOperand(0))) {
-                //if (trace_lookup)
-                printf("%s:    func %p name %s\n", __FUNCTION__, func, func->getName().str().c_str());
+            if (Function *func = dyn_cast<Function>(CE->getOperand(0)))
                 addMethodTable(STy, func);
-            }
         }
     }
 }
@@ -423,6 +418,8 @@ restart:
                     return;
                 }
                 std::string rdyName = mName + "__RDY";
+                if (table)
+                    table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
                 for (unsigned int i = 0; table && i < table->vtableCount; i++) {
                     Function *calledFunctionGuard = table->vtable[i];
                     if (trace_hoist)

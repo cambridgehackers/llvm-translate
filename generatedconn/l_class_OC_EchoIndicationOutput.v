@@ -8,6 +8,9 @@ module l_class_OC_EchoIndicationOutput (
     input [31:0]heard_meth,
     input [31:0]heard_v,
     output heard__RDY,
+    output pipe$enq__ENA,
+    output [95:0]pipe$enq_v,
+    input pipe$enq__RDY,
     input [`l_class_OC_EchoIndicationOutput_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_EchoIndicationOutput_RULE_COUNT:0]rule_ready);
     wire heard__RDY_internal;

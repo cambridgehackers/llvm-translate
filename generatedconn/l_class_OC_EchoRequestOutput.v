@@ -8,6 +8,9 @@ module l_class_OC_EchoRequestOutput (
     input [31:0]say_meth,
     input [31:0]say_v,
     output say__RDY,
+    output pipe$enq__ENA,
+    output [95:0]pipe$enq_v,
+    input pipe$enq__RDY,
     input [`l_class_OC_EchoRequestOutput_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_EchoRequestOutput_RULE_COUNT:0]rule_ready);
     wire say__RDY_internal;
