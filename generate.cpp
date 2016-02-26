@@ -962,9 +962,17 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
             ClassMethodTable *table = classCreate[STy];
             int Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-                generateContainedStructs(*I, ODir);
-                if (table && table->replaceType[Idx])
-                    generateContainedStructs(table->replaceType[Idx], ODir);
+                Type *element = *I;
+                std::string fname = fieldName(STy, Idx);
+                generateContainedStructs(element, ODir);
+                if (table)
+                if (Type *newType = table->replaceType[Idx]) {
+                    element = newType;
+                    generateContainedStructs(element, ODir);
+                }
+                if (fname != "")
+                if (dyn_cast<PointerType>(element))
+                    table->interfaces[fname] = element;  // add called interfaces from this module
             }
             if (STy->getName() != "class.Module") {
                 // Only generate verilog for modules derived from Module

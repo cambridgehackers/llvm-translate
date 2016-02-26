@@ -149,7 +149,6 @@ static void addIncludeName(const StructType *iSTy)
 void generateClassDef(const StructType *STy, std::string oDir)
 {
     std::list<std::string> runLines;
-    std::list<std::string> extraMethods;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
 
@@ -181,12 +180,9 @@ void generateClassDef(const StructType *STy, std::string oDir)
                         runLines.push_back(fname + vecDim);
                     } while(vecCount-- > 0);
                 }
-            if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
-                if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
-                    addIncludeName(iSTy);
-                extraMethods.push_back("void set" + fname + "(" + printType(element, false, "v", "", "", false)
-                    + ") { " + fname + " = v; }");
-            }
+            if (const PointerType *PTy = dyn_cast<PointerType>(element))
+            if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
+                addIncludeName(iSTy);
         }
     }
     if (table)
@@ -231,8 +227,9 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
             printFunctionInstance(func, name + "__" + FI.first).c_str());
     }
-    for (auto item: extraMethods)
-        fprintf(OStr, "  %s\n", item.c_str());
+    for (auto item: table->interfaces)
+        fprintf(OStr, "  void set%s(%s) { %s = v; }\n", item.first.c_str(),
+            printType(item.second, false, "v", "", "", false).c_str(), item.first.c_str());
     fprintf(OStr, "}%s;\n#endif  // __%s_H__\n", (name.substr(0,12) == "l_struct_OC_" ? name.c_str():""), name.c_str());
     fclose(OStr);
     // now generate '.cpp' file

@@ -56,6 +56,7 @@ public:
     unsigned int                      vtableCount;
     std::string                       instance;
     Function                          *vtable[MAX_MEMBER_SIZE];
+    std::map<std::string, Type *>     interfaces;
     ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
     {}
 };
