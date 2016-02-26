@@ -6,10 +6,9 @@ class l_class_OC_EchoIndication {
     void (*heardp)(void *p, int meth, int v);
  public:
     METHOD(heard, (int meth, int v), {return true; } ) { heardp(p, meth, v); }
-    void init(void *ap, unsigned long aheard__RDYp, unsigned long aheardp) {
+    l_class_OC_EchoIndication(void *ap, unsigned long aheard__RDYp, unsigned long aheardp) {
         p = ap;
         ASSIGNIFCPTR(heard);
     }
-    l_class_OC_EchoIndication(): p(NULL), heard__RDYp(NULL), heardp(NULL) { }
 };
 #endif

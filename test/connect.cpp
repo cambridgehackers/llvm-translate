@@ -48,17 +48,19 @@ l_class_OC_Connect zConnect;
             stop_main_program = 1;
     };
     bool respheard__RDY(void *thisp) { return true;}
-l_class_OC_EchoIndication zConnectresp;
 
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-l_class_OC_EchoRequest er;
-l_class_OC_EchoIndication ei;
-
-    er.init(&zConnect.lEcho, (unsigned long)&l_class_OC_Echo__say__RDY, (unsigned long)&l_class_OC_Echo__say);
-    ei.init(&zConnect.lEchoIndicationOutput, (unsigned long)&l_class_OC_EchoIndicationOutput__heard__RDY, (unsigned long)&l_class_OC_EchoIndicationOutput__heard);
-    zConnectresp.init(NULL, (unsigned long)&respheard__RDY, (unsigned long)&respheard);
+l_class_OC_EchoRequest er(&zConnect.lEcho,
+    (unsigned long)&l_class_OC_Echo__say__RDY,
+    (unsigned long)&l_class_OC_Echo__say);
+l_class_OC_EchoIndication ei(&zConnect.lEchoIndicationOutput,
+    (unsigned long)&l_class_OC_EchoIndicationOutput__heard__RDY,
+    (unsigned long)&l_class_OC_EchoIndicationOutput__heard);
+l_class_OC_EchoIndication zConnectresp(NULL,
+    (unsigned long)&respheard__RDY,
+    (unsigned long)&respheard);
 zConnect.lEchoRequestInput.setrequest(&er);
 zConnect.lEcho.setindication(&ei);
 zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
