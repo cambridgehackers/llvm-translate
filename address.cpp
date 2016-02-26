@@ -131,6 +131,7 @@ func->dump();
                     }
                 }
                 else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) {
+                    // vtable reference
                     (void)CE;
                     //printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
                     //CE->dump();
@@ -159,6 +160,68 @@ func->dump();
         item->moveBefore(item->getParent()->getTerminator());
 }
 
+static void addMethodTable(const StructType *STy, Function *func)
+{
+    if (!STy)
+        STy = findThisArgument(func);
+    if (!STy || !STy->hasName())
+        return;
+    std::string sname = STy->getName();
+    if (!strncmp(sname.c_str(), "class.std::", 11)
+     || !strncmp(sname.c_str(), "struct.std::", 12))
+        return;   // don't generate anything for std classes
+    getStructName(STy);  // make sure that classCreate is initialized
+    ClassMethodTable *table = classCreate[STy];
+    std::string fname = func->getName();
+    int status;
+    const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
+    std::string fdname = ret;
+    std::string cname = sname.substr(6);
+    //if (className != "")
+        //printf("[%s:%d] className %s cname %s\n", __FUNCTION__, __LINE__, className.c_str(), cname.c_str());
+    if (sname.substr(0, 6) == "class.") {
+        int ind = cname.find(".");
+        if (ind > 0)
+            cname = cname.substr(0,ind);
+    }
+    int dind = fdname.find("::");
+    if (dind > 0)
+        fdname = fdname.substr(0,dind);
+    if (fdname.substr(0, cname.length()) == cname) {
+        fdname = fdname.substr(cname.length());
+        if (fdname[0] == '<' && fdname[fdname.length()-1] == '>')
+            fdname = fdname.substr(1, fdname.length() - 2);
+        if (table->instance == "")
+            table->instance = fdname;
+        if (table->instance != fdname) {
+            printf("[%s:%d] instance name does not match '%s' '%s'\n", __FUNCTION__, __LINE__, table->instance.c_str(), fdname.c_str());
+            exit(-1);
+        }
+    }
+    if (trace_lookup)
+        printf("%s: %s[%d] = %s [%s]\n", __FUNCTION__, sname.c_str(), table->vtableCount, fname.c_str(), fdname.c_str());
+    table->vtable[table->vtableCount++] = func;
+}
+
+void initializeVtable(const StructType *STy, const GlobalVariable *GV)
+{
+    std::string name = GV->getName();
+    if (GV->hasInitializer())
+    if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
+        //if (trace_lookup)
+            printf("%s: global %s\n", __FUNCTION__, name.c_str());
+        for (auto initI = CA->op_begin(), initE = CA->op_end(); initI != initE; initI++) {
+            if (ConstantExpr *CE = dyn_cast<ConstantExpr>((*initI)))
+            if (CE->getOpcode() == Instruction::BitCast)
+            if (Function *func = dyn_cast<Function>(CE->getOperand(0))) {
+                //if (trace_lookup)
+                printf("%s:    func %p name %s\n", __FUNCTION__, func, func->getName().str().c_str());
+                addMethodTable(STy, func);
+            }
+        }
+    }
+}
+
 static void processSelect(Function *thisFunc)
 {
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
@@ -168,6 +231,21 @@ static void processSelect(Function *thisFunc)
             case Instruction::Select:
                 II->replaceAllUsesWith(II->getOperand(2));
                 recursiveDelete(II);
+                break;
+            case Instruction::Store: // Look for instructions to set up vtable pointers
+                if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) // vtable reference
+                if (CE->getOpcode() == Instruction::BitCast)
+                if (const ConstantExpr *vtab = dyn_cast<ConstantExpr>(CE->getOperand(0)))
+                if (vtab->getOpcode() == Instruction::GetElementPtr)
+                if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(vtab->getOperand(0)))
+                if (const Instruction *target = dyn_cast<Instruction>(II->getOperand(1)))
+                if (target->getOpcode() == Instruction::BitCast)
+                if (const PointerType *PTy = dyn_cast<PointerType>(target->getOperand(0)->getType()))
+                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
+                    //std::string gname = GV->getName(), sname = STy->getName();
+                    //printf("[%s:%d] gname %s sname %s\n", __FUNCTION__, __LINE__, gname.c_str(), sname.c_str());
+                    initializeVtable(STy, GV);
+                }
                 break;
             };
             II = PI;
@@ -1053,47 +1131,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     }
 }
 
-static void addMethodTable(std::string className, Function *func)
-{
-    const StructType *STy = findThisArgument(func);
-    if (!STy || !STy->hasName())
-        return;
-    std::string sname = STy->getName();
-    if (!strncmp(sname.c_str(), "class.std::", 11)
-     || !strncmp(sname.c_str(), "struct.std::", 12))
-        return;   // don't generate anything for std classes
-    ClassMethodTable *table = classCreate[STy];
-    std::string fname = func->getName();
-    int status;
-    const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-    std::string fdname = ret;
-    std::string cname = sname.substr(6);
-    //if (className != "")
-        //printf("[%s:%d] className %s cname %s\n", __FUNCTION__, __LINE__, className.c_str(), cname.c_str());
-    if (sname.substr(0, 6) == "class.") {
-        int ind = cname.find(".");
-        if (ind > 0)
-            cname = cname.substr(0,ind);
-    }
-    int dind = fdname.find("::");
-    if (dind > 0)
-        fdname = fdname.substr(0,dind);
-    if (fdname.substr(0, cname.length()) == cname) {
-        fdname = fdname.substr(cname.length());
-        if (fdname[0] == '<' && fdname[fdname.length()-1] == '>')
-            fdname = fdname.substr(1, fdname.length() - 2);
-        if (table->instance == "")
-            table->instance = fdname;
-        if (table->instance != fdname) {
-            printf("[%s:%d] instance name does not match '%s' '%s'\n", __FUNCTION__, __LINE__, table->instance.c_str(), fdname.c_str());
-            exit(-1);
-        }
-    }
-    if (trace_lookup)
-        printf("%s: %s[%d] = %s [%s]\n", __FUNCTION__, sname.c_str(), table->vtableCount, fname.c_str(), fdname.c_str());
-    table->vtable[table->vtableCount++] = func;
-}
-
 /*
  * Perform any processing needed on the IR before execution.
  * This includes:
@@ -1138,33 +1175,19 @@ void preprocessModule(Module *Mod)
                 processMalloc(cast<CallInst>(*I));
 
     // extract vtables for classes.
+#if 0
     for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
         std::string name = MI->getName();
-        const ConstantArray *CA;
         int status;
         const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
-        if (ret && !strncmp(ret, "vtable for ", 11)
-         && MI->hasInitializer() && (CA = dyn_cast<ConstantArray>(MI->getInitializer()))) {
-bool traceme = name == "_ZTV20EchoIndicationOutput";
-            if (trace_lookup)
-                printf("[%s:%d] global %s ret %s\n", __FUNCTION__, __LINE__, name.c_str(), ret);
-            std::string className = ret+11;
-            for (auto CI = CA->op_begin(), CE = CA->op_end(); CI != CE; CI++) {
-                if (ConstantExpr *vinit = dyn_cast<ConstantExpr>((*CI)))
-                if (vinit->getOpcode() == Instruction::BitCast)
-                if (Function *func = dyn_cast<Function>(vinit->getOperand(0)))
-{
-if (traceme)
-printf("[%s:%d] ZZZZZ func %p name %s\n", __FUNCTION__, __LINE__, func, func->getName().str().c_str());
-                    addMethodTable(className, func);
-}
-            }
-        }
+        if (ret && !strncmp(ret, "vtable for ", 11))
+            initializeVtable(NULL, MI);
     }
+#endif
     // now add all non-virtual functions to end of vtable
     // Context: must be run after vtable extraction (so that functions are appended to end)
     for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        addMethodTable("", FB);  // append to end of vtable (must run after vtable processing)
+        addMethodTable(NULL, FB);  // append to end of vtable (must run after vtable processing)
 
     // replace calls to methodToFunction with "Function *" values.
     // Context: Must be after all vtable processing.
