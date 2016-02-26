@@ -1,24 +1,24 @@
 #include "l_class_OC_Fifo1_OC_3.h"
-void l_class_OC_Fifo1_OC_3::in_enq(l_struct_OC_ValuePair in_enq_v) {
-        element = in_enq_v;
-        full = 1;
+void l_class_OC_Fifo1_OC_3__in_enq(l_class_OC_Fifo1_OC_3 *thisp, l_struct_OC_ValuePair in_enq_v) {
+        thisp->element = in_enq_v;
+        thisp->full = 1;
 }
-bool l_class_OC_Fifo1_OC_3::in_enq__RDY(void) {
-        return full ^ 1;
+bool l_class_OC_Fifo1_OC_3__in_enq__RDY(l_class_OC_Fifo1_OC_3 *thisp) {
+        return (thisp->full) ^ 1;
 }
-void l_class_OC_Fifo1_OC_3::out_deq(void) {
-        full = 0;
+void l_class_OC_Fifo1_OC_3__out_deq(l_class_OC_Fifo1_OC_3 *thisp) {
+        thisp->full = 0;
 }
-bool l_class_OC_Fifo1_OC_3::out_deq__RDY(void) {
-        return full;
+bool l_class_OC_Fifo1_OC_3__out_deq__RDY(l_class_OC_Fifo1_OC_3 *thisp) {
+        return thisp->full;
 }
-l_struct_OC_ValuePair l_class_OC_Fifo1_OC_3::out_first(void) {
+l_struct_OC_ValuePair l_class_OC_Fifo1_OC_3__out_first(l_class_OC_Fifo1_OC_3 *thisp) {
         l_struct_OC_ValuePair out_first;
-        return element;
+        return thisp->element;
         return out_first;
 }
-bool l_class_OC_Fifo1_OC_3::out_first__RDY(void) {
-        return full;
+bool l_class_OC_Fifo1_OC_3__out_first__RDY(l_class_OC_Fifo1_OC_3 *thisp) {
+        return thisp->full;
 }
 void l_class_OC_Fifo1_OC_3::run()
 {

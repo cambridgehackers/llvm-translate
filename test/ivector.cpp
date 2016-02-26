@@ -33,10 +33,10 @@ int testCount;
 class l_class_OC_IVectorIndication zIVectorIndication;
 class l_class_OC_IVector zIVector;
 
-bool l_class_OC_IVectorIndication::heard__RDY(void) {
+bool l_class_OC_IVectorIndication__heard__RDY(l_class_OC_IVectorIndication *thisp) {
         return true;
 }
-void l_class_OC_IVectorIndication::heard(unsigned int meth, unsigned int v) {
+void l_class_OC_IVectorIndication__heard(l_class_OC_IVectorIndication *thisp, unsigned int meth, unsigned int v) {
         printf("Heard an echo: %d %d\n", meth, v);
         if (--testCount <= 0)
             stop_main_program = 1;

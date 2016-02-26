@@ -5,6 +5,7 @@
 #include "l_class_OC_EchoIndicationOutput.h"
 #include "l_class_OC_EchoRequestInput.h"
 #include "l_class_OC_EchoRequestOutput.h"
+class l_class_OC_Connect;
 class l_class_OC_Connect {
 public:
   l_class_OC_EchoIndicationOutput lEchoIndicationOutput;

@@ -1023,6 +1023,8 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                     std::string sname = printOperand(ICL->getCalledValue(), false);
                     if (sname.substr(0,6) == "this->")
                         sname = sname.substr(6);
+                    else if (sname.substr(0,7) == "thisp->")
+                        sname = sname.substr(7);
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());

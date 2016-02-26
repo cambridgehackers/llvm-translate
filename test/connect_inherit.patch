@@ -1,26 +1,24 @@
-diff --git a/generatedconn/l_class_OC_Echo.h b/generatedconn/l_class_OC_Echo.h
-index 8009f13..828f0b3 100644
---- a/generatedconn/l_class_OC_Echo.h
-+++ b/generatedconn/l_class_OC_Echo.h
-@@ -1,7 +1,7 @@
- #ifndef __l_class_OC_Echo_H__
- #define __l_class_OC_Echo_H__
- #include "l_class_OC_EchoIndication.h"
+diff -aur a/generatedconn/l_class_OC_Echo.h a/generatedconn/l_class_OC_Echo.h
+--- a/generatedconn/l_class_OC_Echo.h	2016-02-25 20:24:55.606771222 -0500
++++ a/generatedconn/l_class_OC_Echo.h	2016-02-25 20:24:49.514728634 -0500
+@@ -4,7 +4,7 @@
+ class l_class_OC_Echo;
+ extern void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_meth, unsigned int say_v);
+ extern bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp);
 -class l_class_OC_Echo {
 +class l_class_OC_Echo : public l_class_OC_EchoRequest {
  public:
    l_class_OC_EchoIndication *indication;
  public:
-diff --git a/generatedconn/l_class_OC_EchoIndicationOutput.h b/generatedconn/l_class_OC_EchoIndicationOutput.h
-index 880f516..f21df07 100644
---- a/generatedconn/l_class_OC_EchoIndicationOutput.h
-+++ b/generatedconn/l_class_OC_EchoIndicationOutput.h
-@@ -1,7 +1,7 @@
- #ifndef __l_class_OC_EchoIndicationOutput_H__
- #define __l_class_OC_EchoIndicationOutput_H__
- #include "l_class_OC_PipeIn_OC_0.h"
+diff -aur a/generatedconn/l_class_OC_EchoIndicationOutput.h a/generatedconn/l_class_OC_EchoIndicationOutput.h
+--- a/generatedconn/l_class_OC_EchoIndicationOutput.h	2016-02-25 20:24:55.606771222 -0500
++++ a/generatedconn/l_class_OC_EchoIndicationOutput.h	2016-02-25 20:24:49.514728634 -0500
+@@ -4,7 +4,7 @@
+ class l_class_OC_EchoIndicationOutput;
+ extern void l_class_OC_EchoIndicationOutput__heard(l_class_OC_EchoIndicationOutput *thisp, unsigned int heard_meth, unsigned int heard_v);
+ extern bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput *thisp);
 -class l_class_OC_EchoIndicationOutput {
-+class l_class_OC_EchoIndicationOutput: public l_class_OC_EchoIndication {
++class l_class_OC_EchoIndicationOutput : public l_class_OC_EchoIndication {
  public:
    l_class_OC_PipeIn_OC_0 *pipe;
  public:

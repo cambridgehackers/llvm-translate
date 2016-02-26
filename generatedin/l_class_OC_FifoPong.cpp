@@ -1,45 +1,45 @@
 #include "l_class_OC_FifoPong.h"
-void l_class_OC_FifoPong::in_enq(l_struct_OC_ValuePair in_enq_v) {
-        if (pong)
-            element2.in_enq(in_enq_v);
-        if (pong ^ 1)
-            element1.in_enq(in_enq_v);
+void l_class_OC_FifoPong__in_enq(l_class_OC_FifoPong *thisp, l_struct_OC_ValuePair in_enq_v) {
+        if (thisp->pong)
+            thisp->element2.in_enq(in_enq_v);
+        if ((thisp->pong) ^ 1)
+            thisp->element1.in_enq(in_enq_v);
 }
-bool l_class_OC_FifoPong::in_enq__RDY(void) {
+bool l_class_OC_FifoPong__in_enq__RDY(l_class_OC_FifoPong *thisp) {
         bool tmp__1;
         bool tmp__2;
-        tmp__1 = element2.in_enq__RDY();
-        tmp__2 = element1.in_enq__RDY();
-        return (tmp__1 | (pong ^ 1)) & (tmp__2 | pong);
+        tmp__1 = thisp->element2.in_enq__RDY();
+        tmp__2 = thisp->element1.in_enq__RDY();
+        return (tmp__1 | ((thisp->pong) ^ 1)) & (tmp__2 | (thisp->pong));
 }
-void l_class_OC_FifoPong::out_deq(void) {
-        pong = pong ^ 1;
-        if (pong)
-            element2.out_deq();
-        if (pong ^ 1)
-            element1.out_deq();
+void l_class_OC_FifoPong__out_deq(l_class_OC_FifoPong *thisp) {
+        thisp->pong = (thisp->pong) ^ 1;
+        if (thisp->pong)
+            thisp->element2.out_deq();
+        if ((thisp->pong) ^ 1)
+            thisp->element1.out_deq();
 }
-bool l_class_OC_FifoPong::out_deq__RDY(void) {
+bool l_class_OC_FifoPong__out_deq__RDY(l_class_OC_FifoPong *thisp) {
         bool tmp__1;
         bool tmp__2;
-        tmp__1 = element2.out_deq__RDY();
-        tmp__2 = element1.out_deq__RDY();
-        return (tmp__1 | (pong ^ 1)) & (tmp__2 | pong);
+        tmp__1 = thisp->element2.out_deq__RDY();
+        tmp__2 = thisp->element1.out_deq__RDY();
+        return (tmp__1 | ((thisp->pong) ^ 1)) & (tmp__2 | (thisp->pong));
 }
-l_struct_OC_ValuePair l_class_OC_FifoPong::out_first(void) {
+l_struct_OC_ValuePair l_class_OC_FifoPong__out_first(l_class_OC_FifoPong *thisp) {
         l_struct_OC_ValuePair out_first;
-        if (pong)
-            out_first = element2.out_first();
-        if (pong ^ 1)
-            out_first = element1.out_first();
+        if (thisp->pong)
+            out_first = thisp->element2.out_first();
+        if ((thisp->pong) ^ 1)
+            out_first = thisp->element1.out_first();
         return out_first;
 }
-bool l_class_OC_FifoPong::out_first__RDY(void) {
+bool l_class_OC_FifoPong__out_first__RDY(l_class_OC_FifoPong *thisp) {
         bool tmp__1;
         bool tmp__2;
-        tmp__1 = element2.out_first__RDY();
-        tmp__2 = element1.out_first__RDY();
-        return (tmp__1 | (pong ^ 1)) & (tmp__2 | pong);
+        tmp__1 = thisp->element2.out_first__RDY();
+        tmp__2 = thisp->element1.out_first__RDY();
+        return (tmp__1 | ((thisp->pong) ^ 1)) & (tmp__2 | (thisp->pong));
 }
 void l_class_OC_FifoPong::run()
 {
