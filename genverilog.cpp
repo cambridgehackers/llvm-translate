@@ -177,8 +177,9 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         if (fname != "")
         if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
             element = PTy->getElementType();
-            if (const StructType *STy = dyn_cast<StructType>(element)) { // calling indications to C++ from hardware
+            if (const StructType *STy = dyn_cast<StructType>(element)) { // calling indications from this module
                 if (ClassMethodTable *table = classCreate[STy]) {
+printf("[%s:%d] indication interface sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), fname.c_str());
                 for (auto FI : table->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
