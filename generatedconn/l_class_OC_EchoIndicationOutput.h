@@ -4,7 +4,7 @@
 class l_class_OC_EchoIndicationOutput;
 extern void l_class_OC_EchoIndicationOutput__heard(l_class_OC_EchoIndicationOutput *thisp, unsigned int heard_meth, unsigned int heard_v);
 extern bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput *thisp);
-class l_class_OC_EchoIndicationOutput : public l_class_OC_EchoIndication {
+class l_class_OC_EchoIndicationOutput {
 public:
   l_class_OC_PipeIn_OC_0 *pipe;
 public:

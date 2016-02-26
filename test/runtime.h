@@ -27,4 +27,16 @@
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 
+typedef bool (*GUARDPTR)(void *);
+#define ASSIGNIFCPTR(A) { \
+         A ## __RDYp = (decltype(A ## __RDYp))a ## A ## __RDYp; \
+         A ## p = (decltype(A ## p))a ## A ## p; }
+
+#define METHOD(A,B,C) \
+    virtual bool A ## __RDY(void) C \
+    virtual void A B
+#define GVALUE(A,B,C) \
+    virtual bool A ## __RDY(void) C \
+    virtual B A(void)
+
 #endif // __RUNTIME_H__

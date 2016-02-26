@@ -40,23 +40,27 @@
 
 unsigned int stop_main_program;
 int testCount;
-class l_class_OC_Connect zConnect;
+l_class_OC_Connect zConnect;
 
-class foo: public l_class_OC_EchoIndication {
-    void heard(unsigned int heard_meth, unsigned int heard_v) {
+    void respheard(void *thisp, unsigned int heard_meth, unsigned int heard_v) {
         printf("Heard an echo: %d %d\n", heard_meth, heard_v);
         if (--testCount <= 0)
             stop_main_program = 1;
     };
-    bool heard__RDY(void) { return true;}
-};
-class foo zConnectresp;
+    bool respheard__RDY(void *thisp) { return true;}
+l_class_OC_EchoIndication zConnectresp;
 
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-zConnect.lEchoRequestInput.setrequest(&zConnect.lEcho);
-zConnect.lEcho.setindication(&zConnect.lEchoIndicationOutput);
+l_class_OC_EchoRequest er;
+l_class_OC_EchoIndication ei;
+
+    er.init(&zConnect.lEcho, (unsigned long)&l_class_OC_Echo__say__RDY, (unsigned long)&l_class_OC_Echo__say);
+    ei.init(&zConnect.lEchoIndicationOutput, (unsigned long)&l_class_OC_EchoIndicationOutput__heard__RDY, (unsigned long)&l_class_OC_EchoIndicationOutput__heard);
+    zConnectresp.init(NULL, (unsigned long)&respheard__RDY, (unsigned long)&respheard);
+zConnect.lEchoRequestInput.setrequest(&er);
+zConnect.lEcho.setindication(&ei);
 zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
 
 zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);

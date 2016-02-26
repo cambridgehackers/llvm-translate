@@ -4,7 +4,7 @@
 class l_class_OC_Echo;
 extern void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_meth, unsigned int say_v);
 extern bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp);
-class l_class_OC_Echo : public l_class_OC_EchoRequest {
+class l_class_OC_Echo {
 public:
   l_class_OC_EchoIndication *indication;
 public:

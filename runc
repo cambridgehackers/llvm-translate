@@ -3,8 +3,7 @@ set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generatedconn ../atomicc/examples/connect/connect.ll ../atomicc/examples/connect/atomicc.ll
 ./linker.py --directory generatedconn --output Echo l_class_OC_IVector
-patch -p1 <test/connect_inherit.patch
-clang++ -Igeneratedconn -g test/connect.cpp
+clang++ -std=c++11 -Igeneratedconn -g test/connect.cpp
 ./a.out
 rm -f a.out
 
