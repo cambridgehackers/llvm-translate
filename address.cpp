@@ -449,12 +449,11 @@ restart:
                 }
                 break;
                 }
-            case Instruction::GetElementPtr: {
-                    int maxop = II->getNumOperands();
-                    if (maxop == 2)
-                    if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
+            case Instruction::GetElementPtr:
+                // Expand out index expression references
+                if (II->getNumOperands() == 2)
+                if (Instruction *switchIndex = dyn_cast<Instruction>(II->getOperand(1))) {
                     int Values_size = 2;
-printf("[%s:%d] maxop %d\n", __FUNCTION__, __LINE__, maxop);
                     if (Instruction *ins = dyn_cast<Instruction>(II->getOperand(0))) {
                         if (PointerType *PTy = dyn_cast<PointerType>(ins->getOperand(0)->getType()))
                         if (StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
@@ -499,9 +498,8 @@ printf("[%s:%d] get dyn size (static not handled)\n", __FUNCTION__, __LINE__);
                     II->replaceAllUsesWith(phi);
                     recursiveDelete(II);
                     goto restart;  // the instruction INEXT is no longer in the block BI
-                    }
-                break;
                 }
+                break;
             }
             II = INEXT;
         }
