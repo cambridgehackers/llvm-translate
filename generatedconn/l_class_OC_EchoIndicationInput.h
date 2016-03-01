@@ -12,6 +12,6 @@ public:
   void run();
   void enq(l_struct_OC_EchoIndication_data enq_v) { l_class_OC_EchoIndicationInput__enq(this, enq_v); }
   bool enq__RDY(void) { return l_class_OC_EchoIndicationInput__enq__RDY(this); }
-  void setrequest(l_class_OC_foo *v) { request = v; }
+  void setrequest(l_class_OC_EchoIndication *v) { request = v; }
 };
 #endif  // __l_class_OC_EchoIndicationInput_H__

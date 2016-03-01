@@ -1195,6 +1195,7 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
         StructType *STy = cast<StructType>(Ty);
         getStructName(STy); // allocate classCreate
         const StructLayout *SLO = TD->getStructLayout(STy);
+        ClassMethodTable *table = classCreate[STy];
         int Idx = 0;
         for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
             std::string fname = fieldName(STy, Idx);
@@ -1202,6 +1203,7 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
             Type *element = *I;
             if (PointerType *PTy = dyn_cast<PointerType>(element)) {
                 void *p = *(char **)eaddr;
+                int setInterface = fname != "";
                 /* Look up destination address in allocated regions, to see
                  * what if its datatype is a derived type from the pointer
                  * target type.  If so, replace pointer base type.
@@ -1218,8 +1220,11 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                             classCreate[STy]->allocateLocally[Idx] = true;
                             inlineReferences(Mod, STy, Idx, info.type);
                             classCreate[STy]->replaceType[Idx] = cast<PointerType>(info.type)->getElementType();
+                            setInterface = 0;
                         }
                     }
+                if (setInterface)
+                    table->interfaces[fname] = element;  // add called interfaces from this module
             }
             if (fname != "") {
                 if (StructType *iSTy = dyn_cast<StructType>(element))

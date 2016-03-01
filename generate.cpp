@@ -927,9 +927,6 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
                     element = newType;
                     generateContainedStructs(element, ODir);
                 }
-                if (fname != "")
-                if (dyn_cast<PointerType>(element))
-                    table->interfaces[fname] = element;  // add called interfaces from this module
             }
             if (STy->getName() != "class.Module") {
                 // Only generate verilog for modules derived from Module
