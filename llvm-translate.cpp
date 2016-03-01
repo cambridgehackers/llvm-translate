@@ -59,9 +59,7 @@ static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Contex
 int main(int argc, char **argv, char * const *envp)
 {
     std::string ErrorMsg;
-    unsigned i = 0;
 
-printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     cl::ParseCommandLineOptions(argc, argv, "llvm interpreter & dynamic compiler\n");
     if (OutputDir == "") {
         printf("llvm-translate: output directory must be specified with '--odir=directoryName'\n");
@@ -73,11 +71,11 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     SlotMapping slots;
     Module *Mod = llvm_ParseIRFile(InputFile[0], Context, &slots);
     if (!Mod) {
-        printf("llvm-translate: load/link error in %s\n", InputFile[i].c_str());
+        printf("llvm-translate: load/link error in %s\n", InputFile[0].c_str());
         return 1;
     }
     Linker L(Mod);
-    for (i = 1; i < InputFile.size(); ++i) {
+    for (unsigned i = 1; i < InputFile.size(); ++i) {
         // Load/link subsequent input bitcode files
         Module *M = llvm_ParseIRFile(InputFile[i], Context, &slots);
         if (!M || L.linkInModule(M)) {
@@ -97,28 +95,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
     assert(EE);
 
     GenerateRunOnModule(Mod, OutputDir);
-#if 0      // Run main
-    static int dump_interpret;// = 1;
-    //ModulePass *DebugIRPass = createDebugIRPass();
-    //DebugIRPass->runOnModule(*Mod);
-    DebugFlag = dump_interpret != 0;
-    printf("[%s:%d] now run main program\n", __FUNCTION__, __LINE__);
-    std::vector<std::string> InputArgv;
-    InputArgv.push_back("param1");
-    InputArgv.push_back("param2");
-    const Function *EntryFn = Mod->getFunction("main");
-    if (!EntryFn) {
-        printf("'main' function not found in module.\n");
-        exit(1);
-    }
-    char *envp[] = {NULL};
-    int Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-    printf("[%s:%d] after 'main', return code = %d\n", __FUNCTION__, __LINE__, Result);
-#endif
-
-    // write copy of optimized bitcode
-    //raw_fd_ostream OutBit("foo.tmp.bc", ErrorMsg, sys::fs::F_Binary);
-    //WriteBitcodeToFile(Mod, OutBit);
 printf("[%s:%d] end processing\n", __FUNCTION__, __LINE__);
     return 0;
 }

@@ -113,10 +113,6 @@ static void processAlloca(Function *func)
 {
     std::map<const Value *,Value *> remapValue;
     std::list<Instruction *> moveList;
-if (func->getName() == "zz_ZN7Connect7respondEv") {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-func->dump();
-}
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
@@ -224,6 +220,8 @@ static void processSelect(Function *thisFunc)
             auto PI = std::next(BasicBlock::iterator(II));
             switch (II->getOpcode()) {
             case Instruction::Select:
+                // a Select instruction is generated for size calculation for
+                // _Znam (operator new[](unsigned long))
                 II->replaceAllUsesWith(II->getOperand(2));
                 recursiveDelete(II);
                 break;
@@ -1000,17 +998,12 @@ static void processOverflow(CallInst *II)
     Value *newins = (fname == "llvm.umul.with.overflow.i64") ? builder.CreateMul(LHS, RHS)
          : builder.CreateAdd(LHS, RHS);
 printf("[%s:%d] func %s\n", __FUNCTION__, __LINE__, fname.c_str());
-    //newins->dump();
     for(auto UI = II->user_begin(), UE = II->user_end(); UI != UE;) {
         auto UIN = std::next(UI);
         UI->replaceAllUsesWith(newins);
         recursiveDelete(*UI);
         UI = UIN;
     }
-    //Rem->dropAllReferences();
-    //Rem->eraseFromParent();
-    //Function *callingFunc = II->getParent()->getParent();
-    //callingFunc->dump();
 }
 
 /*
@@ -1171,21 +1164,6 @@ void preprocessModule(Module *Mod)
             for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
                 processMalloc(cast<CallInst>(*I));
 
-    // extract vtables for classes.
-#if 0
-    for (auto MI = Mod->global_begin(), ME = Mod->global_end(); MI != ME; MI++) {
-        std::string name = MI->getName();
-        int status;
-        const char *ret = abi::__cxa_demangle(name.c_str(), 0, 0, &status);
-        if (ret && !strncmp(ret, "vtable for ", 11))
-            initializeVtable(NULL, MI);
-    }
-#endif
-    // now add all non-virtual functions to end of vtable
-    // Context: must be run after vtable extraction (so that functions are appended to end)
-    for (auto FB = Mod->begin(), FE = Mod->end(); FB != FE; ++FB)
-        addMethodTable(NULL, FB);  // append to end of vtable (must run after vtable processing)
-
     // replace calls to methodToFunction with "Function *" values.
     // Context: Must be after all vtable processing.
     if (Function *Declare = Mod->getFunction("methodToFunction"))
@@ -1202,9 +1180,6 @@ void preprocessModule(Module *Mod)
             processMemcpy(cast<CallInst>(*I));
             I = NI;
         }
-
-//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-    //Mod->getFunction("_ZN7IVectorC2EP17IVectorIndicationi")->dump();
 }
 
 static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
