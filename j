@@ -1,4 +1,4 @@
 #
 set -e
 set -x
-./linker.py --directory generatedprec --output Echo l_class_OC_IVector
+./linker.py --directory generatedb --directory generated --output Echo l_class_OC_Echo

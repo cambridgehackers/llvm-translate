@@ -48,7 +48,7 @@ def prependName(name, string):
                 if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
                     retVal += name
                 retVal += tfield
-    print 'prependName', name, string, ' -> ', retVal
+    #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
 def expandGuard(mitem, name, string):
@@ -101,7 +101,7 @@ def processFile(filename):
                     inVector = map(str.strip, inLine.strip().split(';'))
                     if inVector[-1] == '':
                         inVector.pop()
-                    print 'MM', inLine, inVector
+                    #print 'MM', inLine, inVector
                     if inVector[0] == '//METAGUARD':
                         if not inVector[1].endswith('__RDY'):
                             print 'Guard name invalid', invector
@@ -138,7 +138,7 @@ def processFile(filename):
         mInfo[value] = titem
 
 def getList(filename, mname, field):
-    print 'getlist', filename, mname, field
+    #print 'getlist', filename, mname, field
     mitem = mInfo[filename]
     titem = mitem['methods'][mname]
     retVal = titem[field]
@@ -225,6 +225,6 @@ if __name__=='__main__':
     if options.output:
         print 'output', options.output
         for key, titem in mInfo.iteritems():
-            #print 'ALL', key, json.dumps(titem, sort_keys=True, indent = 4)
+            print 'ALL', key, json.dumps(titem, sort_keys=True, indent = 4)
             pass
 
