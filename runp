@@ -2,7 +2,7 @@
 set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generatedprec ../atomicc/examples/precision/precision.ll ../atomicc/examples/precision/atomicc.ll
-./linker.py --directory generatedprec --output Echo l_class_OC_IVector
+./bsvWrapper.py --directory generatedprec --output Echo l_class_OC_IVector
 clang++ -Igeneratedprec -g test/precision.cpp
 ./a.out
 rm -f a.out

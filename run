@@ -4,4 +4,4 @@ set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
 ./Debug+Asserts/bin/llvm-translate --odir=generatedb ../atomicc/examples/echo/fifo.ll
 #./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/fifo.ll ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
-./linker.py --directory generated --directory generatedb --output Echo l_class_OC_Echo
+./bsvWrapper.py --directory generated --directory generatedb --output Echo l_class_OC_Echo
