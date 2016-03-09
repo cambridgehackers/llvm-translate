@@ -119,11 +119,14 @@ def processFile(filename):
                     elif inVector[0] == '//METAEXTERNAL':
                         titem['external'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METAINVOKE':
-                        titem['methods'][inVector[1]]['invoke'].append(inVector[2].split(':'))
+                        for vitem in inVector[2:]:
+                            titem['methods'][inVector[1]]['invoke'].append(vitem.split(':'))
                     elif inVector[0] == '//METAREAD':
-                        titem['methods'][inVector[1]]['read'].append(inVector[2].split(':'))
+                        for vitem in inVector[2:]:
+                            titem['methods'][inVector[1]]['read'].append(vitem.split(':'))
                     elif inVector[0] == '//METAWRITE':
-                        titem['methods'][inVector[1]]['write'].append(inVector[2].split(':'))
+                        for vitem in inVector[2:]:
+                            titem['methods'][inVector[1]]['write'].append(vitem.split(':'))
                     else:
                         print 'Unknown case', inVector
     print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
@@ -132,6 +135,7 @@ def processFile(filename):
     for key, value in titem['external'].iteritems():
         titem = {}
         titem['name'] = value
+        titem['rules'] = []
         titem['methods'] = {}
         titem['internal'] = {}
         titem['external'] = {}
@@ -143,26 +147,28 @@ def getList(filename, mname, field):
     titem = mitem['methods'][mname]
     retVal = titem[field]
     tguard = expandGuard(mitem, '', titem['guard'])
-    titem['nguard'] = tguard
+    titem['guard'] = tguard
     for iitem in titem['invoke']:
         for item in iitem[1:]:
             refName = item.split('$')
-            if mitem['internal'].get(refName[0]):
-                gitem, rList = getList(mitem['internal'][refName[0]], refName[1], field)
+            innerFileName = mitem['internal'].get(refName[0])
+            if innerFileName:
+                gitem, rList = getList(innerFileName, refName[1], field)
                 for rItem in rList:
                     gVal = prependName(refName[0] + "$", gitem['guard'])
-                    if rItem[0] == '':
-                        rItem[0] = gVal
-                    elif gVal != '':
-                        rItem[0] = rItem[0] + ' & ' +  gVal
+                    #if rItem[0] == '':
+                        #rItem[0] = gVal
+                    #elif gVal != '':
+                        #rItem[0] = rItem[0] + ' & ' +  gVal
                     gVal = tguard
-                    if rItem[0] == '':
-                        rItem[0] = gVal
-                    elif gVal != '':
-                        rItem[0] = rItem[0] + ' & ' +  gVal
+                    #if rItem[0] == '':
+                        #rItem[0] = gVal
+                    #elif gVal != '':
+                        #rItem[0] = rItem[0] + ' & ' +  gVal
                     for ind in range(1, len(rItem)):
                         rItem[ind] = refName[0] + "$" + rItem[ind]
                     retVal.append(rItem)
+    #titem['new' + field] = retVal
     return titem, retVal
 
 def testEqual(A, B):
@@ -205,7 +211,7 @@ def parseExpression(string):
                     appendItem(retVal[ind], tfield)
     while isinstance(retVal, list) and len(retVal) == 1:
         retVal = retVal[0]
-    print 'parseExpression', string, ' -> ', retVal, ind
+    #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
 if __name__=='__main__':
@@ -215,16 +221,20 @@ if __name__=='__main__':
     for item in options.verilog:
         for key, value in mInfo[item]['methods'].iteritems():
             tignore, rList = getList(item, key, 'read')
-            print 'readList', key
-            for rItem in rList:
-                print parseExpression(rItem[0]), rItem[1:]
+            #print 'readList', key
+            #for rItem in rList:
+            #    print 'parseexp read', parseExpression(rItem[0]), rItem[1:]
             tignore, wList = getList(item, key, 'write')
-            print 'writeList', key
-            for wItem in wList:
-                print parseExpression(wItem[0]), wItem[1:]
+            #print 'writeList', key
+            #for wItem in wList:
+            #    print 'parseexp write', parseExpression(wItem[0]), wItem[1:]
     if options.output:
         print 'output', options.output
         for key, titem in mInfo.iteritems():
-            print 'ALL', key, json.dumps(titem, sort_keys=True, indent = 4)
+            for rname in titem['rules']:
+                 mitem = titem['methods'][rname]
+                 #print 'OUTPUT', key, json.dumps(mitem , sort_keys=True, indent = 4)
+                 #print 'OUTPUT', rname, 'guard', mitem['guard'], 'read', json.dumps(mitem['read'] , sort_keys=True, indent = 4), 'write', json.dumps(mitem['write'] , sort_keys=True, indent = 4)
+                 print 'OUTPUT', rname, 'guard', "'" + mitem['guard'] + "'", 'read', mitem['read'], 'write', mitem['write']
             pass
 

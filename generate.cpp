@@ -632,7 +632,8 @@ static std::string processInstruction(Instruction &I)
         LoadInst &IL = static_cast<LoadInst&>(I);
         ERRORIF (IL.isVolatile());
         std::string p = printOperand(I.getOperand(0), true);
-        if (I.getType()->getTypeID() != Type::PointerTyID && !isAlloca(I.getOperand(0)))
+        if (I.getType()->getTypeID() != Type::PointerTyID && !isAlloca(I.getOperand(0))
+         && !dyn_cast<Argument>(I.getOperand(0)))
             readList.push_back(ReferenceType{I.getParent(), p});
         return p;
         }
