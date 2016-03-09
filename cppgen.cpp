@@ -70,48 +70,26 @@ static std::string printFunctionSignature(const Function *F, std::string altname
     FunctionType *FT = cast<FunctionType>(F->getFunctionType());
     ERRORIF (F->hasDLLImportStorageClass() || F->hasDLLExportStorageClass() || FT->isVarArg());
     Type *retType = F->getReturnType();
+    auto AI = F->arg_begin(), AE = F->arg_end();
     if (F->hasLocalLinkage()) statstr = "static ";
-    if (F->isDeclaration()) {
-ERRORIF(1);
-        auto AI = FT->param_begin(), AE = FT->param_end();
-        if (F->hasStructRetAttr()) {
-printf("[%s:%d] HAVENOWAYTOCONVERTCONSTTYPETOTYPE %s\n", __FUNCTION__, __LINE__, F->getName().str().c_str());
-            //if (auto PTy = dyn_cast<PointerType>(AI))
-                //retType = PTy->getElementType();
-            AI++;
-        }
-        if (!addThis)
-            AI++;
-        for (; AI != AE; ++AI) {
-            Type *element = *AI;
-            if (!addThis)
-            if (auto PTy = dyn_cast<PointerType>(element))
-                element = PTy->getElementType();
-            tstr += printType(element, /*isSigned=*/false, "", sep, "", false);
-            sep = ", ";
-            addThis = false;
-        }
+    ERRORIF(F->isDeclaration());
+    if (F->hasStructRetAttr()) {
+        if (auto PTy = dyn_cast<PointerType>(AI->getType()))
+            retType = PTy->getElementType();
+        AI++;
     }
-    else {
-        auto AI = F->arg_begin(), AE = F->arg_end();
-        if (F->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
+    if (!addThis)
+        AI++;
+    for (; AI != AE; ++AI) {
+        Type *element = AI->getType();
         if (!addThis)
-            AI++;
-        for (; AI != AE; ++AI) {
-            Type *element = AI->getType();
-            if (!addThis)
-            if (auto PTy = dyn_cast<PointerType>(element))
-                element = PTy->getElementType();
-            tstr += printType(element, /*isSigned=*/false, GetValueName(AI), sep, "", false);
-            sep = ", ";
-            if (addThis)
-                tstr += 'p';
-            addThis = false;
-        }
+        if (auto PTy = dyn_cast<PointerType>(element))
+            element = PTy->getElementType();
+        tstr += printType(element, /*isSigned=*/false, GetValueName(AI), sep, "", false);
+        sep = ", ";
+        if (addThis)
+            tstr += 'p';
+        addThis = false;
     }
     if (sep == "")
         tstr += "void";
@@ -208,20 +186,20 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     for (auto item: includeList)
         fprintf(OStr, "#include \"%s.h\"\n", item.first.c_str());
-    if (name.substr(0,12) != "l_struct_OC_")
-        fprintf(OStr, "class %s;\n", name.c_str());
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        fprintf(OStr, "extern %s;\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
-    }
     if (name.substr(0,12) == "l_struct_OC_")
         fprintf(OStr, "typedef struct {\n");
-    else
+    else {
+        fprintf(OStr, "class %s;\n", name.c_str());
+        for (auto FI : table->method) {
+            Function *func = FI.second;
+            fprintf(OStr, "extern %s;\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
+        }
         fprintf(OStr, "class %s {\n", name.c_str());
+    }
     fprintf(OStr, "public:\n");
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n");
-    if (table)
+    if (table) {
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
@@ -230,6 +208,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     for (auto item: table->interfaces)
         fprintf(OStr, "  void set%s(%s) { %s = v; }\n", item.first.c_str(),
             printType(item.second, false, "v", "", "", false).c_str(), item.first.c_str());
+    }
     fprintf(OStr, "}%s;\n#endif  // __%s_H__\n", (name.substr(0,12) == "l_struct_OC_" ? name.c_str():""), name.c_str());
     fclose(OStr);
     // now generate '.cpp' file
