@@ -5,6 +5,6 @@
 
 //METAEXTERNAL; pipe; l_class_OC_PipeIn_OC_0;
 //METAGUARD; heard__RDY; pipe$enq__RDY;
-//METAWRITE; heard; :;ind$data$heard$meth:;ind$data$heard$v;
-//METAINVOKE; heard; :;pipe$enq;
+//METAWRITE; heard; :ind$data$heard$meth;:ind$data$heard$v;
+//METAINVOKE; heard; :pipe$enq;
 `endif

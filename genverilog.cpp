@@ -321,7 +321,7 @@ static std::string gatherList(std::list<ReferenceType> &list)
 {
     std::string temp;
     for (auto item: list)
-        temp += ":" + printOperand(getCondition(item.cond, 0),false) + ";" + item.item;
+        temp += printOperand(getCondition(item.cond, 0),false) + ":" + item.item + ";";
     return temp;
 }
 static std::string combineCondList(std::list<ReferenceType> &functionList)
@@ -352,6 +352,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::list<std::string> alwaysLines;
     std::string extraRules = utostr(table->rules.size());
     std::map<std::string, int> includeLines;
+    std::string ruleNames;
 
     muxValueList.clear();
     assignList.clear();
@@ -363,11 +364,14 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     int ind = 0;
     for (auto item : table->rules)
         if (item.second) {
+            ruleNames += "; " + item.first;
             fprintf(OStr, "    wire %s__RDY_internal;\n", item.first.c_str());
             fprintf(OStr, "    wire %s__ENA_internal = rule_enable[%d] && %s__RDY_internal;\n", item.first.c_str(), ind, item.first.c_str());
             assignList["rule_ready[" + utostr(ind) + "]"] = item.first + "__RDY_internal";
             ind++;
         }
+    if (ruleNames != "")
+        metaList.push_back("//METARULES" + ruleNames);
     // generate local state element declarations
     int Idx = 0;
     std::list<std::string> resetList;
@@ -477,13 +481,13 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 tempRead.push_back(item);
             std::string temp = gatherList(tempRead);
             if (temp != "")
-                metaList.push_back("//METAREAD; " + mname + "; " + temp + ";");
+                metaList.push_back("//METAREAD; " + mname + "; " + temp);
             temp = gatherList(writeList);
             if (temp != "")
-                metaList.push_back("//METAWRITE; " + mname + "; " + temp + ";");
+                metaList.push_back("//METAWRITE; " + mname + "; " + temp);
             temp = gatherList(invokeList);
             if (temp != "")
-                metaList.push_back("//METAINVOKE; " + mname + "; " + temp + ";");
+                metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
         }
     }
     // combine mux'ed assignments into a single 'assign' statement

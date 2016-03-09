@@ -5,5 +5,5 @@
 
 //METAEXTERNAL; indication; l_class_OC_EchoIndication;
 //METAGUARD; say__RDY; indication$heard__RDY;
-//METAINVOKE; say; :;indication$heard;
+//METAINVOKE; say; :indication$heard;
 `endif

@@ -7,6 +7,6 @@
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAGUARD; out_deq__RDY; full;
 //METAGUARD; out_first__RDY; full;
-//METAWRITE; in_enq; :;full;
-//METAWRITE; out_deq; :;full;
+//METAWRITE; in_enq; :full;
+//METAWRITE; out_deq; :full;
 `endif

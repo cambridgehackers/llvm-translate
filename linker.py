@@ -72,7 +72,7 @@ def expandGuard(mitem, name, string):
                     else:
                         tfield = name + tfield
                 retVal += tfield
-    print 'expandGuard', string, ' -> ', retVal
+    #print 'expandGuard', string, ' -> ', retVal
     return retVal
 
 def processFile(filename):
@@ -81,6 +81,7 @@ def processFile(filename):
         return
     titem = {}
     titem['name'] = filename
+    titem['rules'] = []
     titem['methods'] = {}
     titem['internal'] = {}
     titem['external'] = {}
@@ -100,6 +101,7 @@ def processFile(filename):
                     inVector = map(str.strip, inLine.strip().split(';'))
                     if inVector[-1] == '':
                         inVector.pop()
+                    print 'MM', inLine, inVector
                     if inVector[0] == '//METAGUARD':
                         if not inVector[1].endswith('__RDY'):
                             print 'Guard name invalid', invector
@@ -110,6 +112,8 @@ def processFile(filename):
                         titem['methods'][tempName]['read'] = []
                         titem['methods'][tempName]['write'] = []
                         titem['methods'][tempName]['invoke'] = []
+                    elif inVector[0] == '//METARULES':
+                        titem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':
                         titem['internal'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METAEXTERNAL':
@@ -139,6 +143,7 @@ def getList(filename, mname, field):
     titem = mitem['methods'][mname]
     retVal = titem[field]
     tguard = expandGuard(mitem, '', titem['guard'])
+    titem['nguard'] = tguard
     for iitem in titem['invoke']:
         for item in iitem[1:]:
             refName = item.split('$')
@@ -219,4 +224,7 @@ if __name__=='__main__':
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:
         print 'output', options.output
+        for key, titem in mInfo.iteritems():
+            #print 'ALL', key, json.dumps(titem, sort_keys=True, indent = 4)
+            pass
 

@@ -6,7 +6,7 @@
 //METAGUARD; in_enq__RDY; full ^ 1;
 //METAGUARD; out_deq__RDY; full;
 //METAGUARD; out_first__RDY; full;
-//METAWRITE; in_enq; :;element:;full;
-//METAWRITE; out_deq; :;full;
-//METAREAD; out_first; :;element;
+//METAWRITE; in_enq; :element;:full;
+//METAWRITE; out_deq; :full;
+//METAREAD; out_first; :element;
 `endif
