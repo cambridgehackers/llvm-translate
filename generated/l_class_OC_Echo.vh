@@ -6,8 +6,8 @@
 
 //METAINTERNAL; fifo; l_class_OC_Fifo1;
 //METAEXTERNAL; ind; l_class_OC_EchoIndication;
-//METAINVOKE; respond_rule; :;fifo$out_first:;fifo$out_deq:;ind$heard;
 //METAGUARD; respond_rule__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAINVOKE; say; :;fifo$in_enq;
 //METAGUARD; say__RDY; fifo$in_enq__RDY;
+//METAINVOKE; respond_rule; :;fifo$out_first:;fifo$out_deq:;ind$heard;
+//METAINVOKE; say; :;fifo$in_enq;
 `endif

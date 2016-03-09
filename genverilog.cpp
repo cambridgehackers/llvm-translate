@@ -408,9 +408,20 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         }
         } while(vecCount-- > 0);
     }
+    for (auto FI : table->method) {
+        std::string mname = FI.first;
+        Function *func = FI.second;
+        if (endswith(mname, "__RDY")) {
+            globalCondition = mname + "__ENA_internal";
+            processFunction(func);
+            std::string temp = combineCondList(functionList);
+            metaList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
+        }
+    }
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
     for (auto FI : table->method) {
+        std::string mname = FI.first;
         Function *func = FI.second;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin();
@@ -419,7 +430,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 retType = PTy->getElementType();
             AI++;
         }
-        std::string mname = FI.first;
         int isAction = (retType == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
         processFunction(func);
@@ -427,7 +437,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             std::string temp = combineCondList(functionList);
             if (endswith(mname, "__RDY")) {
                 assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
-                metaList.push_back("//METAGUARD; " + mname + "; " + temp + ";");
             }
             else if (temp != "")
                 setAssign(mname, temp);  // collect the text of the return value into a single 'assign'

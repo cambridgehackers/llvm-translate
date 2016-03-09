@@ -23,6 +23,8 @@ module l_class_OC_Fifo1_OC_1 (
     assign in_enq__RDY_internal = full ^ 1;
     assign out_deq__RDY = out_deq__RDY_internal;
     assign out_deq__RDY_internal = full;
+    assign out_first$_ = element;
+    assign out_first$__ENA = out_first__ENA_internal;
     assign out_first__RDY_internal = full;
 
     always @( posedge CLK) begin
@@ -32,17 +34,11 @@ module l_class_OC_Fifo1_OC_1 (
       end // nRST
       else begin
         if (in_enq__ENA_internal) begin
-            element$a <= in_enq_v$a;
-            element$b <= in_enq_v$b;
             full <= 1;
         end; // End of in_enq
         if (out_deq__ENA_internal) begin
             full <= 0;
         end; // End of out_deq
-        if (out_first__ENA_internal) begin
-            out_first$a <= element$a;
-            out_first$b <= element$b;
-        end; // End of out_first
       end
     end // always @ (posedge CLK)
 endmodule 
