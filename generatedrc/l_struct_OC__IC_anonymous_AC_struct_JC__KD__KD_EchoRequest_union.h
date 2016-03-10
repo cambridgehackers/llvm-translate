@@ -1,0 +1,10 @@
+#ifndef __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_H__
+#define __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_H__
+#include "l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_KD__KD_EchoRequest_say.h"
+typedef struct {
+public:
+  l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_KD__KD_EchoRequest_say say;
+public:
+  void run();
+}l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union;
+#endif  // __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoRequest_union_H__
