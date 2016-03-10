@@ -22,12 +22,10 @@ bool l_class_OC_IVector__respond__RDY(l_class_OC_IVector *thisp) {
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector__say(l_class_OC_IVector *thisp, BITS6 say_meth, BITS4 say_v) {
-        l_struct_OC_ValueType agg_2e_tmp;
         l_struct_OC_ValueType temp;
         temp.a.(say_meth);
         temp.b.(say_v);
-        agg_2e_tmp->(temp);
-        thisp->fifo.in_enq(agg_2e_tmp);
+        thisp->fifo.in_enq(temp);
 }
 bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp) {
         bool tmp__1;

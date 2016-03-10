@@ -25,7 +25,7 @@ module l_class_OC_IVector (
         CLK,
         nRST,
         say__ENA_internal,
-        ind$heard_heard_meth,
+        temp,
         say__RDY_internal,
         respond__ENA_internal,
         fifo$out_deq__RDY,
@@ -36,12 +36,12 @@ module l_class_OC_IVector (
     reg[23:0] fcounter;
     reg[1:0] counter;
     reg[10:0] gcounter;
-    assign agg_2e_tmp$_ = temp;
-    assign agg_2e_tmp$__ENA = respond__ENA_internal || say__ENA_internal;
+    assign agg_2e_tmp$__ENA = respond__ENA_internal;
     assign agg_2e_tmp$_arg = fifo$out_first$a;
     assign agg_2e_tmp3$__ENA = respond__ENA_internal;
     assign agg_2e_tmp3$_arg = fifo$out_first$b;
     assign ind$heard__ENA = respond__ENA_internal;
+    assign ind$heard_heard_meth = agg_2e_tmp;
     assign ind$heard_heard_v = agg_2e_tmp3;
     assign respond__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond__RDY_internal;

@@ -14,12 +14,37 @@ module l_class_OC_Echo (
     input indication$heard__RDY,
     input [`l_class_OC_Echo_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_Echo_RULE_COUNT:0]rule_ready);
+    wire respond_rule__RDY_internal;
+    wire respond_rule__ENA_internal = rule_enable[0] && respond_rule__RDY_internal;
     wire say__RDY_internal;
     wire say__ENA_internal = say__ENA && say__RDY_internal;
-    assign indication$heard__ENA = say__ENA_internal;
-    assign indication$heard_meth = say_meth;
-    assign indication$heard_v = say_v;
+    reg[31:0] busy;
+    reg[31:0] meth_temp;
+    reg[31:0] v_temp;
+    assign indication$heard__ENA = respond_rule__ENA_internal;
+    assign indication$heard_meth = meth_temp;
+    assign indication$heard_v = v_temp;
+    assign respond_rule__RDY_internal = (busy != 0) & indication$heard__RDY;
+    assign rule_ready[0] = respond_rule__RDY_internal;
     assign say__RDY = say__RDY_internal;
-    assign say__RDY_internal = indication$heard__RDY;
+    assign say__RDY_internal = (busy != 0) ^ 1;
+
+    always @( posedge CLK) begin
+      if (!nRST) begin
+        busy <= 0;
+        meth_temp <= 0;
+        v_temp <= 0;
+      end // nRST
+      else begin
+        if (respond_rule__ENA_internal) begin
+            busy <= 0;
+        end; // End of respond_rule
+        if (say__ENA_internal) begin
+            busy <= 1;
+            meth_temp <= say_meth;
+            v_temp <= say_v;
+        end; // End of say
+      end
+    end // always @ (posedge CLK)
 endmodule 
 

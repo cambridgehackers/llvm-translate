@@ -37,6 +37,8 @@ module l_class_OC_Connect (
         lEchoRequestInput$request$say__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT]);
+    wire lEcho$respond_rule__ENA;
+    wire lEcho$respond_rule__RDY;
     wire lEcho$say__ENA;
     wire [31:0]lEcho$say_meth;
     wire [31:0]lEcho$say_v;
