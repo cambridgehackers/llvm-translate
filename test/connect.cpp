@@ -68,6 +68,10 @@ int main(int argc, const char *argv[])
     zConnect.lEchoIndicationInput_test.setrequest(&zConnectresp);
 
     zConnect.lEchoRequestOutput_test.say(1, 44 * 1); testCount++;
+    testCount++;
+    testCount++;
+    zConnect.run(); zConnect.lEchoRequestOutput_test.say(2, 44 * 2);
+    zConnect.run(); zConnect.lEchoRequestOutput_test.say(3, 44 * 3);
     while (!stop_main_program) {
         zConnect.run();
     }
