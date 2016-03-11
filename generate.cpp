@@ -524,7 +524,7 @@ static std::string printCall(Instruction &I)
         std::string str = printOperand(I.getOperand(0), false);
         if (str[0] == '&')
             str = str.substr(1);
-        storeList.push_back(StoreType{str, ReferenceType{I.getParent(), printOperand(I.getOperand(1), false)}});
+        storeList.push_back(StoreType{str, I.getParent(), printOperand(I.getOperand(1), false)});
         return "";
     }
     if (Instruction *dest = dyn_cast<Instruction>(I.getOperand(0)))
@@ -539,7 +539,7 @@ static std::string printCall(Instruction &I)
                 vout += sval;
             }
             else
-                storeList.push_back(StoreType{printOperand(dest->getOperand(0), true), ReferenceType{I.getParent(), sval}});
+                storeList.push_back(StoreType{printOperand(dest->getOperand(0), true), I.getParent(), sval});
             return vout;
         }
     }
@@ -658,7 +658,7 @@ static std::string processInstruction(Instruction &I)
         else {
             writeList.push_back(ReferenceType{I.getParent(), pdest});
 printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
-            storeList.push_back(StoreType{pdest, ReferenceType{I.getParent(), sval}});
+            storeList.push_back(StoreType{pdest, I.getParent(), sval});
         }
         return "";
         }
@@ -889,7 +889,7 @@ func->dump();
                          && II->getType() != Type::getVoidTy(BI->getContext())) {
                         std::string resname = GetValueName(&*II);
                         declareList[resname] = printType(II->getType(), false, resname, "", "", false);
-                        storeList.push_back(StoreType{resname, ReferenceType{II->getParent(), vout}});
+                        storeList.push_back(StoreType{resname, II->getParent(), vout});
                     }
                     else
                         functionList.push_back(ReferenceType{II->getParent(), vout});

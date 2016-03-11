@@ -112,7 +112,6 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
 static void processAlloca(Function *func)
 {
     std::map<const Value *,Value *> remapValue;
-    std::list<Instruction *> moveList;
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
@@ -142,18 +141,10 @@ static void processAlloca(Function *func)
                     recursiveDelete(II);
                 }
                 break;
-            case Instruction::Call:
-                if (CallInst *CI = dyn_cast<CallInst>(II))
-                if (II->getType() == Type::getVoidTy(II->getParent()->getContext())
-                  && !CI->hasStructRetAttr())
-                    moveList.push_back(II); // move all Action calls to end of basic block
-                break;
             };
             II = PI;
         }
     }
-    for (auto item: moveList)
-        item->moveBefore(item->getParent()->getTerminator());
 }
 
 static void addMethodTable(const StructType *STy, Function *func)

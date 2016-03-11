@@ -67,7 +67,8 @@ typedef struct {
 } ReferenceType;
 typedef struct {
     std::string target;
-    ReferenceType ref;
+    BasicBlock *cond;
+    std::string item;
 } StoreType;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
