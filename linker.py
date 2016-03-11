@@ -224,15 +224,23 @@ def prependList(prefix, aList):
         rList.append(nitem)
     return rList
 
+def formatAccess(aList):
+    ret = ''
+    for item in aList:
+        if item[0] != '':
+            ret += item[0] + ':'
+        ret += item[1] + ', '
+    return ret
+
 def dumpRules(prefix, name):
     titem = mInfo[name]
     for rname in titem['rules']:
          mitem = titem['methods'][rname]
-         #print 'OUTPUT', key, json.dumps(mitem , sort_keys=True, indent = 4)
-         #print 'OUTPUT', rname, 'guard', mitem['guard'], 'read', json.dumps(mitem['read'] , sort_keys=True, indent = 4), 'write', json.dumps(mitem['write'] , sort_keys=True, indent = 4)
          print 'OUTPUT', rname, 'guard:', prependName(prefix, mitem['guard'])
-         print '        read', prependList(prefix, mitem['read'])
-         print '        write', prependList(prefix, mitem['write'])
+         for tag in ['read', 'write']:
+            sitem = formatAccess(prependList(prefix, mitem[tag]))
+            if sitem != '':
+                print '        ' + tag + ':', sitem
     for key, value in titem['internal'].iteritems():
         dumpRules(prefix + key + '$', value)
     for key, value in titem['external'].iteritems():
