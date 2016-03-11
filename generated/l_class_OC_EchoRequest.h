@@ -7,6 +7,7 @@ class l_class_OC_EchoRequest {
 public:
 public:
   void run();
+  void commit();
   void say(unsigned int say_v) { l_class_OC_EchoRequest__say(this, say_v); }
   bool say__RDY(void) { return l_class_OC_EchoRequest__say__RDY(this); }
 };

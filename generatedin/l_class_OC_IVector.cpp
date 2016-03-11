@@ -200,4 +200,21 @@ void l_class_OC_IVector::run()
     fifo8.run();
     fifo9.run();
     fifo10.run();
+    commit();
+}
+void l_class_OC_IVector::commit()
+{
+    if (vsize_valid) vsize = vsize_shadow;
+    vsize_valid = 0;
+    fifo0.commit();
+    fifo1.commit();
+    fifo2.commit();
+    fifo3.commit();
+    fifo4.commit();
+    fifo5.commit();
+    fifo6.commit();
+    fifo7.commit();
+    fifo8.commit();
+    fifo9.commit();
+    fifo10.commit();
 }

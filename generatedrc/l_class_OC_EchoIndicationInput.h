@@ -10,11 +10,12 @@ extern bool l_class_OC_EchoIndicationInput__input_rule__RDY(l_class_OC_EchoIndic
 class l_class_OC_EchoIndicationInput {
 public:
   l_class_OC_foo *request0;
-  unsigned int busy_delay;
-  unsigned int meth_delay;
-  unsigned int v_delay;
+  unsigned int busy_delay, busy_delay_shadow; bool busy_delay_valid;
+  unsigned int meth_delay, meth_delay_shadow; bool meth_delay_valid;
+  unsigned int v_delay, v_delay_shadow; bool v_delay_valid;
 public:
   void run();
+  void commit();
   void enq(l_struct_OC_EchoIndication_data enq_v) { l_class_OC_EchoIndicationInput__enq(this, enq_v); }
   bool enq__RDY(void) { return l_class_OC_EchoIndicationInput__enq__RDY(this); }
   void input_rule(void) { l_class_OC_EchoIndicationInput__input_rule(this); }

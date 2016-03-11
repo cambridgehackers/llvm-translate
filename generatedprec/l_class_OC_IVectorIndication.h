@@ -7,6 +7,7 @@ class l_class_OC_IVectorIndication {
 public:
 public:
   void run();
+  void commit();
   void heard(BITS6 heard_meth, BITS4 heard_v) { l_class_OC_IVectorIndication__heard(this, heard_meth, heard_v); }
   bool heard__RDY(void) { return l_class_OC_IVectorIndication__heard__RDY(this); }
 };

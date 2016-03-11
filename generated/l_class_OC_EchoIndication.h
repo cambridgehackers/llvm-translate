@@ -7,6 +7,7 @@ class l_class_OC_EchoIndication {
 public:
 public:
   void run();
+  void commit();
   void heard(unsigned int heard_v) { l_class_OC_EchoIndication__heard(this, heard_v); }
   bool heard__RDY(void) { return l_class_OC_EchoIndication__heard__RDY(this); }
 };

@@ -36,4 +36,9 @@ void l_class_OC_IVector::run()
 {
     if (respond__RDY()) respond();
     fifo.run();
+    commit();
+}
+void l_class_OC_IVector::commit()
+{
+    fifo.commit();
 }

@@ -7,6 +7,7 @@ class l_class_OC_IVectorRequest {
 public:
 public:
   void run();
+  void commit();
   void say(unsigned int say_meth, unsigned int say_v) { l_class_OC_IVectorRequest__say(this, say_meth, say_v); }
   bool say__RDY(void) { return l_class_OC_IVectorRequest__say__RDY(this); }
 };

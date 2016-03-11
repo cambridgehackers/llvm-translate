@@ -12,6 +12,7 @@ class l_class_OC_Fifo_OC_0 {
 public:
 public:
   void run();
+  void commit();
   void in_enq(l_struct_OC_ValuePair in_enq_v) { l_class_OC_Fifo_OC_0__in_enq(this, in_enq_v); }
   bool in_enq__RDY(void) { return l_class_OC_Fifo_OC_0__in_enq__RDY(this); }
   void out_deq(void) { l_class_OC_Fifo_OC_0__out_deq(this); }

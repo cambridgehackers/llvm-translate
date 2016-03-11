@@ -13,7 +13,8 @@ bool l_class_OC_FifoPong__in_enq__RDY(l_class_OC_FifoPong *thisp) {
         return (tmp__1 | ((thisp->pong) ^ 1)) & (tmp__2 | (thisp->pong));
 }
 void l_class_OC_FifoPong__out_deq(l_class_OC_FifoPong *thisp) {
-        thisp->pong = (thisp->pong) ^ 1;
+        thisp->pong_shadow = (thisp->pong) ^ 1;
+        thisp->pong_valid = 1;
         if (thisp->pong)
             thisp->element2.out_deq();
         if ((thisp->pong) ^ 1)
@@ -45,4 +46,12 @@ void l_class_OC_FifoPong::run()
 {
     element1.run();
     element2.run();
+    commit();
+}
+void l_class_OC_FifoPong::commit()
+{
+    if (pong_valid) pong = pong_shadow;
+    pong_valid = 0;
+    element1.commit();
+    element2.commit();
 }

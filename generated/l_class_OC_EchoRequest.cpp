@@ -6,4 +6,8 @@ bool l_class_OC_EchoRequest__say__RDY(l_class_OC_EchoRequest *thisp) {
 }
 void l_class_OC_EchoRequest::run()
 {
+    commit();
+}
+void l_class_OC_EchoRequest::commit()
+{
 }

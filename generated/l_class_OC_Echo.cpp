@@ -28,4 +28,11 @@ void l_class_OC_Echo::run()
 {
     if (respond_rule__RDY()) respond_rule();
     fifo.run();
+    commit();
+}
+void l_class_OC_Echo::commit()
+{
+    if (pipetemp_valid) pipetemp = pipetemp_shadow;
+    pipetemp_valid = 0;
+    fifo.commit();
 }

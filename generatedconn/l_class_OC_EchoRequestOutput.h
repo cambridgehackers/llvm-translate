@@ -9,6 +9,7 @@ public:
   l_class_OC_PipeIn *pipe;
 public:
   void run();
+  void commit();
   void say(unsigned int say_meth, unsigned int say_v) { l_class_OC_EchoRequestOutput__say(this, say_meth, say_v); }
   bool say__RDY(void) { return l_class_OC_EchoRequestOutput__say__RDY(this); }
   void setpipe(l_class_OC_PipeIn *v) { pipe = v; }

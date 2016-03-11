@@ -14,4 +14,8 @@ bool l_class_OC_EchoRequestOutput__say__RDY(l_class_OC_EchoRequestOutput *thisp)
 }
 void l_class_OC_EchoRequestOutput::run()
 {
+    commit();
+}
+void l_class_OC_EchoRequestOutput::commit()
+{
 }

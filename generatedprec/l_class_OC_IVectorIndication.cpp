@@ -8,4 +8,8 @@ bool l_class_OC_IVectorIndication__heard__RDY(l_class_OC_IVectorIndication *this
 }
 void l_class_OC_IVectorIndication::run()
 {
+    commit();
+}
+void l_class_OC_IVectorIndication::commit()
+{
 }

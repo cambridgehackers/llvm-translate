@@ -10,4 +10,8 @@ bool l_class_OC_EchoIndicationInput__enq__RDY(l_class_OC_EchoIndicationInput *th
 }
 void l_class_OC_EchoIndicationInput::run()
 {
+    commit();
+}
+void l_class_OC_EchoIndicationInput::commit()
+{
 }

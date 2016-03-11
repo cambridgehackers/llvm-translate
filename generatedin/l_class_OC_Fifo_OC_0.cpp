@@ -19,4 +19,8 @@ bool l_class_OC_Fifo_OC_0__out_first__RDY(l_class_OC_Fifo_OC_0 *thisp) {
 }
 void l_class_OC_Fifo_OC_0::run()
 {
+    commit();
+}
+void l_class_OC_Fifo_OC_0::commit()
+{
 }

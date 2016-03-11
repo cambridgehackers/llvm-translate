@@ -8,4 +8,8 @@ bool l_class_OC_EchoIndication__heard__RDY(l_class_OC_EchoIndication *thisp) {
 }
 void l_class_OC_EchoIndication::run()
 {
+    commit();
+}
+void l_class_OC_EchoIndication::commit()
+{
 }

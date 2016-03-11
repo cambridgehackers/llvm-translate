@@ -49,6 +49,7 @@ class ClassMethodTable {
 public:
     const StructType                  *STy;
     std::map<std::string, Function *> method;
+    std::map<std::string, int>        shadow;
     std::map<int, Type *>             replaceType;
     std::map<int, uint64_t>           replaceCount;
     std::map<int, bool>               allocateLocally;

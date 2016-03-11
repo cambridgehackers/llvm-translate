@@ -13,9 +13,10 @@ class l_class_OC_FifoPong {
 public:
   l_class_OC_Fifo1_OC_3 element1;
   l_class_OC_Fifo1_OC_3 element2;
-  bool pong;
+  bool pong, pong_shadow; bool pong_valid;
 public:
   void run();
+  void commit();
   void in_enq(l_struct_OC_ValuePair in_enq_v) { l_class_OC_FifoPong__in_enq(this, in_enq_v); }
   bool in_enq__RDY(void) { return l_class_OC_FifoPong__in_enq__RDY(this); }
   void out_deq(void) { l_class_OC_FifoPong__out_deq(this); }

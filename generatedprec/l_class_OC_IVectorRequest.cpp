@@ -6,4 +6,8 @@ bool l_class_OC_IVectorRequest__say__RDY(l_class_OC_IVectorRequest *thisp) {
 }
 void l_class_OC_IVectorRequest::run()
 {
+    commit();
+}
+void l_class_OC_IVectorRequest::commit()
+{
 }

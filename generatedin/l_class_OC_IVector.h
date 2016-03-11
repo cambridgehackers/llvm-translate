@@ -39,9 +39,10 @@ public:
   l_class_OC_FifoPong fifo9;
   l_class_OC_FifoPong fifo10;
   l_class_OC_IVectorIndication *ind;
-  unsigned int vsize;
+  unsigned int vsize, vsize_shadow; bool vsize_valid;
 public:
   void run();
+  void commit();
   void respond0(void) { l_class_OC_IVector__respond0(this); }
   bool respond0__RDY(void) { return l_class_OC_IVector__respond0__RDY(this); }
   void respond1(void) { l_class_OC_IVector__respond1(this); }

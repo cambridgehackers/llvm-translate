@@ -11,9 +11,10 @@ class l_class_OC_Echo {
 public:
   l_class_OC_Fifo1 fifo;
   l_class_OC_EchoIndication *ind;
-  unsigned int pipetemp;
+  unsigned int pipetemp, pipetemp_shadow; bool pipetemp_valid;
 public:
   void run();
+  void commit();
   void respond_rule(void) { l_class_OC_Echo__respond_rule(this); }
   bool respond_rule__RDY(void) { return l_class_OC_Echo__respond_rule__RDY(this); }
   void say(unsigned int say_v) { l_class_OC_Echo__say(this, say_v); }

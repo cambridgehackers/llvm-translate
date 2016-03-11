@@ -9,4 +9,8 @@ bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp) {
 }
 void l_class_OC_Echo::run()
 {
+    commit();
+}
+void l_class_OC_Echo::commit()
+{
 }

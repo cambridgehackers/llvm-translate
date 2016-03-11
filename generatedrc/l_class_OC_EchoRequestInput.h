@@ -10,6 +10,7 @@ public:
   l_class_OC_EchoRequest *request;
 public:
   void run();
+  void commit();
   void enq(l_struct_OC_EchoRequest_data enq_v) { l_class_OC_EchoRequestInput__enq(this, enq_v); }
   bool enq__RDY(void) { return l_class_OC_EchoRequestInput__enq__RDY(this); }
   void setrequest(l_class_OC_EchoRequest *v) { request = v; }

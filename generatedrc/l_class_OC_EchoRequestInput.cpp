@@ -11,4 +11,8 @@ bool l_class_OC_EchoRequestInput__enq__RDY(l_class_OC_EchoRequestInput *thisp) {
 }
 void l_class_OC_EchoRequestInput::run()
 {
+    commit();
+}
+void l_class_OC_EchoRequestInput::commit()
+{
 }

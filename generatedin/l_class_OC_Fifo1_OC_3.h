@@ -11,9 +11,10 @@ extern bool l_class_OC_Fifo1_OC_3__out_first__RDY(l_class_OC_Fifo1_OC_3 *thisp);
 class l_class_OC_Fifo1_OC_3 {
 public:
   l_struct_OC_ValuePair element;
-  bool full;
+  bool full, full_shadow; bool full_valid;
 public:
   void run();
+  void commit();
   void in_enq(l_struct_OC_ValuePair in_enq_v) { l_class_OC_Fifo1_OC_3__in_enq(this, in_enq_v); }
   bool in_enq__RDY(void) { return l_class_OC_Fifo1_OC_3__in_enq__RDY(this); }
   void out_deq(void) { l_class_OC_Fifo1_OC_3__out_deq(this); }

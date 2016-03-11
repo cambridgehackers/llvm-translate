@@ -36,7 +36,8 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         Type *element = *I;
         int64_t vecCount = -1;
-        if (ClassMethodTable *table = classCreate[STy])
+        ClassMethodTable *table = classCreate[STy];
+        if (table)
             if (Type *newType = table->replaceType[Idx]) {
                 element = newType;
                 vecCount = table->replaceCount[Idx];
@@ -53,7 +54,16 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
             do {
                 if (vecCount != -1)
                     vecDim = utostr(dimIndex++);
-                fprintf(OStr, "%s", printType(element, false, fname + vecDim, "  ", ";\n", false).c_str());
+                std::string tname = fname + vecDim;
+                std::string iname = tname;
+                std::string delimStr = ";\n";
+                if (!dyn_cast<StructType>(element) && !dyn_cast<PointerType>(element)) {
+                    if (table)
+                        table->shadow[tname] = 1;
+                    iname += ", " + tname + "_shadow";
+                    delimStr = "; bool " + tname + "_valid;\n";
+                }
+                fprintf(OStr, "%s", printType(element, false, iname, "  ", delimStr, false).c_str());
             } while(vecCount-- > 0);
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
@@ -198,7 +208,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     fprintf(OStr, "public:\n");
     generateClassElements(STy, OStr);
-    fprintf(OStr, "public:\n  void run();\n");
+    fprintf(OStr, "public:\n  void run();\n  void commit();\n");
     if (table) {
     for (auto FI : table->method) {
         Function *func = FI.second;
@@ -224,8 +234,15 @@ void generateClassDef(const StructType *STy, std::string oDir)
             fprintf(OStr, "        %s;\n", info.second.c_str());
         for (auto info: storeList) {
             if (Value *cond = getCondition(info.cond, 0))
-                fprintf(OStr, "        if (%s)\n    ", printOperand(cond, false).c_str());
+                fprintf(OStr, "        if (%s) {\n    ", printOperand(cond, false).c_str());
+            if (info.target.substr(0, 7) == "thisp->" && table->shadow[info.target.substr(7)]) {
+                fprintf(OStr, "        %s_shadow = %s;\n", info.target.c_str(), info.item.c_str());
+                fprintf(OStr, "        %s_valid = 1;\n", info.target.c_str());
+            }
+            else
             fprintf(OStr, "        %s = %s;\n", info.target.c_str(), info.item.c_str());
+            if (getCondition(info.cond, 0))
+                fprintf(OStr, "        }\n    ");
         }
         for (auto info: functionList) {
             if (Value *cond = getCondition(info.cond, 0))
@@ -241,6 +258,26 @@ void generateClassDef(const StructType *STy, std::string oDir)
             fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.c_str(), item.first.c_str());
     for (auto item : runLines)
         fprintf(OStr, "    %s.run();\n", item.c_str());
+    fprintf(OStr, "    commit();\n");
+    fprintf(OStr, "}\n");
+    fprintf(OStr, "void %s::commit()\n{\n", name.c_str());
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        Type *element = *I;
+        int64_t vecCount = -1;
+        if (table)
+        if (Type *newType = table->replaceType[Idx]) {
+            element = newType;
+            vecCount = table->replaceCount[Idx];
+        }
+        std::string fname = fieldName(STy, Idx);
+        if (fname != "" && !dyn_cast<StructType>(element) && !dyn_cast<PointerType>(element)) {
+            fprintf(OStr, "    if (%s_valid) %s = %s_shadow;\n", fname.c_str(), fname.c_str(), fname.c_str());
+            fprintf(OStr, "    %s_valid = 0;\n", fname.c_str());
+        }
+    }
+    for (auto item : runLines)
+        fprintf(OStr, "    %s.commit();\n", item.c_str());
     fprintf(OStr, "}\n");
     fclose(OStr);
     }

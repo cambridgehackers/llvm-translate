@@ -15,5 +15,6 @@ public:
   l_class_OC_EchoIndicationInput lEII_test;
 public:
   void run();
+  void commit();
 };
 #endif  // __l_class_OC_Connect_H__

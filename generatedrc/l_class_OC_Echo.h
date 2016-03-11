@@ -10,15 +10,16 @@ extern void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_meth, 
 extern bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp);
 class l_class_OC_Echo {
 public:
-  unsigned int busy;
-  unsigned int meth_temp;
-  unsigned int v_temp;
-  unsigned int busy_delay;
-  unsigned int meth_delay;
-  unsigned int v_delay;
+  unsigned int busy, busy_shadow; bool busy_valid;
+  unsigned int meth_temp, meth_temp_shadow; bool meth_temp_valid;
+  unsigned int v_temp, v_temp_shadow; bool v_temp_valid;
+  unsigned int busy_delay, busy_delay_shadow; bool busy_delay_valid;
+  unsigned int meth_delay, meth_delay_shadow; bool meth_delay_valid;
+  unsigned int v_delay, v_delay_shadow; bool v_delay_valid;
   l_class_OC_EchoIndication *indication;
 public:
   void run();
+  void commit();
   void delay_rule(void) { l_class_OC_Echo__delay_rule(this); }
   bool delay_rule__RDY(void) { return l_class_OC_Echo__delay_rule__RDY(this); }
   void respond_rule(void) { l_class_OC_Echo__respond_rule(this); }

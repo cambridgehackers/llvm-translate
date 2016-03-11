@@ -13,4 +13,8 @@ bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput
 }
 void l_class_OC_EchoIndicationOutput::run()
 {
+    commit();
+}
+void l_class_OC_EchoIndicationOutput::commit()
+{
 }

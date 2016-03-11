@@ -16,6 +16,7 @@ public:
   l_class_OC_IVectorIndication *ind;
 public:
   void run();
+  void commit();
   void respond(void) { l_class_OC_IVector__respond(this); }
   bool respond__RDY(void) { return l_class_OC_IVector__respond__RDY(this); }
   void say(BITS6 say_meth, BITS4 say_v) { l_class_OC_IVector__say(this, say_meth, say_v); }
