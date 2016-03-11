@@ -1,7 +1,7 @@
 #include "l_class_OC_Fifo1_OC_3.h"
 void l_class_OC_Fifo1_OC_3__in_enq(l_class_OC_Fifo1_OC_3 *thisp, l_struct_OC_ValuePair in_enq_v) {
-        thisp->element = in_enq_v;
         thisp->full = 1;
+        thisp->element = in_enq_v;
 }
 bool l_class_OC_Fifo1_OC_3__in_enq__RDY(l_class_OC_Fifo1_OC_3 *thisp) {
         return (thisp->full) ^ 1;

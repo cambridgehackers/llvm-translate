@@ -56,9 +56,9 @@ module l_class_OC_Echo (
             busy_delay <= 0;
         end; // End of respond_rule
         if (say__ENA_internal) begin
-            busy <= 1;
             meth_temp <= say_meth;
             v_temp <= say_v;
+            busy <= 1;
         end; // End of say
       end
     end // always @ (posedge CLK)

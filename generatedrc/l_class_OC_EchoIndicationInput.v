@@ -33,11 +33,11 @@ module l_class_OC_EchoIndicationInput (
       else begin
         if (enq__ENA_internal) begin
             if (enq_v$tag == 1)
-            busy_delay <= 1;
-            if (enq_v$tag == 1)
             meth_delay <= enq_v$data$heard$meth;
             if (enq_v$tag == 1)
             v_delay <= enq_v$data$heard$v;
+            if (enq_v$tag == 1)
+            busy_delay <= 1;
         end; // End of enq
         if (input_rule__ENA_internal) begin
             busy_delay <= 0;

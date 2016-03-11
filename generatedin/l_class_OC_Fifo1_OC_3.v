@@ -33,8 +33,8 @@ module l_class_OC_Fifo1_OC_3 (
       end // nRST
       else begin
         if (in_enq__ENA_internal) begin
-            element <= in_enq_v;
             full <= 1;
+            element <= in_enq_v;
         end; // End of in_enq
         if (out_deq__ENA_internal) begin
             full <= 0;

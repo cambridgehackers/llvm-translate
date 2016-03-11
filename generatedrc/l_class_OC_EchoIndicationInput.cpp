@@ -1,11 +1,11 @@
 #include "l_class_OC_EchoIndicationInput.h"
 void l_class_OC_EchoIndicationInput__enq(l_class_OC_EchoIndicationInput *thisp, l_struct_OC_EchoIndication_data enq_v) {
         if ((enq_v.tag) == 1)
-            thisp->busy_delay = 1;
-        if ((enq_v.tag) == 1)
             thisp->meth_delay = enq_v.data.heard.meth;
         if ((enq_v.tag) == 1)
             thisp->v_delay = enq_v.data.heard.v;
+        if ((enq_v.tag) == 1)
+            thisp->busy_delay = 1;
         printf("[%s:%d]EchoIndicationInput tag %d\n", ("enq"), 185, enq_v.tag);
 }
 bool l_class_OC_EchoIndicationInput__enq__RDY(l_class_OC_EchoIndicationInput *thisp) {

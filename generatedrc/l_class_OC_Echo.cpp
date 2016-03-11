@@ -20,9 +20,9 @@ bool l_class_OC_Echo__respond_rule__RDY(l_class_OC_Echo *thisp) {
         return ((thisp->busy_delay) != 0) & tmp__1;
 }
 void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_meth, unsigned int say_v) {
-        thisp->busy = 1;
         thisp->meth_temp = say_meth;
         thisp->v_temp = say_v;
+        thisp->busy = 1;
         printf("[%s:%d]Echo\n", ("say"), 217);
 }
 bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp) {

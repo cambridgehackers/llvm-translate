@@ -223,9 +223,9 @@ void generateClassDef(const StructType *STy, std::string oDir)
         for (auto info: declareList)
             fprintf(OStr, "        %s;\n", info.second.c_str());
         for (auto info: storeList) {
-            if (Value *cond = getCondition(info.second.cond, 0))
+            if (Value *cond = getCondition(info.ref.cond, 0))
                 fprintf(OStr, "        if (%s)\n    ", printOperand(cond, false).c_str());
-            fprintf(OStr, "        %s = %s;\n", info.first.c_str(), info.second.item.c_str());
+            fprintf(OStr, "        %s = %s;\n", info.target.c_str(), info.ref.item.c_str());
         }
         for (auto info: functionList) {
             if (Value *cond = getCondition(info.cond, 0))

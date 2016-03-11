@@ -468,9 +468,9 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         if (storeList.size() > 0) {
             alwaysLines.push_back("if (" + mname + "__ENA_internal) begin");
             for (auto info: storeList) {
-                if (Value *cond = getCondition(info.second.cond, 0))
+                if (Value *cond = getCondition(info.ref.cond, 0))
                     alwaysLines.push_back("    if (" + printOperand(cond, false) + ")");
-                alwaysLines.push_back("    " + info.first + " <= " + info.second.item + ";");
+                alwaysLines.push_back("    " + info.target + " <= " + info.ref.item + ";");
             }
             alwaysLines.push_back("end; // End of " + mname);
         }

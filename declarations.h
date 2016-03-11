@@ -65,6 +65,10 @@ typedef struct {
     BasicBlock *cond;
     std::string item;
 } ReferenceType;
+typedef struct {
+    std::string target;
+    ReferenceType ref;
+} StoreType;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
@@ -73,7 +77,7 @@ extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
 extern std::list<ReferenceType> readList, writeList, invokeList, functionList;
 extern std::map<std::string, std::string> declareList;
-extern std::map<std::string, ReferenceType> storeList;
+extern std::list<StoreType> storeList;
 extern std::map<const Function *, std::string> pushSeen;
 
 int validateAddress(int arg, void *p);

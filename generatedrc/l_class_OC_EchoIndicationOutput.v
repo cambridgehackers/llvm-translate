@@ -41,20 +41,20 @@ module l_class_OC_EchoIndicationOutput (
       end // nRST
       else begin
         if (heard__ENA_internal) begin
-            even <= (even != 0) ^ 1;
-            if ((even != 0) ^ 1)
-            ind0$data$heard$meth <= heard_meth;
-            if ((even != 0) ^ 1)
-            ind0$data$heard$v <= heard_v;
-            if ((even != 0) ^ 1)
-            ind0$tag <= 1;
+            if (even != 0)
+            ind1$tag <= 1;
             if (even != 0)
             ind1$data$heard$meth <= heard_meth;
             if (even != 0)
             ind1$data$heard$v <= heard_v;
-            if (even != 0)
-            ind1$tag <= 1;
+            if ((even != 0) ^ 1)
+            ind0$tag <= 1;
+            if ((even != 0) ^ 1)
+            ind0$data$heard$meth <= heard_meth;
+            if ((even != 0) ^ 1)
+            ind0$data$heard$v <= heard_v;
             ind_busy <= 1;
+            even <= (even != 0) ^ 1;
         end; // End of heard
         if (output_rulee__ENA_internal) begin
             ind_busy <= 0;

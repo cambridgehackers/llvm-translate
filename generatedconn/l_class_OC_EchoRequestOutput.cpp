@@ -1,9 +1,9 @@
 #include "l_class_OC_EchoRequestOutput.h"
 void l_class_OC_EchoRequestOutput__say(l_class_OC_EchoRequestOutput *thisp, unsigned int say_meth, unsigned int say_v) {
         l_struct_OC_EchoRequest_data ind;
+        ind.tag = 1;
         ind.data.say.meth = say_meth;
         ind.data.say.v = say_v;
-        ind.tag = 1;
         printf("entered EchoRequestOutput::say\n");
         thisp->pipe->enq(ind);
 }

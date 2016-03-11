@@ -166,7 +166,6 @@ bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp) {
         bool tmp__8;
         bool tmp__9;
         tmp__1 = thisp->fifo0.in_enq__RDY();
-        tmp__10 = thisp->fifo9.in_enq__RDY();
         tmp__2 = thisp->fifo1.in_enq__RDY();
         tmp__3 = thisp->fifo2.in_enq__RDY();
         tmp__4 = thisp->fifo3.in_enq__RDY();
@@ -175,6 +174,7 @@ bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp) {
         tmp__7 = thisp->fifo6.in_enq__RDY();
         tmp__8 = thisp->fifo7.in_enq__RDY();
         tmp__9 = thisp->fifo8.in_enq__RDY();
+        tmp__10 = thisp->fifo9.in_enq__RDY();
         return ((((((((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6) & tmp__7) & tmp__8) & tmp__9) & tmp__10;
 }
 void l_class_OC_IVector::run()

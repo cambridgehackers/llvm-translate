@@ -1,9 +1,9 @@
 #include "l_class_OC_EchoIndicationOutput.h"
 void l_class_OC_EchoIndicationOutput__heard(l_class_OC_EchoIndicationOutput *thisp, unsigned int heard_meth, unsigned int heard_v) {
         l_struct_OC_EchoIndication_data ind;
+        ind.tag = 1;
         ind.data.heard.meth = heard_meth;
         ind.data.heard.v = heard_v;
-        ind.tag = 1;
         thisp->pipe->enq(ind);
 }
 bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput *thisp) {

@@ -1,19 +1,19 @@
 #include "l_class_OC_EchoIndicationOutput.h"
 void l_class_OC_EchoIndicationOutput__heard(l_class_OC_EchoIndicationOutput *thisp, unsigned int heard_meth, unsigned int heard_v) {
-        thisp->even = ((thisp->even) != 0) ^ 1;
-        if (((thisp->even) != 0) ^ 1)
-            thisp->ind0.data.heard.meth = heard_meth;
-        if (((thisp->even) != 0) ^ 1)
-            thisp->ind0.data.heard.v = heard_v;
-        if (((thisp->even) != 0) ^ 1)
-            thisp->ind0.tag = 1;
+        if ((thisp->even) != 0)
+            thisp->ind1.tag = 1;
         if ((thisp->even) != 0)
             thisp->ind1.data.heard.meth = heard_meth;
         if ((thisp->even) != 0)
             thisp->ind1.data.heard.v = heard_v;
-        if ((thisp->even) != 0)
-            thisp->ind1.tag = 1;
+        if (((thisp->even) != 0) ^ 1)
+            thisp->ind0.tag = 1;
+        if (((thisp->even) != 0) ^ 1)
+            thisp->ind0.data.heard.meth = heard_meth;
+        if (((thisp->even) != 0) ^ 1)
+            thisp->ind0.data.heard.v = heard_v;
         thisp->ind_busy = 1;
+        thisp->even = ((thisp->even) != 0) ^ 1;
         printf("[%s:%d]EchoIndicationOutput even %d\n", ("heard"), 145, thisp->even);
 }
 bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput *thisp) {
