@@ -140,6 +140,7 @@ def processFile(filename):
         titem['internal'] = {}
         titem['external'] = {}
         mInfo[value] = titem
+        processFile(value)
 
 def getList(filename, mname, field):
     #print 'getlist', filename, mname, field

@@ -5,13 +5,20 @@
 class l_class_OC_EchoIndicationInput;
 extern void l_class_OC_EchoIndicationInput__enq(l_class_OC_EchoIndicationInput *thisp, l_struct_OC_EchoIndication_data enq_v);
 extern bool l_class_OC_EchoIndicationInput__enq__RDY(l_class_OC_EchoIndicationInput *thisp);
+extern void l_class_OC_EchoIndicationInput__input_rule(l_class_OC_EchoIndicationInput *thisp);
+extern bool l_class_OC_EchoIndicationInput__input_rule__RDY(l_class_OC_EchoIndicationInput *thisp);
 class l_class_OC_EchoIndicationInput {
 public:
   l_class_OC_foo *request0;
+  unsigned int busy_delay;
+  unsigned int meth_delay;
+  unsigned int v_delay;
 public:
   void run();
   void enq(l_struct_OC_EchoIndication_data enq_v) { l_class_OC_EchoIndicationInput__enq(this, enq_v); }
   bool enq__RDY(void) { return l_class_OC_EchoIndicationInput__enq__RDY(this); }
+  void input_rule(void) { l_class_OC_EchoIndicationInput__input_rule(this); }
+  bool input_rule__RDY(void) { return l_class_OC_EchoIndicationInput__input_rule__RDY(this); }
   void setrequest(l_class_OC_EchoIndication *v) { request = v; }
 };
 #endif  // __l_class_OC_EchoIndicationInput_H__

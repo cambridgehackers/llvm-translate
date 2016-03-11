@@ -10,6 +10,10 @@ module l_class_OC_Connect (
     wire [31:0]lEchoIndicationOutput$heard_meth;
     wire [31:0]lEchoIndicationOutput$heard_v;
     wire lEchoIndicationOutput$heard__RDY;
+    wire lEchoIndicationOutput$output_rulee__ENA;
+    wire lEchoIndicationOutput$output_rulee__RDY;
+    wire lEchoIndicationOutput$output_ruleo__ENA;
+    wire lEchoIndicationOutput$output_ruleo__RDY;
     l_class_OC_EchoIndicationOutput lEchoIndicationOutput (
         CLK,
         nRST,
@@ -77,6 +81,8 @@ module l_class_OC_Connect (
     wire lEchoIndicationInput_test$enq__ENA;
     wire [95:0]lEchoIndicationInput_test$enq_v;
     wire lEchoIndicationInput_test$enq__RDY;
+    wire lEchoIndicationInput_test$input_rule__ENA;
+    wire lEchoIndicationInput_test$input_rule__RDY;
     l_class_OC_EchoIndicationInput lEchoIndicationInput_test (
         CLK,
         nRST,
