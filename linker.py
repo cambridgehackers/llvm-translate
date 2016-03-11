@@ -215,6 +215,29 @@ def parseExpression(string):
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
+def prependList(prefix, aList):
+    rList = []
+    for item in aList:
+        nitem = []
+        for field in item:
+            nitem.append(prependName(prefix, field))
+        rList.append(nitem)
+    return rList
+
+def dumpRules(prefix, name):
+    titem = mInfo[name]
+    for rname in titem['rules']:
+         mitem = titem['methods'][rname]
+         #print 'OUTPUT', key, json.dumps(mitem , sort_keys=True, indent = 4)
+         #print 'OUTPUT', rname, 'guard', mitem['guard'], 'read', json.dumps(mitem['read'] , sort_keys=True, indent = 4), 'write', json.dumps(mitem['write'] , sort_keys=True, indent = 4)
+         print 'OUTPUT', rname, 'guard:', prependName(prefix, mitem['guard'])
+         print '        read', prependList(prefix, mitem['read'])
+         print '        write', prependList(prefix, mitem['write'])
+    for key, value in titem['internal'].iteritems():
+        dumpRules(prefix + key + '$', value)
+    for key, value in titem['external'].iteritems():
+        dumpRules(prefix + key + '$', value)
+
 if __name__=='__main__':
     options = argparser.parse_args()
     for item in options.verilog:
@@ -231,11 +254,6 @@ if __name__=='__main__':
             #    print 'parseexp write', parseExpression(wItem[0]), wItem[1:]
     if options.output:
         print 'output', options.output
-        for key, titem in mInfo.iteritems():
-            for rname in titem['rules']:
-                 mitem = titem['methods'][rname]
-                 #print 'OUTPUT', key, json.dumps(mitem , sort_keys=True, indent = 4)
-                 #print 'OUTPUT', rname, 'guard', mitem['guard'], 'read', json.dumps(mitem['read'] , sort_keys=True, indent = 4), 'write', json.dumps(mitem['write'] , sort_keys=True, indent = 4)
-                 print 'OUTPUT', rname, 'guard', "'" + mitem['guard'] + "'", 'read', mitem['read'], 'write', mitem['write']
-            pass
+        for item in options.verilog:
+            dumpRules('', item)
 

@@ -1,9 +1,9 @@
 #include "l_class_OC_Connect.h"
 void l_class_OC_Connect::run()
 {
-    lEchoIndicationOutput.run();
-    lEchoRequestInput.run();
+    lEIO.run();
+    lERI.run();
     lEcho.run();
-    lEchoRequestOutput_test.run();
-    lEchoIndicationInput_test.run();
+    lERO_test.run();
+    lEII_test.run();
 }
