@@ -4,14 +4,14 @@ void l_class_OC_Echo__delay_rule(l_class_OC_Echo *thisp) {
         thisp->busy_delay = 1;
         thisp->meth_delay = thisp->meth_temp;
         thisp->v_delay = thisp->v_temp;
-        printf("[%s:%d]Echo\n", ("___ZN4Echo4initEP14EchoIndication_block_invoke_2"), 227);
+        printf("[delay_rule:%d]Echo\n", 227);
 }
 bool l_class_OC_Echo__delay_rule__RDY(l_class_OC_Echo *thisp) {
         return (thisp->busy) != 0;
 }
 void l_class_OC_Echo__respond_rule(l_class_OC_Echo *thisp) {
         thisp->busy_delay = 0;
-        printf("[%s:%d]Echo\n", ("___ZN4Echo4initEP14EchoIndication_block_invoke_4"), 234);
+        printf("[respond_rule:%d]Echo\n", 234);
         thisp->indication->heard(thisp->meth_delay, thisp->v_delay);
 }
 bool l_class_OC_Echo__respond_rule__RDY(l_class_OC_Echo *thisp) {

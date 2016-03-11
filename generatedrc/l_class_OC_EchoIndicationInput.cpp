@@ -13,7 +13,7 @@ bool l_class_OC_EchoIndicationInput__enq__RDY(l_class_OC_EchoIndicationInput *th
 }
 void l_class_OC_EchoIndicationInput__input_rule(l_class_OC_EchoIndicationInput *thisp) {
         thisp->busy_delay = 0;
-        printf("[%s:%d]EchoIndicationInput\n", ("___ZN19EchoIndicationInput4initEP14EchoIndication_block_invoke_2"), 199);
+        printf("[input_rule:%d]EchoIndicationInput\n", 199);
         thisp->request->heard(thisp->meth_delay, thisp->v_delay);
 }
 bool l_class_OC_EchoIndicationInput__input_rule__RDY(l_class_OC_EchoIndicationInput *thisp) {
