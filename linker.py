@@ -224,23 +224,32 @@ def prependList(prefix, aList):
         rList.append(nitem)
     return rList
 
-def formatAccess(aList):
+def formatAccess(isWrite, aList):
+    global accessList, secondPass
     ret = ''
+    sep = ''
     for item in aList:
+        if secondPass and item[1] not in accessList[1-isWrite]:
+            continue
+        if item[1] not in accessList[isWrite]:
+            accessList[isWrite].append(item[1])
+        ret += sep
         if item[0] != '':
             ret += item[0] + ':'
-        ret += item[1] + ', '
+        ret += item[1]
+        sep = ', '
     return ret
 
 def dumpRules(prefix, name):
+    global totalList, accessList
     titem = mInfo[name]
     for rname in titem['rules']:
          mitem = titem['methods'][rname]
-         print 'OUTPUT', rname, 'guard:', prependName(prefix, mitem['guard'])
-         for tag in ['read', 'write']:
-            sitem = formatAccess(prependList(prefix, mitem[tag]))
-            if sitem != '':
-                print '        ' + tag + ':', sitem
+         wlist = prependList(prefix, mitem['write'])
+         rlist = prependList(prefix, mitem['read'])
+         totalList[formatAccess(1, wlist) + '/' + rname] = \
+            formatAccess(0, rlist) + '\n        ' + \
+            prependName(prefix, mitem['guard']) + '; ' + rname
     for key, value in titem['internal'].iteritems():
         dumpRules(prefix + key + '$', value)
     for key, value in titem['external'].iteritems():
@@ -262,6 +271,18 @@ if __name__=='__main__':
             #    print 'parseexp write', parseExpression(wItem[0]), wItem[1:]
     if options.output:
         print 'output', options.output
+        secondPass = False
+        totalList = {}
+        accessList = [[], []]
         for item in options.verilog:
             dumpRules('', item)
+        for key, value in sorted(totalList.iteritems()):
+            print key + ': ' + value
+        secondPass = True
+        totalList = {}
+        print 'RRR', accessList
+        for item in options.verilog:
+            dumpRules('', item)
+        for key, value in sorted(totalList.iteritems()):
+            print key + ': ' + value
 
