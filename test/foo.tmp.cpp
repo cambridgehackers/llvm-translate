@@ -11,10 +11,10 @@ unsigned int stop_main_program;
 class l_class_OC_EchoIndication zEchoIndication;
 class l_class_OC_Echo zEcho;
 
-bool l_class_OC_EchoIndication__heard__RDY(l_class_OC_EchoIndication *thisp) {
+bool l_class_OC_EchoIndication__heard__RDY(void *thisp) {
         return true;
 }
-void l_class_OC_EchoIndication__heard(l_class_OC_EchoIndication *thisp, unsigned int v) {
+void l_class_OC_EchoIndication__heard(void *thisp, unsigned int v) {
         printf((("Heard an echo: %d\n")), v);
         stop_main_program = 1;
 }

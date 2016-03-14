@@ -1,8 +1,8 @@
 #ifndef __l_class_OC_IVectorIndication_H__
 #define __l_class_OC_IVectorIndication_H__
 class l_class_OC_IVectorIndication;
-extern void l_class_OC_IVectorIndication__heard(l_class_OC_IVectorIndication *thisp, unsigned int heard_meth, unsigned int heard_v);
-extern bool l_class_OC_IVectorIndication__heard__RDY(l_class_OC_IVectorIndication *thisp);
+extern void l_class_OC_IVectorIndication__heard(void *thisarg, unsigned int heard_meth, unsigned int heard_v);
+extern bool l_class_OC_IVectorIndication__heard__RDY(void *thisarg);
 class l_class_OC_IVectorIndication {
 public:
 public:

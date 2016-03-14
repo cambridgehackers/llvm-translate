@@ -1,8 +1,8 @@
 #ifndef __l_class_OC_IVectorRequest_H__
 #define __l_class_OC_IVectorRequest_H__
 class l_class_OC_IVectorRequest;
-extern void l_class_OC_IVectorRequest__say(l_class_OC_IVectorRequest *thisp, unsigned int say_meth, unsigned int say_v);
-extern bool l_class_OC_IVectorRequest__say__RDY(l_class_OC_IVectorRequest *thisp);
+extern void l_class_OC_IVectorRequest__say(void *thisarg, unsigned int say_meth, unsigned int say_v);
+extern bool l_class_OC_IVectorRequest__say__RDY(void *thisarg);
 class l_class_OC_IVectorRequest {
 public:
 public:

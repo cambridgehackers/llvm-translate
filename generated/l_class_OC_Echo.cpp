@@ -1,5 +1,6 @@
 #include "l_class_OC_Echo.h"
-void l_class_OC_Echo__respond_rule(l_class_OC_Echo *thisp) {
+void l_class_OC_Echo__respond_rule(void *thisarg) {
+        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         unsigned int call;
         unsigned int temp;
         call = thisp->fifo.out_first();
@@ -7,7 +8,8 @@ void l_class_OC_Echo__respond_rule(l_class_OC_Echo *thisp) {
         thisp->fifo.out_deq();
         thisp->ind->heard(temp);
 }
-bool l_class_OC_Echo__respond_rule__RDY(l_class_OC_Echo *thisp) {
+bool l_class_OC_Echo__respond_rule__RDY(void *thisarg) {
+        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -16,10 +18,12 @@ bool l_class_OC_Echo__respond_rule__RDY(l_class_OC_Echo *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_v) {
+void l_class_OC_Echo__say(void *thisarg, unsigned int say_v) {
+        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->fifo.in_enq(say_v);
 }
-bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp) {
+bool l_class_OC_Echo__say__RDY(void *thisarg) {
+        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         bool tmp__1;
         tmp__1 = thisp->fifo.in_enq__RDY();
         return tmp__1;

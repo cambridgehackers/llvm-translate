@@ -88,18 +88,17 @@ static std::string printFunctionSignature(const Function *F, std::string altname
             retType = PTy->getElementType();
         AI++;
     }
-    if (!addThis)
-        AI++;
+    if (addThis) {
+        tstr += "void *thisarg";
+        sep = ", ";
+    }
+    AI++;
     for (; AI != AE; ++AI) {
         Type *element = AI->getType();
-        if (!addThis)
         if (auto PTy = dyn_cast<PointerType>(element))
             element = PTy->getElementType();
         tstr += printType(element, /*isSigned=*/false, GetValueName(AI), sep, "", false);
         sep = ", ";
-        if (addThis)
-            tstr += 'p';
-        addThis = false;
     }
     if (sep == "")
         tstr += "void";
@@ -229,6 +228,11 @@ void generateClassDef(const StructType *STy, std::string oDir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
+        auto AI = func->arg_begin();
+        if (func->hasStructRetAttr())
+            AI++;
+        std::string argt = printType(AI->getType(), /*isSigned=*/false, "", "", "", false);
+        fprintf(OStr, "        %s thisp = (%s)thisarg;\n", argt.c_str(), argt.c_str());
         processFunction(func);
         for (auto info: declareList)
             fprintf(OStr, "        %s;\n", info.second.c_str());

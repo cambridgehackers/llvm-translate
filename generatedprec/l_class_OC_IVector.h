@@ -3,10 +3,10 @@
 #include "l_class_OC_Fifo1_OC_1.h"
 #include "l_class_OC_IVectorIndication.h"
 class l_class_OC_IVector;
-extern void l_class_OC_IVector__respond(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__say(l_class_OC_IVector *thisp, BITS6 say_meth, BITS4 say_v);
-extern bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp);
+extern void l_class_OC_IVector__respond(void *thisarg);
+extern bool l_class_OC_IVector__respond__RDY(void *thisarg);
+extern void l_class_OC_IVector__say(void *thisarg, BITS6 say_meth, BITS4 say_v);
+extern bool l_class_OC_IVector__say__RDY(void *thisarg);
 class l_class_OC_IVector {
 public:
   l_class_OC_Fifo1_OC_1 fifo;

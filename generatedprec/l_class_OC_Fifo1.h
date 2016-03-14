@@ -1,12 +1,12 @@
 #ifndef __l_class_OC_Fifo1_H__
 #define __l_class_OC_Fifo1_H__
 class l_class_OC_Fifo1;
-extern void l_class_OC_Fifo1__in_enq(l_class_OC_Fifo1 *thisp, unsigned int in_enq_v);
-extern bool l_class_OC_Fifo1__in_enq__RDY(l_class_OC_Fifo1 *thisp);
-extern void l_class_OC_Fifo1__out_deq(l_class_OC_Fifo1 *thisp);
-extern bool l_class_OC_Fifo1__out_deq__RDY(l_class_OC_Fifo1 *thisp);
-extern unsigned int l_class_OC_Fifo1__out_first(l_class_OC_Fifo1 *thisp);
-extern bool l_class_OC_Fifo1__out_first__RDY(l_class_OC_Fifo1 *thisp);
+extern void l_class_OC_Fifo1__in_enq(void *thisarg, unsigned int in_enq_v);
+extern bool l_class_OC_Fifo1__in_enq__RDY(void *thisarg);
+extern void l_class_OC_Fifo1__out_deq(void *thisarg);
+extern bool l_class_OC_Fifo1__out_deq__RDY(void *thisarg);
+extern unsigned int l_class_OC_Fifo1__out_first(void *thisarg);
+extern bool l_class_OC_Fifo1__out_first__RDY(void *thisarg);
 class l_class_OC_Fifo1 {
 public:
   unsigned int element, element_shadow; bool element_valid;

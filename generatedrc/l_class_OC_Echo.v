@@ -26,7 +26,7 @@ module l_class_OC_Echo (
     reg[31:0] busy_delay;
     reg[31:0] meth_delay;
     reg[31:0] v_delay;
-    assign delay_rule__RDY_internal = busy != 0;
+    assign delay_rule__RDY_internal = ((busy != 0) & (busy_delay == 0)) != 0;
     assign indication$heard__ENA = respond_rule__ENA_internal;
     assign indication$heard_meth = meth_delay;
     assign indication$heard_v = v_delay;

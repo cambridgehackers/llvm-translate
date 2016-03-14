@@ -1,8 +1,8 @@
 #ifndef __l_class_OC_EchoIndication_H__
 #define __l_class_OC_EchoIndication_H__
 class l_class_OC_EchoIndication;
-extern void l_class_OC_EchoIndication__heard(l_class_OC_EchoIndication *thisp, unsigned int heard_v);
-extern bool l_class_OC_EchoIndication__heard__RDY(l_class_OC_EchoIndication *thisp);
+extern void l_class_OC_EchoIndication__heard(void *thisarg, unsigned int heard_v);
+extern bool l_class_OC_EchoIndication__heard__RDY(void *thisarg);
 class l_class_OC_EchoIndication {
 public:
 public:

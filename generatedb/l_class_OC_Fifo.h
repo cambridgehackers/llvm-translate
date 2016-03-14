@@ -1,12 +1,12 @@
 #ifndef __l_class_OC_Fifo_H__
 #define __l_class_OC_Fifo_H__
 class l_class_OC_Fifo;
-extern void l_class_OC_Fifo__in_enq(l_class_OC_Fifo *thisp, unsigned int in_enq_v);
-extern bool l_class_OC_Fifo__in_enq__RDY(l_class_OC_Fifo *thisp);
-extern void l_class_OC_Fifo__out_deq(l_class_OC_Fifo *thisp);
-extern bool l_class_OC_Fifo__out_deq__RDY(l_class_OC_Fifo *thisp);
-extern unsigned int l_class_OC_Fifo__out_first(l_class_OC_Fifo *thisp);
-extern bool l_class_OC_Fifo__out_first__RDY(l_class_OC_Fifo *thisp);
+extern void l_class_OC_Fifo__in_enq(void *thisarg, unsigned int in_enq_v);
+extern bool l_class_OC_Fifo__in_enq__RDY(void *thisarg);
+extern void l_class_OC_Fifo__out_deq(void *thisarg);
+extern bool l_class_OC_Fifo__out_deq__RDY(void *thisarg);
+extern unsigned int l_class_OC_Fifo__out_first(void *thisarg);
+extern bool l_class_OC_Fifo__out_first__RDY(void *thisarg);
 class l_class_OC_Fifo {
 public:
 public:

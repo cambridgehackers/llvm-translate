@@ -1,7 +1,9 @@
 #include "l_class_OC_EchoRequest.h"
-void l_class_OC_EchoRequest__say(l_class_OC_EchoRequest *thisp, unsigned int say_v) {
+void l_class_OC_EchoRequest__say(void *thisarg, unsigned int say_v) {
+        l_class_OC_EchoRequest * thisp = (l_class_OC_EchoRequest *)thisarg;
 }
-bool l_class_OC_EchoRequest__say__RDY(l_class_OC_EchoRequest *thisp) {
+bool l_class_OC_EchoRequest__say__RDY(void *thisarg) {
+        l_class_OC_EchoRequest * thisp = (l_class_OC_EchoRequest *)thisarg;
         return 1;
 }
 void l_class_OC_EchoRequest::run()

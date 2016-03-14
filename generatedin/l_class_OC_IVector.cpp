@@ -1,11 +1,13 @@
 #include "l_class_OC_IVector.h"
-void l_class_OC_IVector__respond0(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond0(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo0.out_first();
         thisp->fifo0.out_deq();
         thisp->ind->heard(0, temp.b);
 }
-bool l_class_OC_IVector__respond0__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond0__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -14,13 +16,15 @@ bool l_class_OC_IVector__respond0__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond1(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond1(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo1.out_first();
         thisp->fifo1.out_deq();
         thisp->ind->heard(1, temp.b);
 }
-bool l_class_OC_IVector__respond1__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond1__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -29,13 +33,15 @@ bool l_class_OC_IVector__respond1__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond2(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond2(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo2.out_first();
         thisp->fifo2.out_deq();
         thisp->ind->heard(2, temp.b);
 }
-bool l_class_OC_IVector__respond2__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond2__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -44,13 +50,15 @@ bool l_class_OC_IVector__respond2__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond3(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond3(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo3.out_first();
         thisp->fifo3.out_deq();
         thisp->ind->heard(3, temp.b);
 }
-bool l_class_OC_IVector__respond3__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond3__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -59,13 +67,15 @@ bool l_class_OC_IVector__respond3__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond4(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond4(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo4.out_first();
         thisp->fifo4.out_deq();
         thisp->ind->heard(4, temp.b);
 }
-bool l_class_OC_IVector__respond4__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond4__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -74,13 +84,15 @@ bool l_class_OC_IVector__respond4__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond5(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond5(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo5.out_first();
         thisp->fifo5.out_deq();
         thisp->ind->heard(5, temp.b);
 }
-bool l_class_OC_IVector__respond5__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond5__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -89,13 +101,15 @@ bool l_class_OC_IVector__respond5__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond6(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond6(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo6.out_first();
         thisp->fifo6.out_deq();
         thisp->ind->heard(6, temp.b);
 }
-bool l_class_OC_IVector__respond6__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond6__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -104,13 +118,15 @@ bool l_class_OC_IVector__respond6__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond7(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond7(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo7.out_first();
         thisp->fifo7.out_deq();
         thisp->ind->heard(7, temp.b);
 }
-bool l_class_OC_IVector__respond7__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond7__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -119,13 +135,15 @@ bool l_class_OC_IVector__respond7__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond8(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond8(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo8.out_first();
         thisp->fifo8.out_deq();
         thisp->ind->heard(8, temp.b);
 }
-bool l_class_OC_IVector__respond8__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond8__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -134,13 +152,15 @@ bool l_class_OC_IVector__respond8__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__respond9(l_class_OC_IVector *thisp) {
+void l_class_OC_IVector__respond9(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp = thisp->fifo9.out_first();
         thisp->fifo9.out_deq();
         thisp->ind->heard(9, temp.b);
 }
-bool l_class_OC_IVector__respond9__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__respond9__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
@@ -149,12 +169,14 @@ bool l_class_OC_IVector__respond9__RDY(l_class_OC_IVector *thisp) {
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
-void l_class_OC_IVector__say(l_class_OC_IVector *thisp, unsigned int say_meth, unsigned int say_v) {
+void l_class_OC_IVector__say(void *thisarg, unsigned int say_meth, unsigned int say_v) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValuePair temp;
         temp.b = say_v;
         (say_meth == 0 ? &thisp->fifo0:say_meth == 1 ? &thisp->fifo1:say_meth == 2 ? &thisp->fifo2:say_meth == 3 ? &thisp->fifo3:say_meth == 4 ? &thisp->fifo4:say_meth == 5 ? &thisp->fifo5:say_meth == 6 ? &thisp->fifo6:say_meth == 7 ? &thisp->fifo7:say_meth == 8 ? &thisp->fifo8:&thisp->fifo9)->in_enq(temp);
 }
-bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp) {
+bool l_class_OC_IVector__say__RDY(void *thisarg) {
+        l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
         bool tmp__10;
         bool tmp__2;

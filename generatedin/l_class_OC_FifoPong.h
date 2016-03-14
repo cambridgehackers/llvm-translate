@@ -3,12 +3,12 @@
 #include "l_class_OC_Fifo1_OC_3.h"
 #include "l_struct_OC_ValuePair.h"
 class l_class_OC_FifoPong;
-extern void l_class_OC_FifoPong__in_enq(l_class_OC_FifoPong *thisp, l_struct_OC_ValuePair in_enq_v);
-extern bool l_class_OC_FifoPong__in_enq__RDY(l_class_OC_FifoPong *thisp);
-extern void l_class_OC_FifoPong__out_deq(l_class_OC_FifoPong *thisp);
-extern bool l_class_OC_FifoPong__out_deq__RDY(l_class_OC_FifoPong *thisp);
-extern l_struct_OC_ValuePair l_class_OC_FifoPong__out_first(l_class_OC_FifoPong *thisp);
-extern bool l_class_OC_FifoPong__out_first__RDY(l_class_OC_FifoPong *thisp);
+extern void l_class_OC_FifoPong__in_enq(void *thisarg, l_struct_OC_ValuePair in_enq_v);
+extern bool l_class_OC_FifoPong__in_enq__RDY(void *thisarg);
+extern void l_class_OC_FifoPong__out_deq(void *thisarg);
+extern bool l_class_OC_FifoPong__out_deq__RDY(void *thisarg);
+extern l_struct_OC_ValuePair l_class_OC_FifoPong__out_first(void *thisarg);
+extern bool l_class_OC_FifoPong__out_first__RDY(void *thisarg);
 class l_class_OC_FifoPong {
 public:
   l_class_OC_Fifo1_OC_3 element1;

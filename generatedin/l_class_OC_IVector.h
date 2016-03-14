@@ -3,28 +3,28 @@
 #include "l_class_OC_FifoPong.h"
 #include "l_class_OC_IVectorIndication.h"
 class l_class_OC_IVector;
-extern void l_class_OC_IVector__respond0(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond0__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond1(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond1__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond2(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond2__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond3(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond3__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond4(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond4__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond5(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond5__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond6(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond6__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond7(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond7__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond8(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond8__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__respond9(l_class_OC_IVector *thisp);
-extern bool l_class_OC_IVector__respond9__RDY(l_class_OC_IVector *thisp);
-extern void l_class_OC_IVector__say(l_class_OC_IVector *thisp, unsigned int say_meth, unsigned int say_v);
-extern bool l_class_OC_IVector__say__RDY(l_class_OC_IVector *thisp);
+extern void l_class_OC_IVector__respond0(void *thisarg);
+extern bool l_class_OC_IVector__respond0__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond1(void *thisarg);
+extern bool l_class_OC_IVector__respond1__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond2(void *thisarg);
+extern bool l_class_OC_IVector__respond2__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond3(void *thisarg);
+extern bool l_class_OC_IVector__respond3__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond4(void *thisarg);
+extern bool l_class_OC_IVector__respond4__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond5(void *thisarg);
+extern bool l_class_OC_IVector__respond5__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond6(void *thisarg);
+extern bool l_class_OC_IVector__respond6__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond7(void *thisarg);
+extern bool l_class_OC_IVector__respond7__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond8(void *thisarg);
+extern bool l_class_OC_IVector__respond8__RDY(void *thisarg);
+extern void l_class_OC_IVector__respond9(void *thisarg);
+extern bool l_class_OC_IVector__respond9__RDY(void *thisarg);
+extern void l_class_OC_IVector__say(void *thisarg, unsigned int say_meth, unsigned int say_v);
+extern bool l_class_OC_IVector__say__RDY(void *thisarg);
 class l_class_OC_IVector {
 public:
   l_class_OC_FifoPong fifo0;

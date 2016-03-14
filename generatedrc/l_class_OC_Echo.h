@@ -2,12 +2,12 @@
 #define __l_class_OC_Echo_H__
 #include "l_class_OC_EchoIndication.h"
 class l_class_OC_Echo;
-extern void l_class_OC_Echo__delay_rule(l_class_OC_Echo *thisp);
-extern bool l_class_OC_Echo__delay_rule__RDY(l_class_OC_Echo *thisp);
-extern void l_class_OC_Echo__respond_rule(l_class_OC_Echo *thisp);
-extern bool l_class_OC_Echo__respond_rule__RDY(l_class_OC_Echo *thisp);
-extern void l_class_OC_Echo__say(l_class_OC_Echo *thisp, unsigned int say_meth, unsigned int say_v);
-extern bool l_class_OC_Echo__say__RDY(l_class_OC_Echo *thisp);
+extern void l_class_OC_Echo__delay_rule(void *thisarg);
+extern bool l_class_OC_Echo__delay_rule__RDY(void *thisarg);
+extern void l_class_OC_Echo__respond_rule(void *thisarg);
+extern bool l_class_OC_Echo__respond_rule__RDY(void *thisarg);
+extern void l_class_OC_Echo__say(void *thisarg, unsigned int say_meth, unsigned int say_v);
+extern bool l_class_OC_Echo__say__RDY(void *thisarg);
 class l_class_OC_Echo {
 public:
   unsigned int busy, busy_shadow; bool busy_valid;

@@ -52,24 +52,21 @@ int main(int argc, const char *argv[])
 {
     printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     l_class_OC_EchoRequest er(&zConnect.lEcho,
-        (unsigned long)&l_class_OC_Echo__say__RDY,
-        (unsigned long)&l_class_OC_Echo__say);
-    zConnect.lERI.setrequest(&er);
+        (unsigned long)&l_class_OC_Echo__say__RDY, (unsigned long)&l_class_OC_Echo__say);
     l_class_OC_EchoIndication ei(&zConnect.lEIO,
         (unsigned long)&l_class_OC_EchoIndicationOutput__heard__RDY,
         (unsigned long)&l_class_OC_EchoIndicationOutput__heard);
+    l_class_OC_EchoIndication zcr(NULL,
+        (unsigned long)&respheard__RDY, (unsigned long)&respheard);
+
     zConnect.lEcho.setindication(&ei);
+    zConnect.lERI.setrequest(&er);
     zConnect.lEIO.setpipe(&zConnect.lEII_test);
 
+    zConnect.lEII_test.setrequest(&zcr);
     zConnect.lERO_test.setpipe(&zConnect.lERI);
-    l_class_OC_EchoIndication zConnectresp(NULL,
-        (unsigned long)&respheard__RDY,
-        (unsigned long)&respheard);
-    zConnect.lEII_test.setrequest(&zConnectresp);
 
-    zConnect.lERO_test.say(1, 44 * 1); testCount++;
-    testCount++;
-    testCount++;
+    zConnect.lERO_test.say(1, 44 * 1); testCount++; testCount++; testCount++;
     zConnect.run(); zConnect.lERO_test.say(2, 44 * 2);
     zConnect.run(); zConnect.lERO_test.say(3, 44 * 3);
     while (!stop_main_program) {

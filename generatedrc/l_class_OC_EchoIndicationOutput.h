@@ -3,12 +3,12 @@
 #include "l_class_OC_PipeIn_OC_0.h"
 #include "l_struct_OC_EchoIndication_data.h"
 class l_class_OC_EchoIndicationOutput;
-extern void l_class_OC_EchoIndicationOutput__heard(l_class_OC_EchoIndicationOutput *thisp, unsigned int heard_meth, unsigned int heard_v);
-extern bool l_class_OC_EchoIndicationOutput__heard__RDY(l_class_OC_EchoIndicationOutput *thisp);
-extern void l_class_OC_EchoIndicationOutput__output_rulee(l_class_OC_EchoIndicationOutput *thisp);
-extern bool l_class_OC_EchoIndicationOutput__output_rulee__RDY(l_class_OC_EchoIndicationOutput *thisp);
-extern void l_class_OC_EchoIndicationOutput__output_ruleo(l_class_OC_EchoIndicationOutput *thisp);
-extern bool l_class_OC_EchoIndicationOutput__output_ruleo__RDY(l_class_OC_EchoIndicationOutput *thisp);
+extern void l_class_OC_EchoIndicationOutput__heard(void *thisarg, unsigned int heard_meth, unsigned int heard_v);
+extern bool l_class_OC_EchoIndicationOutput__heard__RDY(void *thisarg);
+extern void l_class_OC_EchoIndicationOutput__output_rulee(void *thisarg);
+extern bool l_class_OC_EchoIndicationOutput__output_rulee__RDY(void *thisarg);
+extern void l_class_OC_EchoIndicationOutput__output_ruleo(void *thisarg);
+extern bool l_class_OC_EchoIndicationOutput__output_ruleo__RDY(void *thisarg);
 class l_class_OC_EchoIndicationOutput {
 public:
   l_class_OC_PipeIn_OC_0 *pipe;

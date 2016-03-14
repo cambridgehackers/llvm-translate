@@ -3,8 +3,8 @@
 #include "l_class_OC_EchoRequest.h"
 #include "l_struct_OC_EchoRequest_data.h"
 class l_class_OC_EchoRequestInput;
-extern void l_class_OC_EchoRequestInput__enq(l_class_OC_EchoRequestInput *thisp, l_struct_OC_EchoRequest_data enq_v);
-extern bool l_class_OC_EchoRequestInput__enq__RDY(l_class_OC_EchoRequestInput *thisp);
+extern void l_class_OC_EchoRequestInput__enq(void *thisarg, l_struct_OC_EchoRequest_data enq_v);
+extern bool l_class_OC_EchoRequestInput__enq__RDY(void *thisarg);
 class l_class_OC_EchoRequestInput {
 public:
   l_class_OC_EchoRequest *request;

@@ -3,10 +3,10 @@
 #include "l_class_OC_foo.h"
 #include "l_struct_OC_EchoIndication_data.h"
 class l_class_OC_EchoIndicationInput;
-extern void l_class_OC_EchoIndicationInput__enq(l_class_OC_EchoIndicationInput *thisp, l_struct_OC_EchoIndication_data enq_v);
-extern bool l_class_OC_EchoIndicationInput__enq__RDY(l_class_OC_EchoIndicationInput *thisp);
-extern void l_class_OC_EchoIndicationInput__input_rule(l_class_OC_EchoIndicationInput *thisp);
-extern bool l_class_OC_EchoIndicationInput__input_rule__RDY(l_class_OC_EchoIndicationInput *thisp);
+extern void l_class_OC_EchoIndicationInput__enq(void *thisarg, l_struct_OC_EchoIndication_data enq_v);
+extern bool l_class_OC_EchoIndicationInput__enq__RDY(void *thisarg);
+extern void l_class_OC_EchoIndicationInput__input_rule(void *thisarg);
+extern bool l_class_OC_EchoIndicationInput__input_rule__RDY(void *thisarg);
 class l_class_OC_EchoIndicationInput {
 public:
   l_class_OC_foo *request0;
