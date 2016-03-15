@@ -26,10 +26,10 @@
 #include <stdint.h>
 #include "runtime.h"
 
-#define l_class_OC_PipeIn l_class_OC_EchoRequestInput 
-#define l_class_OC_PipeIn_OC_0 l_class_OC_EchoIndicationInput 
 #define l_class_OC_foo l_class_OC_EchoIndication
 #define request0 request
+#include "l_struct_OC_EchoRequest_data.h"
+#include "l_struct_OC_EchoIndication_data.h"
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"
@@ -52,9 +52,9 @@ int main(int argc, const char *argv[])
 {
     printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zConnect.lEII_test.setrequest(new l_class_OC_EchoIndication(NULL, respheard__RDY, respheard));
-    zConnect.lERO_test.say(1, 44 * 1); testCount++; testCount++; testCount++;
-    zConnect.run(); zConnect.lERO_test.say(2, 44 * 2);
-    zConnect.run(); zConnect.lERO_test.say(3, 44 * 3);
+    zConnect.lERO_test.request.say(1, 44 * 1); testCount++; testCount++; testCount++;
+    zConnect.run(); zConnect.lERO_test.request.say(2, 44 * 2);
+    zConnect.run(); zConnect.lERO_test.request.say(3, 44 * 3);
     while (!stop_main_program) {
         zConnect.run();
     }
