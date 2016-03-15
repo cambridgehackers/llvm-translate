@@ -868,7 +868,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN20EchoIndicationOutput5heardEii") {
+if (func->getName() == "zz_ZN20EchoIndicationOutput5heardEii") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }
