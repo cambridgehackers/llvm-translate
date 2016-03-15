@@ -13,4 +13,8 @@
 //METAINTERNAL; lEcho; l_class_OC_Echo;
 //METAINTERNAL; lERO_test; l_class_OC_EchoRequestOutput;
 //METAINTERNAL; lEII_test; l_class_OC_EchoIndicationInput;
+//METACONNECT; lERO_test$pipe$enq; lERI$pipe$enq
+//METACONNECT; lEcho$indication$heard; lEIO$indication$heard
+//METACONNECT; lEIO$pipe$enq; lEII_test$pipe$enq
+//METACONNECT; lERI$request$say; lEcho$request$say
 `endif

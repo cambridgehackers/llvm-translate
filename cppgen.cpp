@@ -235,7 +235,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         }
         fprintf(OStr, " {\n");
         for (auto item: table->interfaceConnect) {
-            fprintf(OStr, "    %s = &%s;\n", item.first.c_str(), item.second.c_str());
+            fprintf(OStr, "    %s = &%s;\n", item.target.c_str(), item.source.c_str());
         }
         fprintf(OStr, "  }\n");
     }

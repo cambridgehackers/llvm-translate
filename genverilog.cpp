@@ -490,6 +490,24 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
         }
     }
+    for (auto item: table->interfaceConnect) {
+        int Idx = 0;
+        for (auto I = item.STy->element_begin(), E = item.STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(item.STy, Idx);
+            if (endswith(fname, "__RDYp")) {
+                fname = fname.substr(0, fname.length() - 6);
+                std::string tname = item.target;
+                for (unsigned i = 0; i < tname.length(); i++)
+                    if (tname[i] == '.')
+                        tname[i] = '$';
+                std::string sname = item.source;
+                for (unsigned i = 0; i < sname.length(); i++)
+                    if (sname[i] == '.')
+                        sname[i] = '$';
+                metaList.push_back("//METACONNECT; " + tname + "$" + fname + "; " + sname + "$" + fname);
+            }
+        }
+    }
     // combine mux'ed assignments into a single 'assign' statement
     // Context: before local state declarations, to allow inlining
     for (auto item: muxValueList) {

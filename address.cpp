@@ -930,10 +930,16 @@ static void processConnectInterface(CallInst *II)
             source = source.substr(ind+1);
         if (source[source.length() - 1] == '_') // weird postfix '_'!!
             source = source.substr(0, source.length()-1);
-printf("[%s:%d] sname %s table %p source %s target %s\n", __FUNCTION__, __LINE__, sname.c_str(), table, source.c_str(), target.c_str());
+        if (Instruction *sins = dyn_cast<Instruction>(II->getOperand(2)))
+        if (sins->getOpcode() == Instruction::BitCast)
+        if (PointerType *iPTy = dyn_cast<PointerType>(sins->getOperand(0)->getType()))
+        if (StructType *iSTy = dyn_cast<StructType>(iPTy->getElementType())) {
+            std::string isname = iSTy->getName();
+printf("[%s:%d] sname %s table %p source %s target %s isname %s\n", __FUNCTION__, __LINE__, sname.c_str(), table, source.c_str(), target.c_str(), isname.c_str());
         for (unsigned i = 0; i < II->getNumOperands()-1; i++)
              printf("arg[%d] = %s\n", i, printOperand(II->getOperand(i), false).c_str());
-        table->interfaceConnect[target] = source;
+        table->interfaceConnect.push_back(InterfaceConnectType{target, source, iSTy});
+        }
     }
     recursiveDelete(II);      // No longer need to call connectInterface() !
 }

@@ -17,10 +17,10 @@ public:
   void run();
   void commit();
   l_class_OC_Connect() {
-    lEIO.pipe = &lEII_test.pipe;
-    lERI.request = &lEcho.request;
     lERO_test.pipe = &lERI.pipe;
     lEcho.indication = &lEIO.indication;
+    lEIO.pipe = &lEII_test.pipe;
+    lERI.request = &lEcho.request;
   }
 };
 #endif  // __l_class_OC_Connect_H__

@@ -44,6 +44,12 @@ typedef struct {
     const char *name;
 } INTMAP_TYPE;
 
+typedef struct {
+    std::string target;
+    std::string source;
+    const StructType *STy;
+} InterfaceConnectType;
+
 #define MAX_MEMBER_SIZE 100
 class ClassMethodTable {
 public:
@@ -54,7 +60,7 @@ public:
     std::map<int, uint64_t>           replaceCount;
     std::map<int, bool>               allocateLocally;
     std::map<std::string, Function *> rules;
-    std::map<std::string, std::string> interfaceConnect;
+    std::list<InterfaceConnectType>   interfaceConnect;
     unsigned int                      vtableCount;
     std::string                       instance;
     Function                          *vtable[MAX_MEMBER_SIZE];

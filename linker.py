@@ -85,6 +85,7 @@ def processFile(filename):
     titem['methods'] = {}
     titem['internal'] = {}
     titem['external'] = {}
+    titem['connect'] = []
     mInfo[filename] = titem
     fileDesc = None
     for item in options.directory:
@@ -118,6 +119,8 @@ def processFile(filename):
                         titem['internal'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METAEXTERNAL':
                         titem['external'][inVector[1]] = inVector[2]
+                    elif inVector[0] == '//METACONNECT':
+                        titem['connect'].append(inVector[1:])
                     elif inVector[0] == '//METAINVOKE':
                         for vitem in inVector[2:]:
                             titem['methods'][inVector[1]]['invoke'].append(vitem.split(':'))
@@ -139,6 +142,7 @@ def processFile(filename):
         titem['methods'] = {}
         titem['internal'] = {}
         titem['external'] = {}
+        titem['connect'] = []
         mInfo[value] = titem
         processFile(value)
 
