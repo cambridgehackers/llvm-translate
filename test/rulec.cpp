@@ -51,16 +51,7 @@ bool respheard__RDY(void *thisp) { return true;}
 int main(int argc, const char *argv[])
 {
     printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-    l_class_OC_EchoRequest er(&zConnect.lEcho, l_class_OC_Echo__say__RDY, l_class_OC_Echo__say);
-    l_class_OC_EchoIndication ei = l_class_OC_EchoIndication{&zConnect.lEIO, l_class_OC_EchoIndicationOutput__heard__RDY, l_class_OC_EchoIndicationOutput__heard};
-
-    zConnect.lEcho.setindication(&ei);
-    zConnect.lERI.setrequest(&er);
-    zConnect.lEIO.setpipe(&zConnect.lEII_test);
-    zConnect.lERO_test.setpipe(&zConnect.lERI);
-
     zConnect.lEII_test.setrequest(new l_class_OC_EchoIndication(NULL, respheard__RDY, respheard));
-
     zConnect.lERO_test.say(1, 44 * 1); testCount++; testCount++; testCount++;
     zConnect.run(); zConnect.lERO_test.say(2, 44 * 2);
     zConnect.run(); zConnect.lERO_test.say(3, 44 * 3);
