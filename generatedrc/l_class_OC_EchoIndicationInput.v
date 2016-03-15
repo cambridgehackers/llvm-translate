@@ -18,10 +18,10 @@ module l_class_OC_EchoIndicationInput (
     reg[31:0] v_delay;
     assign enq__RDY = enq__RDY_internal;
     assign enq__RDY_internal = (busy_delay != 0) ^ 1;
-    assign input_rule__RDY_internal = (busy_delay != 0) & request$heard__RDY;
-    assign request$heard__ENA = input_rule__ENA_internal;
-    assign request$heard_meth = meth_delay;
-    assign request$heard_v = v_delay;
+    assign indication$heard__ENA = input_rule__ENA_internal;
+    assign indication$heard_meth = meth_delay;
+    assign indication$heard_v = v_delay;
+    assign input_rule__RDY_internal = (busy_delay != 0) & indication$heard__RDY;
     assign rule_ready[0] = input_rule__RDY_internal;
 
     always @( posedge CLK) begin

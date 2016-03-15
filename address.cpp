@@ -1248,7 +1248,7 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         classCreate[STy]->replaceCount[Idx] = -1;
                     }
                     else if (inheritsModule(iSTy, "class.InterfaceClass")) {
-printf("[%s:%d] INTERFACE %s fname %s\n", __FUNCTION__, __LINE__, iSTy->getName().str().c_str(), fname.c_str());
+printf("[%s:%d] INTERFACEEXPORT %s name %s addr %p\n", __FUNCTION__, __LINE__, iSTy->getName().str().c_str(), (aname + "$$" + fname).c_str(), eaddr);
                     }
                     mapType(Mod, eaddr, element, aname + "$$" + fname);
                     if (StructType *iSTy = dyn_cast<StructType>(element))
@@ -1257,6 +1257,21 @@ printf("[%s:%d] INTERFACE %s fname %s\n", __FUNCTION__, __LINE__, iSTy->getName(
             }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
+        }
+        // Now do a second pass, connecting interfaces
+        Idx = 0;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(STy, Idx);
+            char *eaddr = addr + SLO->getElementOffset(Idx);
+            Type *element = *I;
+            if (fname != "") {
+                if (PointerType *PTy = dyn_cast<PointerType>(element))
+                if (StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
+                    if (inheritsModule(iSTy, "class.InterfaceClass")) {
+printf("[%s:%d] IMPORT INTERFACE %s name %s [%p] = %p\n", __FUNCTION__, __LINE__, iSTy->getName().str().c_str(), (aname + "$$" + fname).c_str(), eaddr, *(void **)eaddr);
+                    }
+                }
+            }
         }
         break;
         }

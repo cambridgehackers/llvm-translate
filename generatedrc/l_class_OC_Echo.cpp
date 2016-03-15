@@ -9,7 +9,7 @@ void l_class_OC_Echo__delay_rule(void *thisarg) {
         thisp->meth_delay_valid = 1;
         thisp->v_delay_shadow = thisp->v_temp;
         thisp->v_delay_valid = 1;
-        printf("[delay_rule:%d]Echo\n", 227);
+        printf("[delay_rule:%d]Echo\n", 222);
 }
 bool l_class_OC_Echo__delay_rule__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -19,7 +19,7 @@ void l_class_OC_Echo__respond_rule(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->busy_delay_shadow = 0;
         thisp->busy_delay_valid = 1;
-        printf("[respond_rule:%d]Echo\n", 234);
+        printf("[respond_rule:%d]Echo\n", 229);
         thisp->indication->heard(thisp->meth_delay, thisp->v_delay);
 }
 bool l_class_OC_Echo__respond_rule__RDY(void *thisarg) {
@@ -36,7 +36,7 @@ void l_class_OC_Echo__say(void *thisarg, unsigned int say_meth, unsigned int say
         thisp->v_temp_valid = 1;
         thisp->busy_shadow = 1;
         thisp->busy_valid = 1;
-        printf("[%s:%d]Echo\n", ("say"), 217);
+        printf("[%s:%d]Echo\n", ("say"), 213);
 }
 bool l_class_OC_Echo__say__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;

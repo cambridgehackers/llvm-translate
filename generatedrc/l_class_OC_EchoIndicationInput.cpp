@@ -13,7 +13,7 @@ void l_class_OC_EchoIndicationInput__enq(void *thisarg, l_struct_OC_EchoIndicati
             thisp->busy_delay_shadow = 1;
         thisp->busy_delay_valid = 1;
         }
-            printf("[%s:%d]EchoIndicationInput tag %d\n", ("enq"), 185, enq_v.tag);
+            printf("[%s:%d]EchoIndicationInput tag %d\n", ("enq"), 182, enq_v.tag);
 }
 bool l_class_OC_EchoIndicationInput__enq__RDY(void *thisarg) {
         l_class_OC_EchoIndicationInput * thisp = (l_class_OC_EchoIndicationInput *)thisarg;
@@ -23,13 +23,13 @@ void l_class_OC_EchoIndicationInput__input_rule(void *thisarg) {
         l_class_OC_EchoIndicationInput * thisp = (l_class_OC_EchoIndicationInput *)thisarg;
         thisp->busy_delay_shadow = 0;
         thisp->busy_delay_valid = 1;
-        printf("[input_rule:%d]EchoIndicationInput\n", 199);
-        thisp->request->heard(thisp->meth_delay, thisp->v_delay);
+        printf("[input_rule:%d]EchoIndicationInput\n", 195);
+        thisp->indication->heard(thisp->meth_delay, thisp->v_delay);
 }
 bool l_class_OC_EchoIndicationInput__input_rule__RDY(void *thisarg) {
         l_class_OC_EchoIndicationInput * thisp = (l_class_OC_EchoIndicationInput *)thisarg;
         bool tmp__1;
-        tmp__1 = thisp->request->heard__RDY();
+        tmp__1 = thisp->indication->heard__RDY();
         return ((thisp->busy_delay) != 0) & tmp__1;
 }
 void l_class_OC_EchoIndicationInput::run()
