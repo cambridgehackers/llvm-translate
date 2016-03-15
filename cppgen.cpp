@@ -143,6 +143,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     std::list<std::string> runLines;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
+    std::map<std::string, int> cancelList;
 
     includeList.clear();
     // first generate '.h' file
@@ -216,7 +217,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
     interfaceList.clear();
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n  void commit();\n");
-    std::map<std::string, int> cancelList;
     if (interfaceList.size() > 0 || table->interfaceConnect.size() > 0) {
         std::string prefix = ":";
         fprintf(OStr, "  %s()", name.c_str());
