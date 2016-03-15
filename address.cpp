@@ -911,6 +911,33 @@ static void processMethodToFunction(CallInst *II)
     recursiveDelete(II);      // No longer need to call methodToFunction() !
 }
 
+static void processConnectInterface(CallInst *II)
+{
+    if (Instruction *ins = dyn_cast<Instruction>(II->getOperand(0)))
+    if (ins->getOpcode() == Instruction::BitCast)
+    if (PointerType *PTy = dyn_cast<PointerType>(ins->getOperand(0)->getType()))
+    if (StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
+        getStructName(STy);  // make sure that classCreate is initialized
+        ClassMethodTable *table = classCreate[STy];
+        std::string sname = STy->getName();
+        std::string target = printOperand(II->getOperand(1), false);
+        std::string source = printOperand(II->getOperand(2), false);
+        int ind = target.find(".");
+        if (ind > 0)
+            target = target.substr(ind+1);
+        ind = source.find(".");
+        if (ind > 0)
+            source = source.substr(ind+1);
+        if (source[source.length() - 1] == '_') // weird postfix '_'!!
+            source = source.substr(0, source.length()-1);
+printf("[%s:%d] sname %s table %p source %s target %s\n", __FUNCTION__, __LINE__, sname.c_str(), table, source.c_str(), target.c_str());
+        for (unsigned i = 0; i < II->getNumOperands()-1; i++)
+             printf("arg[%d] = %s\n", i, printOperand(II->getOperand(i), false).c_str());
+        table->interfaceConnect[target] = source;
+    }
+    recursiveDelete(II);      // No longer need to call connectInterface() !
+}
+
 /*
  * Map calls to 'new()' and 'malloc()' in constructors to call 'llvm_translate_malloc'.
  * This enables llvm-translate to easily maintain a list of valid memory regions
@@ -1162,6 +1189,14 @@ void preprocessModule(Module *Mod)
             I = NI;
         }
 
+    // process 'connectInterface' calls
+    if (Function *Declare = Mod->getFunction("connectInterface"))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
+            auto NI = std::next(I);
+            processConnectInterface(cast<CallInst>(*I));
+            I = NI;
+        }
+
     // process calls to llvm.memcpy
     if (Function *Declare = Mod->getFunction("llvm.memcpy.p0i8.p0i8.i64"))
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
@@ -1247,9 +1282,6 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         classCreate[STy]->replaceType[Idx] = nSTy;
                         classCreate[STy]->replaceCount[Idx] = -1;
                     }
-                    else if (inheritsModule(iSTy, "class.InterfaceClass")) {
-printf("[%s:%d] INTERFACEEXPORT %s name %s addr %p\n", __FUNCTION__, __LINE__, iSTy->getName().str().c_str(), (aname + "$$" + fname).c_str(), eaddr);
-                    }
                     mapType(Mod, eaddr, element, aname + "$$" + fname);
                     if (StructType *iSTy = dyn_cast<StructType>(element))
                         registerInterface(eaddr, iSTy, fname.c_str());
@@ -1257,21 +1289,6 @@ printf("[%s:%d] INTERFACEEXPORT %s name %s addr %p\n", __FUNCTION__, __LINE__, i
             }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
-        }
-        // Now do a second pass, connecting interfaces
-        Idx = 0;
-        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
-            std::string fname = fieldName(STy, Idx);
-            char *eaddr = addr + SLO->getElementOffset(Idx);
-            Type *element = *I;
-            if (fname != "") {
-                if (PointerType *PTy = dyn_cast<PointerType>(element))
-                if (StructType *iSTy = dyn_cast<StructType>(PTy->getElementType())) {
-                    if (inheritsModule(iSTy, "class.InterfaceClass")) {
-printf("[%s:%d] IMPORT INTERFACE %s name %s [%p] = %p\n", __FUNCTION__, __LINE__, iSTy->getName().str().c_str(), (aname + "$$" + fname).c_str(), eaddr, *(void **)eaddr);
-                    }
-                }
-            }
         }
         break;
         }

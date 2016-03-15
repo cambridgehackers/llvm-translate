@@ -217,7 +217,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n  void commit();\n");
     std::map<std::string, int> cancelList;
-    if (interfaceList.size() > 0) {
+    if (interfaceList.size() > 0 || table->interfaceConnect.size() > 0) {
         std::string prefix = ":";
         fprintf(OStr, "  %s()", name.c_str());
         for (auto item: interfaceList) {
@@ -233,7 +233,11 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 }
             }
         }
-        fprintf(OStr, " {\n  }\n");
+        fprintf(OStr, " {\n");
+        for (auto item: table->interfaceConnect) {
+            fprintf(OStr, "    %s = &%s;\n", item.first.c_str(), item.second.c_str());
+        }
+        fprintf(OStr, "  }\n");
     }
     if (table) {
     for (auto FI : table->method) {

@@ -14,13 +14,13 @@ public:
   l_class_OC_EchoRequestOutput lERO_test;
   l_class_OC_EchoIndicationInput lEII_test;
 public:
-  l_class_OC_Connect() {
-    lEcho.setindication(&lEIO.indication);
-    lERI.setrequest(&lEcho.request);
-    lEIO.setpipe(&lEII_test.pipe);
-    lERO_test.setpipe(&lERI.pipe);
-   }
   void run();
   void commit();
+  l_class_OC_Connect() {
+    lEIO.pipe = &lEII_test.pipe;
+    lERI.request = &lEcho.request;
+    lERO_test.pipe = &lERI.pipe;
+    lEcho.indication = &lEIO.indication;
+  }
 };
 #endif  // __l_class_OC_Connect_H__
