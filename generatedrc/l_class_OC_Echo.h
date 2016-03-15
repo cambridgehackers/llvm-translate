@@ -1,6 +1,7 @@
 #ifndef __l_class_OC_Echo_H__
 #define __l_class_OC_Echo_H__
 #include "l_class_OC_EchoIndication.h"
+#include "l_class_OC_EchoRequest.h"
 class l_class_OC_Echo;
 extern void l_class_OC_Echo__delay_rule(void *thisarg);
 extern bool l_class_OC_Echo__delay_rule__RDY(void *thisarg);
@@ -17,6 +18,7 @@ public:
   unsigned int meth_delay, meth_delay_shadow; bool meth_delay_valid;
   unsigned int v_delay, v_delay_shadow; bool v_delay_valid;
   l_class_OC_EchoIndication *indication;
+  l_class_OC_EchoRequest er;
 public:
   void run();
   void commit();
@@ -24,8 +26,11 @@ public:
   bool delay_rule__RDY(void) { return l_class_OC_Echo__delay_rule__RDY(this); }
   void respond_rule(void) { l_class_OC_Echo__respond_rule(this); }
   bool respond_rule__RDY(void) { return l_class_OC_Echo__respond_rule__RDY(this); }
-  void say(unsigned int say_meth, unsigned int say_v) { l_class_OC_Echo__say(this, say_meth, say_v); }
-  bool say__RDY(void) { return l_class_OC_Echo__say__RDY(this); }
+  //void say(unsigned int say_meth, unsigned int say_v) { l_class_OC_Echo__say(this, say_meth, say_v); }
+  //bool say__RDY(void) { return l_class_OC_Echo__say__RDY(this); }
   void setindication(l_class_OC_EchoIndication *v) { indication = v; }
+  l_class_OC_Echo() :
+      er(this, l_class_OC_Echo__say__RDY, l_class_OC_Echo__say) {
+  }
 };
 #endif  // __l_class_OC_Echo_H__
