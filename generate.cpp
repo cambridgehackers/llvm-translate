@@ -657,7 +657,7 @@ static std::string processInstruction(Instruction &I)
             setAssign(pdest, sval);
         else {
             writeList.push_back(ReferenceType{I.getParent(), pdest});
-printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
+//printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
             storeList.push_back(StoreType{pdest, I.getParent(), sval});
         }
         return "";

@@ -27,6 +27,11 @@ using namespace llvm;
 
 #include "declarations.h"
 
+typedef struct {
+    std::string       name;
+    const StructType *STy;
+} InterfaceListType;
+static std::list<InterfaceListType> interfaceList;
 /*
  * Recursively generate element definitions for a class.
  */
@@ -48,7 +53,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (inheritsModule(iSTy, "class.InterfaceClass"))
-                    continue;
+                    interfaceList.push_back(InterfaceListType{fname, iSTy});
             int dimIndex = 0;
             std::string vecDim;
             do {
@@ -155,9 +160,10 @@ void generateClassDef(const StructType *STy, std::string oDir)
         std::string fname = fieldName(STy, Idx);
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (!inheritsModule(iSTy, "class.InterfaceClass") && !inheritsModule(iSTy, "class.BitsClass")) {
+                if (!inheritsModule(iSTy, "class.BitsClass")) {
                     std::string sname = getStructName(iSTy);
                     addIncludeName(iSTy);
+                    if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     int dimIndex = 0;
                     std::string vecDim;
                     if (sname.substr(0,12) != "l_struct_OC_")
@@ -166,6 +172,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
                             vecDim = utostr(dimIndex++);
                         runLines.push_back(fname + vecDim);
                     } while(vecCount-- > 0);
+                    }
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element))
             if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
@@ -206,11 +213,32 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "class %s {\n", name.c_str());
     }
     fprintf(OStr, "public:\n");
+    interfaceList.clear();
     generateClassElements(STy, OStr);
     fprintf(OStr, "public:\n  void run();\n  void commit();\n");
+    std::map<std::string, int> cancelList;
+    if (interfaceList.size() > 0) {
+        std::string prefix = ":";
+        fprintf(OStr, "  %s()", name.c_str());
+        for (auto item: interfaceList) {
+            ClassMethodTable *itable = classCreate[item.STy];
+            for (auto FI : itable->method) {
+                // HACKHACKHACK: we don't know that the names match!!!!
+                cancelList[FI.first] = 1;
+                if (!endswith(FI.first, "__RDY")) {
+                    std::string fname = name + "__" + FI.first;
+                    fprintf(OStr, "%s\n      %s(this, %s__RDY, %s)", prefix.c_str(),
+                        item.name.c_str(), fname.c_str(), fname.c_str());
+                    prefix = ",";
+                }
+            }
+        }
+        fprintf(OStr, " {\n  }\n");
+    }
     if (table) {
     for (auto FI : table->method) {
         Function *func = FI.second;
+        if (!cancelList[FI.first])
         fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
             printFunctionInstance(func, name + "__" + FI.first).c_str());
     }
