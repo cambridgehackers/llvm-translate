@@ -177,10 +177,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         if (fname != "")
         if (const PointerType *PTy = dyn_cast<PointerType>(element)) {
             element = PTy->getElementType();
-            if (const StructType *STy = dyn_cast<StructType>(element)) { // calling indications from this module
-                if (ClassMethodTable *table = classCreate[STy]) {
-printf("[%s:%d] indication interface sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), fname.c_str());
-                for (auto FI : table->method) {
+            if (const StructType *iSTy = dyn_cast<StructType>(element)) { // calling indications from this module
+                if (ClassMethodTable *itable = classCreate[iSTy]) {
+printf("[%s:%d] indication interface topname %s sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), iSTy->getName().str().c_str(), fname.c_str());
+                for (auto FI : itable->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
 printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());

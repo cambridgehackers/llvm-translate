@@ -16,25 +16,35 @@ module l_class_OC_Echo (
     wire respond_rule__ENA_internal = rule_enable[0] && respond_rule__RDY_internal;
     wire say__RDY_internal;
     wire say__ENA_internal = say__ENA && say__RDY_internal;
+    wire fifo$in_enq__ENA;
+    wire [31:0]fifo$in_enq_v;
+    wire fifo$in_enq__RDY;
+    wire fifo$out_deq__ENA;
     wire fifo$out_deq__RDY;
+    wire [31:0]fifo$out_first;
     wire fifo$out_first__RDY;
     l_class_OC_Fifo1 fifo (
         CLK,
         nRST,
-        say__ENA_internal,
-        say_v,
-        say__RDY_internal,
-        respond_rule__ENA_internal,
+        fifo$in_enq__ENA,
+        fifo$in_enq_v,
+        fifo$in_enq__RDY,
+        fifo$out_deq__ENA,
         fifo$out_deq__RDY,
-        ind$heard_heard_v,
+        fifo$out_first,
         fifo$out_first__RDY,
         rule_enable[1:`l_class_OC_Fifo1_RULE_COUNT],
         rule_ready[1:`l_class_OC_Fifo1_RULE_COUNT]);
     reg[31:0] pipetemp;
+    assign fifo$in$enq__ENA = say__ENA_internal;
+    assign fifo$in$enq_v = say_v;
+    assign fifo$out$deq__ENA = respond_rule__ENA_internal;
     assign ind$heard__ENA = respond_rule__ENA_internal;
-    assign respond_rule__RDY_internal = (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
+    assign ind$heard_heard_v = fifo$out$first;
+    assign respond_rule__RDY_internal = (fifo$out$first__RDY & fifo$out$deq__RDY) & ind$heard__RDY;
     assign rule_ready[0] = respond_rule__RDY_internal;
     assign say__RDY = say__RDY_internal;
+    assign say__RDY_internal = fifo$in$enq__RDY;
 
     always @( posedge CLK) begin
       if (!nRST) begin

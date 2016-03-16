@@ -35,25 +35,36 @@ static std::list<InterfaceListType> interfaceList;
 /*
  * Recursively generate element definitions for a class.
  */
-static void generateClassElements(const StructType *STy, FILE *OStr)
+static void generateClassElements(const StructType *STy, const StructType *ActSTy, FILE *OStr)
 {
+    ClassMethodTable *table = classCreate[STy];
+    ClassMethodTable *atable = classCreate[ActSTy];
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        std::string fname = fieldName(STy, Idx);
         Type *element = *I;
         int64_t vecCount = -1;
-        ClassMethodTable *table = classCreate[STy];
         if (table)
             if (Type *newType = table->replaceType[Idx]) {
                 element = newType;
                 vecCount = table->replaceCount[Idx];
             }
-        std::string fname = fieldName(STy, Idx);
         if (fname == "unused_data_to_force_inheritance")
             continue;
         if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (inheritsModule(iSTy, "class.InterfaceClass"))
-                    interfaceList.push_back(InterfaceListType{fname, iSTy});
+                if (inheritsModule(iSTy, "class.InterfaceClass")) {
+                    ClassMethodTable *itable = classCreate[iSTy];
+                    bool foundSomething = false;
+                    for (unsigned i = 0; i < itable->vtableCount; i++) {
+                        std::string vname = getMethodName(itable->vtable[i]->getName());
+                        if (atable->method.find(vname) != atable->method.end()
+                         || atable->method.find(fname + "_" + vname) != atable->method.end())
+                            foundSomething = true;
+                    }
+                    if (foundSomething)
+                        interfaceList.push_back(InterfaceListType{fname, iSTy});
+                }
             int dimIndex = 0;
             std::string vecDim;
             do {
@@ -72,7 +83,7 @@ static void generateClassElements(const StructType *STy, FILE *OStr)
             } while(vecCount-- > 0);
         }
         else if (const StructType *inherit = dyn_cast<StructType>(element))
-            generateClassElements(inherit, OStr);
+            generateClassElements(inherit, ActSTy, OStr);
     }
 }
 
@@ -135,7 +146,9 @@ static std::map<std::string, int> includeList;
 static void addIncludeName(const StructType *iSTy)
 {
      std::string sname = getStructName(iSTy);
-     if (!inheritsModule(iSTy, "class.BitsClass"))
+     if (!inheritsModule(iSTy, "class.BitsClass")
+       && sname != "l_class_OC_InterfaceClass"
+       && sname != "l_class_OC_Module")
          includeList[sname] = 1;
 }
 void generateClassDef(const StructType *STy, std::string oDir)
@@ -160,7 +173,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
             vecCount = table->replaceCount[Idx];
         }
         std::string fname = fieldName(STy, Idx);
-        if (fname != "") {
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.BitsClass")) {
                     std::string sname = getStructName(iSTy);
@@ -168,20 +180,20 @@ void generateClassDef(const StructType *STy, std::string oDir)
                     if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     int dimIndex = 0;
                     std::string vecDim;
+        if (fname != "") {
                     if (sname.substr(0,12) != "l_struct_OC_")
                     do {
                         if (vecCount != -1)
                             vecDim = utostr(dimIndex++);
                         runLines.push_back(fname + vecDim);
                     } while(vecCount-- > 0);
+        }
                     }
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element))
             if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
                 addIncludeName(iSTy);
-        }
     }
-    if (table)
     for (auto FI : table->method) {
         Function *func = FI.second;
         Type *retType = func->getReturnType();
@@ -218,7 +230,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     fprintf(OStr, "public:\n");
     interfaceList.clear();
-    generateClassElements(STy, OStr);
+    generateClassElements(STy, STy, OStr);
     fprintf(OStr, "public:\n");
     if (inInterface) {
         for (auto FI : table->method) {
@@ -244,14 +256,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
                fprintf(OStr, "    %s = a%s;\n", fname.c_str(), fname.c_str());
         }
         fprintf(OStr, "  }\n");
-#if 0
--    l_class_OC_EchoIndication(void *ap, GUARDPTR aheard__RDYp, decltype(heardp) aheardp) {
--        p = ap;
--        heard__RDYp = aheard__RDYp;
--        heardp = aheardp;
--    }
-
-#endif
     }
     else {
     fprintf(OStr, "  void run();\n  void commit();\n");
@@ -259,17 +263,21 @@ void generateClassDef(const StructType *STy, std::string oDir)
         std::string prefix = ":";
         fprintf(OStr, "  %s()", name.c_str());
         for (auto item: interfaceList) {
+            fprintf(OStr, "%s\n      %s(this", prefix.c_str(), item.name.c_str());
             ClassMethodTable *itable = classCreate[item.STy];
-            for (auto FI : itable->method) {
+            for (unsigned i = 0; i < itable->vtableCount; i++) {
+                std::string vname = getMethodName(itable->vtable[i]->getName());
+                if (table->method.find(item.name + "_" + vname) != table->method.end())
+                    vname = item.name + "_" + vname;
                 // HACKHACKHACK: we don't know that the names match!!!!
-                cancelList[FI.first] = 1;
-                if (!endswith(FI.first, "__RDY")) {
-                    std::string fname = name + "__" + FI.first;
-                    fprintf(OStr, "%s\n      %s(this, %s__RDY, %s)", prefix.c_str(),
-                        item.name.c_str(), fname.c_str(), fname.c_str());
+                cancelList[vname] = 1;
+                if (!endswith(vname, "__RDY")) {
+                    std::string fname = name + "__" + vname;
+                    fprintf(OStr, ", %s__RDY, %s", fname.c_str(), fname.c_str());
                     prefix = ",";
                 }
             }
+            fprintf(OStr, ")");
         }
         fprintf(OStr, " {\n");
         for (auto item: table->interfaceConnect) {
@@ -277,7 +285,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
         }
         fprintf(OStr, "  }\n");
     }
-    if (table) {
     for (auto FI : table->method) {
         Function *func = FI.second;
         if (!cancelList[FI.first])
@@ -288,14 +295,12 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "  void set%s(%s) { %s = v; }\n", item.first.c_str(),
             printType(item.second, false, "v", "", "", false).c_str(), item.first.c_str());
     }
-    }
     fprintf(OStr, "}%s;\n#endif  // __%s_H__\n", (name.substr(0,12) == "l_struct_OC_" ? name.c_str():""), name.c_str());
     fclose(OStr);
     // now generate '.cpp' file
     if (name.substr(0,12) != "l_struct_OC_" && !inInterface) {
     OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
-    if (table)
     for (auto FI : table->method) {
         Function *func = FI.second;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
@@ -327,7 +332,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "}\n");
     }
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-    if (table)
     for (auto item : table->rules)
         if (item.second)
             fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.c_str(), item.first.c_str());

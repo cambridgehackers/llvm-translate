@@ -422,7 +422,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             std::string arrow = MODULE_ARROW;
             std::string fname = fieldName(STy, foffset);
             if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
-                fname += '_';
+                fname += MODULE_DOT;
             else
                 arrow = MODULE_DOT;
             if (trace_gep)

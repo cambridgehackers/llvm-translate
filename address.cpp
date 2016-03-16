@@ -149,8 +149,8 @@ static void processAlloca(Function *func)
 
 static void addMethodTable(const StructType *STy, Function *func)
 {
-    if (!STy)
-        STy = findThisArgument(func);
+    //if (!STy)
+        //STy = findThisArgument(func);
     if (!STy || !STy->hasName())
         return;
     std::string sname = STy->getName();
@@ -188,7 +188,7 @@ static void addMethodTable(const StructType *STy, Function *func)
     table->vtable[table->vtableCount++] = func;
 }
 
-void initializeVtable(const StructType *STy, const GlobalVariable *GV)
+static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
 {
     if (GV->hasInitializer())
     if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
@@ -696,9 +696,9 @@ static void dumpMemoryRegions(int arg)
         std::string gname;
         if (g)
             gname = g->getName();
-        printf("%p %s", info.p, gname.c_str());
+        printf("Region addr %p name '%s'", info.p, gname.c_str());
         if (info.STy)
-            printf(" STy %s", info.STy->getName().str().c_str());
+            printf(" infoSTy %s", info.STy->getName().str().c_str());
         printf("\n");
         if (info.type)
             info.type->dump();
@@ -1101,7 +1101,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             Function *func = *(Function **)eaddr;
             callMap[fname] = func;
             if (trace_pair)
-                printf("[%s:%d] addr %p callMap[%s] = %p [%p = %s]\n", __FUNCTION__, __LINE__, addr, fname.c_str(), eaddr, func, func->getName().str().c_str());
+                printf("[%s:%d] addr %p callMap[%s] = %p [%p = %s]\n", __FUNCTION__, __LINE__, addr, fname.c_str(), eaddr, func, func ? func->getName().str().c_str() : "none");
         }
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
@@ -1288,10 +1288,10 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                         classCreate[STy]->replaceType[Idx] = nSTy;
                         classCreate[STy]->replaceCount[Idx] = -1;
                     }
-                    mapType(Mod, eaddr, element, aname + "$$" + fname);
-                    if (StructType *iSTy = dyn_cast<StructType>(element))
-                        registerInterface(eaddr, iSTy, fname.c_str());
                 }
+                mapType(Mod, eaddr, element, aname + "$$" + fname);
+                if (StructType *iSTy = dyn_cast<StructType>(element))
+                    registerInterface(eaddr, iSTy, fname.c_str());
             }
             else if (dyn_cast<StructType>(element))
                 mapType(Mod, eaddr, element, aname);
@@ -1321,6 +1321,7 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         Type *Ty = MI->getType()->getElementType();
         memoryRegion.push_back(MEMORY_REGION{addr,
             EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
+//printf("[%s:%d] ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ %p %s\n", __FUNCTION__, __LINE__, addr, MI->getName().str().c_str());
         mapType(Mod, (char *)addr, Ty, MI->getName());
     }
     // promote guards from contained calls to be guards for this function
