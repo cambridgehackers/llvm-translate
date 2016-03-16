@@ -149,15 +149,7 @@ static void processAlloca(Function *func)
 
 static void addMethodTable(const StructType *STy, Function *func)
 {
-    //if (!STy)
-        //STy = findThisArgument(func);
-    if (!STy || !STy->hasName())
-        return;
     std::string sname = STy->getName();
-    if (!strncmp(sname.c_str(), "class.std::", 11)
-     || !strncmp(sname.c_str(), "struct.std::", 12))
-        return;   // don't generate anything for std classes
-    getStructName(STy);  // make sure that classCreate is initialized
     ClassMethodTable *table = classCreate[STy];
     std::string fname = func->getName();
     int status;
@@ -190,6 +182,14 @@ static void addMethodTable(const StructType *STy, Function *func)
 
 static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
 {
+    if (!STy || !STy->hasName())
+        return;
+    std::string sname = STy->getName();
+    if (!strncmp(sname.c_str(), "class.std::", 11)
+     || !strncmp(sname.c_str(), "struct.std::", 12))
+        return;   // don't generate anything for std classes
+    getStructName(STy);  // make sure that classCreate is initialized
+    ClassMethodTable *table = classCreate[STy];
     if (GV->hasInitializer())
     if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
         std::string name = GV->getName();
@@ -200,6 +200,20 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
             if (CE->getOpcode() == Instruction::BitCast)
             if (Function *func = dyn_cast<Function>(CE->getOperand(0)))
                 addMethodTable(STy, func);
+        }
+    }
+    std::map<std::string, Function *> funcMap;
+    for (unsigned i = 0; i < table->vtableCount; i++) {
+        Function *func = table->vtable[i];
+        funcMap[getMethodName(func->getName())] = func;
+    }
+    for (auto item: funcMap) {
+        if (endswith(item.first, "__RDY")) {
+            std::string enaName = item.first.substr(0, item.first.length() - 5);
+            Function *enaFunc = funcMap[enaName];
+printf("[%s:%d] sname %s func %s %p %p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, enaFunc);
+            table->method[enaName] = enaFunc;
+            table->method[item.first] = item.second;
         }
     }
 }

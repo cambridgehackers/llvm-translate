@@ -421,9 +421,9 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
             std::string dot = MODULE_DOT;
             std::string arrow = MODULE_ARROW;
             std::string fname = fieldName(STy, foffset);
-            if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
-                fname += MODULE_DOT;
-            else
+            //if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
+                //fname += MODULE_DOT;
+            //else
                 arrow = MODULE_DOT;
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s fname %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str(), fname.c_str());
@@ -515,8 +515,7 @@ static std::string printCall(Instruction &I)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
-        bool thisInterface = inheritsModule(findThisArgument(func), "class.InterfaceClass");
-        prefix = thisInterface ? "" : ".";
+        prefix = ".";
     }
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
@@ -923,7 +922,6 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
         structMap[Ty] = 1;
         if (const StructType *STy = dyn_cast<StructType>(Ty))
         if (STy->hasName()
-// && !inheritsModule(STy, "class.InterfaceClass")
          && !inheritsModule(STy, "class.BitsClass")
          && strncmp(STy->getName().str().c_str(), "class.std::", 11) // don't generate anything for std classes
          && strncmp(STy->getName().str().c_str(), "struct.std::", 12)) {
