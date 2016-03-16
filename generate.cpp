@@ -249,8 +249,12 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         if (NumBits == 1)
             cbuffer += "bool";
         else if (NumBits <= 8) {
-            if (ptr)
-                cbuffer += sp + " char";
+            if (ptr) {
+                if (sp == "unsigned")
+                    cbuffer += "void";
+                else
+                    cbuffer += sp + " char";
+            }
             else
                 cbuffer += "bool";
         }
@@ -268,7 +272,11 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         FunctionType *FTy = cast<FunctionType>(Ty);
         std::string tstr = " (" + NameSoFar + ") (";
         for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            tstr += printType(*I, /*isSigned=*/false, "", sep, "", false);
+            Type *element = *I;
+            if (sep != "")
+            if (auto PTy = dyn_cast<PointerType>(element))
+                element = PTy->getElementType();
+            tstr += printType(element, /*isSigned=*/false, "", sep, "", false);
             sep = ", ";
         }
         if (generateRegion == ProcessVerilog) {
@@ -914,7 +922,8 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
     else if (!structMap[Ty]) {
         structMap[Ty] = 1;
         if (const StructType *STy = dyn_cast<StructType>(Ty))
-        if (STy->hasName() && !inheritsModule(STy, "class.InterfaceClass")
+        if (STy->hasName()
+// && !inheritsModule(STy, "class.InterfaceClass")
          && !inheritsModule(STy, "class.BitsClass")
          && strncmp(STy->getName().str().c_str(), "class.std::", 11) // don't generate anything for std classes
          && strncmp(STy->getName().str().c_str(), "struct.std::", 12)) {

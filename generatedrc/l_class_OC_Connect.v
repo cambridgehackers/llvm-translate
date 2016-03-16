@@ -89,6 +89,10 @@ module l_class_OC_Connect (
         lEII_test$enq__ENA,
         lEII_test$enq_v,
         lEII_test$enq__RDY,
+        lEII_test$indication$heard__ENA,
+        lEII_test$indication$heard_meth,
+        lEII_test$indication$heard_v,
+        lEII_test$indication$heard__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT + `l_class_OC_EchoRequestOutput_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT + `l_class_OC_Echo_RULE_COUNT + `l_class_OC_EchoRequestOutput_RULE_COUNT:`l_class_OC_EchoIndicationInput_RULE_COUNT]);
 endmodule 

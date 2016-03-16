@@ -26,11 +26,8 @@
 #include <stdint.h>
 #include "runtime.h"
 
-#define l_class_OC_foo l_class_OC_EchoIndication
 #define request0 request
 #define indication0 indication
-#include "l_struct_OC_EchoRequest_data.h"
-#include "l_struct_OC_EchoIndication_data.h"
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Echo.cpp"
 #include "l_class_OC_EchoIndicationOutput.cpp"

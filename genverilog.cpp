@@ -354,6 +354,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::map<std::string, int> includeLines;
     std::string ruleNames;
 
+    if (inheritsModule(STy, "class.InterfaceClass"))
+        return;
     muxValueList.clear();
     assignList.clear();
     // first generate the verilog module file '.v'

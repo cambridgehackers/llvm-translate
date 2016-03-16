@@ -7,6 +7,10 @@ module l_class_OC_EchoIndicationInput (
     input enq__ENA,
     input [95:0]enq_v,
     output enq__RDY,
+    output indication$heard__ENA,
+    output [31:0]indication$heard_meth,
+    output [31:0]indication$heard_v,
+    input indication$heard__RDY,
     input [`l_class_OC_EchoIndicationInput_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_EchoIndicationInput_RULE_COUNT:0]rule_ready);
     wire input_rule__RDY_internal;
