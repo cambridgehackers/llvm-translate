@@ -8,13 +8,19 @@
 class l_class_OC_Connect;
 class l_class_OC_Connect {
 public:
-  l_class_OC_EchoIndicationOutput lEchoIndicationOutput;
-  l_class_OC_EchoRequestInput lEchoRequestInput;
+  l_class_OC_EchoIndicationOutput lEIO;
+  l_class_OC_EchoRequestInput lERI;
   l_class_OC_Echo lEcho;
-  l_class_OC_EchoRequestOutput lEchoRequestOutput_test;
-  l_class_OC_EchoIndicationInput lEchoIndicationInput_test;
+  l_class_OC_EchoRequestOutput lERO_test;
+  l_class_OC_EchoIndicationInput lEII_test;
 public:
   void run();
   void commit();
+  l_class_OC_Connect() {
+    lERO_test.pipe = &lERI.pipe;
+    lEcho.indication = &lEIO.indication;
+    lEIO.pipe = &lEII_test.pipe;
+    lERI.request = &lEcho.request;
+  }
 };
 #endif  // __l_class_OC_Connect_H__

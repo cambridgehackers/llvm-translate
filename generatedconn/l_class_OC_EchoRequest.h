@@ -1,14 +1,17 @@
-#ifndef __ER__
-#define __ER__
+#ifndef __l_class_OC_EchoRequest_H__
+#define __l_class_OC_EchoRequest_H__
 class l_class_OC_EchoRequest {
-    void *p;
-    GUARDPTR say__RDYp;
-    void (*sayp)(void *p, int meth, int v);
- public:
-    METHOD(say, (int meth, int v), {return true; } ) { sayp(p, meth, v); }
-    l_class_OC_EchoRequest(void *ap, unsigned long asay__RDYp, unsigned long asayp) {
-        p = ap;
-        ASSIGNIFCPTR(say);
-    }
+public:
+  void *p;
+  bool  (*say__RDYp) (void *);
+  void  (*sayp) (void *, unsigned int , unsigned int );
+public:
+  void say(unsigned int meth, unsigned int v) { sayp(p, meth, v); }
+  bool say__RDY(void) { return say__RDYp(p); }
+  l_class_OC_EchoRequest(decltype(p) ap, decltype(say__RDYp) asay__RDYp, decltype(sayp) asayp) {
+    p = ap;
+    say__RDYp = asay__RDYp;
+    sayp = asayp;
+  }
 };
-#endif
+#endif  // __l_class_OC_EchoRequest_H__

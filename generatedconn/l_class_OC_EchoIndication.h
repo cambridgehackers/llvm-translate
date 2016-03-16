@@ -1,14 +1,17 @@
-#ifndef __EI__
-#define __EI__
+#ifndef __l_class_OC_EchoIndication_H__
+#define __l_class_OC_EchoIndication_H__
 class l_class_OC_EchoIndication {
-    void *p;
-    GUARDPTR heard__RDYp;
-    void (*heardp)(void *p, int meth, int v);
- public:
-    METHOD(heard, (int meth, int v), {return true; } ) { heardp(p, meth, v); }
-    l_class_OC_EchoIndication(void *ap, unsigned long aheard__RDYp, unsigned long aheardp) {
-        p = ap;
-        ASSIGNIFCPTR(heard);
-    }
+public:
+  void *p;
+  bool  (*heard__RDYp) (void *);
+  void  (*heardp) (void *, unsigned int , unsigned int );
+public:
+  void heard(unsigned int meth, unsigned int v) { heardp(p, meth, v); }
+  bool heard__RDY(void) { return heard__RDYp(p); }
+  l_class_OC_EchoIndication(decltype(p) ap, decltype(heard__RDYp) aheard__RDYp, decltype(heardp) aheardp) {
+    p = ap;
+    heard__RDYp = aheard__RDYp;
+    heardp = aheardp;
+  }
 };
-#endif
+#endif  // __l_class_OC_EchoIndication_H__

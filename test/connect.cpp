@@ -26,9 +26,9 @@
 #include <stdint.h>
 #include "runtime.h"
 
-#define l_class_OC_PipeIn l_class_OC_EchoRequestInput 
-#define l_class_OC_PipeIn_OC_0 l_class_OC_EchoIndicationInput 
-#define l_class_OC_foo l_class_OC_EchoIndication
+//#define l_class_OC_PipeIn l_class_OC_EchoRequestInput 
+//#define l_class_OC_PipeIn_OC_0 l_class_OC_EchoIndicationInput 
+//#define l_class_OC_foo l_class_OC_EchoIndication
 #define request0 request
 #include "l_class_OC_Connect.cpp"
 #include "l_class_OC_Echo.cpp"
@@ -51,6 +51,7 @@ bool respheard__RDY(void *thisp) { return true;}
 int main(int argc, const char *argv[])
 {
     printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
+#if 0
     l_class_OC_EchoRequest er(&zConnect.lEcho,
         (unsigned long)&l_class_OC_Echo__say__RDY,
         (unsigned long)&l_class_OC_Echo__say);
@@ -62,16 +63,15 @@ int main(int argc, const char *argv[])
     zConnect.lEchoIndicationOutput.setpipe(&zConnect.lEchoIndicationInput_test);
 
     zConnect.lEchoRequestOutput_test.setpipe(&zConnect.lEchoRequestInput);
-    l_class_OC_EchoIndication zConnectresp(NULL,
-        (unsigned long)&respheard__RDY,
-        (unsigned long)&respheard);
-    zConnect.lEchoIndicationInput_test.setrequest(&zConnectresp);
+#endif
+    l_class_OC_EchoIndication zConnectresp(NULL, &respheard__RDY, &respheard);
+    zConnect.lEII_test.setindication(&zConnectresp);
 
-    zConnect.lEchoRequestOutput_test.say(1, 44 * 1); testCount++;
+    zConnect.lERO_test.request.say(1, 44 * 1); testCount++;
     testCount++;
     testCount++;
-    zConnect.run(); zConnect.lEchoRequestOutput_test.say(2, 44 * 2);
-    zConnect.run(); zConnect.lEchoRequestOutput_test.say(3, 44 * 3);
+    zConnect.run(); zConnect.lERO_test.request.say(2, 44 * 2);
+    zConnect.run(); zConnect.lERO_test.request.say(3, 44 * 3);
     while (!stop_main_program) {
         zConnect.run();
     }
