@@ -886,7 +886,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_function || trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN5Fifo1I9ValueTypeE3enqERKS0_") {
+if (func->getName() == "_ZN5Fifo1I9ValueTypeE5firstEv") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

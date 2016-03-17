@@ -4,8 +4,5 @@ typedef struct {
 public:
   unsigned int a, a_shadow; bool a_valid;
   unsigned int b, b_shadow; bool b_valid;
-public:
-  void run();
-  void commit();
 }l_struct_OC_ValueType;
 #endif  // __l_struct_OC_ValueType_H__

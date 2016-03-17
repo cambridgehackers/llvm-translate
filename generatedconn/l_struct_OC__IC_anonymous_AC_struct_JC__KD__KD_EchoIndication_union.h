@@ -4,8 +4,5 @@
 typedef struct {
 public:
   l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union_KD__KD_EchoIndication_heard heard;
-public:
-  void run();
-  void commit();
 }l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union;
 #endif  // __l_struct_OC__IC_anonymous_AC_struct_JC__KD__KD_EchoIndication_union_H__
