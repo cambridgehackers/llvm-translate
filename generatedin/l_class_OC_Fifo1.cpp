@@ -1,29 +1,29 @@
 #include "l_class_OC_Fifo1.h"
-void l_class_OC_Fifo1__in_enq(void *thisarg, unsigned int in_enq_v) {
-        l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
-        thisp->element_shadow = in_enq_v;
-        thisp->element_valid = 1;
-        thisp->full_shadow = 1;
-        thisp->full_valid = 1;
-}
-bool l_class_OC_Fifo1__in_enq__RDY(void *thisarg) {
-        l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
-        return (thisp->full) ^ 1;
-}
-void l_class_OC_Fifo1__out_deq(void *thisarg) {
+void l_class_OC_Fifo1__deq(void *thisarg) {
         l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
         thisp->full_shadow = 0;
         thisp->full_valid = 1;
 }
-bool l_class_OC_Fifo1__out_deq__RDY(void *thisarg) {
+bool l_class_OC_Fifo1__deq__RDY(void *thisarg) {
         l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
         return thisp->full;
 }
-unsigned int l_class_OC_Fifo1__out_first(void *thisarg) {
+void l_class_OC_Fifo1__enq(void *thisarg, unsigned int enq_v) {
+        l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
+        thisp->element_shadow = enq_v;
+        thisp->element_valid = 1;
+        thisp->full_shadow = 1;
+        thisp->full_valid = 1;
+}
+bool l_class_OC_Fifo1__enq__RDY(void *thisarg) {
+        l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
+        return (thisp->full) ^ 1;
+}
+unsigned int l_class_OC_Fifo1__first(void *thisarg) {
         l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
         return thisp->element;
 }
-bool l_class_OC_Fifo1__out_first__RDY(void *thisarg) {
+bool l_class_OC_Fifo1__first__RDY(void *thisarg) {
         l_class_OC_Fifo1 * thisp = (l_class_OC_Fifo1 *)thisarg;
         return thisp->full;
 }

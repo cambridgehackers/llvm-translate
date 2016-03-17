@@ -1,14 +1,14 @@
 interface L_class_OC_FifoPong;
-    method Action in_enq(Bit#(32) in_enq_v);
-    method Action out_deq();
-    method Bit#(32) out_first();
+    method Action out$deq();
+    method Action in$enq(Bit#(32) in$enq_v);
+    method Bit#(32) out$first();
 endinterface
 import "BVI" l_class_OC_FifoPong =
 module mkL_class_OC_FifoPong(L_class_OC_FifoPong);
     default_reset rst(nRST);
     default_clock clk(CLK);
-    method in_enq(in_enq_v) enable(in_enq__ENA) ready(in_enq__RDY);
-    method out_deq() enable(out_deq__ENA) ready(out_deq__RDY);
-    method out_first out_first() ready(out_first__RDY);
-    schedule (in_enq, out_deq, out_first) CF (in_enq, out_deq, out_first);
+    method out$deq() enable(out$deq__ENA) ready(out$deq__RDY);
+    method in$enq(in$enq_v) enable(in$enq__ENA) ready(in$enq__RDY);
+    method out$first out$first() ready(out$first__RDY);
+    schedule (out$deq, in$enq, out$first) CF (out$deq, in$enq, out$first);
 endmodule

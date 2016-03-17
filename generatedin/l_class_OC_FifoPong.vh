@@ -6,13 +6,13 @@
 
 //METAINTERNAL; element1; l_class_OC_Fifo1_OC_3;
 //METAINTERNAL; element2; l_class_OC_Fifo1_OC_3;
-//METAGUARD; in_enq__RDY; (element2$in_enq__RDY | (pong ^ 1)) & (element1$in_enq__RDY | pong);
-//METAGUARD; out_deq__RDY; (element2$out_deq__RDY | (pong ^ 1)) & (element1$out_deq__RDY | pong);
-//METAGUARD; out_first__RDY; (element2$out_first__RDY | (pong ^ 1)) & (element1$out_first__RDY | pong);
-//METAREAD; in_enq; :pong;:pong;pong ^ 1:pong;pong ^ 1:pong;
-//METAINVOKE; in_enq; pong:element2$in_enq;pong ^ 1:element1$in_enq;
-//METAREAD; out_deq; :pong;pong ^ 1:pong;:pong;
-//METAWRITE; out_deq; :pong;
-//METAINVOKE; out_deq; pong:element2$out_deq;pong ^ 1:element1$out_deq;
-//METAINVOKE; out_first; pong:element2$out_first;pong ^ 1:element1$out_first;
+//METAGUARD; out$deq__RDY; (element28$out$deq__RDY | (pong ^ 1)) & (element18$out$deq__RDY | pong);
+//METAGUARD; in$enq__RDY; (element28$in$enq__RDY | (pong ^ 1)) & (element18$in$enq__RDY | pong);
+//METAGUARD; out$first__RDY; (element28$out$first__RDY | (pong ^ 1)) & (element18$out$first__RDY | pong);
+//METAREAD; out$deq; :pong;pong ^ 1:pong;:pong;
+//METAWRITE; out$deq; :pong;
+//METAINVOKE; out$deq; pong:element28$out$deq;pong ^ 1:element18$out$deq;
+//METAREAD; in$enq; :pong;:pong;pong ^ 1:pong;pong ^ 1:pong;
+//METAINVOKE; in$enq; pong:element28$in$enq;pong ^ 1:element18$in$enq;
+//METAINVOKE; out$first; pong:element28$out$first;pong ^ 1:element18$out$first;
 `endif
