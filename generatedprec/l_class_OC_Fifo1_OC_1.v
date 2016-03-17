@@ -19,8 +19,6 @@ module l_class_OC_Fifo1_OC_1 (
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
     reg[383:0] element;
     reg full;
-    assign first$_ = element;
-    assign first$__ENA = out$first__ENA_internal;
     assign in$enq__RDY = in$enq__RDY_internal;
     assign in$enq__RDY_internal = full ^ 1;
     assign out$deq__RDY = out$deq__RDY_internal;
@@ -40,6 +38,10 @@ module l_class_OC_Fifo1_OC_1 (
             element <= enq_v;
             full <= 1;
         end; // End of in$enq
+        if (out$first__ENA_internal) begin
+            first$a <= element$a;
+            first$b <= element$b;
+        end; // End of out$first
       end
     end // always @ (posedge CLK)
 endmodule 

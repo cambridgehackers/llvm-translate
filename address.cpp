@@ -112,6 +112,7 @@ static void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstr
 static void processAlloca(Function *func)
 {
     std::map<const Value *,Value *> remapValue;
+restart:
     for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB) {
         for (auto II = BB->begin(), IE = BB->end(); II != IE;) {
             auto PI = std::next(BasicBlock::iterator(II));
@@ -143,14 +144,35 @@ static void processAlloca(Function *func)
                 break;
             case Instruction::Call: {
                 CallInst *ICL = dyn_cast<CallInst>(II);
+                Value *callV = ICL->getCalledValue();
                 if (ICL->getDereferenceableBytes(0) > 0) {
-//printf("[%s:%d]DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n", __FUNCTION__, __LINE__);
-//ICL->dump();
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
                     Value *newLoad = builder.CreateLoad(II->getOperand(1));
                     builder.CreateStore(newLoad, II->getOperand(0));
                     II->eraseFromParent();
+                }
+                else if (Function *cfunc = dyn_cast<Function>(callV)) {
+                    int status;
+                    const char *ret = abi::__cxa_demangle(cfunc->getName().str().c_str(), 0, 0, &status);
+                    if (ret) {
+                        std::string temp = ret;
+                        int colon = temp.find("::");
+                        int lparen = temp.find("(");
+                        if (colon != -1 && lparen > colon) {
+                            std::string classname = temp.substr(0, colon);
+                            std::string fname = temp.substr(colon+2, lparen - colon - 2);
+                            int lt = classname.find("<");
+                            if (lt > 0)
+                                classname = classname.substr(0,lt);
+                            if (classname == fname) {
+                                processAlloca(cfunc);
+                                InlineFunctionInfo IFI;
+                                InlineFunction(ICL, IFI, false);
+                                goto restart;
+                            }
+                        }
+                    }
                 }
                 break;
                 }

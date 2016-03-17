@@ -9,6 +9,6 @@
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
 //METAGUARD; respond__RDY; (fifo8$out$first__RDY & fifo8$out$deq__RDY) & ind$heard__RDY;
 //METAGUARD; say__RDY; fifo8$in$enq__RDY;
-//METAINVOKE; respond; :fifo8$out$first;:fifo8$out$deq;:agg_2e_tmp$;:agg_2e_tmp4$;:ind$heard;
+//METAINVOKE; respond; :fifo8$out$first;:fifo8$out$deq;:ind$heard;
 //METAINVOKE; say; :fifo8$in$enq;
 `endif

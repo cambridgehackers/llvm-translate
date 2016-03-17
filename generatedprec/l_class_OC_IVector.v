@@ -40,10 +40,6 @@ module l_class_OC_IVector (
     reg[23:0] fcounter;
     reg[1:0] counter;
     reg[10:0] gcounter;
-    assign agg_2e_tmp$__ENA = respond__ENA_internal;
-    assign agg_2e_tmp$_arg = fifo8$out$first$a;
-    assign agg_2e_tmp4$__ENA = respond__ENA_internal;
-    assign agg_2e_tmp4$_arg = fifo8$out$first$b;
     assign fifo8$in$enq__ENA = say__ENA_internal;
     assign fifo8$in$enq_v = temp;
     assign fifo8$out$deq__ENA = respond__ENA_internal;
@@ -62,6 +58,8 @@ module l_class_OC_IVector (
       end // nRST
       else begin
         if (respond__ENA_internal) begin
+            agg_2e_tmp <= fifo8$out$first$a;
+            agg_2e_tmp4 <= fifo8$out$first$b;
             gcounter <= gcounter + 1;
         end; // End of respond
       end

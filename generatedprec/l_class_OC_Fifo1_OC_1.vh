@@ -9,5 +9,6 @@
 //METAGUARD; out$first__RDY; full;
 //METAWRITE; out$deq; :full;
 //METAWRITE; in$enq; :element;:full;
-//METAINVOKE; out$first; :first$;
+//METAREAD; out$first; :element$a;:element$b;
+//METAWRITE; out$first; :first$a;:first$b;
 `endif

@@ -21,7 +21,8 @@ bool l_class_OC_Fifo1_OC_1__enq__RDY(void *thisarg) {
 l_struct_OC_ValueType l_class_OC_Fifo1_OC_1__first(void *thisarg) {
         l_class_OC_Fifo1_OC_1 * thisp = (l_class_OC_Fifo1_OC_1 *)thisarg;
         l_struct_OC_ValueType first;
-        first = (thisp->element);
+        first.a = thisp->element.a;
+        first.b = thisp->element.b;
         return first;
 }
 bool l_class_OC_Fifo1_OC_1__first__RDY(void *thisarg) {

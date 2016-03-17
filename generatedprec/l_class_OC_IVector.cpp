@@ -4,13 +4,17 @@ void l_class_OC_IVector__respond(void *thisarg) {
         BITS6 agg_2e_tmp;
         BITS4 agg_2e_tmp4;
         unsigned long long call;
+        unsigned long long call_2e_i;
+        unsigned long long call_2e_i_2e_1;
         l_struct_OC_ValueType temp;
+        call_2e_i = temp.a;
+        agg_2e_tmp = call_2e_i;
+        call_2e_i_2e_1 = temp.b;
+        agg_2e_tmp4 = call_2e_i_2e_1;
         call = thisp->gcounter;
         thisp->gcounter = call + 1;
         temp = thisp->fifo8.out.first();
         thisp->fifo8.out.deq();
-        agg_2e_tmp = (temp.a);
-        agg_2e_tmp4 = (temp.b);
         thisp->ind->heard(agg_2e_tmp, agg_2e_tmp4);
 }
 bool l_class_OC_IVector__respond__RDY(void *thisarg) {
