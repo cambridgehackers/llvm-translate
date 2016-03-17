@@ -38,5 +38,5 @@
 //METAINVOKE; respond7; :fifo7$out$first;:fifo7$out$deq;:ind$heard;
 //METAINVOKE; respond8; :fifo8$out$first;:fifo8$out$deq;:ind$heard;
 //METAINVOKE; respond9; :fifo9$out$first;:fifo9$out$deq;:ind$heard;
-//METAINVOKE; say; :say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9$in$enq;
+//METAINVOKE; say; :(say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)$in$enq;
 `endif

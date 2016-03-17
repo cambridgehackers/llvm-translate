@@ -429,12 +429,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         if (StructType *STy = dyn_cast<StructType>(*I)) {
             uint64_t foffset = cast<ConstantInt>(I.getOperand())->getZExtValue();
             std::string dot = MODULE_DOT;
-            std::string arrow = MODULE_ARROW;
             std::string fname = fieldName(STy, foffset);
-            //if (inheritsModule(dyn_cast<StructType>(STy->element_begin()[foffset]), "class.InterfaceClass"))
-                //fname += MODULE_DOT;
-            //else
-                arrow = MODULE_DOT;
             if (trace_gep)
                 printf("[%s:%d] expose %d referstr %s cbuffer %s STy %s fname %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), STy->getName().str().c_str(), fname.c_str());
             if (!expose && referstr[0] == '&') {
@@ -450,12 +445,17 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
                 )
                 referstr = "";
             else {
+                std::string arrow = MODULE_ARROW;
+                arrow = MODULE_DOT;
                 if (referstr == "this") {
                     arrow = MODULE_ARROW;
                     referstr = "thisp";
                 }
-                else if (arrow == "->")
+                else if (arrow == "->" || referstr.find(" ") != std::string::npos) {
+                    // HACK: spaces mean "has expression inside"
                     referstr = "(" + referstr + ")";
+                    arrow = MODULE_ARROW;
+                }
                 referstr += arrow;
             }
             cbuffer += referstr + fname;
