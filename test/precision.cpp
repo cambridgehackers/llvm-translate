@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define fifo8 fifo
 typedef uint32_t BITS;
 typedef BITS BITS1;
 typedef BITS BITS4;
