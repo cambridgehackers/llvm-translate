@@ -245,6 +245,19 @@ static void processSelect(Function *thisFunc)
                     initializeVtable(STy, GV);
                 }
                 break;
+            case Instruction::Call: {
+                CallInst *ICL = dyn_cast<CallInst>(II);
+                if (ICL->getDereferenceableBytes(0) > 0) {
+//printf("[%s:%d]DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n", __FUNCTION__, __LINE__);
+//ICL->dump();
+                    IRBuilder<> builder(II->getParent());
+                    builder.SetInsertPoint(II);
+                    Value *newLoad = builder.CreateLoad(II->getOperand(1));
+                    builder.CreateStore(newLoad, II->getOperand(0));
+                    II->eraseFromParent();
+                }
+                break;
+                }
             };
             II = PI;
         }
@@ -1335,7 +1348,6 @@ printf("[%s:%d] start\n", __FUNCTION__, __LINE__);
         Type *Ty = MI->getType()->getElementType();
         memoryRegion.push_back(MEMORY_REGION{addr,
             EE->getDataLayout()->getTypeAllocSize(Ty), MI->getType(), NULL});
-//printf("[%s:%d] ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ %p %s\n", __FUNCTION__, __LINE__, addr, MI->getName().str().c_str());
         mapType(Mod, (char *)addr, Ty, MI->getName());
     }
     // promote guards from contained calls to be guards for this function
