@@ -211,8 +211,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     fprintf(OStr, "public:\n");
     generateClassElements(STy, STy, OStr);
-    fprintf(OStr, "public:\n");
     if (inInterface) {
+        fprintf(OStr, "public:\n");
         for (auto FI : table->method) {
             Function *func = FI.second;
             fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
@@ -237,8 +237,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
         }
         fprintf(OStr, "  }\n");
     }
-    else {
-    fprintf(OStr, "  void run();\n  void commit();\n");
+    else if (name.substr(0,12) != "l_struct_OC_") {
+        fprintf(OStr, "public:\n  void run();\n  void commit();\n");
     if (table->interfaceList.size() > 0 || table->interfaceConnect.size() > 0) {
         std::string prefix = ":";
         fprintf(OStr, "  %s()", name.c_str());
