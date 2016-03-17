@@ -46,6 +46,7 @@ static std::map<const Value *, std::string> allocaMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
+static Module *globalMod;
 std::list<ReferenceType> readList, writeList, invokeList, functionList;
 std::list<StoreType> storeList;
 std::map<std::string, std::string> declareList;
@@ -270,9 +271,18 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         }
     case Type::FunctionTyID: {
         FunctionType *FTy = cast<FunctionType>(Ty);
+        Type *retType = FTy->getReturnType();
+        auto AI = FTy->param_begin(), AE = FTy->param_end();
+        bool structRet = (*AI) != Type::getInt8PtrTy(globalMod->getContext());
+        if (structRet) {  //FTy->hasStructRetAttr()
+            if (auto PTy = dyn_cast<PointerType>(*AI))
+                retType = PTy->getElementType();
+            AI++;
+        }
+
         std::string tstr = " (" + NameSoFar + ") (";
-        for (auto I = FTy->param_begin(), E = FTy->param_end(); I != E; ++I) {
-            Type *element = *I;
+        for (;AI != AE; ++AI) {
+            Type *element = *AI;
             if (sep != "")
             if (auto PTy = dyn_cast<PointerType>(element))
                 element = PTy->getElementType();
@@ -295,7 +305,7 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         } else if (!FTy->getNumParams())
             tstr += "void";
         }
-        cbuffer += printType(FTy->getReturnType(), /*isSigned=*/false, tstr + ')', "", "", false);
+        cbuffer += printType(retType, /*isSigned=*/false, tstr + ')', "", "", false);
         break;
         }
     case Type::StructTyID: {
@@ -515,7 +525,7 @@ static std::string printCall(Instruction &I)
         printf("CALL: CALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
     if (pcalledFunction[0] == '&') {
         pcalledFunction = pcalledFunction.substr(1);
-        prefix = ".";
+        prefix = MODULE_DOT;
     }
     if (generateRegion == ProcessVerilog)
         prefix = pcalledFunction + prefix;
@@ -912,6 +922,39 @@ func->dump();
  * a specified callback function to write the type definitions into
  * cpp and verilog output files
  */
+static void checkClass(const StructType *STy, const StructType *ActSTy)
+{
+    ClassMethodTable *table = classCreate[STy];
+    ClassMethodTable *atable = classCreate[ActSTy];
+    int Idx = 0;
+    for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+        std::string fname = fieldName(STy, Idx);
+        Type *element = *I;
+        int64_t vecCount = -1;
+        if (table)
+            if (Type *newType = table->replaceType[Idx]) {
+                element = newType;
+                vecCount = table->replaceCount[Idx];
+            }
+        if (fname != "") {
+            if (const StructType *iSTy = dyn_cast<StructType>(element))
+                if (inheritsModule(iSTy, "class.InterfaceClass")) {
+                    ClassMethodTable *itable = classCreate[iSTy];
+                    bool foundSomething = false;
+                    for (unsigned i = 0; i < itable->vtableCount; i++) {
+                        std::string vname = getMethodName(itable->vtable[i]->getName());
+                        if (atable->method.find(vname) != atable->method.end()
+                         || atable->method.find(fname + "_" + vname) != atable->method.end())
+                            foundSomething = true;
+                    }
+                    if (foundSomething)
+                        atable->interfaceList.push_back(InterfaceListType{fname, iSTy});
+                }
+        }
+        else if (const StructType *inherit = dyn_cast<StructType>(element))
+            checkClass(inherit, ActSTy);
+    }
+}
 static void generateContainedStructs(const Type *Ty, std::string ODir)
 {
     if (!Ty)
@@ -926,6 +969,7 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
          && strncmp(STy->getName().str().c_str(), "class.std::", 11) // don't generate anything for std classes
          && strncmp(STy->getName().str().c_str(), "struct.std::", 12)) {
             ClassMethodTable *table = classCreate[STy];
+            checkClass(STy, STy);
             int Idx = 0;
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                 Type *element = *I;
@@ -956,6 +1000,7 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
  */
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
 {
+globalMod = Mod;
     // Before running constructors, clean up and rewrite IR
     preprocessModule(Mod);
 

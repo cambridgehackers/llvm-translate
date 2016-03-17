@@ -27,18 +27,12 @@ using namespace llvm;
 
 #include "declarations.h"
 
-typedef struct {
-    std::string       name;
-    const StructType *STy;
-} InterfaceListType;
-static std::list<InterfaceListType> interfaceList;
 /*
  * Recursively generate element definitions for a class.
  */
 static void generateClassElements(const StructType *STy, const StructType *ActSTy, FILE *OStr)
 {
     ClassMethodTable *table = classCreate[STy];
-    ClassMethodTable *atable = classCreate[ActSTy];
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
         std::string fname = fieldName(STy, Idx);
@@ -52,19 +46,6 @@ static void generateClassElements(const StructType *STy, const StructType *ActST
         if (fname == "unused_data_to_force_inheritance")
             continue;
         if (fname != "") {
-            if (const StructType *iSTy = dyn_cast<StructType>(element))
-                if (inheritsModule(iSTy, "class.InterfaceClass")) {
-                    ClassMethodTable *itable = classCreate[iSTy];
-                    bool foundSomething = false;
-                    for (unsigned i = 0; i < itable->vtableCount; i++) {
-                        std::string vname = getMethodName(itable->vtable[i]->getName());
-                        if (atable->method.find(vname) != atable->method.end()
-                         || atable->method.find(fname + "_" + vname) != atable->method.end())
-                            foundSomething = true;
-                    }
-                    if (foundSomething)
-                        interfaceList.push_back(InterfaceListType{fname, iSTy});
-                }
             int dimIndex = 0;
             std::string vecDim;
             do {
@@ -159,6 +140,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
     std::map<std::string, int> cancelList;
     bool inInterface = inheritsModule(STy, "class.InterfaceClass");
 
+    if (STy->getName() == "class.InterfaceClass")
+        return;
     includeList.clear();
     // first generate '.h' file
     FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
@@ -180,14 +163,12 @@ void generateClassDef(const StructType *STy, std::string oDir)
                     if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     int dimIndex = 0;
                     std::string vecDim;
-        if (fname != "") {
-                    if (sname.substr(0,12) != "l_struct_OC_")
+                    if (fname != "" && sname.substr(0,12) != "l_struct_OC_")
                     do {
                         if (vecCount != -1)
                             vecDim = utostr(dimIndex++);
                         runLines.push_back(fname + vecDim);
                     } while(vecCount-- > 0);
-        }
                     }
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element))
@@ -229,7 +210,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "class %s {\n", name.c_str());
     }
     fprintf(OStr, "public:\n");
-    interfaceList.clear();
     generateClassElements(STy, STy, OStr);
     fprintf(OStr, "public:\n");
     if (inInterface) {
@@ -259,16 +239,14 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     else {
     fprintf(OStr, "  void run();\n  void commit();\n");
-    if (interfaceList.size() > 0 || table->interfaceConnect.size() > 0) {
+    if (table->interfaceList.size() > 0 || table->interfaceConnect.size() > 0) {
         std::string prefix = ":";
         fprintf(OStr, "  %s()", name.c_str());
-        for (auto item: interfaceList) {
+        for (auto item: table->interfaceList) {
             fprintf(OStr, "%s\n      %s(this", prefix.c_str(), item.name.c_str());
             ClassMethodTable *itable = classCreate[item.STy];
             for (unsigned i = 0; i < itable->vtableCount; i++) {
                 std::string vname = getMethodName(itable->vtable[i]->getName());
-                if (table->method.find(item.name + "_" + vname) != table->method.end())
-                    vname = item.name + "_" + vname;
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
                 if (!endswith(vname, "__RDY")) {

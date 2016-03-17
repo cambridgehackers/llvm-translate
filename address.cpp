@@ -211,7 +211,7 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
         if (endswith(item.first, "__RDY")) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
             Function *enaFunc = funcMap[enaName];
-printf("[%s:%d] sname %s func %s %p %p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, enaFunc);
+//printf("[%s:%d] sname %s func %s %p %p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, enaFunc);
             table->method[enaName] = enaFunc;
             table->method[item.first] = item.second;
         }
@@ -1131,9 +1131,9 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                         sname = sname.substr(7);
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
-                        printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("_") + mName).c_str(), calledFunc, sname.c_str());
+                        printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("$") + mName).c_str(), calledFunc, sname.c_str());
                     if (calledFunc)
-                        methodMap[name + std::string("_") + mName] = calledFunc;
+                        methodMap[mName] = calledFunc;
                 }
     }
     for (auto item: methodMap) {

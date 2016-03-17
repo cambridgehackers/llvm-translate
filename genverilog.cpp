@@ -94,6 +94,17 @@ void setAssign(std::string target, std::string value)
      assignList[target] = inlineValue(value, true);
 }
 
+typedef std::map<std::string,std::string> PrefixType;
+void buildPrefix(ClassMethodTable *table, PrefixType &interfacePrefix)
+{
+    for (auto item: table->interfaceList) {
+        ClassMethodTable *itable = classCreate[item.STy];
+        for (unsigned i = 0; i < itable->vtableCount; i++) {
+            interfacePrefix[getMethodName(itable->vtable[i]->getName())] = item.name + "$";
+//printf("[%s:%d] class %s name %s prefix %s\n", __FUNCTION__, __LINE__, table->STy->getName().str().c_str(), getMethodName(itable->vtable[i]->getName()).c_str(), item.name.c_str());
+        }
+    }
+}
 /*
  * Generate verilog module header for class definition or reference
  */
@@ -103,6 +114,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     std::string name = getStructName(STy);
     std::string inp = "input ", outp = "output ", instPrefix, inpClk = "input ";
     std::list<std::string> paramList;
+    PrefixType interfacePrefix;
+    buildPrefix(table, interfacePrefix);
     if (instance != "") {
         instPrefix = instance + MODULE_SEPARATOR;
         inp = instPrefix;
@@ -110,7 +123,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         inpClk = "";
         for (auto FI : table->method) {
             const Function *func = FI.second;
-            std::string mname = FI.first;
+            std::string mname = interfacePrefix[FI.first] + FI.first;
             Type *retType = func->getReturnType();
             auto AI = func->arg_begin(), AE = func->arg_end();
             if (func->hasStructRetAttr()) {
@@ -126,7 +139,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             if (inlineValue(wparam, false) == "")
                 fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
             for (AI++; AI != AE; ++AI) {
-                wparam = instPrefix + AI->getName().str();
+                wparam = instPrefix + interfacePrefix[FI.first] + AI->getName().str();
                 if (inlineValue(wparam, false) == "")
                     fprintf(OStr, "    wire %s%s;\n", verilogArrRange(AI->getType()).c_str(), wparam.c_str());
             }
@@ -142,7 +155,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     paramList.push_back(inpClk + "nRST");
     for (auto FI : table->method) {
         Function *func = FI.second;
-        std::string mname = FI.first;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         if (table->rules[mname]
          || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5)]))
             continue;
@@ -162,9 +175,9 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         paramList.push_back(wparam);
         for (AI++; AI != AE; ++AI) {
             if (instance != "")
-                wparam = inlineValue(instPrefix + AI->getName().str(), true);
+                wparam = inlineValue(instPrefix + interfacePrefix[FI.first] + AI->getName().str(), true);
             else
-                wparam = inp + verilogArrRange(AI->getType()) + AI->getName().str();
+                wparam = inp + verilogArrRange(AI->getType()) + interfacePrefix[FI.first] + AI->getName().str();
             paramList.push_back(wparam);
         }
     }
@@ -180,9 +193,11 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             if (const StructType *iSTy = dyn_cast<StructType>(element)) { // calling indications from this module
                 if (ClassMethodTable *itable = classCreate[iSTy]) {
 printf("[%s:%d] indication interface topname %s sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), iSTy->getName().str().c_str(), fname.c_str());
+                PrefixType interfacePrefix;
+                buildPrefix(itable, interfacePrefix);
                 for (auto FI : itable->method) {
                     Function *func = FI.second;
-                    std::string wparam, mname = fname + MODULE_SEPARATOR + FI.first;
+                    std::string wparam, mname = fname + MODULE_SEPARATOR + interfacePrefix[FI.first] + FI.first;
 printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                     Type *retType = func->getReturnType();
                     auto AI = func->arg_begin(), AE = func->arg_end();
@@ -198,7 +213,7 @@ printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                         wparam = inp + (instance == "" ? verilogArrRange(retType):"") + mname;
                     paramList.push_back(wparam);
                     for (AI++; AI != AE; ++AI) {
-                        wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + AI->getName().str();
+                        wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + interfacePrefix[FI.first] + AI->getName().str();
                         paramList.push_back(wparam);
                     }
                 }
@@ -241,6 +256,8 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
 {
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
+    PrefixType interfacePrefix;
+    buildPrefix(table, interfacePrefix);
     /*
      * Now generate importBVI for use of module from Bluespec
      */
@@ -255,13 +272,13 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
                 retType = PTy->getElementType();
             AI++;
         }
-        std::string mname = FI.first;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         int isAction = (retType == Type::getVoidTy(func->getContext()));
         if (endswith(mname, "__RDY"))
             continue;
         fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
         for (AI++; AI != AE; ++AI)
-            fprintf(BStr, "%s %s", "Bit#(32)", AI->getName().str().c_str());
+            fprintf(BStr, "%s %s", "Bit#(32)", (interfacePrefix[FI.first] + AI->getName().str()).c_str());
         fprintf(BStr, ");\n");
     }
     fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
@@ -276,7 +293,7 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
                 retType = PTy->getElementType();
             AI++;
         }
-        std::string mname = FI.first;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         if (endswith(mname, "__RDY"))
             continue;
         int isAction = (retType == Type::getVoidTy(func->getContext()));
@@ -285,7 +302,7 @@ void generateBsvWrapper(const StructType *STy, std::string oDir)
         else
             fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
         for (AI++; AI != AE; ++AI)
-            fprintf(BStr, "%s", AI->getName().str().c_str());
+            fprintf(BStr, "%s", (interfacePrefix[FI.first] + AI->getName()).str().c_str());
         if (isAction)
             fprintf(BStr, ") enable(%s__ENA", mname.c_str());
         fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
@@ -361,6 +378,8 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // first generate the verilog module file '.v'
     FILE *OStr = fopen((oDir + "/" + name + ".v").c_str(), "w");
     fprintf(OStr, "\n`include \"%s.vh\"\n\n", name.c_str());
+    PrefixType interfacePrefix;
+    buildPrefix(table, interfacePrefix);
     generateModuleSignature(OStr, STy, "");
     // assign ENA/RDY lines for local rules
     int ind = 0;
@@ -415,7 +434,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         } while(vecCount-- > 0);
     }
     for (auto FI : table->method) {
-        std::string mname = FI.first;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         Function *func = FI.second;
         if (endswith(mname, "__RDY")) {
             globalCondition = mname + "__ENA_internal";
@@ -427,7 +446,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
     for (auto FI : table->method) {
-        std::string mname = FI.first;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         Function *func = FI.second;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin();

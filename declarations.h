@@ -50,6 +50,11 @@ typedef struct {
     const StructType *STy;
 } InterfaceConnectType;
 
+typedef struct {
+    std::string       name;
+    const StructType *STy;
+} InterfaceListType;
+
 #define MAX_MEMBER_SIZE 100
 class ClassMethodTable {
 public:
@@ -65,6 +70,7 @@ public:
     std::string                       instance;
     Function                          *vtable[MAX_MEMBER_SIZE];
     std::map<std::string, Type *>     interfaces;
+    std::list<InterfaceListType>      interfaceList;
     ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
     {}
 };
