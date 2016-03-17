@@ -4,10 +4,10 @@
 module l_class_OC_Echo (
     input CLK,
     input nRST,
-    input say__ENA,
-    input [31:0]say_meth,
-    input [31:0]say_v,
-    output say__RDY,
+    input request$say__ENA,
+    input [31:0]request$say_meth,
+    input [31:0]request$say_v,
+    output request$say__RDY,
     output indication$heard__ENA,
     output [31:0]indication$heard_meth,
     output [31:0]indication$heard_v,
@@ -18,8 +18,8 @@ module l_class_OC_Echo (
     wire delay_rule__ENA_internal = rule_enable[0] && delay_rule__RDY_internal;
     wire respond_rule__RDY_internal;
     wire respond_rule__ENA_internal = rule_enable[1] && respond_rule__RDY_internal;
-    wire say__RDY_internal;
-    wire say__ENA_internal = say__ENA && say__RDY_internal;
+    wire request$say__RDY_internal;
+    wire request$say__ENA_internal = request$say__ENA && request$say__RDY_internal;
     reg[31:0] busy;
     reg[31:0] meth_temp;
     reg[31:0] v_temp;
@@ -30,11 +30,11 @@ module l_class_OC_Echo (
     assign indication$heard__ENA = respond_rule__ENA_internal;
     assign indication$heard_meth = meth_delay;
     assign indication$heard_v = v_delay;
+    assign request$say__RDY = request$say__RDY_internal;
+    assign request$say__RDY_internal = (busy != 0) ^ 1;
     assign respond_rule__RDY_internal = (busy_delay != 0) & indication$heard__RDY;
     assign rule_ready[0] = delay_rule__RDY_internal;
     assign rule_ready[1] = respond_rule__RDY_internal;
-    assign say__RDY = say__RDY_internal;
-    assign say__RDY_internal = (busy != 0) ^ 1;
 
     always @( posedge CLK) begin
       if (!nRST) begin
@@ -55,11 +55,11 @@ module l_class_OC_Echo (
         if (respond_rule__ENA_internal) begin
             busy_delay <= 0;
         end; // End of respond_rule
-        if (say__ENA_internal) begin
+        if (request$say__ENA_internal) begin
             meth_temp <= say_meth;
             v_temp <= say_v;
             busy <= 1;
-        end; // End of say
+        end; // End of request$say
       end
     end // always @ (posedge CLK)
 endmodule 

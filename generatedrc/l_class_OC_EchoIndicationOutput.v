@@ -4,10 +4,10 @@
 module l_class_OC_EchoIndicationOutput (
     input CLK,
     input nRST,
-    input heard__ENA,
-    input [31:0]heard_meth,
-    input [31:0]heard_v,
-    output heard__RDY,
+    input indication$heard__ENA,
+    input [31:0]indication$heard_meth,
+    input [31:0]indication$heard_v,
+    output indication$heard__RDY,
     output pipe$enq__ENA,
     output [95:0]pipe$enq_v,
     input pipe$enq__RDY,
@@ -17,14 +17,14 @@ module l_class_OC_EchoIndicationOutput (
     wire output_rulee__ENA_internal = rule_enable[0] && output_rulee__RDY_internal;
     wire output_ruleo__RDY_internal;
     wire output_ruleo__ENA_internal = rule_enable[1] && output_ruleo__RDY_internal;
-    wire heard__RDY_internal;
-    wire heard__ENA_internal = heard__ENA && heard__RDY_internal;
+    wire indication$heard__RDY_internal;
+    wire indication$heard__ENA_internal = indication$heard__ENA && indication$heard__RDY_internal;
     reg[95:0] ind0;
     reg[95:0] ind1;
     reg[31:0] ind_busy;
     reg[31:0] even;
-    assign heard__RDY = heard__RDY_internal;
-    assign heard__RDY_internal = (ind_busy != 0) ^ 1;
+    assign indication$heard__RDY = indication$heard__RDY_internal;
+    assign indication$heard__RDY_internal = (ind_busy != 0) ^ 1;
     assign output_rulee__RDY_internal = (((ind_busy != 0) & (even != 0)) != 0) & pipe$enq__RDY;
     assign output_ruleo__RDY_internal = (((ind_busy != 0) & (even == 0)) != 0) & pipe$enq__RDY;
     assign pipe$enq__ENA = output_rulee__ENA_internal || output_ruleo__ENA_internal;
@@ -40,7 +40,7 @@ module l_class_OC_EchoIndicationOutput (
         even <= 0;
       end // nRST
       else begin
-        if (heard__ENA_internal) begin
+        if (indication$heard__ENA_internal) begin
             if (even != 0)
             ind1$tag <= 1;
             if (even != 0)
@@ -55,7 +55,7 @@ module l_class_OC_EchoIndicationOutput (
             ind0$data$heard$v <= heard_v;
             ind_busy <= 1;
             even <= (even != 0) ^ 1;
-        end; // End of heard
+        end; // End of indication$heard
         if (output_rulee__ENA_internal) begin
             ind_busy <= 0;
         end; // End of output_rulee
