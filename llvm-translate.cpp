@@ -96,5 +96,7 @@ int main(int argc, char **argv, char * const *envp)
 
     GenerateRunOnModule(Mod, OutputDir);
 printf("[%s:%d] end processing\n", __FUNCTION__, __LINE__);
+    fclose(stderr);
+    fclose(stdout);
     return 0;
 }
