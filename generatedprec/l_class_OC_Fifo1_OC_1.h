@@ -1,8 +1,6 @@
 #ifndef __l_class_OC_Fifo1_OC_1_H__
 #define __l_class_OC_Fifo1_OC_1_H__
 #include "l_class_OC_Fifo_OC_2.h"
-#include "l_class_OC_PipeIn_OC_3.h"
-#include "l_class_OC_PipeOut_OC_4.h"
 #include "l_struct_OC_ValueType.h"
 class l_class_OC_Fifo1_OC_1;
 extern void l_class_OC_Fifo1_OC_1__deq(void *thisarg);
