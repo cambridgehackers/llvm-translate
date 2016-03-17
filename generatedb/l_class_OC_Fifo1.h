@@ -2,12 +2,12 @@
 #define __l_class_OC_Fifo1_H__
 #include "l_class_OC_Fifo.h"
 class l_class_OC_Fifo1;
-extern void l_class_OC_Fifo1__in_enq(void *thisarg, unsigned int in_enq_v);
-extern bool l_class_OC_Fifo1__in_enq__RDY(void *thisarg);
-extern void l_class_OC_Fifo1__out_deq(void *thisarg);
-extern bool l_class_OC_Fifo1__out_deq__RDY(void *thisarg);
-extern unsigned int l_class_OC_Fifo1__out_first(void *thisarg);
-extern bool l_class_OC_Fifo1__out_first__RDY(void *thisarg);
+extern void l_class_OC_Fifo1__deq(void *thisarg);
+extern bool l_class_OC_Fifo1__deq__RDY(void *thisarg);
+extern void l_class_OC_Fifo1__enq(void *thisarg, unsigned int enq_v);
+extern bool l_class_OC_Fifo1__enq__RDY(void *thisarg);
+extern unsigned int l_class_OC_Fifo1__first(void *thisarg);
+extern bool l_class_OC_Fifo1__first__RDY(void *thisarg);
 class l_class_OC_Fifo1 {
 public:
   l_class_OC_PipeIn in;
@@ -18,8 +18,8 @@ public:
   void run();
   void commit();
   l_class_OC_Fifo1():
-      in(this, l_class_OC_Fifo1__in_enq__RDY, l_class_OC_Fifo1__in_enq),
-      out(this, l_class_OC_Fifo1__out_deq__RDY, l_class_OC_Fifo1__out_deq, l_class_OC_Fifo1__out_first__RDY, l_class_OC_Fifo1__out_first) {
+      in(this, l_class_OC_Fifo1__enq__RDY, l_class_OC_Fifo1__enq),
+      out(this, l_class_OC_Fifo1__deq__RDY, l_class_OC_Fifo1__deq, l_class_OC_Fifo1__first__RDY, l_class_OC_Fifo1__first) {
   }
 };
 #endif  // __l_class_OC_Fifo1_H__

@@ -31,28 +31,31 @@ typedef BITS BITS4;
 typedef BITS BITS6;
 typedef BITS BITS10;
 typedef BITS BITS23;
+unsigned int stop_main_program;
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 #include "l_class_OC_IVector.cpp"
 #include "l_class_OC_Fifo1_OC_1.cpp"
+#include "l_class_OC_IVectorIndication.cpp"
 
-unsigned int stop_main_program;
 int testCount;
 class l_class_OC_IVectorIndication zIVectorIndication;
 class l_class_OC_IVector zIVector;
 
-bool l_class_OC_IVectorIndication::heard__RDY(void) {
+#if 0
+bool respheard__RDY(void *thisp) {
         return true;
 }
-void l_class_OC_IVectorIndication::heard(BITS4 meth, BITS6 v) {
+void respheard(void *thisp, BITS4 meth, BITS6 v) {
         printf("Heard an echo: %d %d\n", meth, v);
         if (--testCount <= 0)
             stop_main_program = 1;
 }
+#endif
 
 int main(int argc, const char *argv[])
 {
   printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
-    zIVector.setind(&zIVectorIndication);
+    //zIVector.setind(new l_class_OC_IVectorIndication(NULL, respheard__RDY, respheard));
     zIVector.say(1, 44 * 1); testCount++;
     while (!stop_main_program) {
         zIVector.run();
