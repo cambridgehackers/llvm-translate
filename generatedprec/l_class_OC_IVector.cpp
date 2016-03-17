@@ -7,10 +7,10 @@ void l_class_OC_IVector__respond(void *thisarg) {
         l_struct_OC_ValueType temp;
         call = thisp->gcounter;
         thisp->gcounter = call + 1;
-        temp = thisp->fifo.out_first();
-        thisp->fifo.out_deq();
-        agg_2e_tmp->(temp.a);
-        agg_2e_tmp3->(temp.b);
+        temp = thisp->fifo.out.first();
+        thisp->fifo.out.deq();
+        agg_2e_tmp = (temp.a);
+        agg_2e_tmp3 = (temp.b);
         thisp->ind->heard(agg_2e_tmp, agg_2e_tmp3);
 }
 bool l_class_OC_IVector__respond__RDY(void *thisarg) {
@@ -18,22 +18,22 @@ bool l_class_OC_IVector__respond__RDY(void *thisarg) {
         bool tmp__1;
         bool tmp__2;
         bool tmp__3;
-        tmp__1 = thisp->fifo.out_first__RDY();
-        tmp__2 = thisp->fifo.out_deq__RDY();
+        tmp__1 = thisp->fifo.out.first__RDY();
+        tmp__2 = thisp->fifo.out.deq__RDY();
         tmp__3 = thisp->ind->heard__RDY();
         return (tmp__1 & tmp__2) & tmp__3;
 }
 void l_class_OC_IVector__say(void *thisarg, BITS6 say_meth, BITS4 say_v) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         l_struct_OC_ValueType temp;
-        temp.a.(say_meth);
-        temp.b.(say_v);
-        thisp->fifo.in_enq(temp);
+        temp.a = (say_meth);
+        temp.b = (say_v);
+        thisp->fifo.in.enq(temp);
 }
 bool l_class_OC_IVector__say__RDY(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
         bool tmp__1;
-        tmp__1 = thisp->fifo.in_enq__RDY();
+        tmp__1 = thisp->fifo.in.enq__RDY();
         return tmp__1;
 }
 void l_class_OC_IVector::run()

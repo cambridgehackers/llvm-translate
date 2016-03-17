@@ -7,8 +7,8 @@
 //METARULES; respond
 //METAINTERNAL; fifo; l_class_OC_Fifo1_OC_1;
 //METAEXTERNAL; ind; l_class_OC_IVectorIndication;
-//METAGUARD; respond__RDY; (fifo$out_first__RDY & fifo$out_deq__RDY) & ind$heard__RDY;
-//METAGUARD; say__RDY; fifo$in_enq__RDY;
-//METAINVOKE; respond; :fifo$out_first;:fifo$out_deq;:agg_2e_tmp$;:agg_2e_tmp3$;:ind$heard;
-//METAINVOKE; say; :fifo$in_enq;
+//METAGUARD; respond__RDY; (fifo$out$first__RDY & fifo$out$deq__RDY) & ind$heard__RDY;
+//METAGUARD; say__RDY; fifo$in$enq__RDY;
+//METAINVOKE; respond; :fifo$out$first;:fifo$out$deq;:agg_2e_tmp$;:agg_2e_tmp3$;:ind$heard;
+//METAINVOKE; say; :fifo$in$enq;
 `endif

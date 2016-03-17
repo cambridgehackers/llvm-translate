@@ -2,6 +2,7 @@
 #define __l_class_OC_IVector_H__
 #include "l_class_OC_Fifo1_OC_1.h"
 #include "l_class_OC_IVectorIndication.h"
+#include "l_class_OC_IVectorRequest.h"
 class l_class_OC_IVector;
 extern void l_class_OC_IVector__respond(void *thisarg);
 extern bool l_class_OC_IVector__respond__RDY(void *thisarg);
