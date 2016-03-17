@@ -34,6 +34,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+static int trace_function;//=1;
 static int trace_call;//=1;
 static int trace_gep;//=1;
 std::map<Function *, Function *> ruleRDYFunction;
@@ -883,9 +884,9 @@ void processFunction(Function *func)
     storeList.clear();
     functionList.clear();
     declareList.clear();
-    if (trace_call)
+    if (trace_function || trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN20EchoIndicationOutput5heardEii") {
+if (func->getName() == "_ZN5Fifo1I9ValueTypeE3enqERKS0_") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }
