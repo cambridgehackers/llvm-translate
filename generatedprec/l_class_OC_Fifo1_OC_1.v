@@ -37,6 +37,7 @@ module l_class_OC_Fifo1_OC_1 (
             full <= 0;
         end; // End of out$deq
         if (in$enq__ENA_internal) begin
+            element <= enq_v;
             full <= 1;
         end; // End of in$enq
       end
