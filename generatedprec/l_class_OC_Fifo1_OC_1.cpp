@@ -20,9 +20,13 @@ bool l_class_OC_Fifo1_OC_1__enq__RDY(void *thisarg) {
 }
 l_struct_OC_ValueType l_class_OC_Fifo1_OC_1__first(void *thisarg) {
         l_class_OC_Fifo1_OC_1 * thisp = (l_class_OC_Fifo1_OC_1 *)thisarg;
+        unsigned long long call_2e_i_2e_1_2e_i;
+        unsigned long long call_2e_i_2e_i;
         l_struct_OC_ValueType first;
-        first.a = thisp->element.a;
-        first.b = thisp->element.b;
+        call_2e_i_2e_i = thisp->element.a;
+        first.a = call_2e_i_2e_i;
+        call_2e_i_2e_1_2e_i = thisp->element.b;
+        first.b = call_2e_i_2e_1_2e_i;
         return first;
 }
 bool l_class_OC_Fifo1_OC_1__first__RDY(void *thisarg) {
