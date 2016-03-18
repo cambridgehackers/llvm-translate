@@ -8,6 +8,21 @@ void l_class_OC_EchoRequestOutput__say(void *thisarg, unsigned int say_meth, uns
         printf("entered EchoRequestOutput::say\n");
         thisp->pipe->enq(ind);
 }
+void l_class_OC_EchoRequestOutput__say2(void *thisarg, unsigned int say2_meth, unsigned int say2_v) {
+        l_class_OC_EchoRequestOutput * thisp = (l_class_OC_EchoRequestOutput *)thisarg;
+        l_struct_OC_EchoRequest_data ind;
+        ind.tag = 2;
+        ind.data.say2.meth = say2_meth;
+        ind.data.say2.v = say2_v;
+        printf("entered EchoRequestOutput::say2\n");
+        thisp->pipe->enq(ind);
+}
+bool l_class_OC_EchoRequestOutput__say2__RDY(void *thisarg) {
+        l_class_OC_EchoRequestOutput * thisp = (l_class_OC_EchoRequestOutput *)thisarg;
+        bool tmp__1;
+        tmp__1 = thisp->pipe->enq__RDY();
+        return tmp__1;
+}
 bool l_class_OC_EchoRequestOutput__say__RDY(void *thisarg) {
         l_class_OC_EchoRequestOutput * thisp = (l_class_OC_EchoRequestOutput *)thisarg;
         bool tmp__1;

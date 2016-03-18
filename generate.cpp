@@ -496,15 +496,22 @@ static std::string printCall(Instruction &I)
     std::string vout, sep, structRet;
     CallInst &ICL = static_cast<CallInst&>(I);
     Function *func = ICL.getCalledFunction();
-    Type *retType = func->getReturnType();
     Value *structRetTemp = NULL;
+    std::string prefix = MODULE_ARROW;
+    CallSite CS(&I);
+    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+    if (!func) {
+        printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, printOperand(*AI, false).c_str());
+        I.dump();
+        callingFunction->dump();
+        exit(-1);
+    }
+    Type *retType = func->getReturnType();
     auto FAI = func->arg_begin();
     if (func->hasStructRetAttr()) {
         retType = cast<PointerType>(FAI->getType())->getElementType();
         FAI++;
     }
-    CallSite CS(&I);
-    CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
     if (func->hasStructRetAttr()) {
         structRetTemp = *AI;
         structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
@@ -514,12 +521,6 @@ static std::string printCall(Instruction &I)
         AI++;
     }
     std::string pcalledFunction = printOperand(*AI++, false); // skips 'this' param
-    std::string prefix = MODULE_ARROW;
-
-    if (!func) {
-        printf("%s: not an instantiable call!!!! %s\n", __FUNCTION__, pcalledFunction.c_str());
-        exit(-1);
-    }
     std::string calledName = func->getName();
     std::string fname = pushSeen[func];
     if (trace_call)

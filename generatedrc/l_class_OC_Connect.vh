@@ -17,4 +17,5 @@
 //METACONNECT; lEcho$indication$heard; lEIO$indication$heard
 //METACONNECT; lEIO$pipe$enq; lEII_test$pipe$enq
 //METACONNECT; lERI$request$say; lEcho$request$say
+//METACONNECT; lERI$request$say2; lEcho$request$say2
 `endif

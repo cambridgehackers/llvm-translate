@@ -7,6 +7,10 @@ module l_class_OC_Echo (
     input request$say__ENA,
     input [31:0]request$say_meth,
     input [31:0]request$say_v,
+    input request$say2__ENA,
+    input [31:0]request$say2_meth,
+    input [31:0]request$say2_v,
+    output request$say2__RDY,
     output request$say__RDY,
     output indication$heard__ENA,
     output [31:0]indication$heard_meth,
@@ -20,6 +24,8 @@ module l_class_OC_Echo (
     wire respond_rule__ENA_internal = rule_enable[1] && respond_rule__RDY_internal;
     wire request$say__RDY_internal;
     wire request$say__ENA_internal = request$say__ENA && request$say__RDY_internal;
+    wire request$say2__RDY_internal;
+    wire request$say2__ENA_internal = request$say2__ENA && request$say2__RDY_internal;
     reg[31:0] busy;
     reg[31:0] meth_temp;
     reg[31:0] v_temp;
@@ -30,6 +36,8 @@ module l_class_OC_Echo (
     assign indication$heard__ENA = respond_rule__ENA_internal;
     assign indication$heard_meth = meth_delay;
     assign indication$heard_v = v_delay;
+    assign request$say2__RDY = request$say2__RDY_internal;
+    assign request$say2__RDY_internal = (busy != 0) ^ 1;
     assign request$say__RDY = request$say__RDY_internal;
     assign request$say__RDY_internal = (busy != 0) ^ 1;
     assign respond_rule__RDY_internal = (busy_delay != 0) & indication$heard__RDY;
@@ -60,6 +68,11 @@ module l_class_OC_Echo (
             v_temp <= say_v;
             busy <= 1;
         end; // End of request$say
+        if (request$say2__ENA_internal) begin
+            meth_temp <= say2_meth;
+            v_temp <= say2_v;
+            busy <= 1;
+        end; // End of request$say2
       end
     end // always @ (posedge CLK)
 endmodule 
