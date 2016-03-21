@@ -12,8 +12,8 @@
 //METAINTERNAL; mem; l_class_OC_LpmMemory;
 //METAEXTERNAL; indication; l_class_OC_LpmIndication;
 //METAGUARD; enter__RDY; ((inQ8$out$first__RDY & inQ8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
-//METAGUARD; exit__RDY; (((fifo8$out$first__RDY & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & outQ8$in$enq__RDY;
-//METAGUARD; recirc__RDY; ((((((1 ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; exit__RDY; (((((((doneCount % 5) != 0) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & outQ8$in$enq__RDY;
+//METAGUARD; recirc__RDY; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
 //METAGUARD; respond__RDY; (outQ8$out$first__RDY & outQ8$out$deq__RDY) & indication$heard__RDY;
 //METAGUARD; say__RDY; inQ8$in$enq__RDY;
 //METAINVOKE; enter; :inQ8$out$first;:inQ8$out$deq;:fifo8$in$enq;:mem$req;

@@ -45,8 +45,7 @@ bool l_class_OC_Lpm__exit__RDY(void *thisarg) {
         tmp__3 = thisp->mem.resAccept__RDY();
         tmp__4 = thisp->fifo8.out.deq__RDY();
         tmp__5 = thisp->outQ8.in.enq__RDY();
-        printf("[%s:%d] done [%d] = %d\n", ("done"), 79, thisp->doneCount, (((thisp->doneCount) % 5) != 0) ^ 1);
-        return (((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5;
+        return ((((((((thisp->doneCount) % 5) != 0) ^ 1) & tmp__1) & tmp__2) & tmp__3) & tmp__4) & tmp__5;
 }
 void l_class_OC_Lpm__recirc(void *thisarg) {
         l_class_OC_Lpm * thisp = (l_class_OC_Lpm *)thisarg;
@@ -76,8 +75,7 @@ bool l_class_OC_Lpm__recirc__RDY(void *thisarg) {
         tmp__4 = thisp->fifo8.out.deq__RDY();
         tmp__5 = thisp->fifo8.in.enq__RDY();
         tmp__6 = thisp->mem.req__RDY();
-        printf("[%s:%d] done [%d] = %d\n", ("done"), 79, thisp->doneCount, (((thisp->doneCount) % 5) != 0) ^ 1);
-        return ((((((1 ^ 1) & tmp__1) & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6;
+        return ((((((((((thisp->doneCount) % 5) != 0) ^ 1) ^ 1) & tmp__1) & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6;
 }
 void l_class_OC_Lpm__respond(void *thisarg) {
         l_class_OC_Lpm * thisp = (l_class_OC_Lpm *)thisarg;

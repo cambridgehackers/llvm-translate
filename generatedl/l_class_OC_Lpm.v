@@ -102,7 +102,7 @@ module l_class_OC_Lpm (
         rule_ready[4 + `l_class_OC_Fifo1_OC_0_RULE_COUNT + `l_class_OC_Fifo1_OC_0_RULE_COUNT + `l_class_OC_Fifo1_OC_0_RULE_COUNT:`l_class_OC_LpmMemory_RULE_COUNT]);
     reg[31:0] doneCount;
     assign enter__RDY_internal = ((inQ8$out$first__RDY & inQ8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
-    assign exit__RDY_internal = (((fifo8$out$first__RDY & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & outQ8$in$enq__RDY;
+    assign exit__RDY_internal = (((((((doneCount % 5) != 0) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & outQ8$in$enq__RDY;
     assign fifo8$in$enq__ENA = enter__ENA_internal || recirc__ENA_internal;
     assign fifo8$out$deq__ENA = exit__ENA_internal || recirc__ENA_internal;
     assign inQ8$in$enq__ENA = say__ENA_internal;
@@ -115,7 +115,7 @@ module l_class_OC_Lpm (
     assign outQ8$in$enq__ENA = exit__ENA_internal;
     assign outQ8$in$enq_v = fifo8$out$first;
     assign outQ8$out$deq__ENA = respond__ENA_internal;
-    assign recirc__RDY_internal = ((((((1 ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
+    assign recirc__RDY_internal = (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
     assign respond__RDY_internal = (outQ8$out$first__RDY & outQ8$out$deq__RDY) & indication$heard__RDY;
     assign rule_ready[0] = enter__RDY_internal;
     assign rule_ready[1] = exit__RDY_internal;
