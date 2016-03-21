@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+set -x
+./Debug+Asserts/bin/llvm-translate --odir=generatedl ../atomicc/examples/lpm/lpm.ll ../atomicc/examples/lpm/atomicc.ll
+./bsvWrapper.py --directory generatedl --output Echo l_class_OC_Lpm
+clang++ -std=c++11 -Igeneratedl -g test/lpm.cpp
+./a.out
+rm -f a.out
+
+
