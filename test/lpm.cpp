@@ -27,7 +27,10 @@
 #include "runtime.h"
 
 #define fifo8 fifo
+#define inQ8 inQ
+#define outQ8 outQ
 #include "l_class_OC_Lpm.cpp"
+#include "l_class_OC_LpmMemory.cpp"
 #include "l_class_OC_Fifo1_OC_0.cpp"
 
 unsigned int stop_main_program;
@@ -46,9 +49,9 @@ int main(int argc, const char *argv[])
     printf("[%s:%d] starting %d\n", __FUNCTION__, __LINE__, argc);
     zLpm.setindication(new l_class_OC_LpmIndication(NULL, respheard__RDY, respheard));
     testCount++; testCount++; testCount++;
-    while(!zLpm.say__RDY()) {}; zLpm.say(1, 44 * 1);
-    zLpm.run(); zLpm.run(); while(!zLpm.say__RDY()) {}; zLpm.say(2, 44 * 2);
-    zLpm.run(); zLpm.run(); while(!zLpm.say__RDY()) {}; zLpm.say(3, 44 * 3);
+    while(!zLpm.say__RDY()) zLpm.run(); zLpm.say(1, 44 * 1);
+    while(!zLpm.say__RDY()) zLpm.run(); zLpm.say(2, 44 * 2);
+    while(!zLpm.say__RDY()) zLpm.run(); zLpm.say(3, 44 * 3);
     while (!stop_main_program) {
         zLpm.run();
     }
