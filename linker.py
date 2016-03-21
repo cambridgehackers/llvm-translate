@@ -65,8 +65,8 @@ def expandGuard(mitem, name, string):
                         item = mitem['internal'].get(tsep[0])
                         if item:
                             rmitem = mInfo[item]
-                            rtitem = rmitem['methods'][tsep[1][:-5]]
-                            tfield = expandGuard(rmitem, tsep[0] + '$', rtitem['guard'])
+                            methodItem = rmitem['methods'][tsep[1][:-5]]
+                            tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
                         else:
                             tfield = name + tfield
                     else:
@@ -75,18 +75,23 @@ def expandGuard(mitem, name, string):
     #print 'expandGuard', string, ' -> ', retVal
     return retVal
 
+def splitName(value):
+    valsplit = value.split('$')
+    return valsplit[0], '$'.join(valsplit[1:])
+
 def processFile(filename):
-    print 'infile', filename
+    print 'processFile:', filename
     if mInfo.get(filename) is not None:
         return
-    titem = {}
-    titem['name'] = filename
-    titem['rules'] = []
-    titem['methods'] = {}
-    titem['internal'] = {}
-    titem['external'] = {}
-    titem['connect'] = []
-    mInfo[filename] = titem
+    moduleItem = {}
+    moduleItem['name'] = filename
+    moduleItem['rules'] = []
+    moduleItem['methods'] = {}
+    moduleItem['internal'] = {}
+    moduleItem['external'] = {}
+    moduleItem['connect'] = []
+    moduleItem['connDictionary'] = {}
+    mInfo[filename] = moduleItem
     fileDesc = None
     for item in options.directory:
         try:
@@ -94,7 +99,7 @@ def processFile(filename):
         except:
             continue
         break
-    print 'DD', fileDesc
+    #print 'DD', fileDesc
     if fileDesc is not None:
         with fileDesc as inFile:
             for inLine in inFile:
@@ -108,73 +113,43 @@ def processFile(filename):
                             print 'Guard name invalid', invector
                             sys.exit(-1)
                         tempName = inVector[1][:-5]
-                        titem['methods'][tempName] = {}
-                        titem['methods'][tempName]['guard'] = inVector[2]
-                        titem['methods'][tempName]['read'] = []
-                        titem['methods'][tempName]['write'] = []
-                        titem['methods'][tempName]['invoke'] = []
+                        moduleItem['methods'][tempName] = {}
+                        moduleItem['methods'][tempName]['guard'] = inVector[2]
+                        moduleItem['methods'][tempName]['read'] = []
+                        moduleItem['methods'][tempName]['write'] = []
+                        moduleItem['methods'][tempName]['invoke'] = []
                     elif inVector[0] == '//METARULES':
-                        titem['rules'] = inVector[1:]
+                        moduleItem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':
-                        titem['internal'][inVector[1]] = inVector[2]
+                        moduleItem['internal'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METAEXTERNAL':
-                        titem['external'][inVector[1]] = inVector[2]
+                        moduleItem['external'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METACONNECT':
-                        titem['connect'].append(inVector[1:])
+                        moduleItem['connect'].append(inVector[1:])
                     elif inVector[0] == '//METAINVOKE':
                         for vitem in inVector[2:]:
-                            titem['methods'][inVector[1]]['invoke'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['invoke'].append(vitem.split(':'))
                     elif inVector[0] == '//METAREAD':
                         for vitem in inVector[2:]:
-                            titem['methods'][inVector[1]]['read'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['read'].append(vitem.split(':'))
                     elif inVector[0] == '//METAWRITE':
                         for vitem in inVector[2:]:
-                            titem['methods'][inVector[1]]['write'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['write'].append(vitem.split(':'))
                     else:
                         print 'Unknown case', inVector
-    print 'ALL', json.dumps(titem, sort_keys=True, indent = 4)
-    for key, value in titem['internal'].iteritems():
+    #print 'ALL', json.dumps(moduleItem, sort_keys=True, indent = 4)
+    for key, value in moduleItem['internal'].iteritems():
         processFile(value)
-    for key, value in titem['external'].iteritems():
-        titem = {}
-        titem['name'] = value
-        titem['rules'] = []
-        titem['methods'] = {}
-        titem['internal'] = {}
-        titem['external'] = {}
-        titem['connect'] = []
-        mInfo[value] = titem
+    for key, value in moduleItem['external'].iteritems():
         processFile(value)
-
-def getList(filename, mname, field):
-    #print 'getlist', filename, mname, field
-    mitem = mInfo[filename]
-    titem = mitem['methods'][mname]
-    retVal = titem[field]
-    tguard = expandGuard(mitem, '', titem['guard'])
-    titem['guard'] = tguard
-    for iitem in titem['invoke']:
-        for item in iitem[1:]:
-            refName = item.split('$')
-            innerFileName = mitem['internal'].get(refName[0])
-            if innerFileName:
-                gitem, rList = getList(innerFileName, refName[1], field)
-                for rItem in rList:
-                    gVal = prependName(refName[0] + "$", gitem['guard'])
-                    #if rItem[0] == '':
-                        #rItem[0] = gVal
-                    #elif gVal != '':
-                        #rItem[0] = rItem[0] + ' & ' +  gVal
-                    gVal = tguard
-                    #if rItem[0] == '':
-                        #rItem[0] = gVal
-                    #elif gVal != '':
-                        #rItem[0] = rItem[0] + ' & ' +  gVal
-                    for ind in range(1, len(rItem)):
-                        rItem[ind] = refName[0] + "$" + rItem[ind]
-                    retVal.append(rItem)
-    #titem['new' + field] = retVal
-    return titem, retVal
+    for value in moduleItem['connect']:
+        targetItem, targetIfc = splitName(value[0])
+        sourceItem, sourceIfc = splitName(value[1])
+        print 'connect', targetItem, targetIfc, sourceItem, sourceIfc
+        if not moduleItem['connDictionary'].get(targetItem):
+            moduleItem['connDictionary'][targetItem] = {}
+        moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
+    #print 'moduleItem[connDictionary]', json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
 
 def testEqual(A, B):
     if isinstance(A, list) and isinstance(B, list) and len(A) == len(B):
@@ -244,49 +219,74 @@ def formatAccess(isWrite, aList):
         sep = ', '
     return ret
 
-def dumpRules(prefix, name):
+def getList(moduleName, methodName, readOrWrite, connDictionary):
+    print 'getlist', moduleName, methodName, readOrWrite, connDictionary
+    moduleItem = mInfo[moduleName]
+    methodItem = moduleItem['methods'][methodName]
+    returnList = methodItem[readOrWrite]
+    tguard = expandGuard(moduleItem, '', methodItem['guard'])
+    methodItem['guard'] = tguard
+    for iitem in methodItem['invoke']:
+        print 'IIII', iitem
+        for item in iitem[1:]:
+            refName = item.split('$')
+            innerFileName = moduleItem['internal'].get(refName[0])
+            if innerFileName:
+                gitem, rList = getList(innerFileName, refName[1], readOrWrite, moduleItem['connDictionary'])
+                for rItem in rList:
+                    gVal = prependName(refName[0] + "$", gitem['guard'])
+                    #if rItem[0] == '':
+                        #rItem[0] = gVal
+                    #elif gVal != '':
+                        #rItem[0] = rItem[0] + ' & ' +  gVal
+                    gVal = tguard
+                    #if rItem[0] == '':
+                        #rItem[0] = gVal
+                    #elif gVal != '':
+                        #rItem[0] = rItem[0] + ' & ' +  gVal
+                    for ind in range(1, len(rItem)):
+                        rItem[ind] = refName[0] + "$" + rItem[ind]
+                    returnList.append(rItem)
+            else:
+                print 'itemnotfound', item, 'dict', connDictionary.get(item)
+    return methodItem, returnList
+
+def dumpRules(prefix, moduleName):
     global totalList, accessList
-    titem = mInfo[name]
-    for rname in titem['rules']:
-         mitem = titem['methods'][rname]
-         wlist = prependList(prefix, mitem['write'])
-         rlist = prependList(prefix, mitem['read'])
-         totalList[formatAccess(1, wlist) + '/' + rname] = \
+    moduleItem = mInfo[moduleName]
+    for ruleName in moduleItem['rules']:
+         methodItem = moduleItem['methods'][ruleName]
+         tignore, rList = getList(moduleName, ruleName, 'read', mInfo[moduleName]['connDictionary'])
+         print 'READLIST', rList
+         tignore, wList = getList(moduleName, ruleName, 'read', mInfo[moduleName]['connDictionary'])
+         rlist = prependList(prefix, rList)
+         wlist = prependList(prefix, wList)
+         totalList[formatAccess(1, wlist) + '/' + ruleName] = \
             formatAccess(0, rlist) + '\n        ' + \
-            prependName(prefix, mitem['guard']) + '; ' + rname
-    for key, value in titem['internal'].iteritems():
+            prependName(prefix, methodItem['guard']) + '; ' + ruleName
+    for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value)
-    for key, value in titem['external'].iteritems():
+    for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value)
 
 if __name__=='__main__':
     options = argparser.parse_args()
-    for item in options.verilog:
-        processFile(item)
-    for item in options.verilog:
-        for key, value in mInfo[item]['methods'].iteritems():
-            tignore, rList = getList(item, key, 'read')
-            #print 'readList', key
-            #for rItem in rList:
-            #    print 'parseexp read', parseExpression(rItem[0]), rItem[1:]
-            tignore, wList = getList(item, key, 'write')
-            #print 'writeList', key
-            #for wItem in wList:
-            #    print 'parseexp write', parseExpression(wItem[0]), wItem[1:]
+    for moduleName in options.verilog:
+        processFile(moduleName)
     if options.output:
         print 'output', options.output
         secondPass = False
         totalList = {}
         accessList = [[], []]
-        for item in options.verilog:
-            dumpRules('', item)
+        for moduleName in options.verilog:
+            dumpRules('', moduleName)
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         secondPass = True
         totalList = {}
         print 'RRR', accessList
-        for item in options.verilog:
-            dumpRules('', item)
+        for moduleName in options.verilog:
+            dumpRules('', moduleName)
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
 
