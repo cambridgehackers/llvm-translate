@@ -149,7 +149,7 @@ def processFile(filename):
         if not moduleItem['connDictionary'].get(targetItem):
             moduleItem['connDictionary'][targetItem] = {}
         moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
-    #print 'moduleItem[connDictionary]', json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
+    #print 'moduleItem[connDictionary]', moduleItem['name'], json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
 
 def testEqual(A, B):
     if isinstance(A, list) and isinstance(B, list) and len(A) == len(B):
@@ -219,12 +219,14 @@ def formatAccess(isWrite, aList):
         sep = ', '
     return ret
 
-def getList(moduleName, methodName, readOrWrite, connDictionary):
-    print 'getlist', moduleName, methodName, readOrWrite, connDictionary
+def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
+    print 'getlist', '"' + prefix + '"', moduleName, methodName, readOrWrite, connDictionary
+    if connDictionary is None:
+        connDictionary = {}
     moduleItem = mInfo[moduleName]
     methodItem = moduleItem['methods'][methodName]
     returnList = methodItem[readOrWrite]
-    tguard = expandGuard(moduleItem, '', methodItem['guard'])
+    tguard = expandGuard(moduleItem, prefix, methodItem['guard'])
     methodItem['guard'] = tguard
     for iitem in methodItem['invoke']:
         print 'IIII', iitem
@@ -234,7 +236,7 @@ def getList(moduleName, methodName, readOrWrite, connDictionary):
             if innerFileName:
                 gitem, rList = getList(innerFileName, refName[1], readOrWrite, moduleItem['connDictionary'])
                 for rItem in rList:
-                    gVal = prependName(refName[0] + "$", gitem['guard'])
+                    gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
                     #if rItem[0] == '':
                         #rItem[0] = gVal
                     #elif gVal != '':
@@ -248,45 +250,53 @@ def getList(moduleName, methodName, readOrWrite, connDictionary):
                         rItem[ind] = refName[0] + "$" + rItem[ind]
                     returnList.append(rItem)
             else:
-                print 'itemnotfound', item, 'dict', connDictionary.get(item)
+                newItem = connDictionary.get(item)
+                if not newItem:
+                    print 'itemnotfound', item, 'dict', connDictionary.get(item)
+                else:
+                    getList(newItem[0], newItem[1], newItem[2], readOrWrite, {})
     return methodItem, returnList
 
-def dumpRules(prefix, moduleName):
+def dumpRules(prefix, moduleName, modDict):
     global totalList, accessList
     moduleItem = mInfo[moduleName]
+    print 'DUMPR', '"' + prefix + '"', moduleName, modDict
+    if modDict is None:
+        modDict = {}
     for ruleName in moduleItem['rules']:
          methodItem = moduleItem['methods'][ruleName]
-         tignore, rList = getList(moduleName, ruleName, 'read', mInfo[moduleName]['connDictionary'])
+         tignore, rList = getList('', moduleName, ruleName, 'read', modDict)
          print 'READLIST', rList
-         tignore, wList = getList(moduleName, ruleName, 'read', mInfo[moduleName]['connDictionary'])
+         tignore, wList = getList('', moduleName, ruleName, 'read', modDict)
          rlist = prependList(prefix, rList)
          wlist = prependList(prefix, wList)
          totalList[formatAccess(1, wlist) + '/' + ruleName] = \
             formatAccess(0, rlist) + '\n        ' + \
             prependName(prefix, methodItem['guard']) + '; ' + ruleName
     for key, value in moduleItem['internal'].iteritems():
-        dumpRules(prefix + key + '$', value)
+        dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
-        dumpRules(prefix + key + '$', value)
+        dumpRules(prefix + key + '$', value, modDict.get(key))
 
 if __name__=='__main__':
     options = argparser.parse_args()
     for moduleName in options.verilog:
         processFile(moduleName)
     if options.output:
-        print 'output', options.output
+        print 'output'
         secondPass = False
         totalList = {}
         accessList = [[], []]
-        for moduleName in options.verilog:
-            dumpRules('', moduleName)
+        if False:
+            for moduleName in options.verilog:
+                dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         secondPass = True
         totalList = {}
         print 'RRR', accessList
         for moduleName in options.verilog:
-            dumpRules('', moduleName)
+            dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
 
