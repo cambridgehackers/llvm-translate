@@ -492,8 +492,12 @@ static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
 {
     if (!inhibitAppend) {
         Value *val = getCondition(cond, 0);
+        if (!val)
+            list[item].clear();
         for (auto condIter: list[item])
-             if (condIter == val)
+             if (!condIter)
+                 return;
+             else if (condIter == val)
                  return;
         list[item].push_back(val);
     }

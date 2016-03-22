@@ -9,10 +9,10 @@
 //METAGUARD; out$deq__RDY; (element28$out$deq__RDY | (pong ^ 1)) & (element18$out$deq__RDY | pong);
 //METAGUARD; in$enq__RDY; (element28$in$enq__RDY | (pong ^ 1)) & (element18$in$enq__RDY | pong);
 //METAGUARD; out$first__RDY; (element28$out$first__RDY | (pong ^ 1)) & (element18$out$first__RDY | pong);
-//METAREAD; out$deq; :pong;pong ^ 1:pong;
+//METAREAD; out$deq; :pong;
 //METAWRITE; out$deq; :pong;
 //METAINVOKE; out$deq; pong ^ 1:element18$out$deq;pong:element28$out$deq;
-//METAREAD; in$enq; :pong;pong ^ 1:pong;
+//METAREAD; in$enq; :pong;
 //METAINVOKE; in$enq; pong ^ 1:element18$in$enq;pong:element28$in$enq;
 //METAINVOKE; out$first; pong ^ 1:element18$out$first;pong:element28$out$first;
 `endif
