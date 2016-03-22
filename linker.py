@@ -225,7 +225,7 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
         connDictionary = {}
     moduleItem = mInfo[moduleName]
     methodItem = moduleItem['methods'][methodName]
-    returnList = methodItem[readOrWrite]
+    returnList = prependList(prefix, methodItem[readOrWrite])
     tguard = expandGuard(moduleItem, prefix, methodItem['guard'])
     methodItem['guard'] = tguard
     for iitem in methodItem['invoke']:
@@ -234,18 +234,10 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
             refName = item.split('$')
             innerFileName = moduleItem['internal'].get(refName[0])
             if innerFileName:
-                gitem, rList = getList(innerFileName, refName[1], readOrWrite, moduleItem['connDictionary'])
+                gitem, rList = getList(prefix + refName[0] + '$', innerFileName, refName[1], readOrWrite, moduleItem['connDictionary'])
                 for rItem in rList:
                     gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
-                    #if rItem[0] == '':
-                        #rItem[0] = gVal
-                    #elif gVal != '':
-                        #rItem[0] = rItem[0] + ' & ' +  gVal
                     gVal = tguard
-                    #if rItem[0] == '':
-                        #rItem[0] = gVal
-                    #elif gVal != '':
-                        #rItem[0] = rItem[0] + ' & ' +  gVal
                     for ind in range(1, len(rItem)):
                         rItem[ind] = refName[0] + "$" + rItem[ind]
                     returnList.append(rItem)
@@ -254,7 +246,8 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
                 if not newItem:
                     print 'itemnotfound', item, 'dict', connDictionary.get(item)
                 else:
-                    getList(newItem[0], newItem[1], newItem[2], readOrWrite, {})
+                    getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
+    print 'getlistreturn', moduleName, methodName, returnList
     return methodItem, returnList
 
 def dumpRules(prefix, moduleName, modDict):
@@ -265,15 +258,18 @@ def dumpRules(prefix, moduleName, modDict):
         modDict = {}
     for ruleName in moduleItem['rules']:
          methodItem = moduleItem['methods'][ruleName]
-         tignore, rList = getList('', moduleName, ruleName, 'read', modDict)
+         tignore, rList = getList(prefix, moduleName, ruleName, 'read', modDict)
          print 'READLIST', rList
-         tignore, wList = getList('', moduleName, ruleName, 'read', modDict)
+         tignore, wList = None, [] #getList(prefix, moduleName, ruleName, 'read', modDict)
          rlist = prependList(prefix, rList)
          wlist = prependList(prefix, wList)
          totalList[formatAccess(1, wlist) + '/' + ruleName] = \
             formatAccess(0, rlist) + '\n        ' + \
             prependName(prefix, methodItem['guard']) + '; ' + ruleName
+         #print 'tempexitttt'
+         #sys.exit(1)
     for key, value in moduleItem['internal'].iteritems():
+        print 'INTERN', key, value
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))

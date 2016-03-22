@@ -300,11 +300,11 @@ if __name__=='__main__':
     for item in options.verilog:
         for key, value in mInfo[item]['methods'].iteritems():
             tignore, rList = getList(item, key, 'read')
-            print 'readList', key
+            print 'readlist', key
             for rItem in rList:
                 print parseExpression(rItem[0]), rItem[1:]
             tignore, wList = getList(item, key, 'write')
-            print 'writeList', key
+            print 'writelist', key
             for wItem in wList:
                 print parseExpression(wItem[0]), wItem[1:]
     if options.output:

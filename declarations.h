@@ -84,13 +84,15 @@ typedef struct {
     BasicBlock *cond;
     std::string item;
 } StoreType;
+typedef std::list<ReferenceType> MetaRef;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
 extern ExecutionEngine *EE;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
-extern std::list<ReferenceType> readList, writeList, invokeList, functionList;
+extern MetaRef readList, writeList, invokeList;
+extern std::list<ReferenceType> functionList;
 extern std::map<std::string, std::string> declareList;
 extern std::list<StoreType> storeList;
 extern std::map<const Function *, std::string> pushSeen;

@@ -48,7 +48,8 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 static Module *globalMod;
-std::list<ReferenceType> readList, writeList, invokeList, functionList;
+MetaRef readList, writeList, invokeList;
+std::list<ReferenceType> functionList;
 std::list<StoreType> storeList;
 std::map<std::string, std::string> declareList;
 
@@ -486,6 +487,11 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     return cbuffer;
 }
 
+static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
+{
+    list.push_back(ReferenceType{cond, item});
+}
+
 /*
  * Generate a string for a function/method call
  */
@@ -588,7 +594,7 @@ static std::string printCall(Instruction &I)
             muxEnable(I.getParent(), mname + "__ENA");
         else
             vout += mname;
-        invokeList.push_back(ReferenceType{I.getParent(), mname});
+        appendList(invokeList, I.getParent(), mname);
     }
     else {
         vout += pcalledFunction + mname + "(";
@@ -653,7 +659,7 @@ static std::string processInstruction(Instruction &I)
         std::string p = printOperand(I.getOperand(0), true);
         if (I.getType()->getTypeID() != Type::PointerTyID && !isAlloca(I.getOperand(0))
          && !dyn_cast<Argument>(I.getOperand(0)))
-            readList.push_back(ReferenceType{I.getParent(), p});
+            appendList(readList, I.getParent(), p);
         return p;
         }
 
@@ -675,7 +681,7 @@ static std::string processInstruction(Instruction &I)
         if (generateRegion == ProcessVerilog && isAlloca(IS.getPointerOperand()))
             setAssign(pdest, sval);
         else {
-            writeList.push_back(ReferenceType{I.getParent(), pdest});
+            appendList(writeList, I.getParent(), pdest);
 //printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
             storeList.push_back(StoreType{pdest, I.getParent(), sval});
         }
