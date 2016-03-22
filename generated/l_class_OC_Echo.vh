@@ -9,6 +9,6 @@
 //METAEXTERNAL; ind; l_class_OC_EchoIndication;
 //METAGUARD; respond_rule__RDY; (fifo$out$first__RDY & fifo$out$deq__RDY) & ind$heard__RDY;
 //METAGUARD; say__RDY; fifo$in$enq__RDY;
-//METAINVOKE; respond_rule; :fifo$out$first;:fifo$out$deq;:ind$heard;
+//METAINVOKE; respond_rule; :fifo$out$deq;:fifo$out$first;:ind$heard;
 //METAINVOKE; say; :fifo$in$enq;
 `endif

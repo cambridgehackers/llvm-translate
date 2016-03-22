@@ -28,15 +28,15 @@
 //METAGUARD; respond8__RDY; (fifo8$out$first__RDY & fifo8$out$deq__RDY) & ind$heard__RDY;
 //METAGUARD; respond9__RDY; (fifo9$out$first__RDY & fifo9$out$deq__RDY) & ind$heard__RDY;
 //METAGUARD; say__RDY; ((((((((fifo0$in$enq__RDY & fifo1$in$enq__RDY) & fifo2$in$enq__RDY) & fifo3$in$enq__RDY) & fifo4$in$enq__RDY) & fifo5$in$enq__RDY) & fifo6$in$enq__RDY) & fifo7$in$enq__RDY) & fifo8$in$enq__RDY) & fifo9$in$enq__RDY;
-//METAINVOKE; respond0; :fifo0$out$first;:fifo0$out$deq;:ind$heard;
-//METAINVOKE; respond1; :fifo1$out$first;:fifo1$out$deq;:ind$heard;
-//METAINVOKE; respond2; :fifo2$out$first;:fifo2$out$deq;:ind$heard;
-//METAINVOKE; respond3; :fifo3$out$first;:fifo3$out$deq;:ind$heard;
-//METAINVOKE; respond4; :fifo4$out$first;:fifo4$out$deq;:ind$heard;
-//METAINVOKE; respond5; :fifo5$out$first;:fifo5$out$deq;:ind$heard;
-//METAINVOKE; respond6; :fifo6$out$first;:fifo6$out$deq;:ind$heard;
-//METAINVOKE; respond7; :fifo7$out$first;:fifo7$out$deq;:ind$heard;
-//METAINVOKE; respond8; :fifo8$out$first;:fifo8$out$deq;:ind$heard;
-//METAINVOKE; respond9; :fifo9$out$first;:fifo9$out$deq;:ind$heard;
+//METAINVOKE; respond0; :fifo0$out$deq;:fifo0$out$first;:ind$heard;
+//METAINVOKE; respond1; :fifo1$out$deq;:fifo1$out$first;:ind$heard;
+//METAINVOKE; respond2; :fifo2$out$deq;:fifo2$out$first;:ind$heard;
+//METAINVOKE; respond3; :fifo3$out$deq;:fifo3$out$first;:ind$heard;
+//METAINVOKE; respond4; :fifo4$out$deq;:fifo4$out$first;:ind$heard;
+//METAINVOKE; respond5; :fifo5$out$deq;:fifo5$out$first;:ind$heard;
+//METAINVOKE; respond6; :fifo6$out$deq;:fifo6$out$first;:ind$heard;
+//METAINVOKE; respond7; :fifo7$out$deq;:fifo7$out$first;:ind$heard;
+//METAINVOKE; respond8; :fifo8$out$deq;:fifo8$out$first;:ind$heard;
+//METAINVOKE; respond9; :fifo9$out$deq;:fifo9$out$first;:ind$heard;
 //METAINVOKE; say; :(say_meth == 0 ? &fifo0:say_meth == 1 ? &fifo1:say_meth == 2 ? &fifo2:say_meth == 3 ? &fifo3:say_meth == 4 ? &fifo4:say_meth == 5 ? &fifo5:say_meth == 6 ? &fifo6:say_meth == 7 ? &fifo7:say_meth == 8 ? &fifo8:&fifo9)$in$enq;
 `endif

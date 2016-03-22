@@ -14,6 +14,6 @@
 //METAREAD; respond_rule; :meth_delay;:v_delay;
 //METAWRITE; respond_rule; :busy_delay;
 //METAINVOKE; respond_rule; :indication$heard;
-//METAWRITE; request$say; :meth_temp;:v_temp;:busy;
-//METAWRITE; request$say2; :meth_temp;:v_temp;:busy;
+//METAWRITE; request$say; :busy;:meth_temp;:v_temp;
+//METAWRITE; request$say2; :busy;:meth_temp;:v_temp;
 `endif

@@ -5,6 +5,6 @@
 
 //METAEXTERNAL; request; l_class_OC_EchoRequest;
 //METAGUARD; pipe$enq__RDY; request$say__RDY;
-//METAREAD; pipe$enq; :enq_v$tag;enq_v$tag == 1:enq_v$data$say$meth;:enq_v$tag;enq_v$tag == 1:enq_v$data$say$v;:enq_v$tag;
+//METAREAD; pipe$enq; enq_v$tag == 1:enq_v$data$say$meth;enq_v$tag == 1:enq_v$data$say$v;:enq_v$tag;
 //METAINVOKE; pipe$enq; enq_v$tag == 1:request$say;
 `endif

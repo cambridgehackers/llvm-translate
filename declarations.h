@@ -84,7 +84,7 @@ typedef struct {
     BasicBlock *cond;
     std::string item;
 } StoreType;
-typedef std::list<ReferenceType> MetaRef;
+typedef std::map<std::string,std::list<Value *>> MetaRef;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
