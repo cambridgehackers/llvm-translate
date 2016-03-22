@@ -234,7 +234,7 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
             refName = item.split('$')
             innerFileName = moduleItem['internal'].get(refName[0])
             if innerFileName:
-                gitem, rList = getList(prefix + refName[0] + '$', innerFileName, refName[1], readOrWrite, moduleItem['connDictionary'])
+                gitem, rList = getList(prefix + refName[0] + '$', innerFileName, '$'.join(refName[1:]), readOrWrite, moduleItem['connDictionary'])
                 for rItem in rList:
                     #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
                     #gVal = tguard
