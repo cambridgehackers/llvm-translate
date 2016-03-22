@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define element18 element1
-#define element28 element2
+//#define element18 element1
+//#define element28 element2
 #include "l_class_OC_IVector.cpp"
 #include "l_class_OC_Fifo1_OC_3.cpp"
 #include "l_class_OC_FifoPong.cpp"

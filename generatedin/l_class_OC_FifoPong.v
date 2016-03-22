@@ -17,28 +17,23 @@ module l_class_OC_FifoPong (
     wire out$deq__ENA_internal = out$deq__ENA && out$deq__RDY_internal;
     wire in$enq__RDY_internal;
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
-    wire element1$out$deq__ENA;
     wire element1$out$deq__RDY;
-    wire element1$in$enq__ENA;
-    wire [703:0]element1$in$enq_v;
     wire element1$in$enq__RDY;
     wire [703:0]element1$out$first;
     wire element1$out$first__RDY;
     l_class_OC_Fifo1_OC_3 element1 (
         CLK,
         nRST,
-        element1$out$deq__ENA,
+        out$deq__ENA_internal & pong ^ 1,
         element1$out$deq__RDY,
-        element1$in$enq__ENA,
-        element1$in$enq_v,
+        in$enq__ENA_internal & pong ^ 1,
+        element2$in$enq_v,
         element1$in$enq__RDY,
         element1$out$first,
         element1$out$first__RDY,
         rule_enable[0:`l_class_OC_Fifo1_OC_3_RULE_COUNT],
         rule_ready[0:`l_class_OC_Fifo1_OC_3_RULE_COUNT]);
-    wire element2$out$deq__ENA;
     wire element2$out$deq__RDY;
-    wire element2$in$enq__ENA;
     wire [703:0]element2$in$enq_v;
     wire element2$in$enq__RDY;
     wire [703:0]element2$out$first;
@@ -46,9 +41,9 @@ module l_class_OC_FifoPong (
     l_class_OC_Fifo1_OC_3 element2 (
         CLK,
         nRST,
-        element2$out$deq__ENA,
+        out$deq__ENA_internal & pong,
         element2$out$deq__RDY,
-        element2$in$enq__ENA,
+        in$enq__ENA_internal & pong,
         element2$in$enq_v,
         element2$in$enq__RDY,
         element2$out$first,
@@ -56,16 +51,11 @@ module l_class_OC_FifoPong (
         rule_enable[0 + `l_class_OC_Fifo1_OC_3_RULE_COUNT:`l_class_OC_Fifo1_OC_3_RULE_COUNT],
         rule_ready[0 + `l_class_OC_Fifo1_OC_3_RULE_COUNT:`l_class_OC_Fifo1_OC_3_RULE_COUNT]);
     reg pong;
-    assign element18$in$enq__ENA = in$enq__ENA_internal & pong ^ 1;
-    assign element18$out$deq__ENA = out$deq__ENA_internal & pong ^ 1;
-    assign element28$in$enq__ENA = in$enq__ENA_internal & pong;
-    assign element28$in$enq_v = element18$in$enq_v;
-    assign element28$out$deq__ENA = out$deq__ENA_internal & pong;
     assign in$enq__RDY = in$enq__RDY_internal;
-    assign in$enq__RDY_internal = (element28$in$enq__RDY | (pong ^ 1)) & (element18$in$enq__RDY | pong);
+    assign in$enq__RDY_internal = (element2$in$enq__RDY | (pong ^ 1)) & (element1$in$enq__RDY | pong);
     assign out$deq__RDY = out$deq__RDY_internal;
-    assign out$deq__RDY_internal = (element28$out$deq__RDY | (pong ^ 1)) & (element18$out$deq__RDY | pong);
-    assign out$first__RDY_internal = (element28$out$first__RDY | (pong ^ 1)) & (element18$out$first__RDY | pong);
+    assign out$deq__RDY_internal = (element2$out$deq__RDY | (pong ^ 1)) & (element1$out$deq__RDY | pong);
+    assign out$first__RDY_internal = (element2$out$first__RDY | (pong ^ 1)) & (element1$out$first__RDY | pong);
 
     always @( posedge CLK) begin
       if (!nRST) begin

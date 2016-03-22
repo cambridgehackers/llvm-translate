@@ -26,9 +26,9 @@
 #include <stdint.h>
 #include "runtime.h"
 
-#define fifo8 fifo
-#define inQ8 inQ
-#define outQ8 outQ
+//#define fifo8 fifo
+//#define inQ8 inQ
+//#define outQ8 outQ
 #include "l_class_OC_Lpm.cpp"
 #include "l_class_OC_LpmMemory.cpp"
 #include "l_class_OC_Fifo1_OC_0.cpp"

@@ -464,13 +464,22 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
         }
         else {
             if (trace_gep)
-                printf("[%s:%d] expose %d referstr %s cbuffer %s\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str());
-            if ((*I)->isArrayTy() || !(*I)->isVectorTy()) {
+                printf("[%s:%d] expose %d referstr %s cbuffer %s array %d vector %d\n", __FUNCTION__, __LINE__, expose, referstr.c_str(), cbuffer.c_str(), (*I)->isArrayTy(), (*I)->isVectorTy());
+            if ((*I)->isArrayTy()) {
                 if (referstr[0] == '&')
                     referstr = referstr.substr(1);
                 cbuffer += referstr;
                 //cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
                 cbuffer += printOperand(I.getOperand(), false);
+            }
+            else if (!(*I)->isVectorTy()) {
+                if (referstr[0] == '&')
+                    referstr = referstr.substr(1);
+                cbuffer += referstr;
+                //cbuffer += "[" + printOperand(I.getOperand(), false) + "]";
+                // HACK HACK HACK HACK: we append the offset for ivector.  lpm and precision tests have an i8* here.
+                if (*I !=  Type::getInt8PtrTy(globalMod->getContext()))
+                    cbuffer += printOperand(I.getOperand(), false);
             }
             else {
                 cbuffer += referstr;
@@ -606,7 +615,7 @@ static std::string printCall(Instruction &I)
         vout += pcalledFunction + " = (";
     }
     else if (calledName == "printf") {
-        printf("CALL: PRINTFCALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
+        //printf("CALL: PRINTFCALLER %s func %s[%p] pcalledFunction '%s' fname %s\n", callingName.c_str(), calledName.c_str(), func, pcalledFunction.c_str(), fname.c_str());
         vout = "printf(" + pcalledFunction.substr(1, pcalledFunction.length()-2);
         sep = ", ";
     }
@@ -914,7 +923,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_function || trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN5Fifo1I9ValueTypeE5firstEv") {
+if (func->getName() == "_ZN3Lpm5enterEv") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

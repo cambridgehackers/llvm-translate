@@ -11,14 +11,14 @@
 //METAINTERNAL; outQ; l_class_OC_Fifo1_OC_0;
 //METAINTERNAL; mem; l_class_OC_LpmMemory;
 //METAEXTERNAL; indication; l_class_OC_LpmIndication;
-//METAGUARD; enter__RDY; ((inQ8$out$first__RDY & inQ8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
-//METAGUARD; exit__RDY; (((((((doneCount % 5) != 0) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & outQ8$in$enq__RDY;
-//METAGUARD; recirc__RDY; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo8$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo8$out$deq__RDY) & fifo8$in$enq__RDY) & mem$req__RDY;
-//METAGUARD; respond__RDY; (outQ8$out$first__RDY & outQ8$out$deq__RDY) & indication$heard__RDY;
-//METAGUARD; say__RDY; inQ8$in$enq__RDY;
-//METAINVOKE; enter; :inQ8$out$first;:inQ8$out$deq;:fifo8$in$enq;:mem$req;
-//METAINVOKE; exit; :fifo8$out$first;:mem$resValue;:mem$resAccept;:fifo8$out$deq;:outQ8$in$enq;
-//METAINVOKE; recirc; :fifo8$out$first;:mem$resValue;:mem$resAccept;:fifo8$out$deq;:fifo8$in$enq;:mem$req;
-//METAINVOKE; respond; :outQ8$out$first;:outQ8$out$deq;:indication$heard;
-//METAINVOKE; say; :inQ8$in$enq;
+//METAGUARD; enter__RDY; ((inQ$out$first__RDY & inQ$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; exit__RDY; (((((((doneCount % 5) != 0) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & outQ$in$enq__RDY;
+//METAGUARD; recirc__RDY; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; respond__RDY; (outQ$out$first__RDY & outQ$out$deq__RDY) & indication$heard__RDY;
+//METAGUARD; say__RDY; inQ$in$enq__RDY;
+//METAINVOKE; enter; :fifo$in$enq;:inQ$out$deq;:inQ$out$first;:mem$req;
+//METAINVOKE; exit; :fifo$out$deq;:fifo$out$first;:mem$resAccept;:mem$resValue;:outQ$in$enq;
+//METAINVOKE; recirc; :fifo$in$enq;:fifo$out$deq;:fifo$out$first;:mem$req;:mem$resAccept;:mem$resValue;
+//METAINVOKE; respond; :indication$heard;:outQ$out$deq;:outQ$out$first;
+//METAINVOKE; say; :inQ$in$enq;
 `endif
