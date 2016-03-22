@@ -97,6 +97,7 @@ extern std::map<std::string, std::string> declareList;
 extern std::list<StoreType> storeList;
 extern std::map<const Function *, std::string> pushSeen;
 
+extern std::string gatherList(MetaRef &list);
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
 std::string fieldName(const StructType *STy, uint64_t ind);

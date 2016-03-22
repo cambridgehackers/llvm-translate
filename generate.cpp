@@ -487,9 +487,20 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     return cbuffer;
 }
 
+static int inhibitAppend;
 static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
 {
-    list.push_back(ReferenceType{cond, item});
+    if (!inhibitAppend)
+        list.push_back(ReferenceType{cond, item});
+}
+std::string gatherList(MetaRef &list)
+{
+    std::string temp;
+    inhibitAppend = 1;
+    for (auto item: list)
+        temp += printOperand(getCondition(item.cond, 0),false) + ":" + item.item + ";";
+    inhibitAppend = 0;
+    return temp;
 }
 
 /*
