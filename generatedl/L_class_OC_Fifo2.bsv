@@ -1,10 +1,10 @@
-interface L_class_OC_Fifo1;
+interface L_class_OC_Fifo2;
     method Action out$deq();
     method Action in$enq(Bit#(32) in$enq_v);
     method Bit#(32) out$first();
 endinterface
-import "BVI" l_class_OC_Fifo1 =
-module mkL_class_OC_Fifo1(L_class_OC_Fifo1);
+import "BVI" l_class_OC_Fifo2 =
+module mkL_class_OC_Fifo2(L_class_OC_Fifo2);
     default_reset rst(nRST);
     default_clock clk(CLK);
     method out$deq() enable(out$deq__ENA) ready(out$deq__RDY);

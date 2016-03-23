@@ -31,7 +31,7 @@
 //#define outQ8 outQ
 #include "l_class_OC_Lpm.cpp"
 #include "l_class_OC_LpmMemory.cpp"
-#include "l_class_OC_Fifo1_OC_0.cpp"
+#include "l_class_OC_Fifo2.cpp"
 
 unsigned int stop_main_program;
 int testCount;

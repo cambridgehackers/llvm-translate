@@ -1,8 +1,8 @@
-`ifndef __l_class_OC_Fifo1_OC_0_VH__
-`define __l_class_OC_Fifo1_OC_0_VH__
+`ifndef __l_class_OC_Fifo2_VH__
+`define __l_class_OC_Fifo2_VH__
 
 `include "l_struct_OC_ValuePair.vh"
-`define l_class_OC_Fifo1_OC_0_RULE_COUNT (0)
+`define l_class_OC_Fifo2_RULE_COUNT (0)
 
 //METAGUARD; out$deq__RDY; full;
 //METAGUARD; in$enq__RDY; full ^ 1;

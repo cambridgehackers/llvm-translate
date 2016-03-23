@@ -1,23 +1,23 @@
 
-`include "l_class_OC_Fifo1.vh"
+`include "l_class_OC_Fifo2.vh"
 
-module l_class_OC_Fifo1 (
+module l_class_OC_Fifo2 (
     input CLK,
     input nRST,
     input out$deq__ENA,
     output out$deq__RDY,
     input in$enq__ENA,
-    input [31:0]in$enq_v,
+    input [703:0]in$enq_v,
     output in$enq__RDY,
-    output [31:0]out$first,
+    output [703:0]out$first,
     output out$first__RDY,
-    input [`l_class_OC_Fifo1_RULE_COUNT:0]rule_enable,
-    output [`l_class_OC_Fifo1_RULE_COUNT:0]rule_ready);
+    input [`l_class_OC_Fifo2_RULE_COUNT:0]rule_enable,
+    output [`l_class_OC_Fifo2_RULE_COUNT:0]rule_ready);
     wire out$deq__RDY_internal;
     wire out$deq__ENA_internal = out$deq__ENA && out$deq__RDY_internal;
     wire in$enq__RDY_internal;
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
-    reg[31:0] element;
+    reg[703:0] element;
     reg full;
     assign in$enq__RDY = in$enq__RDY_internal;
     assign in$enq__RDY_internal = full ^ 1;

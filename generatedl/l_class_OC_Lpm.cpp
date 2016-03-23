@@ -100,7 +100,7 @@ void l_class_OC_Lpm__say(void *thisarg, unsigned int say_meth, unsigned int say_
         l_struct_OC_ValuePair temp;
         temp.a = say_meth;
         temp.b = say_v;
-        printf("[%s:%d] (%d, %d)\n", ("say"), 75, say_meth, say_v);
+        printf("[%s:%d] (%d, %d)\n", ("say"), 96, say_meth, say_v);
         thisp->inQ.in.enq(temp);
 }
 bool l_class_OC_Lpm__say__RDY(void *thisarg) {
