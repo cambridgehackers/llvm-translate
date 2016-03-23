@@ -11,7 +11,7 @@
 //METAGUARD; resValue__RDY; delayCount == 1;
 //METAREAD; memdelay; :delayCount;
 //METAWRITE; memdelay; :delayCount;
-//METAWRITE; req; :delayCount;
+//METAWRITE; req; :delayCount;:saved;
 //METAWRITE; resAccept; :delayCount;
 //METAREAD; resValue; :saved;
 `endif

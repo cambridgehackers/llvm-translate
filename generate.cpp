@@ -596,8 +596,11 @@ static std::string printCall(Instruction &I)
                     vout += "return ";
                 vout += sval;
             }
-            else
-                storeList.push_back(StoreType{printOperand(dest->getOperand(0), true), I.getParent(), sval});
+            else {
+                std::string pdest = printOperand(dest->getOperand(0), true);
+                appendList(writeList, I.getParent(), pdest);
+                storeList.push_back(StoreType{pdest, I.getParent(), sval});
+            }
             return vout;
         }
     }
@@ -926,7 +929,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_function || trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "_ZN3Lpm5enterEv") {
+if (func->getName() == "zz_ZN5Fifo1I9ValuePairE3enqERKS0_") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

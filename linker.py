@@ -27,6 +27,7 @@ argparser.add_argument('--directory', help='directory', default=[], action='appe
 argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
+traceList = False
 mInfo = {}
 
 SCANNER = re.compile(r'''
@@ -249,18 +250,19 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
                     rList = getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
                     for rItem in rList:
                         returnList.append(rItem)
-    if returnList != []:
+    if traceList and returnList != []:
         print 'getlistreturn', moduleName, methodName, readOrWrite, returnList
     return returnList
 
 def dumpRules(prefix, moduleName, modDict):
     global totalList, accessList
     moduleItem = mInfo[moduleName]
-    print 'DUMPR', '"' + prefix + '"', moduleName, modDict
+    #print 'DUMPR', '"' + prefix + '"', moduleName, modDict
     if modDict is None:
         modDict = {}
     for ruleName in moduleItem['rules']:
-         print 'RULE', '"' + prefix + '"', ruleName
+         if traceList:
+             print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
          rList = getList(prefix, moduleName, ruleName, 'read', modDict)
          wList = getList(prefix, moduleName, ruleName, 'write', modDict)

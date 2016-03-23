@@ -8,6 +8,6 @@
 //METAGUARD; in$enq__RDY; full ^ 1;
 //METAGUARD; out$first__RDY; full;
 //METAWRITE; out$deq; :full;
-//METAWRITE; in$enq; :full;
+//METAWRITE; in$enq; :element;:full;
 //METAREAD; out$first; :element;
 `endif
