@@ -9,4 +9,5 @@
 //METAGUARD; out$first__RDY; full;
 //METAWRITE; out$deq; :full;
 //METAWRITE; in$enq; :full;
+//METAREAD; out$first; :element;
 `endif

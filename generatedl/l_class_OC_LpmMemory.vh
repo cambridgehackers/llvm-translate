@@ -13,4 +13,5 @@
 //METAWRITE; memdelay; :delayCount;
 //METAWRITE; req; :delayCount;
 //METAWRITE; resAccept; :delayCount;
+//METAREAD; resValue; :saved;
 `endif

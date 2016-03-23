@@ -234,7 +234,7 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
             refName = item.split('$')
             innerFileName = moduleItem['internal'].get(refName[0])
             if innerFileName:
-                gitem, rList = getList(prefix + refName[0] + '$', innerFileName, '$'.join(refName[1:]), readOrWrite, moduleItem['connDictionary'])
+                rList = getList(prefix + refName[0] + '$', innerFileName, '$'.join(refName[1:]), readOrWrite, moduleItem['connDictionary'])
                 for rItem in rList:
                     #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
                     #gVal = tguard
@@ -246,29 +246,26 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
                 if not newItem:
                     print 'itemnotfound', item, 'dict', connDictionary.get(item)
                 else:
-                    gitem, rList = getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
+                    rList = getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
                     for rItem in rList:
                         returnList.append(rItem)
-    #print 'getlistreturn', moduleName, methodName, returnList
-    return methodItem, returnList
+    if returnList != []:
+        print 'getlistreturn', moduleName, methodName, readOrWrite, returnList
+    return returnList
 
 def dumpRules(prefix, moduleName, modDict):
     global totalList, accessList
     moduleItem = mInfo[moduleName]
-    #print 'DUMPR', '"' + prefix + '"', moduleName, modDict
+    print 'DUMPR', '"' + prefix + '"', moduleName, modDict
     if modDict is None:
         modDict = {}
     for ruleName in moduleItem['rules']:
+         print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         tignore, rList = getList(prefix, moduleName, ruleName, 'read', modDict)
-         #print 'READLIST', rList
-         tignore, wList = getList(prefix, moduleName, ruleName, 'write', modDict)
-         #rlist = prependList(prefix, rList)
-         #wlist = prependList(prefix, wList)
-         rlist = rList
-         wlist = wList
-         totalList[formatAccess(1, wlist) + '/' + ruleName] = \
-            formatAccess(0, rlist) + '\n        ' + \
+         rList = getList(prefix, moduleName, ruleName, 'read', modDict)
+         wList = getList(prefix, moduleName, ruleName, 'write', modDict)
+         totalList[formatAccess(1, wList) + '/' + ruleName] = \
+            formatAccess(0, rList) + '\n        ' + \
             prependName(prefix, methodItem['guard'])
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))

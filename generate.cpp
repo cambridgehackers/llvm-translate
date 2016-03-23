@@ -576,10 +576,11 @@ static std::string printCall(Instruction &I)
         return str;
     }
     if (calledName == "fixedSet") {
-        std::string str = printOperand(I.getOperand(0), false);
-        if (str[0] == '&')
-            str = str.substr(1);
-        storeList.push_back(StoreType{str, I.getParent(), printOperand(I.getOperand(1), false)});
+        std::string pdest = printOperand(I.getOperand(0), false);
+        if (pdest[0] == '&')
+            pdest = pdest.substr(1);
+        appendList(writeList, I.getParent(), pdest);
+        storeList.push_back(StoreType{pdest, I.getParent(), printOperand(I.getOperand(1), false)});
         return "";
     }
     if (Instruction *dest = dyn_cast<Instruction>(I.getOperand(0)))
@@ -588,6 +589,8 @@ static std::string printCall(Instruction &I)
         if (Instruction *src = dyn_cast<Instruction>(I.getOperand(1)))
         if (src->getOpcode() == Instruction::BitCast) {
             std::string sval = printOperand(src->getOperand(0), dyn_cast<Argument>(src->getOperand(0)) == NULL);
+            if (!dyn_cast<Argument>(src->getOperand(0)))
+                appendList(readList, I.getParent(), sval);
             if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
                 if (generateRegion == ProcessCPP)
                     vout += "return ";
@@ -711,8 +714,8 @@ static std::string processInstruction(Instruction &I)
         if (generateRegion == ProcessVerilog && isAlloca(IS.getPointerOperand()))
             setAssign(pdest, sval);
         else {
-            appendList(writeList, I.getParent(), pdest);
 //printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
+            appendList(writeList, I.getParent(), pdest);
             storeList.push_back(StoreType{pdest, I.getParent(), sval});
         }
         return "";
