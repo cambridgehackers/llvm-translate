@@ -31,7 +31,7 @@ mInfo = {}
 
 SCANNER = re.compile(r'''
   (\s+) |                      # whitespace
-  (<<|>>|[][(){}<>=,;:*+-/^&!]) | # punctuation
+  (<<|>>|[][(){}<>=,;:*+-/^&!%]) | # punctuation
   ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers, numbers
   "((?:[^"\n\\]|\\.)*)" |      # regular string literal
   (.)                          # an error!

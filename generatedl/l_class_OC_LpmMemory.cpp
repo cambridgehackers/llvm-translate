@@ -1,7 +1,7 @@
 #include "l_class_OC_LpmMemory.h"
 void l_class_OC_LpmMemory__memdelay(void *thisarg) {
         l_class_OC_LpmMemory * thisp = (l_class_OC_LpmMemory *)thisarg;
-        thisp->delayCount_shadow = (thisp->delayCount) + 4294967295;
+        thisp->delayCount_shadow = (thisp->delayCount) - 1;
         thisp->delayCount_valid = 1;
 }
 bool l_class_OC_LpmMemory__memdelay__RDY(void *thisarg) {

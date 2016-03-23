@@ -37,7 +37,7 @@ module l_class_OC_LpmMemory (
       end // nRST
       else begin
         if (memdelay__ENA_internal) begin
-            delayCount <= delayCount + 4294967295;
+            delayCount <= delayCount - 1;
         end; // End of memdelay
         if (req__ENA_internal) begin
             delayCount <= 4;
