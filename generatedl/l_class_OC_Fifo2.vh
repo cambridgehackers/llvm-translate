@@ -1,13 +1,15 @@
 `ifndef __l_class_OC_Fifo2_VH__
 `define __l_class_OC_Fifo2_VH__
 
-`include "l_struct_OC_ValuePair.vh"
 `define l_class_OC_Fifo2_RULE_COUNT (0)
 
-//METAGUARD; out$deq__RDY; full;
-//METAGUARD; in$enq__RDY; full ^ 1;
-//METAGUARD; out$first__RDY; full;
-//METAWRITE; out$deq; :full;
-//METAWRITE; in$enq; :element;:full;
-//METAREAD; out$first; :element;
+//METAEXTERNAL; element; l_struct_OC_ValuePair;
+//METAGUARD; out$deq__RDY; rindex != windex;
+//METAGUARD; in$enq__RDY; ((windex + 1) % 2) != rindex;
+//METAGUARD; out$first__RDY; rindex != windex;
+//METAREAD; out$deq; :rindex;
+//METAWRITE; out$deq; :rindex;
+//METAREAD; in$enq; :windex;
+//METAWRITE; in$enq; :*(windex == 0 ? element0:&element1);:windex;
+//METAREAD; out$first; :*(rindex == 0 ? element0:&element1);:rindex;
 `endif

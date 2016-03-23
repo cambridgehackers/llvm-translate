@@ -13,8 +13,10 @@ class l_class_OC_Fifo2 {
 public:
   l_class_OC_PipeIn in;
   l_class_OC_PipeOut out;
-  l_struct_OC_ValuePair element;
-  bool full, full_shadow; bool full_valid;
+  l_struct_OC_ValuePair element0;
+  l_struct_OC_ValuePair element1;
+  unsigned int rindex, rindex_shadow; bool rindex_valid;
+  unsigned int windex, windex_shadow; bool windex_valid;
 public:
   void run();
   void commit();
