@@ -80,23 +80,24 @@ def splitName(value):
     valsplit = value.split('$')
     return valsplit[0], '$'.join(valsplit[1:])
 
-def processFile(filename):
-    print 'processFile:', filename
-    if mInfo.get(filename) is not None:
+def processFile(moduleName):
+    print 'processFile:', moduleName
+    if mInfo.get(moduleName) is not None:
         return
     moduleItem = {}
-    moduleItem['name'] = filename
+    moduleItem['name'] = moduleName
     moduleItem['rules'] = []
+    moduleItem['export'] = []
     moduleItem['methods'] = {}
     moduleItem['internal'] = {}
     moduleItem['external'] = {}
     moduleItem['connect'] = []
     moduleItem['connDictionary'] = {}
-    mInfo[filename] = moduleItem
+    mInfo[moduleName] = moduleItem
     fileDesc = None
     for item in options.directory:
         try:
-            fileDesc = open(item + '/' + filename + '.vh')
+            fileDesc = open(item + '/' + moduleName + '.vh')
         except:
             continue
         break
@@ -151,6 +152,12 @@ def processFile(filename):
             moduleItem['connDictionary'][targetItem] = {}
         moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
     #print 'moduleItem[connDictionary]', moduleItem['name'], json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
+
+def extractInterfaces(moduleName):
+    moduleItem = mInfo[moduleName]
+    for methodName in moduleItem['methods']:
+        if not methodName in moduleItem['rules']:
+            moduleItem['export'].append(methodName)
 
 def testEqual(A, B):
     if isinstance(A, list) and isinstance(B, list) and len(A) == len(B):
@@ -260,7 +267,7 @@ def dumpRules(prefix, moduleName, modDict):
     #print 'DUMPR', '"' + prefix + '"', moduleName, modDict
     if modDict is None:
         modDict = {}
-    for ruleName in moduleItem['rules']:
+    for ruleName in (moduleItem['rules'] + moduleItem['export']):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
@@ -278,14 +285,15 @@ if __name__=='__main__':
     options = argparser.parse_args()
     for moduleName in options.verilog:
         processFile(moduleName)
+        extractInterfaces(moduleName)
+        print 'EEEE', moduleName, mInfo[moduleName]['export']
     if options.output:
         print 'output'
         secondPass = False
         totalList = {}
         accessList = [[], []]
-        if True:
-            for moduleName in options.verilog:
-                dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
+        for moduleName in options.verilog:
+            dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         secondPass = True
