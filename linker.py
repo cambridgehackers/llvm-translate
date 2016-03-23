@@ -243,20 +243,26 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
             innerFileName = moduleItem['internal'].get(refName[0])
             if innerFileName:
                 rList = getList(prefix + refName[0] + '$', innerFileName, '$'.join(refName[1:]), readOrWrite, moduleItem['connDictionary'])
-                for rItem in rList:
-                    #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
-                    #gVal = tguard
-                    #for ind in range(1, len(rItem)):
-                        #rItem[ind] = prefix + refName[0] + "$" + rItem[ind]
-                    returnList.append(rItem)
             else:
                 newItem = connDictionary.get(item)
                 if not newItem:
                     print 'itemnotfound', item, 'dict', connDictionary.get(item)
+                    continue
                 else:
                     rList = getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
-                    for rItem in rList:
-                        returnList.append(rItem)
+            for rItem in rList:
+                #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
+                #gVal = tguard
+                #for ind in range(1, len(rItem)):
+                    #rItem[ind] = prefix + refName[0] + "$" + rItem[ind]
+                insertItem = True
+                for item in returnList:
+                    if item[0] == rItem[0] and item[1] == rItem[1]:
+                        #print 'already in list', methodName, rItem
+                        insertItem = False
+                        break
+                if insertItem:
+                    returnList.append(rItem)
     if traceList and returnList != []:
         print 'getlistreturn', moduleName, methodName, readOrWrite, returnList
     return returnList
@@ -286,7 +292,6 @@ if __name__=='__main__':
     for moduleName in options.verilog:
         processFile(moduleName)
         extractInterfaces(moduleName)
-        print 'EEEE', moduleName, mInfo[moduleName]['export']
     if options.output:
         print 'output'
         secondPass = False
@@ -298,7 +303,7 @@ if __name__=='__main__':
             print key + ': ' + value
         secondPass = True
         totalList = {}
-        print 'RRR', accessList
+        print '\nACCESSLIST', accessList
         for moduleName in options.verilog:
             dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
         for key, value in sorted(totalList.iteritems()):
