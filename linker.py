@@ -66,7 +66,7 @@ def expandGuard(mitem, name, string):
                         item = mitem['internal'].get(tsep[0])
                         if item:
                             rmitem = mInfo[item]
-                            methodItem = rmitem['methods'][tsep[1][:-5]]
+                            methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
                             tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
                         else:
                             tfield = name + tfield
@@ -281,7 +281,7 @@ def dumpRules(prefix, moduleName, modDict):
          wList = getList(prefix, moduleName, ruleName, 'write', modDict)
          totalList[formatAccess(1, wList) + '/' + ruleName] = \
             formatAccess(0, rList) + '\n        ' + \
-            prependName(prefix, methodItem['guard'])
+            expandGuard(moduleItem, prefix, methodItem['guard'])
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
