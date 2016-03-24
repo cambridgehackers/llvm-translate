@@ -28,6 +28,7 @@ argparser.add_argument('--output', help='linked top level', default='')
 argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 traceList = False
+traceAll = False
 mInfo = {}
 
 SCANNER = re.compile(r'''
@@ -80,6 +81,12 @@ def splitName(value):
     valsplit = value.split('$')
     return valsplit[0], '$'.join(valsplit[1:])
 
+def splitRef(value):
+    temp = value.split(':')
+    if len(temp) == 1:
+        temp.insert(0, '')
+    return temp
+
 def processFile(moduleName):
     print 'processFile:', moduleName
     if mInfo.get(moduleName) is not None:
@@ -130,16 +137,17 @@ def processFile(moduleName):
                         moduleItem['connect'].append(inVector[1:])
                     elif inVector[0] == '//METAINVOKE':
                         for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['invoke'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['invoke'].append(splitRef(vitem))
                     elif inVector[0] == '//METAREAD':
                         for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['read'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['read'].append(splitRef(vitem))
                     elif inVector[0] == '//METAWRITE':
                         for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['write'].append(vitem.split(':'))
+                            moduleItem['methods'][inVector[1]]['write'].append(splitRef(vitem))
                     else:
                         print 'Unknown case', inVector
-    #print 'ALL', json.dumps(moduleItem, sort_keys=True, indent = 4)
+    if traceAll:
+        print 'ALL', json.dumps(moduleItem, sort_keys=True, indent = 4)
     for key, value in moduleItem['internal'].iteritems():
         processFile(value)
     for key, value in moduleItem['external'].iteritems():
