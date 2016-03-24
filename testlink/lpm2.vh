@@ -1,10 +1,10 @@
 
 //METARULES; enter; exit; recirc; respond
-//METAGUARD; enter__RDY; (inQrindex != inQwindex & ((fifowindex + 1) % 2) != fiforindex) & memdelayCount == 0
-//METAGUARD; exit__RDY; ((((((doneCount % 5) == 0) & fiforindex != fifowindex) & memdelayCount == 1) & memdelayCount == 1) & fiforindex != fifowindex) & ((outQwindex + 1) % 2) != outQrindex
-//METAGUARD; recirc__RDY; (((((((doneCount % 5) != 0) & fiforindex != fifowindex) & memdelayCount == 1) & memdelayCount == 1) & fiforindex != fifowindex) & ((fifowindex + 1) % 2) != fiforindex) & memdelayCount == 0
-//METAGUARD; respond__RDY; outQrindex != outQwindex & indicationheard__RDY
-//METAGUARD; say__RDY; ((inQwindex + 1) % 2) != inQrindex
+//METAGUARD; enter__RDY; enterCond
+//METAGUARD; exit__RDY; exitCond
+//METAGUARD; recirc__RDY; recircCond
+//METAGUARD; respond__RDY; respondCond & indicationheard__RDY
+//METAGUARD; say__RDY; sayCond
 
 //METAWRITE; exit; fiforindex; memdelayCount; outQwindex == 0:outQelement0; outQwindex != 0:outQelement1; outQwindex
 //METAREAD; exit; fiforindex; fiforindex == 0:fifoelement0; fiforindex != 0:fifoelement1; memsaved; outQwindex

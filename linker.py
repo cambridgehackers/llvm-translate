@@ -29,6 +29,7 @@ argparser.add_argument('verilog', help='Verilog files to parse', nargs='+')
 
 traceList = False
 traceAll = False
+removeUnref = False
 mInfo = {}
 
 SCANNER = re.compile(r'''
@@ -287,13 +288,16 @@ def dumpRules(prefix, moduleName, modDict):
          methodItem = moduleItem['methods'][ruleName]
          rList = getList(prefix, moduleName, ruleName, 'read', modDict)
          wList = getList(prefix, moduleName, ruleName, 'write', modDict)
-         totalList[formatAccess(1, wList) + '/' + ruleName] = \
-            formatAccess(0, rList) + '\n        ' + \
-            expandGuard(moduleItem, prefix, methodItem['guard'])
+         tGuard = expandGuard(moduleItem, prefix, methodItem['guard'])
+         ruleList.append({'module': moduleName, 'name': ruleName, 'guard': tGuard, 'write': wList, 'read': rList})
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
+
+def formatRules():
+    for item in ruleList:
+         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + item['guard']
 
 if __name__=='__main__':
     options = argparser.parse_args()
@@ -303,17 +307,22 @@ if __name__=='__main__':
     if options.output:
         print 'output'
         secondPass = False
+        ruleList = []
         totalList = {}
         accessList = [[], []]
         for moduleName in options.verilog:
             dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
+        formatRules()
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
-        secondPass = True
-        totalList = {}
-        print '\nACCESSLIST', accessList
-        for moduleName in options.verilog:
-            dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
-        for key, value in sorted(totalList.iteritems()):
-            print key + ': ' + value
+        if removeUnref:
+            secondPass = True
+            ruleList = []
+            totalList = {}
+            print '\nACCESSLIST', accessList
+            for moduleName in options.verilog:
+                dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
+            formatRules()
+            for key, value in sorted(totalList.iteritems()):
+                print key + ': ' + value
 
