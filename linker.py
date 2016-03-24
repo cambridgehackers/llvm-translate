@@ -20,7 +20,7 @@
 ## ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 ## CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
-import argparse, json, re, os, sys, shutil, string
+import argparse, copy, json, re, os, sys, shutil, string
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
 argparser.add_argument('--directory', help='directory', default=[], action='append')
@@ -299,6 +299,12 @@ def formatRules():
     for item in ruleList:
          totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + item['guard']
 
+def intersect(left, right):
+    for litem in left:
+        if litem in right:
+            return True
+    return False
+
 if __name__=='__main__':
     options = argparser.parse_args()
     for moduleName in options.verilog:
@@ -315,6 +321,23 @@ if __name__=='__main__':
         formatRules()
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
+        #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        schedList = []
+        schedRuleList = []
+        for ritem in ruleList:
+            #print 'RI', ritem
+            insertItem = True
+            for sIndex in range(len(schedList)):
+                if intersect(schedList[sIndex]['write'], ritem['read']):
+                    # our rule read something that was written at this stage, insert before
+                    schedList.insert(sIndex, ritem)
+                    insertItem = False
+                    break
+            if insertItem:
+                schedList.append(ritem)
+        print 'SCHED'
+        for sitem in schedList:
+            print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
         if removeUnref:
             secondPass = True
             ruleList = []
