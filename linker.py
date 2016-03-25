@@ -298,6 +298,23 @@ def intersect(left, right):
             return True
     return False
 
+def dumpDep(schedList, wIndex, targetItem):
+    wItem = schedList[wIndex]
+    #print 'DD', wItem, wItem['read']
+    dumpString = ''
+    foundTarget = False
+    for item in wItem['read']:
+        for sIndex in range(wIndex + 1, len(schedList)):
+            sItem = schedList[sIndex]
+            if item in sItem['write']:
+                #print 'write', item[1], sItem['name']
+                ret = dumpDep(schedList, sIndex, targetItem)
+                if ret != '':
+                    dumpString += ' reads[' + item[1] + ']: ' + sItem['name'] + ret
+        if targetItem == item:
+            return ' ' + dumpString
+    return dumpString
+
 if __name__=='__main__':
     options = argparser.parse_args()
     for moduleName in options.verilog:
@@ -316,15 +333,11 @@ if __name__=='__main__':
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
         schedList = []
-        schedRuleList = []
         for ritem in ruleList:
-            #print 'RI', ritem['name']
-            insertItem = True
             sIndex = 0
             while sIndex < len(schedList):
                 if intersect(schedList[sIndex]['write'], ritem['read']):
                     # our rule read something that was written at this stage, insert before
-                    #insertItem = False
                     break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
@@ -337,7 +350,7 @@ if __name__=='__main__':
                 for wIndex in range(0, sIndex-1):
                     witem = schedList[wIndex]
                     if item in witem['write']:
-                        print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name']
+                        print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
         if removeUnref:
             secondPass = True
             ruleList = []
