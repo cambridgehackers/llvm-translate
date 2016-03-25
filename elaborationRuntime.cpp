@@ -46,20 +46,6 @@ BLOCK_COND_MAP blockCondition[2];
 std::list<MEMORY_REGION> memoryRegion;
 
 /*
- * Allocated memory region management
- */
-extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType *STy, uint64_t vecCount)
-{
-    size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
-    void *ptr = malloc(newsize);
-    memset(ptr, 0x5a, newsize);
-    if (trace_malloc)
-        printf("[%s:%d] %ld = %p type %p sty %p vecCount %ld\n", __FUNCTION__, __LINE__, size, ptr, type, STy, vecCount);
-    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy, vecCount});
-    return ptr;
-}
-
-/*
  * Recursively delete an Instruction and operands (if they become unused)
  */
 void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
@@ -275,22 +261,6 @@ void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::st
 }
 
 /*
- * Called from user constructors to force processing of interface 'request' methods
- * to classes.
- */
-extern "C" void exportRequest(Function *enaFunc)
-{
-    ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
-    std::string enaName = getMethodName(enaFunc->getName());
-    std::string rdyName = enaName + "__RDY";
-    if (trace_pair)
-        printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), rdyName.c_str());
-    for (unsigned int i = 0; i < table->vtableCount; i++)
-        if (getMethodName(table->vtable[i]->getName()) == rdyName)
-            pushPair(enaFunc, enaName, table->vtable[i], rdyName);
-}
-
-/*
  * Process 'blocks' functions that were generated for user rules.
  * The blocks context is removed; the functions are transformed into
  * a method (and its associated RDY method), attached to the containing class.
@@ -375,20 +345,6 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
     }
     func->setName("unused_block_function");
     return fnew;
-}
-
-/*
- * Called from user constructors to process Blocks functions generated for a rule
- */
-extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
-{
-    Function *enaFunc = fixupFunction(name, ENA[2], (uint8_t *)ENA);
-    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2], (uint8_t *)RDY);
-    ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
-    table->rules[name] = enaFunc;
-    if (trace_pair)
-        printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
-    pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
 
 /*
@@ -496,4 +452,52 @@ std::string lookupMethodName(const ClassMethodTable *table, int ind)
     if (table && ind >= 0 && ind < (int)table->vtableCount)
         return table->vtable[ind]->getName();
     return "";
+}
+
+/*
+ * Functions called from user constructors during static initialization
+ */
+
+/*
+ * Allocated memory region management
+ */
+extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType *STy, uint64_t vecCount)
+{
+    size_t newsize = size * 2 + MAX_BASIC_BLOCK_FLAGS * sizeof(int) + GIANT_SIZE;
+    void *ptr = malloc(newsize);
+    memset(ptr, 0x5a, newsize);
+    if (trace_malloc)
+        printf("[%s:%d] %ld = %p type %p sty %p vecCount %ld\n", __FUNCTION__, __LINE__, size, ptr, type, STy, vecCount);
+    memoryRegion.push_back(MEMORY_REGION{ptr, newsize, type, STy, vecCount});
+    return ptr;
+}
+
+/*
+ * Called from user constructors to force processing of interface 'request' methods
+ * to classes.
+ */
+extern "C" void exportRequest(Function *enaFunc)
+{
+    ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
+    std::string enaName = getMethodName(enaFunc->getName());
+    std::string rdyName = enaName + "__RDY";
+    if (trace_pair)
+        printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), rdyName.c_str());
+    for (unsigned int i = 0; i < table->vtableCount; i++)
+        if (getMethodName(table->vtable[i]->getName()) == rdyName)
+            pushPair(enaFunc, enaName, table->vtable[i], rdyName);
+}
+
+/*
+ * Called from user constructors to process Blocks functions generated for a rule
+ */
+extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
+{
+    Function *enaFunc = fixupFunction(name, ENA[2], (uint8_t *)ENA);
+    Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2], (uint8_t *)RDY);
+    ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
+    table->rules[name] = enaFunc;
+    if (trace_pair)
+        printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
+    pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
