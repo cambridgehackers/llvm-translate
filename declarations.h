@@ -133,3 +133,4 @@ int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_ty
 void prepareReplace(const Value *olda, Value *newa);
 void setCondition(BasicBlock *bb, int invert, Value *val);
 void setAssign(std::string target, std::string value);
+void recursiveDelete(Value *V);
