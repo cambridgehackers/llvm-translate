@@ -34,33 +34,12 @@ using namespace llvm;
 
 #include "declarations.h"
 
-#define GIANT_SIZE 1024
-
 static int trace_malloc;//= 1;
 static int trace_fixup;//= 1;
-static int trace_lookupMethod;//= 1;
 int trace_pair;//= 1;
 
 std::map<const Function *, std::string> pushSeen;
-BLOCK_COND_MAP blockCondition[2];
 std::list<MEMORY_REGION> memoryRegion;
-
-/*
- * Recursively delete an Instruction and operands (if they become unused)
- */
-void recursiveDelete(Value *V) //nee: RecursivelyDeleteTriviallyDeadInstructions
-{
-    Instruction *I = dyn_cast<Instruction>(V);
-    if (!I)
-        return;
-    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
-        Value *OpV = I->getOperand(i);
-        I->setOperand(i, nullptr);
-        if (OpV && OpV->use_empty())
-            recursiveDelete(OpV);
-    }
-    I->eraseFromParent();
-}
 
 /*
  * Remove Alloca items inserted by clang as part of dwarf debug support.
@@ -187,29 +166,6 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
             II = PI;
         }
     }
-}
-
-void setCondition(BasicBlock *bb, int invert, Value *val)
-{
-    blockCondition[invert].val[bb] = val;
-}
-
-Value *getCondition(BasicBlock *bb, int invert)
-{
-    if (Value *val = blockCondition[invert].val[bb])
-        return val;
-    if (Instruction *val = dyn_cast_or_null<Instruction>(blockCondition[1-invert].val[bb])) {
-        BasicBlock *prevBB = val->getParent();
-        Instruction *TI = bb->getTerminator();
-        if (prevBB != bb)
-            val = cloneTree(val, TI);
-        IRBuilder<> builder(bb);
-        builder.SetInsertPoint(TI);
-        blockCondition[invert].val[bb] = BinaryOperator::Create(Instruction::Xor,
-           val, builder.getInt1(1), "invertCond", TI);
-        return blockCondition[invert].val[bb];
-    }
-    return NULL;
 }
 
 // rename parameter names so that they are prefixed by method name (so that
@@ -347,112 +303,6 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
     return fnew;
 }
 
-/*
- * Dump all statically allocated and malloc'ed data areas
- */
-void dumpMemoryRegions(int arg)
-{
-    printf("%s: %d\n", __FUNCTION__, arg);
-    for (MEMORY_REGION info : memoryRegion) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
-        std::string gname;
-        if (g)
-            gname = g->getName();
-        printf("Region addr %p name '%s'", info.p, gname.c_str());
-        if (info.STy)
-            printf(" infoSTy %s", info.STy->getName().str().c_str());
-        printf("\n");
-        if (info.type)
-            info.type->dump();
-        long size = info.size;
-        if (size > GIANT_SIZE) {
-           size -= GIANT_SIZE;
-           size -= 10 * sizeof(int);
-           size = size/2;
-        }
-        size += 16;
-        memdumpl((unsigned char *)info.p, size, "data");
-    }
-}
-
-/*
- * Verify that an address lies within a valid user data area.
- */
-int validateAddress(int arg, void *p)
-{
-    static int once;
-    for (MEMORY_REGION info : memoryRegion) {
-        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
-            return 0;
-    }
-    printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
-    if (!once)
-    for (MEMORY_REGION info : memoryRegion) {
-        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
-        const char *cp = "";
-        if (g)
-            cp = g->getName().str().c_str();
-        printf("%p %s size 0x%lx\n", info.p, cp, info.size);
-    }
-    once = 1;
-    return 1;
-}
-
-/*
- * Check if one StructType inherits another one.
- */
-static int derivedStruct(const StructType *STyA, const StructType *STyB)
-{
-    int Idx = 0;
-    if (STyA && STyB)
-    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++)
-        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB)
-            return 1;
-    return 0;
-}
-
-int checkDerived(const Type *A, const Type *B)
-{
-    if (const PointerType *PTyA = cast_or_null<PointerType>(A))
-    if (const PointerType *PTyB = cast_or_null<PointerType>(B))
-        return derivedStruct(dyn_cast<StructType>(PTyA->getElementType()),
-                             dyn_cast<StructType>(PTyB->getElementType()));
-    return 0;
-}
-
-/*
- * Return the name of the 'ind'th field of a StructType.
- * This code depends on a modification to llvm/clang that generates structFieldMap.
- */
-std::string fieldName(const StructType *STy, uint64_t ind)
-{
-    unsigned int subs = 0;
-    int idx = ind;
-    while (idx-- > 0) {
-        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
-            subs++;
-        subs++;
-    }
-    if (subs >= STy->structFieldMap.length())
-        return "";
-    std::string ret = STy->structFieldMap.substr(subs);
-    idx = ret.find(',');
-    if (idx >= 0)
-        ret = ret.substr(0,idx);
-    return ret;
-}
-
-/*
- * Lookup a function name from the vtable for a class.
- */
-std::string lookupMethodName(const ClassMethodTable *table, int ind)
-{
-    if (trace_lookupMethod)
-        printf("[%s:%d] table %p, ind %d max %d\n", __FUNCTION__, __LINE__, table, ind, table ? table->vtableCount:-1);
-    if (table && ind >= 0 && ind < (int)table->vtableCount)
-        return table->vtable[ind]->getName();
-    return "";
-}
 
 /*
  * Functions called from user constructors during static initialization

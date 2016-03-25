@@ -37,6 +37,7 @@ using namespace llvm;
 static int trace_function;//=1;
 static int trace_call;//=1;
 static int trace_gep;//=1;
+static int trace_lookupMethod;//= 1;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
@@ -130,6 +131,61 @@ static bool isAlloca(Value *arg)
 static bool isAddressExposed(const Value *V)
 {
     return isa<GlobalVariable>(V) || isDirectAlloca(V);
+}
+/*
+ * Return the name of the 'ind'th field of a StructType.
+ * This code depends on a modification to llvm/clang that generates structFieldMap.
+ */
+std::string fieldName(const StructType *STy, uint64_t ind)
+{
+    unsigned int subs = 0;
+    int idx = ind;
+    while (idx-- > 0) {
+        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
+            subs++;
+        subs++;
+    }
+    if (subs >= STy->structFieldMap.length())
+        return "";
+    std::string ret = STy->structFieldMap.substr(subs);
+    idx = ret.find(',');
+    if (idx >= 0)
+        ret = ret.substr(0,idx);
+    return ret;
+}
+
+/*
+ * Check if one StructType inherits another one.
+ */
+static int derivedStruct(const StructType *STyA, const StructType *STyB)
+{
+    int Idx = 0;
+    if (STyA && STyB)
+    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++)
+        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB)
+            return 1;
+    return 0;
+}
+
+int checkDerived(const Type *A, const Type *B)
+{
+    if (const PointerType *PTyA = cast_or_null<PointerType>(A))
+    if (const PointerType *PTyB = cast_or_null<PointerType>(B))
+        return derivedStruct(dyn_cast<StructType>(PTyA->getElementType()),
+                             dyn_cast<StructType>(PTyB->getElementType()));
+    return 0;
+}
+
+/*
+ * Lookup a function name from the vtable for a class.
+ */
+std::string lookupMethodName(const ClassMethodTable *table, int ind)
+{
+    if (trace_lookupMethod)
+        printf("[%s:%d] table %p, ind %d max %d\n", __FUNCTION__, __LINE__, table, ind, table ? table->vtableCount:-1);
+    if (table && ind >= 0 && ind < (int)table->vtableCount)
+        return table->vtable[ind]->getName();
+    return "";
 }
 
 int inheritsModule(const StructType *STy, const char *name)

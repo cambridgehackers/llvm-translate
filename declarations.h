@@ -39,6 +39,8 @@
           exit(1); \
       }}
 
+#define GIANT_SIZE 1024
+
 typedef struct {
     int value;
     const char *name;
@@ -93,9 +95,6 @@ typedef  struct {
     const StructType *STy;
     uint64_t   vecCount;
 } MEMORY_REGION;
-typedef struct {
-    std::map<const BasicBlock *, Value *> val;
-} BLOCK_COND_MAP;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
@@ -110,7 +109,6 @@ extern std::map<const Function *, std::string> pushSeen;
 extern std::list<MEMORY_REGION> memoryRegion;
 extern std::list<Function *> fixupFuncList;
 extern int trace_pair;
-extern BLOCK_COND_MAP blockCondition[2];
 extern Module *globalMod;
 
 std::string gatherList(MetaRef &list);

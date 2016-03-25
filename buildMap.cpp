@@ -55,6 +55,83 @@ typedef std::map<std::string, Function *>MethodMapType;
 std::list<Function *> fixupFuncList;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 
+static struct {
+    std::map<const BasicBlock *, Value *> val;
+} blockCondition[2];
+void setCondition(BasicBlock *bb, int invert, Value *val)
+{
+    blockCondition[invert].val[bb] = val;
+}
+
+Value *getCondition(BasicBlock *bb, int invert)
+{
+    if (Value *val = blockCondition[invert].val[bb])
+        return val;
+    if (Instruction *val = dyn_cast_or_null<Instruction>(blockCondition[1-invert].val[bb])) {
+        BasicBlock *prevBB = val->getParent();
+        Instruction *TI = bb->getTerminator();
+        if (prevBB != bb)
+            val = cloneTree(val, TI);
+        IRBuilder<> builder(bb);
+        builder.SetInsertPoint(TI);
+        setCondition(bb, invert, BinaryOperator::Create(Instruction::Xor,
+           val, builder.getInt1(1), "invertCond", TI));
+        return blockCondition[invert].val[bb];
+    }
+    return NULL;
+}
+
+/*
+ * Dump all statically allocated and malloc'ed data areas
+ */
+void dumpMemoryRegions(int arg)
+{
+    printf("%s: %d\n", __FUNCTION__, arg);
+    for (MEMORY_REGION info : memoryRegion) {
+        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
+        std::string gname;
+        if (g)
+            gname = g->getName();
+        printf("Region addr %p name '%s'", info.p, gname.c_str());
+        if (info.STy)
+            printf(" infoSTy %s", info.STy->getName().str().c_str());
+        printf("\n");
+        if (info.type)
+            info.type->dump();
+        long size = info.size;
+        if (size > GIANT_SIZE) {
+           size -= GIANT_SIZE;
+           size -= 10 * sizeof(int);
+           size = size/2;
+        }
+        size += 16;
+        memdumpl((unsigned char *)info.p, size, "data");
+    }
+}
+
+/*
+ * Verify that an address lies within a valid user data area.
+ */
+int validateAddress(int arg, void *p)
+{
+    static int once;
+    for (MEMORY_REGION info : memoryRegion) {
+        if (p >= info.p && (size_t)p < ((size_t)info.p + info.size))
+            return 0;
+    }
+    printf("%s: %d address validation failed %p\n", __FUNCTION__, arg, p);
+    if (!once)
+    for (MEMORY_REGION info : memoryRegion) {
+        const GlobalValue *g = EE->getGlobalValueAtAddress(info.p);
+        const char *cp = "";
+        if (g)
+            cp = g->getName().str().c_str();
+        printf("%p %s size 0x%lx\n", info.p, cp, info.size);
+    }
+    once = 1;
+    return 1;
+}
+
 static std::list<Instruction *> preCopy;
 static Instruction *defactorTree(Instruction *insertPoint, Instruction *top, Instruction *arg)
 {
@@ -121,8 +198,8 @@ static void addGuard(Instruction *argI, Function *func, Function *currentFunctio
     /* make a call to the guard being promoted */
     Instruction *newI = copyFunction(TI, argI, func);
     /* if the promoted guard is in an 'if' block, 'or' with inverted condition of block */
-    if (Instruction *blockCond = dyn_cast_or_null<Instruction>(getCondition(argI->getParent(), 1))) // get inverted condition, if any
-        newI = BinaryOperator::Create(Instruction::Or, newI, cloneTree(blockCond,TI), "newor", TI);
+    if (Instruction *bcond = dyn_cast_or_null<Instruction>(getCondition(argI->getParent(), 1))) // get inverted condition, if any
+        newI = BinaryOperator::Create(Instruction::Or, newI, cloneTree(bcond,TI), "newor", TI);
     /* get existing return value from my function's guard */
     Value *cond = TI->getOperand(0);
     const ConstantInt *CI = dyn_cast<ConstantInt>(cond);
@@ -196,8 +273,8 @@ restart:
                 if (BI && BI->isConditional()) {
                     std::string cond = printOperand(BI->getCondition(), false);
                     printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
-                    blockCondition[0].val[BI->getSuccessor(0)] = BI->getCondition(); // 'true' condition
-                    blockCondition[1].val[BI->getSuccessor(1)] = BI->getCondition(); // 'inverted' condition
+                    setCondition(BI->getSuccessor(0), 0, BI->getCondition()); // 'true' condition
+                    setCondition(BI->getSuccessor(1), 1, BI->getCondition()); // 'inverted' condition
                 }
                 else if (isa<IndirectBrInst>(II)) {
                     printf("[%s:%d] indirect\n", __FUNCTION__, __LINE__);
