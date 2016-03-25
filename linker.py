@@ -92,15 +92,8 @@ def processFile(moduleName):
     print 'processFile:', moduleName
     if mInfo.get(moduleName) is not None:
         return
-    moduleItem = {}
-    moduleItem['name'] = moduleName
-    moduleItem['rules'] = []
-    moduleItem['export'] = []
-    moduleItem['methods'] = {}
-    moduleItem['internal'] = {}
-    moduleItem['external'] = {}
-    moduleItem['connect'] = []
-    moduleItem['connDictionary'] = {}
+    moduleItem = {'name': moduleName, 'rules': [], 'export': [], 'methods': {},
+        'internal': {}, 'external': {}, 'connect': [], 'connDictionary': {}}
     mInfo[moduleName] = moduleItem
     fileDesc = None
     for item in options.directory:
