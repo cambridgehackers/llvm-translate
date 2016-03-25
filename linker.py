@@ -325,19 +325,26 @@ if __name__=='__main__':
         schedList = []
         schedRuleList = []
         for ritem in ruleList:
-            #print 'RI', ritem
+            #print 'RI', ritem['name']
             insertItem = True
-            for sIndex in range(len(schedList)):
+            sIndex = 0
+            while sIndex < len(schedList):
                 if intersect(schedList[sIndex]['write'], ritem['read']):
                     # our rule read something that was written at this stage, insert before
-                    schedList.insert(sIndex, ritem)
-                    insertItem = False
+                    #insertItem = False
                     break
-            if insertItem:
-                schedList.append(ritem)
+                sIndex += 1
+            schedList.insert(sIndex, ritem)
         print 'SCHED'
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
+        for sIndex in range(len(schedList)):
+            sitem = schedList[sIndex]
+            for item in sitem['read']:
+                for wIndex in range(0, sIndex-1):
+                    witem = schedList[wIndex]
+                    if item in witem['write']:
+                        print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name']
         if removeUnref:
             secondPass = True
             ruleList = []
