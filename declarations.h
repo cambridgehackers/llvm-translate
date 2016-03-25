@@ -111,6 +111,7 @@ extern std::list<MEMORY_REGION> memoryRegion;
 extern std::list<Function *> fixupFuncList;
 extern int trace_pair;
 extern BLOCK_COND_MAP blockCondition[2];
+extern Module *globalMod;
 
 std::string gatherList(MetaRef &list);
 int validateAddress(int arg, void *p);
@@ -153,3 +154,4 @@ int checkDerived(const Type *A, const Type *B);
 void setSeen(Function *func, std::string mName);
 void dumpMemoryRegions(int arg);
 void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
+void generateContainedStructs(const Type *Ty, std::string ODir);

@@ -47,7 +47,7 @@ static std::map<const Value *, std::string> allocaMap;
 static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
-static Module *globalMod;
+Module *globalMod;
 MetaRef readList, writeList, invokeList;
 std::list<ReferenceType> functionList;
 std::list<StoreType> storeList;
@@ -999,7 +999,7 @@ static void checkClass(const StructType *STy, const StructType *ActSTy)
             checkClass(inherit, ActSTy);
     }
 }
-static void generateContainedStructs(const Type *Ty, std::string ODir)
+void generateContainedStructs(const Type *Ty, std::string ODir)
 {
     if (!Ty)
         return;
@@ -1037,29 +1037,4 @@ static void generateContainedStructs(const Type *Ty, std::string ODir)
             }
         }
     }
-}
-
-/*
- * Top level processing done after all module object files are loaded
- */
-bool GenerateRunOnModule(Module *Mod, std::string OutDirectory)
-{
-globalMod = Mod;
-    // Before running constructors, clean up and rewrite IR
-    preprocessModule(Mod);
-
-    // run Constructors from user program
-    EE->runStaticConstructorsDestructors(false);
-
-    // Construct the address -> symbolic name map using actual data allocated/initialized.
-    // Pointer datatypes allocated by a class are hoisted and instantiated statically
-    // in the generated class.  (in cpp, only pointers can be overridden with derived
-    // class instances)
-    constructAddressMap(Mod);
-
-    // Walk the list of all classes referenced in the IR image,
-    // recursively generating cpp class and verilog module definitions
-    for (auto current : classCreate)
-        generateContainedStructs(current.first, OutDirectory);
-    return false;
 }

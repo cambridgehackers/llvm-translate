@@ -94,7 +94,26 @@ int main(int argc, char **argv, char * const *envp)
     EE = builder.create();
     assert(EE);
 
-    GenerateRunOnModule(Mod, OutputDir);
+    /*
+     * Top level processing done after all module object files are loaded
+     */
+    globalMod = Mod;
+    // Before running constructors, clean up and rewrite IR
+    preprocessModule(Mod);
+
+    // run Constructors from user program
+    EE->runStaticConstructorsDestructors(false);
+
+    // Construct the address -> symbolic name map using actual data allocated/initialized.
+    // Pointer datatypes allocated by a class are hoisted and instantiated statically
+    // in the generated class.  (in cpp, only pointers can be overridden with derived
+    // class instances)
+    constructAddressMap(Mod);
+
+    // Walk the list of all classes referenced in the IR image,
+    // recursively generating cpp class and verilog module definitions
+    for (auto current : classCreate)
+        generateContainedStructs(current.first, OutputDir);
 printf("[%s:%d] end processing\n", __FUNCTION__, __LINE__);
     fflush(stderr);
     fflush(stdout);
