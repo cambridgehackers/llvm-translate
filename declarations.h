@@ -86,6 +86,17 @@ typedef struct {
 } StoreType;
 typedef std::map<std::string,std::list<Value *>> MetaRef;
 
+typedef  struct {
+    void *p;
+    size_t size;
+    Type *type;
+    const StructType *STy;
+    uint64_t   vecCount;
+} MEMORY_REGION;
+typedef struct {
+    std::map<const BasicBlock *, Value *> val;
+} BLOCK_COND_MAP;
+
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 
 extern ExecutionEngine *EE;
@@ -96,8 +107,12 @@ extern std::list<ReferenceType> functionList;
 extern std::map<std::string, std::string> declareList;
 extern std::list<StoreType> storeList;
 extern std::map<const Function *, std::string> pushSeen;
+extern std::list<MEMORY_REGION> memoryRegion;
+extern std::list<Function *> fixupFuncList;
+extern int trace_pair;
+extern BLOCK_COND_MAP blockCondition[2];
 
-extern std::string gatherList(MetaRef &list);
+std::string gatherList(MetaRef &list);
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
 std::string fieldName(const StructType *STy, uint64_t ind);
@@ -134,3 +149,7 @@ void prepareReplace(const Value *olda, Value *newa);
 void setCondition(BasicBlock *bb, int invert, Value *val);
 void setAssign(std::string target, std::string value);
 void recursiveDelete(Value *V);
+int checkDerived(const Type *A, const Type *B);
+void setSeen(Function *func, std::string mName);
+void dumpMemoryRegions(int arg);
+void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
