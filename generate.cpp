@@ -49,7 +49,6 @@ static DenseMap<const Value*, unsigned> AnonValueNumbers;
 static unsigned NextAnonValueNumber;
 static DenseMap<const StructType*, unsigned> UnnamedStructIDs;
 Module *globalMod;
-MetaRef readList, writeList, invokeList;
 std::list<ReferenceType> functionList;
 std::list<StoreType> storeList;
 std::map<std::string, std::string> declareList;
@@ -550,32 +549,6 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     if (trace_gep || Total == -1)
         printf("%s: return %s\n", __FUNCTION__, cbuffer.c_str());
     return cbuffer;
-}
-
-static int inhibitAppend;
-static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
-{
-    if (!inhibitAppend) {
-        Value *val = getCondition(cond, 0);
-        if (!val)
-            list[item].clear();
-        for (auto condIter: list[item])
-             if (!condIter)
-                 return;
-             else if (condIter == val)
-                 return;
-        list[item].push_back(val);
-    }
-}
-std::string gatherList(MetaRef &list)
-{
-    std::string temp;
-    inhibitAppend = 1;
-    for (auto titem: list)
-        for (auto item: titem.second)
-            temp += printOperand(item,false) + ":" + titem.first + ";";
-    inhibitAppend = 0;
-    return temp;
 }
 
 /*

@@ -153,3 +153,4 @@ void setSeen(Function *func, std::string mName);
 void dumpMemoryRegions(int arg);
 void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 void generateContainedStructs(const Type *Ty, std::string ODir);
+void appendList(MetaRef &list, BasicBlock *cond, std::string item);
