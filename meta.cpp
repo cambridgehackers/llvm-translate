@@ -46,7 +46,7 @@ void appendList(MetaRef &list, BasicBlock *cond, std::string item)
         list[item].push_back(val);
     }
 }
-std::string gatherList(MetaRef &list)
+static std::string gatherList(MetaRef &list)
 {
     std::string temp;
     inhibitAppend = 1;
@@ -55,4 +55,17 @@ std::string gatherList(MetaRef &list)
             temp += printOperand(item,false) + ":" + titem.first + ";";
     inhibitAppend = 0;
     return temp;
+}
+
+void gatherMeta(std::string mname, std::list<std::string> &metaList)
+{
+    std::string temp = gatherList(readList);
+    if (temp != "")
+        metaList.push_back("//METAREAD; " + mname + "; " + temp);
+    temp = gatherList(writeList);
+    if (temp != "")
+        metaList.push_back("//METAWRITE; " + mname + "; " + temp);
+    temp = gatherList(invokeList);
+    if (temp != "")
+        metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
 }

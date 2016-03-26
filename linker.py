@@ -88,6 +88,10 @@ def splitRef(value):
         temp.insert(0, '')
     return temp
 
+def checkMethod(dictBase, name):
+    if dictBase.get(name) is None:
+        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': []}
+
 def processFile(moduleName):
     print 'processFile:', moduleName
     if mInfo.get(moduleName) is not None:
@@ -111,16 +115,14 @@ def processFile(moduleName):
                     if inVector[-1] == '':
                         inVector.pop()
                     #print 'MM', inLine, inVector
+                    metaIndex = {'//METAINVOKE': 'invoke', '//METAREAD': 'read', '//METAWRITE': 'write'}.get(inVector[0])
                     if inVector[0] == '//METAGUARD':
                         if not inVector[1].endswith('__RDY'):
                             print 'Guard name invalid', invector
                             sys.exit(-1)
-                        tempName = inVector[1][:-5]
-                        moduleItem['methods'][tempName] = {}
-                        moduleItem['methods'][tempName]['guard'] = inVector[2]
-                        moduleItem['methods'][tempName]['read'] = []
-                        moduleItem['methods'][tempName]['write'] = []
-                        moduleItem['methods'][tempName]['invoke'] = []
+                        mname = inVector[1][:-5]
+                        checkMethod(moduleItem, mname)
+                        moduleItem['methods'][mname]['guard'] = inVector[2]
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':
@@ -129,15 +131,10 @@ def processFile(moduleName):
                         moduleItem['external'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METACONNECT':
                         moduleItem['connect'].append(inVector[1:])
-                    elif inVector[0] == '//METAINVOKE':
+                    elif metaIndex:
+                        checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['invoke'].append(splitRef(vitem))
-                    elif inVector[0] == '//METAREAD':
-                        for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['read'].append(splitRef(vitem))
-                    elif inVector[0] == '//METAWRITE':
-                        for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]]['write'].append(splitRef(vitem))
+                            moduleItem['methods'][inVector[1]][metaIndex].append(splitRef(vitem))
                     else:
                         print 'Unknown case', inVector
     if traceAll:

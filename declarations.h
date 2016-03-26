@@ -111,7 +111,6 @@ extern std::list<Function *> fixupFuncList;
 extern int trace_pair;
 extern Module *globalMod;
 
-std::string gatherList(MetaRef &list);
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);
 std::string fieldName(const StructType *STy, uint64_t ind);
@@ -154,3 +153,4 @@ void dumpMemoryRegions(int arg);
 void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 void generateContainedStructs(const Type *Ty, std::string ODir);
 void appendList(MetaRef &list, BasicBlock *cond, std::string item);
+void gatherMeta(std::string mname, std::list<std::string> &metaList);

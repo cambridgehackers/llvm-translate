@@ -15,7 +15,7 @@ module l_class_OC_foo (
     assign indication$heard__RDY = indication$heard__RDY_internal;
     assign indication$heard__RDY_internal = 1;
     assign meth_2e_addr = meth;
-    assign this_2e_addr = this;
+    assign this_2e_addr = this_2e_addr;
     assign v_2e_addr = v;
 
     always @( posedge CLK) begin
