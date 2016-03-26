@@ -249,71 +249,6 @@ printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
     fprintf(OStr, ");\n");
 }
 
-/*
- * Generate BSV file for generated class definition.
- */
-void generateBsvWrapper(const StructType *STy, std::string oDir)
-{
-    std::string name = getStructName(STy);
-    ClassMethodTable *table = classCreate[STy];
-    PrefixType interfacePrefix;
-    buildPrefix(table, interfacePrefix);
-    /*
-     * Now generate importBVI for use of module from Bluespec
-     */
-    FILE *BStr = fopen((oDir + "/" + ucName(name) + ".bsv").c_str(), "w");
-    fprintf(BStr, "interface %s;\n", ucName(name).c_str());
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        Type *retType = func->getReturnType();
-        auto AI = func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
-        std::string mname = interfacePrefix[FI.first] + FI.first;
-        int isAction = (retType == Type::getVoidTy(func->getContext()));
-        if (endswith(mname, "__RDY"))
-            continue;
-        fprintf(BStr, "    method %s %s(", !isAction ? "Bit#(32)" : "Action", mname.c_str());
-        for (AI++; AI != AE; ++AI)
-            fprintf(BStr, "%s %s", "Bit#(32)", (interfacePrefix[FI.first] + AI->getName().str()).c_str());
-        fprintf(BStr, ");\n");
-    }
-    fprintf(BStr, "endinterface\nimport \"BVI\" %s =\nmodule mk%s(%s);\n", name.c_str(), ucName(name).c_str(), ucName(name).c_str());
-    fprintf(BStr, "    default_reset rst(nRST);\n    default_clock clk(CLK);\n");
-    std::string sched = "", sep = "";
-    for (auto FI : table->method) {
-        Function *func = FI.second;
-        Type *retType = func->getReturnType();
-        auto AI = func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
-        std::string mname = interfacePrefix[FI.first] + FI.first;
-        if (endswith(mname, "__RDY"))
-            continue;
-        int isAction = (retType == Type::getVoidTy(func->getContext()));
-        if (isAction)
-            fprintf(BStr, "    method %s(", mname.c_str());
-        else
-            fprintf(BStr, "    method %s %s(", mname.c_str(), mname.c_str());
-        for (AI++; AI != AE; ++AI)
-            fprintf(BStr, "%s", (interfacePrefix[FI.first] + AI->getName()).str().c_str());
-        if (isAction)
-            fprintf(BStr, ") enable(%s__ENA", mname.c_str());
-        fprintf(BStr, ") ready(%s__RDY);\n", mname.c_str());
-        sched += sep + mname;
-        sep = ", ";
-    }
-    fprintf(BStr, "    schedule (%s) CF (%s);\n", sched.c_str(), sched.c_str());
-    fprintf(BStr, "endmodule\n");
-    fclose(BStr);
-}
-
 static std::string globalCondition;
 // 'Or' together ENA lines from all invocations of a method from this class
 void muxEnable(BasicBlock *bb, std::string signal)
@@ -597,7 +532,4 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "%s\n", item.c_str());
     fprintf(OStr, "`endif\n");
     fclose(OStr);
-
-    // now generate a BSV 'import BVI' file to make it easier to use the module from BSV
-    generateBsvWrapper(STy, oDir);
 }

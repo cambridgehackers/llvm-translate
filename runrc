@@ -2,7 +2,7 @@
 set -e
 set -x
 ./Debug+Asserts/bin/llvm-translate --odir=generatedrc ../atomicc/examples/rulec/rulec.ll ../atomicc/examples/rulec/atomicc.ll
-./bsvWrapper.py --directory generatedrc --output Echo l_class_OC_IVector
+#./bsvWrapper.py --directory generatedrc --output Echo l_class_OC_IVector
 clang++ -std=c++11 -Igeneratedrc -g test/rulec.cpp
 ./a.out
 rm -f a.out
