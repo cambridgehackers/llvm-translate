@@ -41,7 +41,7 @@ static int trace_lookupMethod;//= 1;
 std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
-static int generateRegion = ProcessNone;
+int generateRegion = ProcessNone;
 
 static std::map<const Type *, int> structMap;
 static std::map<const Value *, std::string> allocaMap;
@@ -950,7 +950,6 @@ std::string printOperand(Value *Operand, bool Indirect)
 void processFunction(Function *func)
 {
     NextAnonValueNumber = 0;
-    startMeta(func);
     storeList.clear();
     functionList.clear();
     declareList.clear();

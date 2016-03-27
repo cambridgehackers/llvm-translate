@@ -109,6 +109,7 @@ extern std::list<MEMORY_REGION> memoryRegion;
 extern std::list<Function *> fixupFuncList;
 extern int trace_pair;
 extern Module *globalMod;
+extern int generateRegion;
 
 int validateAddress(int arg, void *p);
 void constructAddressMap(Module *Mod);

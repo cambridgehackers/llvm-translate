@@ -375,6 +375,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         }
         int isAction = (retType == Type::getVoidTy(func->getContext()));
         globalCondition = mname + "__ENA_internal";
+        startMeta(func);
         processFunction(func);
         if (!isAction) {
             std::string temp = combineCondList(functionList);

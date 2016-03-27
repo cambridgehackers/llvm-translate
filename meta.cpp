@@ -34,7 +34,7 @@ static MetaRef readList, writeList, invokeList;
 static int inhibitAppend;
 static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
 {
-    if (!inhibitAppend) {
+    if (!inhibitAppend && generateRegion == ProcessVerilog) {
         Value *val = getCondition(cond, 0);
         if (!val)
             list[item].clear();
