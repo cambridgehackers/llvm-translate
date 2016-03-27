@@ -29,10 +29,10 @@ using namespace llvm;
 
 #include "declarations.h"
 
-MetaRef readList, writeList, invokeList;
+static MetaRef readList, writeList, invokeList;
 
 static int inhibitAppend;
-void appendList(MetaRef &list, BasicBlock *cond, std::string item)
+static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
 {
     if (!inhibitAppend) {
         Value *val = getCondition(cond, 0);
@@ -45,6 +45,18 @@ void appendList(MetaRef &list, BasicBlock *cond, std::string item)
                  return;
         list[item].push_back(val);
     }
+}
+void appendRead(BasicBlock *cond, std::string item)
+{
+    appendList(readList, cond, item);
+}
+void appendWrite(BasicBlock *cond, std::string item)
+{
+    appendList(writeList, cond, item);
+}
+void appendInvoke(BasicBlock *cond, std::string item)
+{
+    appendList(invokeList, cond, item);
 }
 static std::string gatherList(MetaRef &list)
 {
@@ -68,4 +80,11 @@ void gatherMeta(std::string mname, std::list<std::string> &metaList)
     temp = gatherList(invokeList);
     if (temp != "")
         metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
+}
+
+void startMeta(const Function *func)
+{
+    readList.clear();
+    writeList.clear();
+    invokeList.clear();
 }
