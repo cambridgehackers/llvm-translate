@@ -6,6 +6,7 @@
 
 //METAREAD; indication$heard; :even;
 //METAWRITE; indication$heard; :even;(even != 0) ^ 1:ind0$data$heard$meth;(even != 0) ^ 1:ind0$data$heard$v;(even != 0) ^ 1:ind0$tag;even != 0:ind1$data$heard$meth;even != 0:ind1$data$heard$v;even != 0:ind1$tag;:ind_busy;
+//METAEXCLUSIVE; indication$heard; :output_rulee; :output_ruleo
 //METAGUARD; indication$heard__RDY; (ind_busy != 0) ^ 1;
 //METAWRITE; output_rulee; :ind_busy;
 //METAINVOKE; output_rulee; :pipe$enq;
