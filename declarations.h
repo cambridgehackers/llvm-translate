@@ -96,6 +96,8 @@ typedef  struct {
     uint64_t   vecCount;
 } MEMORY_REGION;
 
+typedef std::map<std::string,std::string> PrefixType;
+
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
 enum {MetaNone, MetaRead, MetaWrite, MetaInvoke, MetaMax};
 
@@ -155,4 +157,4 @@ void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::st
 void generateContainedStructs(const Type *Ty, std::string ODir);
 void startMeta(const Function *func);
 void appendList(int listIndex, BasicBlock *cond, std::string item);
-void gatherMeta(const Function *func, std::string mname, std::list<std::string> &metaList);
+void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePrefix);
