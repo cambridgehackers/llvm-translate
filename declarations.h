@@ -73,6 +73,7 @@ public:
     Function                          *vtable[MAX_MEMBER_SIZE];
     std::map<std::string, Type *>     interfaces;
     std::list<InterfaceListType>      interfaceList;
+    std::map<const Function *, std::string> guard;
     ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
     {}
 };
@@ -154,4 +155,4 @@ void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::st
 void generateContainedStructs(const Type *Ty, std::string ODir);
 void startMeta(const Function *func);
 void appendList(int listIndex, BasicBlock *cond, std::string item);
-void gatherMeta(std::string mname, std::list<std::string> &metaList);
+void gatherMeta(const Function *func, std::string mname, std::list<std::string> &metaList);

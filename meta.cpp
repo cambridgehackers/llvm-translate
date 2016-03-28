@@ -49,27 +49,27 @@ void appendList(int listIndex, BasicBlock *cond, std::string item)
         baseMeta->list[listIndex][item].push_back(val);
     }
 }
-static std::string gatherList(int listIndex)
+static std::string gatherList(const Function *func, int listIndex)
 {
     std::string temp;
     inhibitAppend = 1;
-    if (baseMeta)
-        for (auto titem: baseMeta->list[listIndex])
+    if (MetaData *bm = &funcMetaMap[func])
+        for (auto titem: bm->list[listIndex])
             for (auto item: titem.second)
                 temp += printOperand(item,false) + ":" + titem.first + ";";
     inhibitAppend = 0;
     return temp;
 }
 
-void gatherMeta(std::string mname, std::list<std::string> &metaList)
+void gatherMeta(const Function *func, std::string mname, std::list<std::string> &metaList)
 {
-    std::string temp = gatherList(MetaRead);
+    std::string temp = gatherList(func, MetaRead);
     if (temp != "")
         metaList.push_back("//METAREAD; " + mname + "; " + temp);
-    temp = gatherList(MetaWrite);
+    temp = gatherList(func, MetaWrite);
     if (temp != "")
         metaList.push_back("//METAWRITE; " + mname + "; " + temp);
-    temp = gatherList(MetaInvoke);
+    temp = gatherList(func, MetaInvoke);
     if (temp != "")
         metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
 }
