@@ -86,7 +86,6 @@ typedef struct {
     BasicBlock *cond;
     std::string item;
 } StoreType;
-typedef std::map<std::string,std::list<Value *>> MetaRef;
 
 typedef  struct {
     void *p;
@@ -97,6 +96,7 @@ typedef  struct {
 } MEMORY_REGION;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};
+enum {MetaNone, MetaRead, MetaWrite, MetaInvoke, MetaMax};
 
 extern ExecutionEngine *EE;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
@@ -153,7 +153,5 @@ void dumpMemoryRegions(int arg);
 void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
 void generateContainedStructs(const Type *Ty, std::string ODir);
 void startMeta(const Function *func);
+void appendList(int listIndex, BasicBlock *cond, std::string item);
 void gatherMeta(std::string mname, std::list<std::string> &metaList);
-void appendRead(BasicBlock *cond, std::string item);
-void appendWrite(BasicBlock *cond, std::string item);
-void appendInvoke(BasicBlock *cond, std::string item);

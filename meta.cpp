@@ -21,70 +21,60 @@
 // Portions of this program were derived from source with the license:
 //     This file is distributed under the University of Illinois Open Source
 //     License. See LICENSE.TXT for details.
-//#include <stdio.h>
 #include "llvm/IR/Instructions.h"
-//#include "llvm/ADT/StringExtras.h"
 
 using namespace llvm;
 
 #include "declarations.h"
 
-static MetaRef readList, writeList, invokeList;
+typedef std::map<std::string,std::list<Value *>> MetaRef;
+typedef struct {
+    MetaRef list[MetaMax];
+} MetaData;
+static std::map<const Function *, MetaData> funcMetaMap;
+static MetaData *baseMeta;
 
 static int inhibitAppend;
-static void appendList(MetaRef &list, BasicBlock *cond, std::string item)
+void appendList(int listIndex, BasicBlock *cond, std::string item)
 {
-    if (!inhibitAppend && generateRegion == ProcessVerilog) {
+    if (baseMeta && !inhibitAppend && generateRegion == ProcessVerilog) {
         Value *val = getCondition(cond, 0);
         if (!val)
-            list[item].clear();
-        for (auto condIter: list[item])
+            baseMeta->list[listIndex][item].clear();
+        for (auto condIter: baseMeta->list[listIndex][item])
              if (!condIter)
                  return;
              else if (condIter == val)
                  return;
-        list[item].push_back(val);
+        baseMeta->list[listIndex][item].push_back(val);
     }
 }
-void appendRead(BasicBlock *cond, std::string item)
-{
-    appendList(readList, cond, item);
-}
-void appendWrite(BasicBlock *cond, std::string item)
-{
-    appendList(writeList, cond, item);
-}
-void appendInvoke(BasicBlock *cond, std::string item)
-{
-    appendList(invokeList, cond, item);
-}
-static std::string gatherList(MetaRef &list)
+static std::string gatherList(int listIndex)
 {
     std::string temp;
     inhibitAppend = 1;
-    for (auto titem: list)
-        for (auto item: titem.second)
-            temp += printOperand(item,false) + ":" + titem.first + ";";
+    if (baseMeta)
+        for (auto titem: baseMeta->list[listIndex])
+            for (auto item: titem.second)
+                temp += printOperand(item,false) + ":" + titem.first + ";";
     inhibitAppend = 0;
     return temp;
 }
 
 void gatherMeta(std::string mname, std::list<std::string> &metaList)
 {
-    std::string temp = gatherList(readList);
+    std::string temp = gatherList(MetaRead);
     if (temp != "")
         metaList.push_back("//METAREAD; " + mname + "; " + temp);
-    temp = gatherList(writeList);
+    temp = gatherList(MetaWrite);
     if (temp != "")
         metaList.push_back("//METAWRITE; " + mname + "; " + temp);
-    temp = gatherList(invokeList);
+    temp = gatherList(MetaInvoke);
     if (temp != "")
         metaList.push_back("//METAINVOKE; " + mname + "; " + temp);
 }
 
 void startMeta(const Function *func)
 {
-    readList.clear();
-    writeList.clear();
-    invokeList.clear();
+    baseMeta = &funcMetaMap[func];
 }

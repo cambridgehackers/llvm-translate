@@ -608,7 +608,7 @@ static std::string printCall(Instruction &I)
         std::string pdest = printOperand(I.getOperand(0), false);
         if (pdest[0] == '&')
             pdest = pdest.substr(1);
-        appendWrite(I.getParent(), pdest);
+        appendList(MetaWrite, I.getParent(), pdest);
         storeList.push_back(StoreType{pdest, I.getParent(), printOperand(I.getOperand(1), false)});
         return "";
     }
@@ -619,7 +619,7 @@ static std::string printCall(Instruction &I)
         if (src->getOpcode() == Instruction::BitCast) {
             std::string sval = printOperand(src->getOperand(0), dyn_cast<Argument>(src->getOperand(0)) == NULL);
             if (!dyn_cast<Argument>(src->getOperand(0)))
-                appendRead(I.getParent(), sval);
+                appendList(MetaRead, I.getParent(), sval);
             if (dyn_cast<Argument>(dest->getOperand(0)) == calledRet) {
                 if (generateRegion == ProcessCPP)
                     vout += "return ";
@@ -627,7 +627,7 @@ static std::string printCall(Instruction &I)
             }
             else {
                 std::string pdest = printOperand(dest->getOperand(0), true);
-                appendWrite(I.getParent(), pdest);
+                appendList(MetaWrite, I.getParent(), pdest);
                 storeList.push_back(StoreType{pdest, I.getParent(), sval});
             }
             return vout;
@@ -659,7 +659,7 @@ static std::string printCall(Instruction &I)
             muxEnable(I.getParent(), mname + "__ENA");
         else
             vout += mname;
-        appendInvoke(I.getParent(), mname);
+        appendList(MetaInvoke, I.getParent(), mname);
     }
     else {
         vout += pcalledFunction + mname + "(";
@@ -724,7 +724,7 @@ static std::string processInstruction(Instruction &I)
         std::string p = printOperand(I.getOperand(0), true);
         if (I.getType()->getTypeID() != Type::PointerTyID && !isAlloca(I.getOperand(0))
          && !dyn_cast<Argument>(I.getOperand(0)))
-            appendRead(I.getParent(), p);
+            appendList(MetaRead, I.getParent(), p);
         return p;
         }
 
@@ -747,7 +747,7 @@ static std::string processInstruction(Instruction &I)
             setAssign(pdest, sval);
         else {
 //printf("[%s:%d] STORE[%s] %s\n", __FUNCTION__, __LINE__, sval.c_str(), pdest.c_str());
-            appendWrite(I.getParent(), pdest);
+            appendList(MetaWrite, I.getParent(), pdest);
             storeList.push_back(StoreType{pdest, I.getParent(), sval});
         }
         return "";
