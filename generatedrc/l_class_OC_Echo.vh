@@ -3,7 +3,6 @@
 
 `define l_class_OC_Echo_RULE_COUNT (2)
 
-//METARULES; delay_rule; respond_rule
 //METAEXTERNAL; indication; l_class_OC_EchoIndication;
 //METAREAD; delay_rule; :meth_temp;:v_temp;
 //METAWRITE; delay_rule; :busy;:busy_delay;:meth_delay;:v_delay;
@@ -16,4 +15,5 @@
 //METAWRITE; request$say2; :busy;:meth_temp;:v_temp;
 //METAGUARD; request$say2__RDY; (busy != 0) ^ 1;
 //METAGUARD; request$say__RDY; (busy != 0) ^ 1;
+//METARULES; delay_rule; respond_rule
 `endif

@@ -297,7 +297,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::list<std::string> alwaysLines;
     std::string extraRules = utostr(table->rules.size());
     std::map<std::string, int> includeLines;
-    std::string ruleNames;
 
     if (inheritsModule(STy, "class.InterfaceClass"))
         return;
@@ -313,14 +312,11 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     int ind = 0;
     for (auto item : table->rules)
         if (item.second) {
-            ruleNames += "; " + item.first;
             fprintf(OStr, "    wire %s__RDY_internal;\n", item.first.c_str());
             fprintf(OStr, "    wire %s__ENA_internal = rule_enable[%d] && %s__RDY_internal;\n", item.first.c_str(), ind, item.first.c_str());
             assignList["rule_ready[" + utostr(ind) + "]"] = item.first + "__RDY_internal";
             ind++;
         }
-    if (ruleNames != "")
-        metaList.push_back("//METARULES" + ruleNames);
     // generate local state element declarations
     int Idx = 0;
     std::list<std::string> resetList;
@@ -419,24 +415,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         if (!endswith(mname, "__RDY"))
             gatherMeta(mname, metaList);
     }
-    for (auto item: table->interfaceConnect) {
-        int Idx = 0;
-        for (auto I = item.STy->element_begin(), E = item.STy->element_end(); I != E; ++I, Idx++) {
-            std::string fname = fieldName(item.STy, Idx);
-            if (endswith(fname, "__RDYp")) {
-                fname = fname.substr(0, fname.length() - 6);
-                std::string tname = item.target;
-                for (unsigned i = 0; i < tname.length(); i++)
-                    if (tname[i] == '.')
-                        tname[i] = '$';
-                std::string sname = item.source;
-                for (unsigned i = 0; i < sname.length(); i++)
-                    if (sname[i] == '.')
-                        sname[i] = '$';
-                metaList.push_back("//METACONNECT; " + tname + "$" + fname + "; " + sname + "$" + fname);
-            }
-        }
-    }
     // combine mux'ed assignments into a single 'assign' statement
     // Context: before local state declarations, to allow inlining
     for (auto item: muxValueList) {
@@ -511,6 +489,30 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "`include \"%s.vh\"\n", item.first.c_str());
     fprintf(OStr, "`define %s_RULE_COUNT (%s)\n\n", name.c_str(), extraRules.c_str());
     // write out metadata comments at end of the file
+    std::string ruleNames;
+    for (auto item : table->rules)
+        if (item.second)
+            ruleNames += "; " + item.first;
+    if (ruleNames != "")
+        metaList.push_back("//METARULES" + ruleNames);
+    for (auto item: table->interfaceConnect) {
+        int Idx = 0;
+        for (auto I = item.STy->element_begin(), E = item.STy->element_end(); I != E; ++I, Idx++) {
+            std::string fname = fieldName(item.STy, Idx);
+            if (endswith(fname, "__RDYp")) {
+                fname = fname.substr(0, fname.length() - 6);
+                std::string tname = item.target;
+                for (unsigned i = 0; i < tname.length(); i++)
+                    if (tname[i] == '.')
+                        tname[i] = '$';
+                std::string sname = item.source;
+                for (unsigned i = 0; i < sname.length(); i++)
+                    if (sname[i] == '.')
+                        sname[i] = '$';
+                metaList.push_back("//METACONNECT; " + tname + "$" + fname + "; " + sname + "$" + fname);
+            }
+        }
+    }
     for (auto item : metaList)
         fprintf(OStr, "%s\n", item.c_str());
     fprintf(OStr, "`endif\n");
