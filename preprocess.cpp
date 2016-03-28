@@ -385,7 +385,7 @@ sourceTmp->getType()->dump();
 void preprocessModule(Module *Mod)
 {
     // remove dwarf info, if it was compiled in
-    const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
+    static const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
     const char **p = delete_names;
     while(*p)
         if (Function *Declare = Mod->getFunction(*p++)) {
@@ -396,47 +396,32 @@ void preprocessModule(Module *Mod)
             Declare->eraseFromParent();
         }
 
-    // remove Select statements
+    // remove Select statements; construct vtab tables
     for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
         processSelect(FI);
-    // replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
-    const char *overflow_names[] = { "llvm.umul.with.overflow.i64", "llvm.uadd.with.overflow.i64", NULL};
-    p = overflow_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++))
-            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                processOverflow(cast<CallInst>(*I));
 
-    // remap all calls to 'malloc' and 'new' to our runtime.
-    const char *malloc_names[] = { "_Znwm", "_Znam", "malloc", NULL};
-    p = malloc_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++))
-            for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; I++)
-                processMalloc(cast<CallInst>(*I));
+    // process various function calls
+    static struct {
+        const char *name;
+        void (*func)(CallInst *II);
+    } callProcess[] = {
+        // replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
+        {"llvm.umul.with.overflow.i64", processOverflow}, {"llvm.uadd.with.overflow.i64", processOverflow},
+        // remap all calls to 'malloc' and 'new' to our runtime.
+        {"_Znwm", processMalloc}, {"_Znam", processMalloc}, {"malloc", processMalloc},
+        // replace calls to methodToFunction with "Function *" values.
+        // Context: Must be after all vtable processing.
+        {"methodToFunction", processMethodToFunction},
+        {"connectInterface", processConnectInterface},
+        {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
+        {NULL}};
 
-    // replace calls to methodToFunction with "Function *" values.
-    // Context: Must be after all vtable processing.
-    if (Function *Declare = Mod->getFunction("methodToFunction"))
+    for (int i = 0; callProcess[i].name; i++) {
+        if (Function *Declare = Mod->getFunction(callProcess[i].name))
         for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
             auto NI = std::next(I);
-            processMethodToFunction(cast<CallInst>(*I));
+            callProcess[i].func(cast<CallInst>(*I));
             I = NI;
         }
-
-    // process 'connectInterface' calls
-    if (Function *Declare = Mod->getFunction("connectInterface"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
-            auto NI = std::next(I);
-            processConnectInterface(cast<CallInst>(*I));
-            I = NI;
-        }
-
-    // process calls to llvm.memcpy
-    if (Function *Declare = Mod->getFunction("llvm.memcpy.p0i8.p0i8.i64"))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
-            auto NI = std::next(I);
-            processMemcpy(cast<CallInst>(*I));
-            I = NI;
-        }
+    }
 }
