@@ -89,8 +89,8 @@ def splitRef(value):
     return temp
 
 def checkMethod(dictBase, name):
-    if dictBase.get(name) is None:
-        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': []}
+    if dictBase['methods'].get(name) is None:
+        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'exclusive': [], 'before': []}
 
 def processFile(moduleName):
     print 'processFile:', moduleName
@@ -114,8 +114,9 @@ def processFile(moduleName):
                     inVector = map(str.strip, inLine.strip().split(';'))
                     if inVector[-1] == '':
                         inVector.pop()
-                    #print 'MM', inLine, inVector
-                    metaIndex = {'//METAINVOKE': 'invoke', '//METAREAD': 'read', '//METAWRITE': 'write'}.get(inVector[0])
+                    metaIndex = {'//METAINVOKE': 'invoke', '//METAREAD': 'read', '//METAWRITE': 'write',
+                         '//METAEXCLUSIVE': 'exclusive', '//METABEFORE': 'before'}.get(inVector[0])
+                    #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
                         if not inVector[1].endswith('__RDY'):
                             print 'Guard name invalid', invector
@@ -137,6 +138,7 @@ def processFile(moduleName):
                             moduleItem['methods'][inVector[1]][metaIndex].append(splitRef(vitem))
                     else:
                         print 'Unknown case', inVector
+                        sys.exit(1)
     if traceAll:
         print 'ALL', json.dumps(moduleItem, sort_keys=True, indent = 4)
     for key, value in moduleItem['internal'].iteritems():
