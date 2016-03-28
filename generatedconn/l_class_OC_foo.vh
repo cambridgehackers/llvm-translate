@@ -4,5 +4,5 @@
 `define l_class_OC_foo_RULE_COUNT (0)
 
 //METAWRITE; indication$heard; :stop_main_program;
-//METAGUARD; indication$heard__RDY; 1;
+//METAGUARD; indication$heard; 1;
 `endif

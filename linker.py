@@ -118,12 +118,8 @@ def processFile(moduleName):
                          '//METAEXCLUSIVE': 'exclusive', '//METABEFORE': 'before'}.get(inVector[0])
                     #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
-                        if not inVector[1].endswith('__RDY'):
-                            print 'Guard name invalid', invector
-                            sys.exit(-1)
-                        mname = inVector[1][:-5]
-                        checkMethod(moduleItem, mname)
-                        moduleItem['methods'][mname]['guard'] = inVector[2]
+                        checkMethod(moduleItem, inVector[1])
+                        moduleItem['methods'][inVector[1]]['guard'] = inVector[2]
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':

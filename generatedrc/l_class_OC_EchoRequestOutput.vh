@@ -7,7 +7,7 @@
 //METAINVOKE; request$say; :pipe$enq;
 //METAWRITE; request$say2; :ind$data$say2$meth;:ind$data$say2$v;
 //METAINVOKE; request$say2; :pipe$enq;
-//METAGUARD; request$say2__RDY; pipe$enq__RDY;
-//METAGUARD; request$say__RDY; pipe$enq__RDY;
+//METAGUARD; request$say2; pipe$enq__RDY;
+//METAGUARD; request$say; pipe$enq__RDY;
 //METAEXTERNAL; pipe; l_class_OC_PipeIn;
 `endif

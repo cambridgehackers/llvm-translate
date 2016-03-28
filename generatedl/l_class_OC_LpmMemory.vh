@@ -7,13 +7,13 @@
 //METAREAD; memdelay; :delayCount;
 //METAWRITE; memdelay; :delayCount;
 //METAEXCLUSIVE; memdelay; :req; :resAccept
-//METAGUARD; memdelay__RDY; delayCount > 1;
+//METAGUARD; memdelay; delayCount > 1;
 //METAWRITE; req; :delayCount;:saved;
-//METAGUARD; req__RDY; delayCount == 0;
+//METAGUARD; req; delayCount == 0;
 //METAWRITE; resAccept; :delayCount;
-//METAGUARD; resAccept__RDY; delayCount == 1;
+//METAGUARD; resAccept; delayCount == 1;
 //METAREAD; resValue; :saved;
 //METABEFORE; resValue; :req
-//METAGUARD; resValue__RDY; delayCount == 1;
+//METAGUARD; resValue; delayCount == 1;
 //METARULES; memdelay
 `endif

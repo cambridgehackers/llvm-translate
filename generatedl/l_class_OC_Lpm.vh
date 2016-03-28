@@ -6,15 +6,15 @@
 `define l_class_OC_Lpm_RULE_COUNT (4 + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_LpmMemory_RULE_COUNT)
 
 //METAINVOKE; enter; :fifo$in$enq;:inQ$out$deq;:inQ$out$first;:mem$req;
-//METAGUARD; enter__RDY; ((inQ$out$first__RDY & inQ$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; enter; ((inQ$out$first__RDY & inQ$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
 //METAINVOKE; exit; :fifo$out$deq;:fifo$out$first;:mem$resAccept;:mem$resValue;:outQ$in$enq;
-//METAGUARD; exit__RDY; (((((((doneCount % 5) != 0) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & outQ$in$enq__RDY;
+//METAGUARD; exit; (((((((doneCount % 5) != 0) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & outQ$in$enq__RDY;
 //METAINVOKE; recirc; :fifo$in$enq;:fifo$out$deq;:fifo$out$first;:mem$req;:mem$resAccept;:mem$resValue;
-//METAGUARD; recirc__RDY; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; recirc; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
 //METAINVOKE; respond; :indication$heard;:outQ$out$deq;:outQ$out$first;
-//METAGUARD; respond__RDY; (outQ$out$first__RDY & outQ$out$deq__RDY) & indication$heard__RDY;
+//METAGUARD; respond; (outQ$out$first__RDY & outQ$out$deq__RDY) & indication$heard__RDY;
 //METAINVOKE; say; :inQ$in$enq;
-//METAGUARD; say__RDY; inQ$in$enq__RDY;
+//METAGUARD; say; inQ$in$enq__RDY;
 //METARULES; enter; exit; recirc; respond
 //METAINTERNAL; inQ; l_class_OC_Fifo2;
 //METAINTERNAL; fifo; l_class_OC_Fifo2;
