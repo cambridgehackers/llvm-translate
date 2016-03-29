@@ -150,6 +150,10 @@ def processFile(moduleName):
         if not moduleItem['connDictionary'].get(targetItem):
             moduleItem['connDictionary'][targetItem] = {}
         moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
+    for item in moduleItem['exclusive']:
+        print 'EXCLUSIVE', item
+        for element in item:
+            print '        ', element + ": " + moduleItem['methods'][element]['guard']
     #print 'moduleItem[connDictionary]', moduleItem['name'], json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
 
 def extractInterfaces(moduleName):
@@ -251,8 +255,6 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
     moduleItem = mInfo[moduleName]
     methodItem = moduleItem['methods'][methodName]
     returnList = prependList(prefix, methodItem[readOrWrite])
-    #tguard = expandGuard(moduleItem, prefix, methodItem['guard'])
-    #methodItem['guard'] = tguard
     for iitem in methodItem['invoke']:
         #print 'IIII', iitem
         for item in iitem[1:]:
@@ -261,10 +263,6 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
                 continue
             rList = getList(thisRef + '$', innerFileName, thisMeth, readOrWrite, thisDict)
             for rItem in rList:
-                #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
-                #gVal = tguard
-                #for ind in range(1, len(rItem)):
-                    #rItem[ind] = prefix + refName[0] + "$" + rItem[ind]
                 insertItem = True
                 for item in returnList:
                     if item[0] == rItem[0] and item[1] == rItem[1]:
@@ -287,17 +285,16 @@ def dumpRules(prefix, moduleName, modDict):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         rList = getList(prefix, moduleName, ruleName, 'read', modDict)
-         wList = getList(prefix, moduleName, ruleName, 'write', modDict)
-         iList = getList(prefix, moduleName, ruleName, 'invoke', modDict)
-         tGuard = expandGuard(moduleItem, prefix, methodItem['guard'])
-         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'guard': tGuard, 'write': wList, 'read': rList, 'invoke': iList, 'connDictionary': modDict})
+         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict,
+             'guard': expandGuard(moduleItem, prefix, methodItem['guard']),
+             'write': getList(prefix, moduleName, ruleName, 'write', modDict),
+             'read': getList(prefix, moduleName, ruleName, 'read', modDict),
+             'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)})
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for eitem in moduleItem['exclusive']:
-        print 'EEEE', eitem
         exclusiveList.append([ prependName(prefix, field) for field in eitem])
 
 def formatRules():
