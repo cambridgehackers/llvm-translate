@@ -54,29 +54,32 @@ def prependName(name, string):
     #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
-def expandGuard(mitem, name, string):
-    retVal = ''
-    for match in re.finditer(SCANNER, string):
-        for i in range(1, 5):
-            tfield = match.group(i)
-            if tfield:
-                if i == 5:
-                    print 'Error in regex', string, tfield
-                if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
-                    if tfield.endswith('__RDY'):
-                        tsep = tfield.split('$')
-                        item = mitem['internal'].get(tsep[0])
-                        if item:
-                            rmitem = mInfo[item]
-                            methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
-                            tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
+def expandGuard(mitem, name, inList):
+    retList = []
+    for string in inList:
+        retVal = ''
+        for match in re.finditer(SCANNER, string):
+            for i in range(1, 5):
+                tfield = match.group(i)
+                if tfield:
+                    if i == 5:
+                        print 'Error in regex', string, tfield
+                    if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
+                        if tfield.endswith('__RDY'):
+                            tsep = tfield.split('$')
+                            item = mitem['internal'].get(tsep[0])
+                            if item:
+                                rmitem = mInfo[item]
+                                methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
+                                tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
+                            else:
+                                tfield = name + tfield
                         else:
                             tfield = name + tfield
-                    else:
-                        tfield = name + tfield
-                retVal += tfield
+                    retVal += tfield
     #print 'expandGuard', string, ' -> ', retVal
-    return retVal
+        retList.append(retVal)
+    return retList
 
 def splitName(value):
     valsplit = value.split('$')
@@ -91,6 +94,25 @@ def splitRef(value):
 def checkMethod(dictBase, name):
     if dictBase['methods'].get(name) is None:
         dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'before': []}
+
+def splitGuard(canonVec, source):
+    inStr = ''
+    indent = 0
+    for inchar in source:
+        if inchar == '(':
+            indent += 1
+        elif inchar == ')':
+            indent -= 1
+        elif inchar == '&' and indent == 0:
+            splitGuard(canonVec, inStr.strip())
+            inStr = ''
+            continue
+        inStr += inchar
+    if inStr != '':
+        if inStr[0] == '(' and inStr[-1] == ')':
+            splitGuard(canonVec, inStr[1:-1])
+        else:
+            canonVec.append(inStr.strip())
 
 def processFile(moduleName):
     print 'processFile:', moduleName
@@ -119,7 +141,10 @@ def processFile(moduleName):
                     #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
                         checkMethod(moduleItem, inVector[1])
-                        moduleItem['methods'][inVector[1]]['guard'] = inVector[2]
+                        canonVec = []
+                        splitGuard(canonVec, inVector[2])
+                        print 'CANON', inVector[2], canonVec
+                        moduleItem['methods'][inVector[1]]['guard'] = canonVec
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':
@@ -153,7 +178,7 @@ def processFile(moduleName):
     for item in moduleItem['exclusive']:
         print 'EXCLUSIVE', item
         for element in item:
-            print '        ', element + ": " + moduleItem['methods'][element]['guard']
+            print '        ', element + ": " + ' & '.join(moduleItem['methods'][element]['guard'])
     #print 'moduleItem[connDictionary]', moduleItem['name'], json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
 
 def extractInterfaces(moduleName):
@@ -299,7 +324,7 @@ def dumpRules(prefix, moduleName, modDict):
 
 def formatRules():
     for item in ruleList:
-         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + item['guard']
+         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + ' & '.join(item['guard'])
 
 def intersect(left, right):
     for litem in left:
