@@ -10,6 +10,7 @@
 //METAREAD; input_rule; :meth_delayi;:v_delayi;
 //METAWRITE; input_rule; :busy_delayi;
 //METAINVOKE; input_rule; :indication$heard;
+//METABEFORE; input_rule; :pipe$enq
 //METAGUARD; input_rule; (busy_delayi != 0) & indication$heard__RDY;
 //METARULES; input_rule
 //METAEXTERNAL; indication; l_class_OC_EchoIndication;

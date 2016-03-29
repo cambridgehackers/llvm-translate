@@ -110,7 +110,7 @@ printf("[%s:%d] mname %s innermname %s intersect %s\n", __FUNCTION__, __LINE__, 
                         if (item.first == inneritem.first) {
 printf("[%s:%d] mname %s innermname %s conflict %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
                             metaConflict[innermname] = "; :"; // ! takes precedence over <=
-                            metaBefore[innermname] = "";
+                            //metaBefore[innermname] = "";
                             break;
                         }
                     }

@@ -226,6 +226,24 @@ def formatAccess(isWrite, aList):
         sep = ', '
     return ret
 
+def lookupInvoke(prefix, moduleItem, item, connDictionary):
+    refName = item.split('$')
+    innerFileName = moduleItem['internal'].get(refName[0])
+    if innerFileName:
+        thisRef = prefix + refName[0]
+        thisMeth =  '$'.join(refName[1:])
+        thisDict = moduleItem['connDictionary']
+    else:
+        newItem = connDictionary.get(item)
+        if not newItem:
+            print 'itemnotfound', item, 'dict', connDictionary.get(item)
+            return None, None, None, None
+        thisRef = newItem[0]
+        innerFileName = newItem[1]
+        thisMeth = newItem[2]
+        thisDict = {}
+    return thisRef, innerFileName, thisMeth, thisDict
+
 def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
     #print 'getlist', '"' + prefix + '"', moduleName, methodName, readOrWrite, connDictionary
     if connDictionary is None:
@@ -238,17 +256,10 @@ def getList(prefix, moduleName, methodName, readOrWrite, connDictionary):
     for iitem in methodItem['invoke']:
         #print 'IIII', iitem
         for item in iitem[1:]:
-            refName = item.split('$')
-            innerFileName = moduleItem['internal'].get(refName[0])
-            if innerFileName:
-                rList = getList(prefix + refName[0] + '$', innerFileName, '$'.join(refName[1:]), readOrWrite, moduleItem['connDictionary'])
-            else:
-                newItem = connDictionary.get(item)
-                if not newItem:
-                    print 'itemnotfound', item, 'dict', connDictionary.get(item)
-                    continue
-                else:
-                    rList = getList(newItem[0] + '$', newItem[1], newItem[2], readOrWrite, {})
+            thisRef, innerFileName, thisMeth, thisDict = lookupInvoke(prefix, moduleItem, item, connDictionary)
+            if innerFileName is None:
+                continue
+            rList = getList(thisRef + '$', innerFileName, thisMeth, readOrWrite, thisDict)
             for rItem in rList:
                 #gVal = prependName(prefix + refName[0] + "$", gitem['guard'])
                 #gVal = tguard
@@ -278,8 +289,9 @@ def dumpRules(prefix, moduleName, modDict):
          methodItem = moduleItem['methods'][ruleName]
          rList = getList(prefix, moduleName, ruleName, 'read', modDict)
          wList = getList(prefix, moduleName, ruleName, 'write', modDict)
+         iList = getList(prefix, moduleName, ruleName, 'invoke', modDict)
          tGuard = expandGuard(moduleItem, prefix, methodItem['guard'])
-         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'guard': tGuard, 'write': wList, 'read': rList, 'invoke': prependList(prefix, methodItem['invoke'])})
+         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'guard': tGuard, 'write': wList, 'read': rList, 'invoke': iList, 'connDictionary': modDict})
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
@@ -346,7 +358,14 @@ if __name__=='__main__':
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
             for iitem in sitem['invoke']:
-                print '        INV:', iitem
+                for item in iitem[1:]:
+                    moduleItem = mInfo[sitem['module']]
+                    thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, sitem['connDictionary'])
+                    befList = []
+                    if innerFileName is not None:
+                        befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
+                    #print '        INV:', iitem, thisRef, innerFileName, thisMeth, befList
+                    print '        INV:', iitem, befList, sitem['module'], sitem['connDictionary']
             #if sitem['before'] != []:
                 #print 'BEFORE', moduleName, methodName, methodItem['before']
         for sIndex in range(len(schedList)):
