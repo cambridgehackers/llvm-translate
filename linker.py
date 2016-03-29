@@ -40,6 +40,40 @@ SCANNER = re.compile(r'''
   (.)                          # an error!
 ''', re.DOTALL | re.VERBOSE)
 
+def guardToString(source):
+    ret = ''
+    sep = ''
+    for item in source:
+        ret += sep
+        if item[0] == '':
+            ret += item[1]
+        else:
+            ret += item[0] + '(' + item[1] + ')'
+        sep = ' & '
+    return ret
+
+def splitGuard(canonVec, source):
+    inStr = ''
+    indent = 0
+    for inchar in source:
+        if inchar == '(':
+            indent += 1
+        elif inchar == ')':
+            indent -= 1
+        elif inchar == '&' and indent == 0:
+            splitGuard(canonVec, inStr.strip())
+            inStr = ''
+            continue
+        inStr += inchar
+    inStr = inStr.strip()
+    if inStr != '':
+        if inStr[0] == '(' and inStr[-1] == ')':
+            splitGuard(canonVec, inStr[1:-1])
+        elif inStr[-5:] == ' != 0':
+            splitGuard(canonVec, inStr[0:-5])
+        else:
+            canonVec.append(['', inStr])
+
 def prependName(name, string):
     retVal = ''
     for match in re.finditer(SCANNER, string):
@@ -54,9 +88,10 @@ def prependName(name, string):
     #print 'prependName', name, string, ' -> ', retVal
     return retVal
 
-def expandGuard(mitem, name, inList):
+def expandGuard(mitem, name, guardList):
     retList = []
-    for string in inList:
+    for gitem in guardList:
+        string = gitem[1]
         retVal = ''
         for match in re.finditer(SCANNER, string):
             for i in range(1, 5):
@@ -78,7 +113,7 @@ def expandGuard(mitem, name, inList):
                             tfield = name + tfield
                     retVal += tfield
     #print 'expandGuard', string, ' -> ', retVal
-        retList.append(retVal)
+        retList.append([gitem[0], retVal])
     return retList
 
 def splitName(value):
@@ -94,25 +129,6 @@ def splitRef(value):
 def checkMethod(dictBase, name):
     if dictBase['methods'].get(name) is None:
         dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'before': []}
-
-def splitGuard(canonVec, source):
-    inStr = ''
-    indent = 0
-    for inchar in source:
-        if inchar == '(':
-            indent += 1
-        elif inchar == ')':
-            indent -= 1
-        elif inchar == '&' and indent == 0:
-            splitGuard(canonVec, inStr.strip())
-            inStr = ''
-            continue
-        inStr += inchar
-    if inStr != '':
-        if inStr[0] == '(' and inStr[-1] == ')':
-            splitGuard(canonVec, inStr[1:-1])
-        else:
-            canonVec.append(inStr.strip())
 
 def processFile(moduleName):
     print 'processFile:', moduleName
@@ -143,7 +159,7 @@ def processFile(moduleName):
                         checkMethod(moduleItem, inVector[1])
                         canonVec = []
                         splitGuard(canonVec, inVector[2])
-                        print 'CANON', inVector[2], canonVec
+                        print 'CANON', canonVec
                         moduleItem['methods'][inVector[1]]['guard'] = canonVec
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
@@ -178,7 +194,7 @@ def processFile(moduleName):
     for item in moduleItem['exclusive']:
         print 'EXCLUSIVE', item
         for element in item:
-            print '        ', element + ": " + ' & '.join(moduleItem['methods'][element]['guard'])
+            print '        ', element + ": " + guardToString(moduleItem['methods'][element]['guard'])
     #print 'moduleItem[connDictionary]', moduleItem['name'], json.dumps(moduleItem['connDictionary'], sort_keys=True, indent = 4)
 
 def extractInterfaces(moduleName):
@@ -324,7 +340,7 @@ def dumpRules(prefix, moduleName, modDict):
 
 def formatRules():
     for item in ruleList:
-         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + ' & '.join(item['guard'])
+         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + guardToString(item['guard'])
 
 def intersect(left, right):
     for litem in left:
