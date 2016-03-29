@@ -52,11 +52,9 @@ void appendList(int listIndex, BasicBlock *cond, std::string item)
 static std::string gatherList(MetaData *bm, int listIndex)
 {
     std::string temp;
-    inhibitAppend = 1;
     for (auto titem: bm->list[listIndex])
         for (auto item: titem.second)
             temp += printOperand(item,false) + ":" + titem.first + ";";
-    inhibitAppend = 0;
     return temp;
 }
 
@@ -70,6 +68,7 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
     std::list<std::string> metaList;
     std::map<std::string, int> exclusiveSeen;
     // write out metadata comments at end of the file
+    inhibitAppend = 1;
     for (auto FI : table->method) {
         std::string mname = interfacePrefix[FI.first] + FI.first;
         Function *func = FI.second;
@@ -104,12 +103,17 @@ printf("[%s:%d] mname %s innermname %s intersect %s\n", __FUNCTION__, __LINE__, 
                             break;
                         }
                     }
-                }
-                for (auto inneritem: innerbm->list[MetaWrite]) {
+                //}
+                //for (auto inneritem: innerbm->list[MetaWrite]) {
                     for (auto item: bm->list[MetaWrite]) {
                         if (item.first == inneritem.first) {
 printf("[%s:%d] mname %s innermname %s conflict %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
-                            metaConflict[innermname] = "; :"; // ! takes precedence over <=
+                            metaConflict[innermname] = "; ";
+                            std::string temp;
+                            for (auto fitem: inneritem.second)
+                                temp += "|(" + printOperand(fitem,false) + ")";
+                            metaConflict[innermname] += table->guard[table->method[innerFI.first + "__RDY"]];
+                            metaConflict[innermname] += ":"; // ! takes precedence over <=
                             //metaBefore[innermname] = "";
                             break;
                         }
@@ -125,7 +129,7 @@ printf("[%s:%d] mname %s: '%s' '%s'\n", __FUNCTION__, __LINE__, mname.c_str(), i
                  }
             exclusiveSeen[mname] = 1;
             if (metaStr != "")
-                metaList.push_back("//METAEXCLUSIVE; :" + mname + metaStr);
+                metaList.push_back("//METAEXCLUSIVE; " + table->guard[table->method[FI.first + "__RDY"]] + ":" + mname + metaStr);
             metaStr = "";
             for (auto item: metaBefore)
                  if (item.second != "") {
@@ -162,4 +166,5 @@ printf("[%s:%d] mname %s: '%s' '%s'\n", __FUNCTION__, __LINE__, mname.c_str(), i
     }
     for (auto item : metaList)
         fprintf(OStr, "%s\n", item.c_str());
+    inhibitAppend = 0;
 }

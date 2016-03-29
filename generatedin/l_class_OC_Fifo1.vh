@@ -4,7 +4,7 @@
 `define l_class_OC_Fifo1_RULE_COUNT (0)
 
 //METAWRITE; out$deq; :full;
-//METAEXCLUSIVE; :out$deq; :in$enq
+//METAEXCLUSIVE; full:out$deq; full ^ 1:in$enq
 //METAGUARD; out$deq; full;
 //METAWRITE; in$enq; :element;:full;
 //METAGUARD; in$enq; full ^ 1;
