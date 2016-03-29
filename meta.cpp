@@ -93,49 +93,33 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
                 Function *innerfunc = innerFI.second;
                 MetaData *innerbm = &funcMetaMap[innerfunc];
                 std::string tempConflict;
-                if (innerfunc == func)
-                    continue;
+                if (innerfunc != func)
                 for (auto inneritem: innerbm->list[MetaWrite]) {
-                    for (auto item: bm->list[MetaRead]) {
+                    for (auto item: bm->list[MetaRead])
                         if (item.first == inneritem.first) {
-printf("[%s:%d] mname %s innermname %s intersect %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
                             metaBefore[innermname] = "; :";
                             break;
                         }
-                    }
-                //}
-                //for (auto inneritem: innerbm->list[MetaWrite]) {
-                    for (auto item: bm->list[MetaWrite]) {
+                    for (auto item: bm->list[MetaWrite])
                         if (item.first == inneritem.first) {
-printf("[%s:%d] mname %s innermname %s conflict %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
                             metaConflict[innermname] = "; ";
-                            std::string temp;
-                            for (auto fitem: inneritem.second)
-                                temp += "|(" + printOperand(fitem,false) + ")";
-                            metaConflict[innermname] += table->guard[table->method[innerFI.first + "__RDY"]];
-                            metaConflict[innermname] += ":"; // ! takes precedence over <=
-                            //metaBefore[innermname] = "";
                             break;
                         }
-                    }
                 }
             }
             std::string metaStr;
             for (auto item: metaConflict)
                  if (item.second != "" && !exclusiveSeen[item.first]) {
-printf("[%s:%d] mname %s: '%s' '%s'\n", __FUNCTION__, __LINE__, mname.c_str(), item.second.c_str(), item.first.c_str());
                      metaStr += item.second + item.first;
                      exclusiveSeen[item.first] = 1;
                  }
             exclusiveSeen[mname] = 1;
             if (metaStr != "")
-                metaList.push_back("//METAEXCLUSIVE; " + table->guard[table->method[FI.first + "__RDY"]] + ":" + mname + metaStr);
+                metaList.push_back("//METAEXCLUSIVE; " + mname + metaStr);
             metaStr = "";
             for (auto item: metaBefore)
-                 if (item.second != "") {
-printf("[%s:%d] mname %s: '%s' '%s'\n", __FUNCTION__, __LINE__, mname.c_str(), item.second.c_str(), item.first.c_str());
+                 if (item.second != "")
                      metaStr += item.second + item.first;
-                 }
             if (metaStr != "")
                 metaList.push_back("//METABEFORE; " + mname + metaStr);
         }

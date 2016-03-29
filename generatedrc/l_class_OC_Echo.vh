@@ -5,7 +5,7 @@
 
 //METAREAD; delay_rule; :meth_temp;:v_temp;
 //METAWRITE; delay_rule; :busy;:busy_delay;:meth_delay;:v_delay;
-//METAEXCLUSIVE; ((busy != 0) & (busy_delay == 0)) != 0:delay_rule; (busy != 0) ^ 1:request$say; (busy != 0) ^ 1:request$say2; (busy_delay != 0) & indication$heard__RDY:respond_rule
+//METAEXCLUSIVE; delay_rule; request$say; request$say2; respond_rule
 //METABEFORE; delay_rule; :request$say; :request$say2
 //METAGUARD; delay_rule; ((busy != 0) & (busy_delay == 0)) != 0;
 //METAREAD; respond_rule; :meth_delay;:v_delay;

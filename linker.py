@@ -129,7 +129,7 @@ def processFile(moduleName):
                     elif inVector[0] == '//METACONNECT':
                         moduleItem['connect'].append(inVector[1:])
                     elif inVector[0] == '//METAEXCLUSIVE':
-                        moduleItem['exclusive'].append([splitRef(vitem) for vitem in inVector[1:]])
+                        moduleItem['exclusive'].append(inVector[1:])
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
@@ -298,7 +298,7 @@ def dumpRules(prefix, moduleName, modDict):
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for eitem in moduleItem['exclusive']:
         print 'EEEE', eitem
-        exclusiveList.append(prependList(prefix, eitem))
+        exclusiveList.append([ prependName(prefix, field) for field in eitem])
 
 def formatRules():
     for item in ruleList:
