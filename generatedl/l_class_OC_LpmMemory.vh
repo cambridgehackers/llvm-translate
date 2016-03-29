@@ -6,7 +6,8 @@
 
 //METAREAD; memdelay; :delayCount;
 //METAWRITE; memdelay; :delayCount;
-//METAEXCLUSIVE; :memdelay; :req; :resAccept
+//METAEXCLUSIVE; delayCount > 1:memdelay; delayCount == 0:req; delayCount == 1:resAccept
+//METABEFORE; memdelay; :req; :resAccept
 //METAGUARD; memdelay; delayCount > 1;
 //METAWRITE; req; :delayCount;:saved;
 //METAGUARD; req; delayCount == 0;
