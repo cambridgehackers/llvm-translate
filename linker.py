@@ -90,14 +90,14 @@ def splitRef(value):
 
 def checkMethod(dictBase, name):
     if dictBase['methods'].get(name) is None:
-        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'exclusive': [], 'before': []}
+        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'before': []}
 
 def processFile(moduleName):
     print 'processFile:', moduleName
     if mInfo.get(moduleName) is not None:
         return
     moduleItem = {'name': moduleName, 'rules': [], 'export': [], 'methods': {},
-        'internal': {}, 'external': {}, 'connect': [], 'connDictionary': {}}
+        'internal': {}, 'external': {}, 'connect': [], 'connDictionary': {}, 'exclusive': []}
     mInfo[moduleName] = moduleItem
     fileDesc = None
     for item in options.directory:
@@ -115,7 +115,7 @@ def processFile(moduleName):
                     if inVector[-1] == '':
                         inVector.pop()
                     metaIndex = {'//METAINVOKE': 'invoke', '//METAREAD': 'read', '//METAWRITE': 'write',
-                         '//METAEXCLUSIVE': 'exclusive', '//METABEFORE': 'before'}.get(inVector[0])
+                         '//METABEFORE': 'before'}.get(inVector[0])
                     #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
                         checkMethod(moduleItem, inVector[1])
@@ -128,6 +128,8 @@ def processFile(moduleName):
                         moduleItem['external'][inVector[1]] = inVector[2]
                     elif inVector[0] == '//METACONNECT':
                         moduleItem['connect'].append(inVector[1:])
+                    elif inVector[0] == '//METAEXCLUSIVE':
+                        moduleItem['exclusive'].append([splitRef(vitem) for vitem in inVector[1:]])
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
@@ -277,11 +279,14 @@ def dumpRules(prefix, moduleName, modDict):
          rList = getList(prefix, moduleName, ruleName, 'read', modDict)
          wList = getList(prefix, moduleName, ruleName, 'write', modDict)
          tGuard = expandGuard(moduleItem, prefix, methodItem['guard'])
-         ruleList.append({'module': moduleName, 'name': ruleName, 'guard': tGuard, 'write': wList, 'read': rList})
+         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'guard': tGuard, 'write': wList, 'read': rList, 'invoke': prependList(prefix, methodItem['invoke'])})
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
+    for eitem in moduleItem['exclusive']:
+        print 'EEEE', eitem
+        exclusiveList.append(prependList(prefix, eitem))
 
 def formatRules():
     for item in ruleList:
@@ -319,6 +324,7 @@ if __name__=='__main__':
         print 'output'
         secondPass = False
         ruleList = []
+        exclusiveList = []
         totalList = {}
         accessList = [[], []]
         for moduleName in options.verilog:
@@ -339,6 +345,10 @@ if __name__=='__main__':
         print 'SCHED'
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
+            for iitem in sitem['invoke']:
+                print '        INV:', iitem
+            #if sitem['before'] != []:
+                #print 'BEFORE', moduleName, methodName, methodItem['before']
         for sIndex in range(len(schedList)):
             sitem = schedList[sIndex]
             for item in sitem['read']:
@@ -346,6 +356,7 @@ if __name__=='__main__':
                     witem = schedList[wIndex]
                     if item in witem['write']:
                         print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
+        print 'EXCL', exclusiveList
         if removeUnref:
             secondPass = True
             ruleList = []

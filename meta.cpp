@@ -125,7 +125,7 @@ printf("[%s:%d] mname %s: '%s' '%s'\n", __FUNCTION__, __LINE__, mname.c_str(), i
                  }
             exclusiveSeen[mname] = 1;
             if (metaStr != "")
-                metaList.push_back("//METAEXCLUSIVE; " + mname + metaStr);
+                metaList.push_back("//METAEXCLUSIVE; :" + mname + metaStr);
             metaStr = "";
             for (auto item: metaBefore)
                  if (item.second != "") {
