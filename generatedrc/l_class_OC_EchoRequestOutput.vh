@@ -5,6 +5,7 @@
 
 //METAWRITE; request$say; :ind$data$say$meth;:ind$data$say$v;
 //METAINVOKE; request$say; :pipe$enq;
+//METAEXCLUSIVE; request$say; request$say2
 //METAWRITE; request$say2; :ind$data$say2$meth;:ind$data$say2$v;
 //METAINVOKE; request$say2; :pipe$enq;
 //METAGUARD; request$say2; pipe$enq__RDY;

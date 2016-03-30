@@ -5,6 +5,7 @@
 `define l_class_OC_IVector_RULE_COUNT (10 + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT + `l_class_OC_FifoPong_RULE_COUNT)
 
 //METAINVOKE; respond0; :fifo0$out$deq;:fifo0$out$first;:ind$heard;
+//METAEXCLUSIVE; respond0; respond1; respond2; respond3; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond0; (fifo0$out$first__RDY & fifo0$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond1; :fifo1$out$deq;:fifo1$out$first;:ind$heard;
 //METAGUARD; respond1; (fifo1$out$first__RDY & fifo1$out$deq__RDY) & ind$heard__RDY;
