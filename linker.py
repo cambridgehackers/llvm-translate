@@ -63,7 +63,7 @@ def optGuard(item):
         return item[0] + item[1:]
     if len(item) == 3 and item[1] == "&" and len(item[2]) == 3 and item[2][1] == "&":
         return item[:1] + item[2]
-    if len(item) == 1:
+    if type(item) != str and len(item) == 1:
         return optGuard(item[0])
     return item
 
@@ -463,24 +463,36 @@ if __name__=='__main__':
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        for ritem in ruleList:
+            ritem['before'] = []
+            for iitem in ritem['invoke']:
+                for item in iitem[1:]:
+                    moduleItem = mInfo[ritem['module']]
+                    thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, ritem['connDictionary'])
+                    befList = []
+                    if innerFileName is not None:
+                        befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
+                        ritem['before'] += befList
+                    #print '        INV:', ritem['name'], iitem, thisRef, thisMeth, befList
         schedList = []
         for ritem in ruleList:
             sIndex = 0
             while sIndex < len(schedList):
-                if intersect(schedList[sIndex]['write'], ritem['read']):
+                #if intersect(schedList[sIndex]['write'], ritem['read']):
+                if intersect(schedList[sIndex]['invoke'], ritem['before']):
                     # our rule read something that was written at this stage, insert before
                     break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
         print 'SCHED'
         for sitem in schedList:
-            print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
+            print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['invoke']]), '    :', ', '.join([foo[1] for foo in sitem['before']])
         for sIndex in range(len(schedList)):
             sitem = schedList[sIndex]
-            for item in sitem['read']:
-                for wIndex in range(0, sIndex-1):
+            for item in sitem['before']:
+                for wIndex in range(0, sIndex):
                     witem = schedList[wIndex]
-                    if item in witem['write']:
+                    if item in witem['invoke']:
                         print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
         print 'EXCL', exclusiveList
         if removeUnref:
