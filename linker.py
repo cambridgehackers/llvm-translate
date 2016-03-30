@@ -149,7 +149,7 @@ def splitRef(value):
 
 def checkMethod(dictBase, name):
     if dictBase['methods'].get(name) is None:
-        dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'before': []}
+        dictBase['methods'][name] = {'guard': '', 'invoke': [], 'before': []}
 
 def disjointCondition(element, cond):
     #print 'DDDDD', element, cond
@@ -211,14 +211,15 @@ def processFile(moduleName):
                     inVector = map(str.strip, inLine.strip().split(';'))
                     if inVector[-1] == '':
                         inVector.pop()
-                    metaIndex = {'//METAINVOKE': 'invoke', '//METAREAD': 'read', '//METAWRITE': 'write',
-                         '//METABEFORE': 'before'}.get(inVector[0])
+                    metaIndex = {'//METAINVOKE': 'invoke', '//METABEFORE': 'before'}.get(inVector[0])
                     #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
                         checkMethod(moduleItem, inVector[1])
                         canonVec = splitGuard(inVector[2])
                         #print 'CANON', canonVec
                         moduleItem['methods'][inVector[1]]['guard'] = canonVec
+                    elif inVector[0] == '//METAREAD' or inVector[0] == '//METAWRITE':
+                        pass
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
                     elif inVector[0] == '//METAINTERNAL':
@@ -406,10 +407,8 @@ def dumpRules(prefix, moduleName, modDict):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict,
+         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict, 'before': [],
              'guard': expandGuard(moduleItem, prefix, methodItem['guard']),
-             'write': getList(prefix, moduleName, ruleName, 'write', modDict),
-             'read': getList(prefix, moduleName, ruleName, 'read', modDict),
              'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)})
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
@@ -420,7 +419,7 @@ def dumpRules(prefix, moduleName, modDict):
 
 def formatRules():
     for item in ruleList:
-         totalList[formatAccess(1, item['write']) + '/' + item['name']] = formatAccess(0, item['read']) + '\n        ' + guardToString(item['guard'])
+         totalList[formatAccess(1, item['invoke']) + '/' + item['name']] = formatAccess(0, item['before']) + '\n        ' + guardToString(item['guard'])
 
 def intersect(left, right):
     for litem in left:
@@ -430,17 +429,16 @@ def intersect(left, right):
 
 def dumpDep(schedList, wIndex, targetItem):
     wItem = schedList[wIndex]
-    #print 'DD', wItem, wItem['read']
     dumpString = ''
     foundTarget = False
-    for item in wItem['read']:
+    for item in wItem['before']:
         for sIndex in range(wIndex + 1, len(schedList)):
             sItem = schedList[sIndex]
-            if item in sItem['write']:
-                #print 'write', item[1], sItem['name']
+            if item in sItem['invoke']:
+                #print 'invoke', item[1], sItem['name']
                 ret = dumpDep(schedList, sIndex, targetItem)
                 if ret != '':
-                    dumpString += ' reads[' + item[1] + ']: ' + sItem['name'] + ret
+                    dumpString += ' befores[' + item[1] + ']: ' + sItem['name'] + ret
         if targetItem == item:
             return ' ' + dumpString
     return dumpString
@@ -464,7 +462,6 @@ if __name__=='__main__':
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
         for ritem in ruleList:
-            ritem['before'] = []
             for iitem in ritem['invoke']:
                 for item in iitem[1:]:
                     moduleItem = mInfo[ritem['module']]
@@ -478,7 +475,6 @@ if __name__=='__main__':
         for ritem in ruleList:
             sIndex = 0
             while sIndex < len(schedList):
-                #if intersect(schedList[sIndex]['write'], ritem['read']):
                 if intersect(schedList[sIndex]['invoke'], ritem['before']):
                     # our rule read something that was written at this stage, insert before
                     break
@@ -493,7 +489,7 @@ if __name__=='__main__':
                 for wIndex in range(0, sIndex):
                     witem = schedList[wIndex]
                     if item in witem['invoke']:
-                        print 'error', item, 'read: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
+                        print 'error', item, 'before: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
         print 'EXCL', exclusiveList
         if removeUnref:
             secondPass = True
