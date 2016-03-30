@@ -251,6 +251,40 @@ def processFile(moduleName):
         if not moduleItem['connDictionary'].get(targetItem):
             moduleItem['connDictionary'][targetItem] = {}
         moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
+    checkedList = []
+    for rkey, ritem in moduleItem['methods'].iteritems():
+        for ckey, critem in moduleItem['methods'].iteritems():
+            if rkey == ckey or ckey in checkedList:
+                continue
+            foundConflict = False
+            for iitem in ritem['invoke']:
+                for item in iitem[1:]:
+                    #moduleItem = mInfo[ritem['module']]
+                    thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, moduleItem['connDictionary'])
+                    befList = []
+                    if innerFileName is not None:
+                        befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
+                    #print '        INV:', iitem, thisRef, innerFileName, thisMeth, befList
+                    #print '        INV:', iitem, befList, ritem['module'], ritem['connDictionary']
+                    for ciitem in critem['invoke']:
+                        for citem in ciitem[1:]:
+                            if item == citem:
+                                foundConflict = True
+                                break
+                        if foundConflict:
+                            break
+                    if foundConflict:
+                        break
+                if foundConflict:
+                    break
+            if foundConflict:
+                print 'conflict', rkey, ckey
+                moduleItem['exclusive'].append([rkey, ckey])
+        checkedList.append(rkey)
+    for item in moduleItem['exclusive']:
+        print 'BEFEXCLUSIVE', item
+        for element in item:
+            print '        ', element + ": " + guardToString(moduleItem['methods'][element]['guard'])
     newExcl = []
     for item in moduleItem['exclusive']:
         newItem = []
@@ -464,7 +498,6 @@ if __name__=='__main__':
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
         schedList = []
-        checkedList = []
         for ritem in ruleList:
             sIndex = 0
             while sIndex < len(schedList):
@@ -473,34 +506,6 @@ if __name__=='__main__':
                     break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
-            for critem in ruleList:
-                if critem == ritem or critem['name'] in checkedList:
-                    continue
-                foundConflict = False
-                for iitem in ritem['invoke']:
-                    for item in iitem[1:]:
-                        moduleItem = mInfo[ritem['module']]
-                        thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, ritem['connDictionary'])
-                        befList = []
-                        if innerFileName is not None:
-                            befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
-                        #print '        INV:', iitem, thisRef, innerFileName, thisMeth, befList
-                        #print '        INV:', iitem, befList, ritem['module'], ritem['connDictionary']
-                        for ciitem in critem['invoke']:
-                            for citem in ciitem[1:]:
-                                if item == citem:
-                                    foundConflict = True
-                                    break
-                            if foundConflict:
-                                break
-                        if foundConflict:
-                            break
-                    if foundConflict:
-                        break
-                if foundConflict:
-                    #print 'conflict', ritem['name'], critem['name']
-                    exclusiveList.append([ritem['name'], critem['name']])
-            checkedList.append(ritem['name'])
         print 'SCHED'
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
