@@ -153,6 +153,13 @@ def checkMethod(dictBase, name):
 
 def disjointCondition(element, cond):
     #print 'DDDDD', element, cond
+    #HACK HACK
+    if len(element) == 3 and len(cond) == 3:
+        if element[0] == cond[0] and element[1] != cond[1] and element[2] == cond[2]:
+            #print 'disjointHACK', element, cond
+            #     memdelay:  delayCount > 1
+            #     resAccept:  delayCount == 1
+            return True
     for eIndex in range(0, len(element)):
         eitem = element[eIndex]
         if eitem == '!' or eitem == '&':
@@ -457,6 +464,7 @@ if __name__=='__main__':
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
         schedList = []
+        checkedList = []
         for ritem in ruleList:
             sIndex = 0
             while sIndex < len(schedList):
@@ -465,20 +473,37 @@ if __name__=='__main__':
                     break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
+            for critem in ruleList:
+                if critem == ritem or critem['name'] in checkedList:
+                    continue
+                foundConflict = False
+                for iitem in ritem['invoke']:
+                    for item in iitem[1:]:
+                        moduleItem = mInfo[ritem['module']]
+                        thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, ritem['connDictionary'])
+                        befList = []
+                        if innerFileName is not None:
+                            befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
+                        #print '        INV:', iitem, thisRef, innerFileName, thisMeth, befList
+                        #print '        INV:', iitem, befList, ritem['module'], ritem['connDictionary']
+                        for ciitem in critem['invoke']:
+                            for citem in ciitem[1:]:
+                                if item == citem:
+                                    foundConflict = True
+                                    break
+                            if foundConflict:
+                                break
+                        if foundConflict:
+                            break
+                    if foundConflict:
+                        break
+                if foundConflict:
+                    #print 'conflict', ritem['name'], critem['name']
+                    exclusiveList.append([ritem['name'], critem['name']])
+            checkedList.append(ritem['name'])
         print 'SCHED'
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['write']]), '    :', ', '.join([foo[1] for foo in sitem['read']])
-            for iitem in sitem['invoke']:
-                for item in iitem[1:]:
-                    moduleItem = mInfo[sitem['module']]
-                    thisRef, innerFileName, thisMeth, thisDict = lookupInvoke('', moduleItem, item, sitem['connDictionary'])
-                    befList = []
-                    if innerFileName is not None:
-                        befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
-                    #print '        INV:', iitem, thisRef, innerFileName, thisMeth, befList
-                    print '        INV:', iitem, befList, sitem['module'], sitem['connDictionary']
-            #if sitem['before'] != []:
-                #print 'BEFORE', moduleName, methodName, methodItem['before']
         for sIndex in range(len(schedList)):
             sitem = schedList[sIndex]
             for item in sitem['read']:
