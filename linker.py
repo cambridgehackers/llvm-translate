@@ -109,9 +109,6 @@ def prependInternal(name, argList):
         retList.append(tfield)
     return retList
 
-def prependName(name, string):
-    return guardToString(prependInternal(name, splitGuard(string)))
-
 def expandGuard(mitem, name, guardList):
     retList = []
     for tfield in guardList:
@@ -189,7 +186,9 @@ def processFile(moduleName):
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
-                            moduleItem['methods'][inVector[1]][metaIndex].append(splitRef(vitem))
+                            temp = splitRef(vitem)
+                            temp[0] = splitGuard(temp[0])
+                            moduleItem['methods'][inVector[1]][metaIndex].append(temp)
                     else:
                         print 'Unknown case', inVector
                         sys.exit(1)
@@ -261,12 +260,15 @@ def parseExpression(string):
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
 
+#def prependName(name, field):
+#    return guardToString(prependInternal(name, field))
+
 def prependList(prefix, aList):
     rList = []
     for item in aList:
         nitem = []
         for field in item:
-            nitem.append(prependName(prefix, field))
+            nitem.append(prependInternal(prefix, field))
         rList.append(nitem)
     return rList
 
@@ -280,8 +282,9 @@ def formatAccess(isWrite, aList):
         if item[1] not in accessList[isWrite]:
             accessList[isWrite].append(item[1])
         ret += sep
-        if item[0] != '':
-            ret += item[0] + ':'
+        condStr = guardToString(item[0])
+        if condStr != '':
+            ret += condStr + ':'
         ret += item[1]
         sep = ', '
     return ret
@@ -351,7 +354,7 @@ def dumpRules(prefix, moduleName, modDict):
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for eitem in moduleItem['exclusive']:
-        exclusiveList.append([ prependName(prefix, field) for field in eitem])
+        exclusiveList.append([ prefix + field for field in eitem])
 
 def formatRules():
     for item in ruleList:
