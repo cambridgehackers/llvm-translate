@@ -109,23 +109,31 @@ def prependInternal(name, argList):
         retList.append(tfield)
     return retList
 
+def expandGItem(mitem, name, tfield):
+    if not tfield.endswith('__RDY'):
+        tfield = name + tfield
+    else:
+        tsep = tfield.split('$')
+        item = mitem['internal'].get(tsep[0])
+        if item:
+            rmitem = mInfo[item]
+            methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
+            tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
+        else:
+            tfield = name + tfield
+    return tfield
+
 def expandGuard(mitem, name, guardList):
     retList = []
+    if type(guardList) == str:
+        if guardList[0].isalpha():
+            return expandGItem(mitem, name, guardList)
     for tfield in guardList:
-        if type(tfield) == types.ListType:
+        if type(tfield) == str:
+            if tfield[0].isalpha():
+                tfield = expandGItem(mitem, name, tfield)
+        elif type(tfield) == types.ListType:
             tfield = expandGuard(mitem, name, tfield)
-        elif type(tfield) == str and tfield[0].isalpha():
-            if not tfield.endswith('__RDY'):
-                tfield = name + tfield
-            else:
-                tsep = tfield.split('$')
-                item = mitem['internal'].get(tsep[0])
-                if item:
-                    rmitem = mInfo[item]
-                    methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
-                    tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
-                else:
-                    tfield = name + tfield
         retList.append(tfield)
     return retList
 
@@ -142,6 +150,37 @@ def splitRef(value):
 def checkMethod(dictBase, name):
     if dictBase['methods'].get(name) is None:
         dictBase['methods'][name] = {'guard': '', 'read': [], 'write': [], 'invoke': [], 'before': []}
+
+def disjointCondition(element, cond):
+    #print 'DDDDD', element, cond
+    for eIndex in range(0, len(element)):
+        eitem = element[eIndex]
+        if eitem == '!' or eitem == '&':
+            continue
+        if eitem == '|':
+            break
+        ePrev = ''
+        if eIndex > 0:
+            ePrev = element[eIndex - 1]
+        if type(eitem) != str and len(eitem) == 2 and eitem[0] == '!':
+            ePrev = '!'
+            eitem = eitem[1]
+        for cIndex in range(0, len(cond)):
+            citem = cond[cIndex]
+            if citem == '!' or citem == '&':
+                continue
+            cPrev = ''
+            if cIndex > 0:
+                cPrev = cond[cIndex - 1]
+            if type(citem) != str and len(citem) == 2 and citem[0] == '!':
+                cPrev = '!'
+                citem = citem[1]
+            if citem != eitem:
+                continue
+            if (cPrev == '!' and ePrev != '!') or (cPrev != '!' and ePrev == '!'):
+                #print 'disjoint', element, cond, citem
+                return True
+    return False
 
 def processFile(moduleName):
     print 'processFile:', moduleName
@@ -171,7 +210,7 @@ def processFile(moduleName):
                     if inVector[0] == '//METAGUARD':
                         checkMethod(moduleItem, inVector[1])
                         canonVec = splitGuard(inVector[2])
-                        print 'CANON', canonVec
+                        #print 'CANON', canonVec
                         moduleItem['methods'][inVector[1]]['guard'] = canonVec
                     elif inVector[0] == '//METARULES':
                         moduleItem['rules'] = inVector[1:]
@@ -205,6 +244,25 @@ def processFile(moduleName):
         if not moduleItem['connDictionary'].get(targetItem):
             moduleItem['connDictionary'][targetItem] = {}
         moduleItem['connDictionary'][targetItem][targetIfc] = [sourceItem, moduleItem['internal'][sourceItem], sourceIfc]
+    newExcl = []
+    for item in moduleItem['exclusive']:
+        newItem = []
+        removedList = []
+        for element in item:
+            disjointFlag = True
+            for cond in item:
+                if element != cond and cond not in removedList and \
+                   not disjointCondition(moduleItem['methods'][element]['guard'], moduleItem['methods'][cond]['guard']):
+                    disjointFlag = False
+            if disjointFlag:
+                #print 'add to removedList', element
+                removedList.append(element)
+            else:
+                #print 'add to newItem', element
+                newItem.append(element)
+        if newItem != []:
+            newExcl.append(newItem)
+    moduleItem['exclusive'] = newExcl
     for item in moduleItem['exclusive']:
         print 'EXCLUSIVE', item
         for element in item:
@@ -259,9 +317,6 @@ def parseExpression(string):
         retVal = retVal[0]
     #print 'parseExpression', string, ' -> ', retVal, ind
     return retVal
-
-#def prependName(name, field):
-#    return guardToString(prependInternal(name, field))
 
 def prependList(prefix, aList):
     rList = []
