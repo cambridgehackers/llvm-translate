@@ -4,7 +4,6 @@
 `include "l_class_OC_Fifo1_OC_1.vh"
 `define l_class_OC_IVector_RULE_COUNT (1 + `l_class_OC_Fifo1_OC_1_RULE_COUNT)
 
-//METAWRITE; respond; :agg_2e_tmp;:agg_2e_tmp4;:gcounter;
 //METAINVOKE; respond; :fifo$out$deq;:fifo$out$first;:ind$heard;
 //METAGUARD; respond; (fifo$out$first__RDY & fifo$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; say; :fifo$in$enq;

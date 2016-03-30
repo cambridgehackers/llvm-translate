@@ -3,26 +3,16 @@
 
 `define l_class_OC_Echo_RULE_COUNT (2)
 
-//METAREAD; delay_rule; :meth_temp;:v_temp;
-//METAWRITE; delay_rule; :busy;:busy_delay;:meth_delay;:v_delay;
 //METAEXCLUSIVE; delay_rule; request$say; request$say2; respond_rule
 //METABEFORE; delay_rule; :request$say; :request$say2
 //METAGUARD; delay_rule; ((busy != 0) & (busy_delay == 0)) != 0;
-//METAREAD; respond_rule; :meth_delay;:v_delay;
-//METAWRITE; respond_rule; :busy_delay;
 //METAINVOKE; respond_rule; :indication$heard;
 //METABEFORE; respond_rule; :delay_rule
 //METAGUARD; respond_rule; (busy_delay != 0) & indication$heard__RDY;
-//METAWRITE; request$say; :busy;:meth_temp;:v_temp;
-//METAWRITE; request$say2; :busy;:meth_temp;:v_temp;
 //METAGUARD; request$say2; (busy != 0) ^ 1;
 //METAGUARD; request$say; (busy != 0) ^ 1;
-//METAREAD; x2y; :x;
-//METAWRITE; x2y; :y;
 //METABEFORE; x2y; :y2x
 //METAGUARD; x2y; 1;
-//METAREAD; y2x; :y;
-//METAWRITE; y2x; :x;
 //METABEFORE; y2x; :x2y
 //METAGUARD; y2x; 1;
 //METAGUARD; y2xnull; 1;

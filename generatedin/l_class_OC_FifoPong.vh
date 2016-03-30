@@ -4,11 +4,8 @@
 `include "l_class_OC_Fifo1_OC_3.vh"
 `define l_class_OC_FifoPong_RULE_COUNT (0 + `l_class_OC_Fifo1_OC_3_RULE_COUNT + `l_class_OC_Fifo1_OC_3_RULE_COUNT)
 
-//METAREAD; out$deq; :pong;
-//METAWRITE; out$deq; :pong;
 //METAINVOKE; out$deq; pong ^ 1:element1$out$deq;pong:element2$out$deq;
 //METAGUARD; out$deq; (element2$out$deq__RDY | (pong ^ 1)) & (element1$out$deq__RDY | pong);
-//METAREAD; in$enq; :pong;
 //METAINVOKE; in$enq; pong ^ 1:element1$in$enq;pong:element2$in$enq;
 //METABEFORE; in$enq; :out$deq
 //METAGUARD; in$enq; (element2$in$enq__RDY | (pong ^ 1)) & (element1$in$enq__RDY | pong);

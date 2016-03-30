@@ -12,9 +12,9 @@ class l_class_OC_EchoIndicationInput {
 public:
   l_class_OC_PipeIn_OC_0 pipe;
   l_class_OC_EchoIndication *indication;
-  unsigned int busy_delayi, busy_delayi_shadow; bool busy_delayi_valid;
-  unsigned int meth_delayi, meth_delayi_shadow; bool meth_delayi_valid;
-  unsigned int v_delayi, v_delayi_shadow; bool v_delayi_valid;
+  unsigned int busy_delay, busy_delay_shadow; bool busy_delay_valid;
+  unsigned int meth_delay, meth_delay_shadow; bool meth_delay_valid;
+  unsigned int v_delay, v_delay_shadow; bool v_delay_valid;
 public:
   void run();
   void commit();
