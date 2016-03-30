@@ -20,7 +20,7 @@
 ## ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 ## CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
-import argparse, copy, json, re, os, sys, shutil, string
+import argparse, copy, json, re, os, sys, shutil, string, types
 
 argparser = argparse.ArgumentParser('Generate verilog schedule.')
 argparser.add_argument('--directory', help='directory', default=[], action='append')
@@ -34,86 +34,102 @@ mInfo = {}
 
 SCANNER = re.compile(r'''
   (\s+) |                      # whitespace
-  (<<|>>|[][(){}<>=,;:*+-/^&!%]) | # punctuation
   ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers, numbers
   "((?:[^"\n\\]|\\.)*)" |      # regular string literal
+  ([(]) |                      # lparen
+  ([)]) |                      # rparen
+  (<<|>>|!=?|==?|\|\|?|[][{}<>,;:*+-/^&%]) | # punctuation
   (.)                          # an error!
 ''', re.DOTALL | re.VERBOSE)
 
 def guardToString(source):
     ret = ''
-    sep = ''
+    if type(source) == str:
+        return source
     for item in source:
-        ret += sep
-        if item[0] == '':
-            ret += item[1]
-        else:
-            ret += item[0] + '(' + item[1] + ')'
-        sep = ' & '
+        if type(item) == str:
+            ret += ' ' + item
+        elif type(item) is types.ListType:
+            ret += ' (' + guardToString(item) + ')'
     return ret
 
-def splitGuard(canonVec, source):
-    inStr = ''
-    indent = 0
-    for inchar in source:
-        if inchar == '(':
-            indent += 1
-        elif inchar == ')':
-            indent -= 1
-        elif inchar == '&' and indent == 0:
-            splitGuard(canonVec, inStr.strip())
-            inStr = ''
-            continue
-        inStr += inchar
-    inStr = inStr.strip()
-    if inStr != '':
-        if inStr[0] == '(' and inStr[-1] == ')':
-            splitGuard(canonVec, inStr[1:-1])
-        elif inStr[-5:] == ' != 0':
-            splitGuard(canonVec, inStr[0:-5])
-        else:
-            canonVec.append(['', inStr])
+def optGuard(item):
+    if len(item) == 3 and item[1] == "!=" and item[2] == "0":
+        return optGuard(item[0])
+    if (len(item) == 3 and item[1] == "^" and item[2] == "1") \
+     or (len(item) == 3 and item[1] == "==" and item[2] == "0"):
+        return [ "!", item[0]]
+    if len(item) == 3 and item[1] == "&" and len(item[0]) == 3 and item[0][1] == "&":
+        return item[0] + item[1:]
+    if len(item) == 3 and item[1] == "&" and len(item[2]) == 3 and item[2][1] == "&":
+        return item[:1] + item[2]
+    if len(item) == 1:
+        return optGuard(item[0])
+    return item
+
+def splitGuard(string):
+    #print 'splitg', string
+    expr = [[]]
+    for match in re.finditer(SCANNER, string):
+        for ind in range(2, 7):
+            tfield = match.group(ind)
+            if tfield is None:
+                continue
+            #print 'regex', ind, tfield, len(expr)
+            if ind == 2:    # identifiers
+                expr[-1].append(tfield)
+            elif ind == 3:  # string
+                expr[-1].append(tfield)
+            elif ind == 4:  # lparen
+                expr.append([])
+            elif ind == 5:  # rparen
+                item = optGuard(expr.pop())
+                expr[-1].append(item)
+            elif ind == 6:  # operator
+                expr[-1].append(tfield)
+            elif ind == 7:  # error
+                print 'Guard parse error', tfield
+                sys.exit(1)
+    expr = optGuard(expr)
+    #print 'splitgover', json.dumps(expr, sort_keys=True, indent = 4)
+    return expr
+
+def prependInternal(name, argList):
+    retList = []
+    if type(argList) == str:
+        if argList[0].isalpha():
+            argList = name + argList
+        return argList
+    for tfield in argList:
+        if type(tfield) == str:
+            if tfield[0].isalpha():
+                tfield = name + tfield
+        elif type(tfield) == types.ListType:
+            tfield = prependInternal(name, tfield)
+        retList.append(tfield)
+    return retList
 
 def prependName(name, string):
-    retVal = ''
-    for match in re.finditer(SCANNER, string):
-        for i in range(1, 5):
-            tfield = match.group(i)
-            if tfield:
-                if i == 5:
-                    print 'Error in regex', string, tfield
-                if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
-                    retVal += name
-                retVal += tfield
-    #print 'prependName', name, string, ' -> ', retVal
-    return retVal
+    return guardToString(prependInternal(name, splitGuard(string)))
 
 def expandGuard(mitem, name, guardList):
     retList = []
-    for gitem in guardList:
-        string = gitem[1]
-        retVal = ''
-        for match in re.finditer(SCANNER, string):
-            for i in range(1, 5):
-                tfield = match.group(i)
-                if tfield:
-                    if i == 5:
-                        print 'Error in regex', string, tfield
-                    if i == 3 and (tfield[0] < '0' or tfield[0] > '9'):
-                        if tfield.endswith('__RDY'):
-                            tsep = tfield.split('$')
-                            item = mitem['internal'].get(tsep[0])
-                            if item:
-                                rmitem = mInfo[item]
-                                methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
-                                tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
-                            else:
-                                tfield = name + tfield
-                        else:
-                            tfield = name + tfield
-                    retVal += tfield
-    #print 'expandGuard', string, ' -> ', retVal
-        retList.append([gitem[0], retVal])
+    for tfield in guardList:
+        if type(tfield) == types.ListType:
+            tfield = expandGuard(mitem, name, tfield)
+        elif type(tfield) == str and tfield[0].isalpha():
+            if not tfield.endswith('__RDY'):
+                tfield = name + tfield
+            else:
+                tsep = tfield.split('$')
+                item = mitem['internal'].get(tsep[0])
+                if item:
+                    rmitem = mInfo[item]
+                    methodItem = rmitem['methods']['$'.join(tsep[1:])[:-5]]
+                    tfield = expandGuard(rmitem, tsep[0] + '$', methodItem['guard'])
+                else:
+                    tfield = name + tfield
+        retList.append(tfield)
     return retList
 
 def splitName(value):
@@ -157,8 +173,7 @@ def processFile(moduleName):
                     #print 'MM', inLine, inVector, metaIndex
                     if inVector[0] == '//METAGUARD':
                         checkMethod(moduleItem, inVector[1])
-                        canonVec = []
-                        splitGuard(canonVec, inVector[2])
+                        canonVec = splitGuard(inVector[2])
                         print 'CANON', canonVec
                         moduleItem['methods'][inVector[1]]['guard'] = canonVec
                     elif inVector[0] == '//METARULES':
