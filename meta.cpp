@@ -104,7 +104,7 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
                 for (auto inneritem: innerbm->list[MetaInvoke]) {
                     for (auto item: bm->list[MetaInvoke])
                         if (item.first == inneritem.first) {
-printf("[%s:%d] mname %s innermname %s item %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
+//printf("[%s:%d] mname %s innermname %s item %s\n", __FUNCTION__, __LINE__, mname.c_str(), innermname.c_str(), item.first.c_str());
                             metaConflict[innermname] = "; ";
                             break;
                         }
