@@ -112,10 +112,8 @@ printf("[%s:%d] mname %s innermname %s item %s\n", __FUNCTION__, __LINE__, mname
             }
             std::string metaStr;
             for (auto item: metaConflict)
-                 if (item.second != "" && !exclusiveSeen[item.first]) {
+                 if (item.second != "" && !exclusiveSeen[item.first])
                      metaStr += item.second + item.first;
-                     exclusiveSeen[item.first] = 1;
-                 }
             exclusiveSeen[mname] = 1;
             if (metaStr != "")
                 metaList.push_back("//METAEXCLUSIVE; " + mname + metaStr);
