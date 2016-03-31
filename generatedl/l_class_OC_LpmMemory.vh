@@ -7,6 +7,7 @@
 //METAEXCLUSIVE; memdelay; req; resAccept
 //METABEFORE; memdelay; :req; :resAccept
 //METAGUARD; memdelay; delayCount > 1;
+//METAEXCLUSIVE; req; resAccept
 //METAGUARD; req; delayCount == 0;
 //METAGUARD; resAccept; delayCount == 1;
 //METABEFORE; resValue; :req

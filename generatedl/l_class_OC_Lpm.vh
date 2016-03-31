@@ -9,9 +9,10 @@
 //METAEXCLUSIVE; enter; recirc
 //METAGUARD; enter; ((inQ$out$first__RDY & inQ$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
 //METAINVOKE; exit; :fifo$out$deq;:fifo$out$first;:mem$resAccept;:mem$resValue;:outQ$in$enq;
-//METAGUARD; exit; (((((((doneCount % 5) != 0) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & outQ$in$enq__RDY;
+//METAEXCLUSIVE; exit; recirc
+//METAGUARD; exit; (((fifo$out$first__RDY & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & outQ$in$enq__RDY;
 //METAINVOKE; recirc; :fifo$in$enq;:fifo$out$deq;:fifo$out$first;:mem$req;:mem$resAccept;:mem$resValue;
-//METAGUARD; recirc; (((((((((doneCount % 5) != 0) ^ 1) ^ 1) & fifo$out$first__RDY) & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
+//METAGUARD; recirc; ((((fifo$out$first__RDY & mem$resValue__RDY) & mem$resAccept__RDY) & fifo$out$deq__RDY) & fifo$in$enq__RDY) & mem$req__RDY;
 //METAINVOKE; respond; :indication$heard;:outQ$out$deq;:outQ$out$first;
 //METAGUARD; respond; (outQ$out$first__RDY & outQ$out$deq__RDY) & indication$heard__RDY;
 //METAINVOKE; say; :inQ$in$enq;
