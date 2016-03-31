@@ -9,6 +9,7 @@
 //METAINVOKE; respond_rule; :indication$heard;
 //METABEFORE; respond_rule; :delay_rule
 //METAGUARD; respond_rule; (busy_delay != 0) & indication$heard__RDY;
+//METAEXCLUSIVE; request$say; request$say2
 //METAGUARD; request$say2; (busy != 0) ^ 1;
 //METAGUARD; request$say; (busy != 0) ^ 1;
 //METARULES; delay_rule; respond_rule

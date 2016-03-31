@@ -4,11 +4,10 @@
 class l_class_OC_EchoTest;
 class l_class_OC_EchoTest {
 public:
-  l_class_OC_Echo *echo;
+  l_class_OC_Echo echo;
   unsigned int x, x_shadow; bool x_valid;
 public:
   void run();
   void commit();
-  void setecho(l_class_OC_Echo *v) { echo = v; }
 };
 #endif  // __l_class_OC_EchoTest_H__

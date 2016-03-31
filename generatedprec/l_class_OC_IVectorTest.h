@@ -4,10 +4,9 @@
 class l_class_OC_IVectorTest;
 class l_class_OC_IVectorTest {
 public:
-  l_class_OC_IVector *ivector;
+  l_class_OC_IVector ivector;
 public:
   void run();
   void commit();
-  void setivector(l_class_OC_IVector *v) { ivector = v; }
 };
 #endif  // __l_class_OC_IVectorTest_H__

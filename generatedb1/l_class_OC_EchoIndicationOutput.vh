@@ -7,6 +7,7 @@
 //METAEXCLUSIVE; indication$heard; output_rulee; output_ruleo
 //METAGUARD; indication$heard; (ind_busy != 0) ^ 1;
 //METAINVOKE; output_rulee; :pipe$enq;
+//METAEXCLUSIVE; output_rulee; output_ruleo
 //METAGUARD; output_rulee; (((ind_busy != 0) & (even != 0)) != 0) & pipe$enq__RDY;
 //METAINVOKE; output_ruleo; :pipe$enq;
 //METAGUARD; output_ruleo; (((ind_busy != 0) & (even == 0)) != 0) & pipe$enq__RDY;

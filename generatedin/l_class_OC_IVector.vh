@@ -8,20 +8,28 @@
 //METAEXCLUSIVE; respond0; respond1; respond2; respond3; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond0; (fifo0$out$first__RDY & fifo0$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond1; :fifo1$out$deq;:fifo1$out$first;:ind$heard;
+//METAEXCLUSIVE; respond1; respond2; respond3; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond1; (fifo1$out$first__RDY & fifo1$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond2; :fifo2$out$deq;:fifo2$out$first;:ind$heard;
+//METAEXCLUSIVE; respond2; respond3; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond2; (fifo2$out$first__RDY & fifo2$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond3; :fifo3$out$deq;:fifo3$out$first;:ind$heard;
+//METAEXCLUSIVE; respond3; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond3; (fifo3$out$first__RDY & fifo3$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond4; :fifo4$out$deq;:fifo4$out$first;:ind$heard;
+//METAEXCLUSIVE; respond4; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond4; (fifo4$out$first__RDY & fifo4$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond5; :fifo5$out$deq;:fifo5$out$first;:ind$heard;
+//METAEXCLUSIVE; respond5; respond6; respond7; respond8; respond9
 //METAGUARD; respond5; (fifo5$out$first__RDY & fifo5$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond6; :fifo6$out$deq;:fifo6$out$first;:ind$heard;
+//METAEXCLUSIVE; respond6; respond7; respond8; respond9
 //METAGUARD; respond6; (fifo6$out$first__RDY & fifo6$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond7; :fifo7$out$deq;:fifo7$out$first;:ind$heard;
+//METAEXCLUSIVE; respond7; respond8; respond9
 //METAGUARD; respond7; (fifo7$out$first__RDY & fifo7$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond8; :fifo8$out$deq;:fifo8$out$first;:ind$heard;
+//METAEXCLUSIVE; respond8; respond9
 //METAGUARD; respond8; (fifo8$out$first__RDY & fifo8$out$deq__RDY) & ind$heard__RDY;
 //METAINVOKE; respond9; :fifo9$out$deq;:fifo9$out$first;:ind$heard;
 //METAGUARD; respond9; (fifo9$out$first__RDY & fifo9$out$deq__RDY) & ind$heard__RDY;
