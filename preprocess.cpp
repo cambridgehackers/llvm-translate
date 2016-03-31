@@ -238,6 +238,35 @@ printf("[%s:%d] sname %s table %p source %s target %s isname %s\n", __FUNCTION__
  * This enables llvm-translate to easily maintain a list of valid memory regions
  * during processing.
  */
+Value *findElementCount(Instruction *I)
+{
+    Value *ret = NULL;
+    if (I) {
+        if (CallInst *CI = dyn_cast<CallInst>(I)) {
+            if (Value *called = CI->getOperand(CI->getNumOperands()-1))
+            if (const Function *CF = dyn_cast<Function>(called))
+            if (CF->getName() == "_ZL9__jcabozom") {
+printf("[%s:%d] FOUND\n", __FUNCTION__, __LINE__);
+                return CI->getOperand(0);
+            }
+        }
+        for (unsigned int i = 0; i < I->getNumOperands() && !ret; i++) {
+            ret = findElementCount(dyn_cast<Instruction>(I->getOperand(i)));
+        }
+    }
+    return ret;
+}
+
+static void processMSize(CallInst *II)
+{
+//_ZL9__jcabozom
+    Function *callingFunc = II->getParent()->getParent();
+callingFunc->dump();
+    II->replaceAllUsesWith(II->getOperand(0));
+    II->eraseFromParent();
+callingFunc->dump();
+}
+
 static void processMalloc(CallInst *II)
 {
     Function *callingFunc = II->getParent()->getParent();
@@ -268,6 +297,10 @@ static void processMalloc(CallInst *II)
             if (PI->getOpcode() == Instruction::BitCast)
                 Typ = PI->getType();
         }
+    }
+    if (CF->getName() == "_Znam") {
+        vecparam = findElementCount(II);
+printf("[%s:%d]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA %p\n", __FUNCTION__, __LINE__, vecparam);
     }
     uint64_t tparam = (uint64_t)Typ;
     printf("%s: %s calling %s styparam %lx tparam %lx vecparam %p\n",
@@ -414,6 +447,7 @@ void preprocessModule(Module *Mod)
         {"methodToFunction", processMethodToFunction},
         {"connectInterface", processConnectInterface},
         {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
+        {"_ZL9__jcabozom", processMSize},
         {NULL}};
 
     for (int i = 0; callProcess[i].name; i++) {

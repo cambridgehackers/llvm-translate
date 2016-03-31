@@ -15,6 +15,7 @@ public:
   l_class_OC_PipeOut out;
   l_struct_OC_ValuePair element0;
   l_struct_OC_ValuePair element1;
+  l_struct_OC_ValuePair element2;
   unsigned int rindex, rindex_shadow; bool rindex_valid;
   unsigned int windex, windex_shadow; bool windex_valid;
 public:
