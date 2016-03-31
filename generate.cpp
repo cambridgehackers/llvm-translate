@@ -154,28 +154,6 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 }
 
 /*
- * Check if one StructType inherits another one.
- */
-static int derivedStruct(const StructType *STyA, const StructType *STyB)
-{
-    int Idx = 0;
-    if (STyA && STyB)
-    for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++)
-        if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB)
-            return 1;
-    return 0;
-}
-
-int checkDerived(const Type *A, const Type *B)
-{
-    if (const PointerType *PTyA = cast_or_null<PointerType>(A))
-    if (const PointerType *PTyB = cast_or_null<PointerType>(B))
-        return derivedStruct(dyn_cast<StructType>(PTyA->getElementType()),
-                             dyn_cast<StructType>(PTyB->getElementType()));
-    return 0;
-}
-
-/*
  * Lookup a function name from the vtable for a class.
  */
 std::string lookupMethodName(const ClassMethodTable *table, int ind)

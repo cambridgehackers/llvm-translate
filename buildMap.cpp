@@ -34,6 +34,7 @@ using namespace llvm;
 
 #include "declarations.h"
 
+static int trace_map;//= 1;
 static int trace_hoist;//= 1;
 static int trace_dump_malloc;//= 1;
 
@@ -303,7 +304,8 @@ restart:
                                 if (ClassMethodTable *table = classCreate[STy])
                                     if (table->replaceType[Idx]) {
                                         Values_size = table->replaceCount[Idx];
-printf("[%s:%d] get dyn size (static not handled)\n", __FUNCTION__, __LINE__);
+printf("[%s:%d] get dyn size (static not handled) %d\n", __FUNCTION__, __LINE__, Values_size);
+if (Values_size < 0 || Values_size > 100) Values_size = 2;
                                     }
                         }
                         ins->getOperand(0)->dump();
@@ -462,6 +464,32 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     }
 }
 
+/*
+ * Check if one StructType inherits another one.
+ */
+static int derivedStruct(const StructType *STyA, const StructType *STyB)
+{
+    int Idx = 0;
+    if (STyA && STyB) {
+        if (STyA == STyB)
+            return 1;     // all types are derived from themselves
+        //BUG: this only checks 1 level of derived???
+        for (auto I = STyA->element_begin(), E = STyA->element_end(); I != E; ++I, Idx++)
+            if (fieldName(STyA, Idx) == "" && dyn_cast<StructType>(*I) && *I == STyB)
+                return 1;
+    }
+    return 0;
+}
+
+static int checkDerived(const Type *A, const Type *B)
+{
+    if (const PointerType *PTyA = cast_or_null<PointerType>(A))
+    if (const PointerType *PTyB = cast_or_null<PointerType>(B))
+        return derivedStruct(dyn_cast<StructType>(PTyA->getElementType()),
+                             dyn_cast<StructType>(PTyB->getElementType()));
+    return 0;
+}
+
 static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
 {
     const DataLayout *TD = EE->getDataLayout();
@@ -469,7 +497,8 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
      || addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}])
         return;
     addressTypeAlreadyProcessed[MAPSEEN_TYPE{addr, Ty}] = 1;
-    //printf("%s: addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
+    if (trace_map)
+        printf("%s: addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
     if (validateAddress(3010, addr))
         printf("%s: bad addr %p TID %d Ty %p name %s\n", __FUNCTION__, addr, Ty->getTypeID(), Ty, aname.c_str());
     switch (Ty->getTypeID()) {
@@ -490,14 +519,21 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                  * what if its datatype is a derived type from the pointer
                  * target type.  If so, replace pointer base type.
                  */
-                for (MEMORY_REGION info : memoryRegion)
-                    if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)
-                     && checkDerived(info.type, PTy)) {
+                if (trace_map)
+                    printf("%s: Pointer lookup %p STy %s fname %s\n", __FUNCTION__, p, STy->hasName() ? STy->getName().str().c_str() : "none", fname.c_str());
+                static int once;
+                for (MEMORY_REGION info : memoryRegion) {
+                    if (trace_map && !once)
+                        printf("%s: info.p %p info.p+info.size %lx\n", __FUNCTION__, info.p, ((size_t)info.p + info.size));
+                    if (p >= info.p && (size_t)p < ((size_t)info.p + info.size)) {
+                    if (checkDerived(info.type, PTy)) {
                         if (!classCreate[STy])
                             classCreate[STy] = new ClassMethodTable;
                         classCreate[STy]->STy = STy;
                         classCreate[STy]->replaceType[Idx] = info.type;
                         classCreate[STy]->replaceCount[Idx] = info.vecCount;
+                        //if (trace_map)
+                            printf("%s: pointerFound %p info.STy %s count %d\n", __FUNCTION__, p, info.STy->getName().str().c_str(), (int)info.vecCount);
                         if (STy == info.STy) {
                             classCreate[STy]->allocateLocally[Idx] = true;
                             inlineReferences(Mod, STy, Idx, info.type);
@@ -505,6 +541,13 @@ static void mapType(Module *Mod, char *addr, Type *Ty, std::string aname)
                             setInterface = 0;
                         }
                     }
+                    else {
+                        if (trace_map)
+                            printf("%s: notderived %p info.STy %p %s\n", __FUNCTION__, p, info.STy, info.STy?info.STy->getName().str().c_str():"null");
+                    }
+                    }
+                }
+                once = 1;
                 if (setInterface)
                     table->interfaces[fname] = element;  // add called interfaces from this module
             }

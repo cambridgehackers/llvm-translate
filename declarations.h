@@ -150,7 +150,6 @@ void prepareReplace(const Value *olda, Value *newa);
 void setCondition(BasicBlock *bb, int invert, Value *val);
 void setAssign(std::string target, std::string value);
 void recursiveDelete(Value *V);
-int checkDerived(const Type *A, const Type *B);
 void setSeen(Function *func, std::string mName);
 void dumpMemoryRegions(int arg);
 void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
