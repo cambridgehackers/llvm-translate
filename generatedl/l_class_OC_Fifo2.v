@@ -17,17 +17,19 @@ module l_class_OC_Fifo2 (
     wire out$deq__ENA_internal = out$deq__ENA && out$deq__RDY_internal;
     wire in$enq__RDY_internal;
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
+    reg[703:0] element;
     reg[31:0] rindex;
     reg[31:0] windex;
     assign in$enq__RDY = in$enq__RDY_internal;
     assign in$enq__RDY_internal = ((windex + 1) % 2) != rindex;
     assign out$deq__RDY = out$deq__RDY_internal;
     assign out$deq__RDY_internal = rindex != windex;
-    assign out$first = *(rindex == 0 ? element0:&element1);
+    assign out$first = *(rindex == 0 ? &element0:&element1);
     assign out$first__RDY_internal = rindex != windex;
 
     always @( posedge CLK) begin
       if (!nRST) begin
+        element <= 0;
         rindex <= 0;
         windex <= 0;
       end // nRST
@@ -36,7 +38,7 @@ module l_class_OC_Fifo2 (
             rindex <= (rindex + 1) % 2;
         end; // End of out$deq
         if (in$enq__ENA_internal) begin
-            *(windex == 0 ? element0:&element1) <= enq_v;
+            *(windex == 0 ? &element0:&element1) <= enq_v;
             windex <= (windex + 1) % 2;
         end; // End of in$enq
       end

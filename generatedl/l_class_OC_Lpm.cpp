@@ -38,14 +38,12 @@ bool l_class_OC_Lpm__exit__RDY(void *thisarg) {
         bool tmp__3;
         bool tmp__4;
         bool tmp__5;
-        thisp->doneCount_shadow = (thisp->doneCount) + 1;
-        thisp->doneCount_valid = 1;
         tmp__1 = thisp->fifo.out.first__RDY();
         tmp__2 = thisp->mem.resValue__RDY();
         tmp__3 = thisp->mem.resAccept__RDY();
         tmp__4 = thisp->fifo.out.deq__RDY();
         tmp__5 = thisp->outQ.in.enq__RDY();
-        return ((((((((thisp->doneCount) % 5) != 0) ^ 1) & tmp__1) & tmp__2) & tmp__3) & tmp__4) & tmp__5;
+        return (((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5;
 }
 void l_class_OC_Lpm__recirc(void *thisarg) {
         l_class_OC_Lpm * thisp = (l_class_OC_Lpm *)thisarg;
@@ -67,15 +65,13 @@ bool l_class_OC_Lpm__recirc__RDY(void *thisarg) {
         bool tmp__4;
         bool tmp__5;
         bool tmp__6;
-        thisp->doneCount_shadow = (thisp->doneCount) + 1;
-        thisp->doneCount_valid = 1;
         tmp__1 = thisp->fifo.out.first__RDY();
         tmp__2 = thisp->mem.resValue__RDY();
         tmp__3 = thisp->mem.resAccept__RDY();
         tmp__4 = thisp->fifo.out.deq__RDY();
         tmp__5 = thisp->fifo.in.enq__RDY();
         tmp__6 = thisp->mem.req__RDY();
-        return ((((((((((thisp->doneCount) % 5) != 0) ^ 1) ^ 1) & tmp__1) & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6;
+        return ((((tmp__1 & tmp__2) & tmp__3) & tmp__4) & tmp__5) & tmp__6;
 }
 void l_class_OC_Lpm__respond(void *thisarg) {
         l_class_OC_Lpm * thisp = (l_class_OC_Lpm *)thisarg;
