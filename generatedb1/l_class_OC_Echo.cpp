@@ -9,7 +9,7 @@ void l_class_OC_Echo__delay_rule(void *thisarg) {
         thisp->meth_delay_valid = 1;
         thisp->v_delay_shadow = thisp->v_temp;
         thisp->v_delay_valid = 1;
-        printf("[delay_rule:%d]Echo\n", 266);
+        printf("delay_rule: Echo\n");
 }
 bool l_class_OC_Echo__delay_rule__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -19,7 +19,7 @@ void l_class_OC_Echo__respond_rule(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->busy_delay_shadow = 0;
         thisp->busy_delay_valid = 1;
-        printf("[respond_rule:%d]Echo\n", 273);
+        printf("respond_rule: Echo\n");
         thisp->indication->heard(thisp->meth_delay, thisp->v_delay);
 }
 bool l_class_OC_Echo__respond_rule__RDY(void *thisarg) {

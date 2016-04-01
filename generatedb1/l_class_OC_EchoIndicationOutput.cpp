@@ -33,7 +33,7 @@ void l_class_OC_EchoIndicationOutput__output_rulee(void *thisarg) {
         l_class_OC_EchoIndicationOutput * thisp = (l_class_OC_EchoIndicationOutput *)thisarg;
         thisp->ind_busy_shadow = 0;
         thisp->ind_busy_valid = 1;
-        printf("[output_rulee:%d]EchoIndicationOutput tag %d\n", 185, thisp->ind0.tag);
+        printf("output_rulee: EchoIndicationOutput tag %d\n", thisp->ind0.tag);
         thisp->pipe->enq(thisp->ind0);
 }
 bool l_class_OC_EchoIndicationOutput__output_rulee__RDY(void *thisarg) {
@@ -46,7 +46,7 @@ void l_class_OC_EchoIndicationOutput__output_ruleo(void *thisarg) {
         l_class_OC_EchoIndicationOutput * thisp = (l_class_OC_EchoIndicationOutput *)thisarg;
         thisp->ind_busy_shadow = 0;
         thisp->ind_busy_valid = 1;
-        printf("[output_ruleo:%d]EchoIndicationOutput tag %d\n", 190, thisp->ind1.tag);
+        printf("output_ruleo: EchoIndicationOutput tag %d\n", thisp->ind1.tag);
         thisp->pipe->enq(thisp->ind1);
 }
 bool l_class_OC_EchoIndicationOutput__output_ruleo__RDY(void *thisarg) {
