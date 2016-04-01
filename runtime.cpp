@@ -270,23 +270,22 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
                     if (Instruction *ptr = dyn_cast<Instruction>(IG->getPointerOperand()))
                     if (ptr->getOpcode() == Instruction::BitCast)
                     if (dyn_cast<Argument>(ptr->getOperand(0))) {
-printf("[%s:%d] Load\n", __FUNCTION__, __LINE__);
                         VectorType *LastIndexIsVector = NULL;
                         uint64_t Total = getGEPOffset(&LastIndexIsVector, gep_type_begin(IG), gep_type_end(IG));
                         IRBuilder<> builder(II->getParent());
                         builder.SetInsertPoint(II);
-                        Value *param = builder.getInt32(*(uint32_t *)(blockData + Total));
-                        II->replaceAllUsesWith(param);
+printf("[%s:%d] Load %d\n", __FUNCTION__, __LINE__, *(uint32_t *)(blockData + Total));
+                        II->replaceAllUsesWith(builder.getInt32(*(uint32_t *)(blockData + Total)));
                         recursiveDelete(II);
                     }
                 break;
             case Instruction::SExt: {
                 if (const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0))) {
-printf("[%s:%d] SExt\n", __FUNCTION__, __LINE__);
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
-                    Value *param = builder.getInt64(CI->getZExtValue());
-                    II->replaceAllUsesWith(param);
+                    int64_t val = CI->getZExtValue();
+printf("%s: SExt %ld\n", __FUNCTION__, val);
+                    II->replaceAllUsesWith(builder.getInt64(val));
                     recursiveDelete(II);
                 }
                 break;
