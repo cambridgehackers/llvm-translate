@@ -17,15 +17,5 @@ module l_class_OC_foo (
     assign meth_2e_addr = meth;
     assign this_2e_addr = this_2e_addr;
     assign v_2e_addr = v;
-
-    always @( posedge CLK) begin
-      if (!nRST) begin
-      end // nRST
-      else begin
-        if (indication$heard__ENA_internal) begin
-            stop_main_program <= 1;
-        end; // End of indication$heard
-      end
-    end // always @ (posedge CLK)
 endmodule 
 
