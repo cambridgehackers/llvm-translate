@@ -18,6 +18,7 @@
 //METAINVOKE; say; :inQ$in$enq;
 //METAGUARD; say; inQ$in$enq__RDY;
 //METARULES; enter; exit; recirc; respond
+//METAPRIORITY; recirc; high
 //METAINTERNAL; inQ; l_class_OC_Fifo2;
 //METAINTERNAL; fifo; l_class_OC_Fifo2;
 //METAINTERNAL; outQ; l_class_OC_Fifo2;

@@ -149,6 +149,8 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
             }
         }
     }
+    for (auto item : table->priority)
+        metaList.push_back("//METAPRIORITY; " + item.first + "; " + item.second);
     for (auto item : metaList)
         fprintf(OStr, "%s\n", item.c_str());
     inhibitAppend = 0;

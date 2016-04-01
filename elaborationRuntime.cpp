@@ -381,3 +381,14 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
 }
+
+/*
+ * Called from user constructors to set priority on a rule
+ */
+extern "C" void atomiccSchedulePriority(const char *rule, const char *priority, const StructType *STy)
+{
+    ClassMethodTable *table = classCreate[STy];
+    printf("%s: %s %s %p\n", __FUNCTION__, rule, priority, STy);
+    STy->dump();
+    table->priority[rule] = priority;
+}

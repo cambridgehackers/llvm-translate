@@ -193,7 +193,7 @@ def processFile(moduleName):
     print 'processFile:', moduleName
     if mInfo.get(moduleName) is not None:
         return
-    moduleItem = {'name': moduleName, 'rules': [], 'export': [], 'methods': {},
+    moduleItem = {'name': moduleName, 'rules': [], 'export': [], 'methods': {}, 'priority': {},
         'internal': {}, 'external': {}, 'connect': [], 'connDictionary': {}, 'exclusive': []}
     mInfo[moduleName] = moduleItem
     fileDesc = None
@@ -230,6 +230,8 @@ def processFile(moduleName):
                         moduleItem['connect'].append(inVector[1:])
                     elif inVector[0] == '//METAEXCLUSIVE':
                         moduleItem['exclusive'].append(inVector[1:])
+                    elif inVector[0] == '//METAPRIORITY':
+                        moduleItem['priority'][inVector[1]] = inVector[2]
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:

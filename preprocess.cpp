@@ -317,6 +317,16 @@ static void processMalloc(CallInst *II)
 }
 
 /*
+ * In atomiccSchedulePriority calls, replace 3rd parameter with pointer
+ * to StructType of calling class. (called from a constructor)
+ */
+static void processPriority(CallInst *II)
+{
+    II->setOperand(2, ConstantInt::get(II->getOperand(2)->getType(),
+        (uint64_t)findThisArgument(II->getParent()->getParent())));
+}
+
+/*
  * replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
  */
 static void processOverflow(CallInst *II)
@@ -436,6 +446,7 @@ void preprocessModule(Module *Mod)
         {"connectInterface", processConnectInterface},
         {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
         {"_ZL20atomiccNewArrayCountm", processMSize},
+        {"atomiccSchedulePriority", processPriority},
         {NULL}};
 
     for (int i = 0; callProcess[i].name; i++) {

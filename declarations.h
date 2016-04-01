@@ -74,6 +74,7 @@ public:
     std::map<std::string, Type *>     interfaces;
     std::list<InterfaceListType>      interfaceList;
     std::map<const Function *, std::string> guard;
+    std::map<std::string, std::string> priority; // indexed by rulename, result is 'high'/etc
     ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
     {}
 };
