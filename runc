@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 set -x
-./Debug+Asserts/bin/llvm-translate --odir=generatedconn ../atomicc/examples/connect/connect.ll ../atomicc/examples/connect/atomicc.ll
+./Debug+Asserts/bin/llvm-translate --odir=generatedconn ../atomicc/examples/connect/connect.ll
 #./bsvWrapper.py --directory generatedconn --output Echo l_class_OC_IVector
 clang++ -std=c++11 -Igeneratedconn -g test/connect.cpp
 ./a.out

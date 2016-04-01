@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 set -x
-#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc.ll
+#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/counter/counter.ll ../atomicc/examples/counter/atomicc .ll
 #./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.exe.bc
-#catchsegv ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
-#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc.ll
+#catchsegv ./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc .ll
+#./Debug+Asserts/bin/llvm-translate ../atomicc/examples/echo/echo.ll ../atomicc/examples/echo/atomicc .ll
 
 #    gdb ./Debug+Asserts/bin/llvm-translate
 #../llvm/build/Debug+Asserts/bin/llc -march=cpp foo.tmp.ll -o xx.jj

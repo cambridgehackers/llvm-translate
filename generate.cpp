@@ -823,7 +823,7 @@ static std::string processInstruction(Instruction &I)
             BasicBlock *caseBB = CI.getCaseSuccessor();
             int64_t val = CI.getCaseValue()->getZExtValue();
             if (!getCondition(caseBB, 0)) { // 'true' condition
-printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().str().c_str());
+//printf("[%s:%d] [%ld] = %s\n", __FUNCTION__, __LINE__, val, caseBB->getName().str().c_str());
                 IRBuilder<> cbuilder(caseBB);
                 setCondition(caseBB, 0,
                     cbuilder.CreateICmp(ICmpInst::ICMP_EQ, switchIndex,

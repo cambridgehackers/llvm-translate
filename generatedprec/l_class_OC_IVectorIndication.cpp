@@ -1,7 +1,6 @@
 #include "l_class_OC_IVectorIndication.h"
 void l_class_OC_IVectorIndication__heard(void *thisarg, BITS6 heard_meth, BITS4 heard_v) {
         l_class_OC_IVectorIndication * thisp = (l_class_OC_IVectorIndication *)thisarg;
-        stop_main_program = 1;
         printf("Heard an ivector: %d %d\n", 0, 0);
 }
 bool l_class_OC_IVectorIndication__heard__RDY(void *thisarg) {

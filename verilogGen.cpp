@@ -191,13 +191,13 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             element = PTy->getElementType();
             if (const StructType *iSTy = dyn_cast<StructType>(element)) { // calling indications from this module
                 if (ClassMethodTable *itable = classCreate[iSTy]) {
-printf("[%s:%d] indication interface topname %s sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), iSTy->getName().str().c_str(), fname.c_str());
+//printf("[%s:%d] indication interface topname %s sname %s fname %s\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), iSTy->getName().str().c_str(), fname.c_str());
                 PrefixType interfacePrefix;
                 buildPrefix(itable, interfacePrefix);
                 for (auto FI : itable->method) {
                     Function *func = FI.second;
                     std::string wparam, mname = fname + MODULE_SEPARATOR + interfacePrefix[FI.first] + FI.first;
-printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
+//printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                     Type *retType = func->getReturnType();
                     auto AI = func->arg_begin(), AE = func->arg_end();
                     if (func->hasStructRetAttr()) {

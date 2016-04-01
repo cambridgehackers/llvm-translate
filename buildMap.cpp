@@ -273,7 +273,7 @@ restart:
                 const BranchInst *BI = dyn_cast<BranchInst>(II);
                 if (BI && BI->isConditional()) {
                     std::string cond = printOperand(BI->getCondition(), false);
-                    printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
+                    //printf("[%s:%d] condition %s [%p, %p]\n", __FUNCTION__, __LINE__, cond.c_str(), BI->getSuccessor(0), BI->getSuccessor(1));
                     setCondition(BI->getSuccessor(0), 0, BI->getCondition()); // 'true' condition
                     setCondition(BI->getSuccessor(1), 1, BI->getCondition()); // 'inverted' condition
                 }
@@ -284,7 +284,7 @@ restart:
                     }
                 }
                 else {
-                    printf("[%s:%d] BRUNCOND %p\n", __FUNCTION__, __LINE__, BI->getSuccessor(0));
+                    //printf("[%s:%d] BRUNCOND %p\n", __FUNCTION__, __LINE__, BI->getSuccessor(0));
                 }
                 break;
                 }

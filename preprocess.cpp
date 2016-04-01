@@ -265,38 +265,38 @@ static void processMSize(CallInst *II)
 
 static void processMalloc(CallInst *II)
 {
-    Function *callingFunc = II->getParent()->getParent();
+    //Function *callingFunc = II->getParent()->getParent();
     Module *Mod = II->getParent()->getParent()->getParent();
     Value *called = II->getOperand(II->getNumOperands()-1);
     const Function *CF = dyn_cast<Function>(called);
     const Type *Typ = NULL;
     const StructType *STy = findThisArgument(II->getParent()->getParent());
     uint64_t styparam = (uint64_t)STy;
-    Value *vecparam = NULL;
     for(auto PI = II->user_begin(), PE = II->user_end(); PI != PE; PI++) {
         Instruction *ins = dyn_cast<Instruction>(*PI);
-        printf("[%s:%d] ins %p opcode %s\n", __FUNCTION__, __LINE__, ins, ins->getOpcodeName());
-        ins->dump();
+        //printf("[%s:%d] ins %p opcode %s\n", __FUNCTION__, __LINE__, ins, ins->getOpcodeName());
+        //ins->dump();
         if (ins->getOpcode() == Instruction::BitCast) {
             if (!Typ)
                 Typ = ins->getType();
         }
         if (ins->getOpcode() == Instruction::GetElementPtr) {
             Instruction *PI = ins->user_back();
-            PI->dump();
+            //PI->dump();
             if (PI->getOpcode() == Instruction::BitCast)
                 Typ = PI->getType();
         }
     }
+    Value *vecparam = NULL;
     if (CF->getName() == "_Znam")
         vecparam = findElementCount(II);
     uint64_t tparam = (uint64_t)Typ;
-    printf("%s: %s calling %s styparam %lx tparam %lx vecparam %p\n",
-        __FUNCTION__, callingFunc->getName().str().c_str(), CF->getName().str().c_str(), styparam, tparam, vecparam);
-    STy->dump();
-    if (Typ)
-        Typ->dump();
-    II->dump();
+    //printf("%s: %s calling %s styparam %lx tparam %lx vecparam %p\n",
+        //__FUNCTION__, callingFunc->getName().str().c_str(), CF->getName().str().c_str(), styparam, tparam, vecparam);
+    //STy->dump();
+    //if (Typ)
+        //Typ->dump();
+    //II->dump();
     Type *Params[] = {Type::getInt64Ty(Mod->getContext()),
         Type::getInt64Ty(Mod->getContext()), Type::getInt64Ty(Mod->getContext()),
         Type::getInt64Ty(Mod->getContext())};
