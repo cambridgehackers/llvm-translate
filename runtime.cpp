@@ -248,6 +248,10 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
             switch (II->getOpcode()) {
             case Instruction::Load:
                 if (II->getName() == "this") {
+                    /* reattach the 'this' pointer from the block descriptor to a method parameter.
+                     * Also, use the datatype of the 'this' pointer to extract the
+                     * StructType for the class that we will be a method for.
+                     */
                     PointerType *PTy = dyn_cast<PointerType>(II->getType());
                     const StructType *STy = dyn_cast<StructType>(PTy->getElementType());
                     std::string className = STy->getName().substr(6);
@@ -270,22 +274,47 @@ static Function *fixupFunction(std::string methodName, Function *argFunc, uint8_
                     if (Instruction *ptr = dyn_cast<Instruction>(IG->getPointerOperand()))
                     if (ptr->getOpcode() == Instruction::BitCast)
                     if (dyn_cast<Argument>(ptr->getOperand(0))) {
+                        /* Inline substitute captured values from block descriptor.
+                         * Currently, we only handle integer types, but this can be 
+                         * extended if needed.
+                         */
                         VectorType *LastIndexIsVector = NULL;
                         uint64_t Total = getGEPOffset(&LastIndexIsVector, gep_type_begin(IG), gep_type_end(IG));
                         IRBuilder<> builder(II->getParent());
                         builder.SetInsertPoint(II);
-printf("[%s:%d] Load %d\n", __FUNCTION__, __LINE__, *(uint32_t *)(blockData + Total));
-                        II->replaceAllUsesWith(builder.getInt32(*(uint32_t *)(blockData + Total)));
+                        int64_t val = *(uint32_t *)(blockData + Total);
+                        if (II->getType() == builder.getInt1Ty())
+                            val = (*(unsigned char *)(blockData + Total)) & 1;
+                        else if (II->getType() == builder.getInt8Ty())
+                            val = *(uint8_t *)(blockData + Total);
+                        else if (II->getType() == builder.getInt32Ty())
+                            val = *(uint32_t *)(blockData + Total);
+                        else if (II->getType() == builder.getInt64Ty())
+                            val = *(uint64_t *)(blockData + Total);
+                        else {
+                            printf("%s: unrecognized Load data type\n", __FUNCTION__);
+                            II->dump();
+                            II->getType()->dump();
+                            exit(-1);
+                        }
+                        //printf("[%s:%d] Load %ld\n", __FUNCTION__, __LINE__, val);
+                        II->replaceAllUsesWith(ConstantInt::get(II->getType(), val));
                         recursiveDelete(II);
                     }
                 break;
             case Instruction::SExt: {
                 if (const ConstantInt *CI = dyn_cast<ConstantInt>(II->getOperand(0))) {
+                    /* After inlining integers, we have some SExt references to constants
+                     * (these are for the offset parameters to GEP instructions.
+                     * Since the argument to SExt is just an integer, we can replace
+                     * all references to the SExt with the integer value itself
+                     * (using the datatype of the SExt).
+                     */
                     IRBuilder<> builder(II->getParent());
                     builder.SetInsertPoint(II);
                     int64_t val = CI->getZExtValue();
-printf("%s: SExt %ld\n", __FUNCTION__, val);
-                    II->replaceAllUsesWith(builder.getInt64(val));
+                    //printf("%s: SExt %ld\n", __FUNCTION__, val);
+                    II->replaceAllUsesWith(ConstantInt::get(II->getType(), val));
                     recursiveDelete(II);
                 }
                 break;
