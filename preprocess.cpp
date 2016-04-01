@@ -245,7 +245,7 @@ Value *findElementCount(Instruction *I)
         if (CallInst *CI = dyn_cast<CallInst>(I)) {
             if (Value *called = CI->getOperand(CI->getNumOperands()-1))
             if (const Function *CF = dyn_cast<Function>(called))
-            if (CF->getName() == "_ZL9__jcabozom") {
+            if (CF->getName() == "_ZL20atomiccNewArrayCountm") {
 printf("[%s:%d] FOUND\n", __FUNCTION__, __LINE__);
                 return CI->getOperand(0);
             }
@@ -259,12 +259,8 @@ printf("[%s:%d] FOUND\n", __FUNCTION__, __LINE__);
 
 static void processMSize(CallInst *II)
 {
-//_ZL9__jcabozom
-    Function *callingFunc = II->getParent()->getParent();
-callingFunc->dump();
     II->replaceAllUsesWith(II->getOperand(0));
     II->eraseFromParent();
-callingFunc->dump();
 }
 
 static void processMalloc(CallInst *II)
@@ -284,12 +280,6 @@ static void processMalloc(CallInst *II)
         if (ins->getOpcode() == Instruction::BitCast) {
             if (!Typ)
                 Typ = ins->getType();
-            else {
-                Instruction *PI = ins->user_back();
-                PI->dump();
-                if (PI->getOpcode() == Instruction::Store)
-                    vecparam = PI->getOperand(0);
-            }
         }
         if (ins->getOpcode() == Instruction::GetElementPtr) {
             Instruction *PI = ins->user_back();
@@ -298,10 +288,8 @@ static void processMalloc(CallInst *II)
                 Typ = PI->getType();
         }
     }
-    if (CF->getName() == "_Znam") {
+    if (CF->getName() == "_Znam")
         vecparam = findElementCount(II);
-printf("[%s:%d]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA %p\n", __FUNCTION__, __LINE__, vecparam);
-    }
     uint64_t tparam = (uint64_t)Typ;
     printf("%s: %s calling %s styparam %lx tparam %lx vecparam %p\n",
         __FUNCTION__, callingFunc->getName().str().c_str(), CF->getName().str().c_str(), styparam, tparam, vecparam);
@@ -447,7 +435,7 @@ void preprocessModule(Module *Mod)
         {"methodToFunction", processMethodToFunction},
         {"connectInterface", processConnectInterface},
         {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
-        {"_ZL9__jcabozom", processMSize},
+        {"_ZL20atomiccNewArrayCountm", processMSize},
         {NULL}};
 
     for (int i = 0; callProcess[i].name; i++) {

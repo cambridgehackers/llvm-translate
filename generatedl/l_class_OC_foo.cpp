@@ -7,7 +7,6 @@ void l_class_OC_foo__heard(void *thisarg, unsigned int meth, unsigned int v) {
         this_2e_addr = this;
         meth_2e_addr = meth;
         v_2e_addr = v;
-        stop_main_program = 1;
         printf("Heard an lpm: %d %d\n", meth_2e_addr, v_2e_addr);
 }
 bool l_class_OC_foo__heard__RDY(void *thisarg) {
