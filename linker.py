@@ -232,6 +232,7 @@ def processFile(moduleName):
                         moduleItem['exclusive'].append(inVector[1:])
                     elif inVector[0] == '//METAPRIORITY':
                         moduleItem['priority'][inVector[1]] = inVector[2]
+                        print 'SSSS', moduleItem
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
@@ -409,9 +410,14 @@ def dumpRules(prefix, moduleName, modDict):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         ruleList.append({'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict, 'before': [],
+         rinfo = {'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict, 'before': [],
              'guard': expandGuard(moduleItem, prefix, methodItem['guard']),
-             'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)})
+             'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)}
+         if moduleItem['priority'].get(ruleName) == 'high':
+             print 'RULEHIGHPRIO', ruleName
+             ruleList.insert(0, rinfo)
+         else:
+             ruleList.append(rinfo)
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
@@ -426,6 +432,7 @@ def formatRules():
 def intersect(left, right):
     for litem in left:
         if litem in right:
+            print 'intersect', litem
             return True
     return False
 
@@ -475,11 +482,18 @@ if __name__=='__main__':
                     #print '        INV:', ritem['name'], iitem, thisRef, thisMeth, befList
         schedList = []
         for ritem in ruleList:
+            #print 'RR', ritem['name']
             sIndex = 0
             while sIndex < len(schedList):
                 if intersect(schedList[sIndex]['invoke'], ritem['before']):
                     # our rule read something that was written at this stage, insert before
-                    break
+                    breakLoop = True
+                    for bitem in exclusiveList:
+                        if schedList[sIndex]['name'] in bitem and ritem['name'] in bitem:
+                            # these items conflict anyway, so dont check 'before'
+                            breakLoop = False
+                    if breakLoop:
+                        break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
         print 'SCHED'
