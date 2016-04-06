@@ -1,9 +1,10 @@
 `ifndef __l_class_OC_Lpm_VH__
 `define __l_class_OC_Lpm_VH__
 
+`include "l_class_OC_Fifo1_OC_0.vh"
 `include "l_class_OC_Fifo2.vh"
 `include "l_class_OC_LpmMemory.vh"
-`define l_class_OC_Lpm_RULE_COUNT (4 + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_LpmMemory_RULE_COUNT)
+`define l_class_OC_Lpm_RULE_COUNT (4 + `l_class_OC_Fifo1_OC_0_RULE_COUNT + `l_class_OC_Fifo2_RULE_COUNT + `l_class_OC_Fifo1_OC_0_RULE_COUNT + `l_class_OC_LpmMemory_RULE_COUNT)
 
 //METAINVOKE; enter; :fifo$in$enq;:inQ$out$deq;:inQ$out$first;:mem$req;
 //METAEXCLUSIVE; enter; recirc
@@ -19,9 +20,9 @@
 //METAGUARD; say; inQ$in$enq__RDY;
 //METARULES; enter; exit; recirc; respond
 //METAPRIORITY; recirc; enter;exit
-//METAINTERNAL; inQ; l_class_OC_Fifo2;
+//METAINTERNAL; inQ; l_class_OC_Fifo1_OC_0;
 //METAINTERNAL; fifo; l_class_OC_Fifo2;
-//METAINTERNAL; outQ; l_class_OC_Fifo2;
+//METAINTERNAL; outQ; l_class_OC_Fifo1_OC_0;
 //METAINTERNAL; mem; l_class_OC_LpmMemory;
 //METAEXTERNAL; indication; l_class_OC_LpmIndication;
 `endif

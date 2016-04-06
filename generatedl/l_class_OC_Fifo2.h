@@ -1,6 +1,6 @@
 #ifndef __l_class_OC_Fifo2_H__
 #define __l_class_OC_Fifo2_H__
-#include "l_class_OC_Fifo.h"
+#include "l_class_OC_Fifo_OC_1.h"
 #include "l_struct_OC_ValuePair.h"
 class l_class_OC_Fifo2;
 extern void l_class_OC_Fifo2__deq(void *thisarg);
@@ -11,8 +11,8 @@ extern l_struct_OC_ValuePair l_class_OC_Fifo2__first(void *thisarg);
 extern bool l_class_OC_Fifo2__first__RDY(void *thisarg);
 class l_class_OC_Fifo2 {
 public:
-  l_class_OC_PipeIn in;
-  l_class_OC_PipeOut out;
+  l_class_OC_PipeIn_OC_2 in;
+  l_class_OC_PipeOut_OC_3 out;
   l_struct_OC_ValuePair element0;
   l_struct_OC_ValuePair element1;
   l_struct_OC_ValuePair element2;

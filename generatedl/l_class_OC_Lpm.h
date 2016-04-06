@@ -1,5 +1,6 @@
 #ifndef __l_class_OC_Lpm_H__
 #define __l_class_OC_Lpm_H__
+#include "l_class_OC_Fifo1_OC_0.h"
 #include "l_class_OC_Fifo2.h"
 #include "l_class_OC_LpmIndication.h"
 #include "l_class_OC_LpmMemory.h"
@@ -17,9 +18,9 @@ extern void l_class_OC_Lpm__say(void *thisarg, unsigned int say_meth, unsigned i
 extern bool l_class_OC_Lpm__say__RDY(void *thisarg);
 class l_class_OC_Lpm {
 public:
-  l_class_OC_Fifo2 inQ;
+  l_class_OC_Fifo1_OC_0 inQ;
   l_class_OC_Fifo2 fifo;
-  l_class_OC_Fifo2 outQ;
+  l_class_OC_Fifo1_OC_0 outQ;
   l_class_OC_LpmMemory mem;
   unsigned int doneCount, doneCount_shadow; bool doneCount_valid;
   l_class_OC_LpmIndication *indication;

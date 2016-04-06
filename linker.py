@@ -500,6 +500,7 @@ if __name__=='__main__':
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         #print 'JRR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        print 'EEE', exclusiveList
         constraintList = []
         for eitem in exclusiveList:
             citem = []
