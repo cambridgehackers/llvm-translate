@@ -262,7 +262,6 @@ def processFile(moduleName):
                         moduleItem['exclusive'].append(inVector[1:])
                     elif inVector[0] == '//METAPRIORITY':
                         moduleItem['priority'][inVector[1]] = inVector[2:]
-                        print 'SSSS', moduleItem
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
                         for vitem in inVector[2:]:
@@ -452,19 +451,11 @@ def dumpRules(prefix, moduleName, modDict):
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for eitem in moduleItem['exclusive']:
-        print 'DDD', moduleName, prefix, eitem
         exclusiveList.append([ prefix + field for field in eitem])
 
 def formatRules():
     for item in ruleList:
          totalList[formatAccess(1, item['invoke']) + '/' + item['name']] = formatAccess(0, item['before']) + '\n        ' + guardToString(item['guard'])
-
-def intersect(left, right):
-    for litem in left:
-        if litem in right:
-            print 'intersect', litem
-            return True
-    return False
 
 def dumpDep(schedList, wIndex, targetItem):
     wItem = schedList[wIndex]
@@ -580,37 +571,14 @@ if __name__=='__main__':
               {'marked': False, 'C': [], 'SB':[]}, \
               {'marked': False, 'C': [], 'SB':[]}])
 
-        schedList = []
-        for rIndex in range(len(ruleList)):
-            ritem = ruleList[rIndex]
-            print 'RRR', rIndex, ritem['name'], 'SB:', ritem['SB'], 'C:', ritem['C']
-            sIndex = 0
-            while sIndex < len(schedList):
-                if intersect(schedList[sIndex]['invoke'], ritem['before']):
-                    # our rule read something that was written at this stage, insert before
-                    breakLoop = True
-                    for bitem in exclusiveList:
-                        if schedList[sIndex]['name'] in bitem and ritem['name'] in bitem:
-                            # these items conflict anyway, so dont check 'before'
-                            breakLoop = False
-                    if breakLoop:
-                        break
-                sIndex += 1
-            schedList.insert(sIndex, ritem)
-        for sIndex in range(len(schedList)):
-            sitem = schedList[sIndex]
-            for item in sitem['before']:
-                for wIndex in range(0, sIndex):
-                    witem = schedList[wIndex]
-                    if item in witem['invoke']:
-                        print 'error', item, 'before: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
+        print 'TTTTTTTTTTTTTTTTTTTTTTTTTTTT', tarjan(ruleList)
         #
         # Now go through the schedule constraint list, adding disjoint conditions to guards
         #
 
         # print schedule
         print 'SCHED'
-        for sitem in schedList:
+        for sitem in ruleList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['invoke']]), '    :', ', '.join([foo[1] for foo in sitem['before']])
         print 'EXCL', exclusiveList, constraintList
         if removeUnref:
