@@ -452,6 +452,7 @@ def dumpRules(prefix, moduleName, modDict):
     for key, value in moduleItem['external'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for eitem in moduleItem['exclusive']:
+        print 'DDD', moduleName, prefix, eitem
         exclusiveList.append([ prefix + field for field in eitem])
 
 def formatRules():
@@ -502,11 +503,21 @@ if __name__=='__main__':
         #print 'JRR', json.dumps(ruleList, sort_keys=True, indent = 4)
         print 'EEE', exclusiveList
         constraintList = []
+        constraintMethodList = []
         for eitem in exclusiveList:
             citem = []
+            cmitem = []
             for item in eitem:
-                citem.append(ruleMap[item])
-            constraintList.append(citem)
+                cnode = ruleMap.get(item)
+                if cnode is not None: # EXCL items can also be just methods
+                    citem.append(cnode)
+                else:
+                    cmitem.append(item)
+            if citem != []:
+                constraintList.append(citem)
+            if cmitem != []:
+                constraintMethodList.append(cmitem)
+        print 'ECCC', constraintList, constraintMethodList
         #
         # Collect schedule constraints (disjoint, before)
         #
@@ -522,14 +533,28 @@ if __name__=='__main__':
                         befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
                         ritem['before'] += befList
                     #print '        INV:', ritem['name'], iitem, thisRef, thisMeth, befList
+                    for cmitem in constraintMethodList:
+                        if item in cmitem:
+                            print 'FFF', item
+                            for rbIndex in range(len(ruleList)):
+                                rbitem = ruleList[rbIndex]
+                                if rbitem != ritem:
+                                    #print 'CCINVTEST', item, rIndex, rbIndex, rbitem['invoke'], cmitem
+                                    for rbInvoke in rbitem['invoke']:
+                                        for rbiitem in rbInvoke[1:]:
+                                            #print 'CCINV', rbiitem, cmitem, rIndex, rbIndex
+                                            if rbiitem in cmitem and [rIndex, rbIndex] not in constraintList and [rbIndex, rIndex] not in constraintList:
+                                                constraintList.append([rIndex, rbIndex])
+                                                break
             for cIndex in range(len(constraintList)):
                 citem = constraintList[cIndex]
                 if rIndex in citem:
                     ritem['C'].append(cIndex)
             for iitem in ritem['before']:
                 for rbIndex in range(len(ruleList)):
-                    if ruleList[rbIndex] != ritem:
-                        if iitem in ruleList[rbIndex]['invoke']:
+                    rbitem = ruleList[rbIndex]
+                    if rbitem != ritem:
+                        if iitem in rbitem['invoke']:
                             insertItem = True
                             for cIndex in ritem['C']:
                                 citem = constraintList[cIndex]
@@ -538,7 +563,7 @@ if __name__=='__main__':
                                     break
                             if insertItem and rbIndex not in ritem['SB']:
                                 ritem['SB'].append(rbIndex)
-        print 'EXCL', ruleMap, exclusiveList
+        print 'EXCL', ruleMap, exclusiveList, constraintList
         #
         # Find loops in 'schedule before'.
         # For each loop, need to break it with a schedule constraint
