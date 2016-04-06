@@ -32,18 +32,21 @@ traceAll = False
 removeUnref = False
 mInfo = {}
 
+# Tarjan: 'Enumeration of the Elementary Circuits of a Directed Graph'
+# https://ecommons.cornell.edu/handle/1813/5941
 def tarjanBacktrack(pointStack, v, clearMarked, startVirtex, adjacencyList, cycles, markedStack):
-    adjacencyList[v]['marked'] = True
     listLen = len(markedStack)
-    markedStack.append(v) # examine each node only once per circuit
+    adjacencyList[v]['marked'] = True # examine each node only once per circuit
+    markedStack.append(v)
+    thisPoints = pointStack + [v]
     # (only allow path intersections at startVirtex)
     for w in adjacencyList[v]['before']:
         if w == startVirtex: # we made it back to startVirtex, add loop
-            cycles.append(pointStack)
+            cycles.append(thisPoints)
             clearMarked = True
         # recurse down next edge
         elif not adjacencyList[w]['marked'] \
-          and tarjanBacktrack(pointStack + [w], w, False, startVirtex, adjacencyList, cycles, markedStack):
+          and tarjanBacktrack(thisPoints, w, False, startVirtex, adjacencyList, cycles, markedStack):
             clearMarked = True
     if clearMarked:
         # we found an elementary circuit to startVirtex, clear markers
@@ -55,7 +58,7 @@ def tarjanBacktrack(pointStack, v, clearMarked, startVirtex, adjacencyList, cycl
 def tarjan(adjacencyList):
     cycles = []
     for startVirtex in range(len(adjacencyList)):
-        tarjanBacktrack([startVirtex], startVirtex, True, startVirtex, adjacencyList, cycles, [])
+        tarjanBacktrack([], startVirtex, True, startVirtex, adjacencyList, cycles, [])
         adjacencyList[startVirtex]['marked'] = True # only consider each startVirtex once
     return cycles
 
@@ -437,14 +440,11 @@ def dumpRules(prefix, moduleName, modDict):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         rinfo = {'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict, 'before': [],
+         rinfo = {'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict,
+             'before': [], 'marked': False,
              'guard': expandGuard(moduleItem, prefix, methodItem['guard']),
              'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)}
-         if moduleItem['priority'].get(ruleName) == 'high':
-             print 'RULEHIGHPRIO', ruleName
-             ruleList.insert(0, rinfo)
-         else:
-             ruleList.append(rinfo)
+         ruleList.append(rinfo)
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
     for key, value in moduleItem['external'].iteritems():
