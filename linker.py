@@ -40,7 +40,7 @@ def tarjanBacktrack(pointStack, v, clearMarked, startVirtex, adjacencyList, cycl
     markedStack.append(v)
     thisPoints = pointStack + [v]
     # (only allow path intersections at startVirtex)
-    for w in adjacencyList[v]['before']:
+    for w in adjacencyList[v]['SB']:
         if w == startVirtex: # we made it back to startVirtex, add loop
             cycles.append(thisPoints)
             clearMarked = True
@@ -440,10 +440,12 @@ def dumpRules(prefix, moduleName, modDict):
          if traceList:
              print 'RULE', '"' + prefix + '"', ruleName
          methodItem = moduleItem['methods'][ruleName]
-         rinfo = {'module': moduleName, 'name': prefix + ruleName, 'connDictionary': modDict,
-             'before': [], 'marked': False,
+         tname = prefix + ruleName
+         rinfo = {'module': moduleName, 'name': tname, 'connDictionary': modDict,
+             'before': [], 'C': [], 'SB': [], 'marked': False,
              'guard': expandGuard(moduleItem, prefix, methodItem['guard']),
              'invoke': getList(prefix, moduleName, ruleName, 'invoke', modDict)}
+         ruleMap[tname] = len(ruleList)
          ruleList.append(rinfo)
     for key, value in moduleItem['internal'].iteritems():
         dumpRules(prefix + key + '$', value, modDict.get(key))
@@ -491,16 +493,24 @@ if __name__=='__main__':
         exclusiveList = []
         totalList = {}
         accessList = [[], []]
+        ruleMap = {}  # map name -> index in ruleList
         for moduleName in options.verilog:
             dumpRules('', moduleName, mInfo[moduleName]['connDictionary'])
         formatRules()
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
-        #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        #print 'JRR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        constraintList = []
+        for eitem in exclusiveList:
+            citem = []
+            for item in eitem:
+                citem.append(ruleMap[item])
+            constraintList.append(citem)
         #
         # Collect schedule constraints (disjoint, before)
         #
-        for ritem in ruleList:
+        for rIndex in range(len(ruleList)):
+            ritem = ruleList[rIndex]
             # Gather 'schedule before' info for each rule
             for iitem in ritem['invoke']:
                 for item in iitem[1:]:
@@ -511,25 +521,43 @@ if __name__=='__main__':
                         befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
                         ritem['before'] += befList
                     #print '        INV:', ritem['name'], iitem, thisRef, thisMeth, befList
+            for cIndex in range(len(constraintList)):
+                citem = constraintList[cIndex]
+                if rIndex in citem:
+                    ritem['C'].append(cIndex)
+            for iitem in ritem['before']:
+                for rbIndex in range(len(ruleList)):
+                    if ruleList[rbIndex] != ritem:
+                        if iitem in ruleList[rbIndex]['invoke']:
+                            insertItem = True
+                            for cIndex in ritem['C']:
+                                citem = constraintList[cIndex]
+                                if rbIndex in citem:
+                                    insertItem = False
+                                    break
+                            if insertItem and rbIndex not in ritem['SB']:
+                                ritem['SB'].append(rbIndex)
+        print 'EXCL', ruleMap, exclusiveList
         #
         # Find loops in 'schedule before'.
         # For each loop, need to break it with a schedule constraint
         # 
         print tarjan([ \
-              {'marked': False, 'before':[1]}, \
-              {'marked': False, 'before':[4, 6, 7]}, \
-              {'marked': False, 'before':[4, 6, 7]}, \
-              {'marked': False, 'before':[4, 6, 7]}, \
-              {'marked': False, 'before':[2, 3]}, \
-              {'marked': False, 'before':[2, 3]}, \
-              {'marked': False, 'before':[5, 8]}, \
-              {'marked': False, 'before':[5, 8]}, \
-              {'marked': False, 'before':[]}, \
-              {'marked': False, 'before':[]}])
+              {'marked': False, 'C': [], 'SB':[1]}, \
+              {'marked': False, 'C': [], 'SB':[4, 6, 7]}, \
+              {'marked': False, 'C': [], 'SB':[4, 6, 7]}, \
+              {'marked': False, 'C': [], 'SB':[4, 6, 7]}, \
+              {'marked': False, 'C': [], 'SB':[2, 3]}, \
+              {'marked': False, 'C': [], 'SB':[2, 3]}, \
+              {'marked': False, 'C': [], 'SB':[5, 8]}, \
+              {'marked': False, 'C': [], 'SB':[5, 8]}, \
+              {'marked': False, 'C': [], 'SB':[]}, \
+              {'marked': False, 'C': [], 'SB':[]}])
 
         schedList = []
-        for ritem in ruleList:
-            #print 'RR', ritem['name']
+        for rIndex in range(len(ruleList)):
+            ritem = ruleList[rIndex]
+            print 'RRR', rIndex, ritem['name'], 'SB:', ritem['SB'], 'C:', ritem['C']
             sIndex = 0
             while sIndex < len(schedList):
                 if intersect(schedList[sIndex]['invoke'], ritem['before']):
@@ -558,7 +586,7 @@ if __name__=='__main__':
         print 'SCHED'
         for sitem in schedList:
             print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['invoke']]), '    :', ', '.join([foo[1] for foo in sitem['before']])
-        print 'EXCL', exclusiveList
+        print 'EXCL', exclusiveList, constraintList
         if removeUnref:
             secondPass = True
             ruleList = []
