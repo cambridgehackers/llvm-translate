@@ -32,6 +32,33 @@ traceAll = False
 removeUnref = False
 mInfo = {}
 
+def tarjanBacktrack(pointStack, v, clearMarked, startVirtex, adjacencyList, cycles, markedStack):
+    adjacencyList[v]['marked'] = True
+    listLen = len(markedStack)
+    markedStack.append(v) # examine each node only once per circuit
+    # (only allow path intersections at startVirtex)
+    for w in adjacencyList[v]['before']:
+        if w == startVirtex: # we made it back to startVirtex, add loop
+            cycles.append(pointStack)
+            clearMarked = True
+        # recurse down next edge
+        elif not adjacencyList[w]['marked'] \
+          and tarjanBacktrack(pointStack + [w], w, False, startVirtex, adjacencyList, cycles, markedStack):
+            clearMarked = True
+    if clearMarked:
+        # we found an elementary circuit to startVirtex, clear markers
+        # to allow next DFS to traverse the graph again
+        while len(markedStack) != listLen:
+            adjacencyList[markedStack.pop()]['marked'] = False
+    return clearMarked
+
+def tarjan(adjacencyList):
+    cycles = []
+    for startVirtex in range(len(adjacencyList)):
+        tarjanBacktrack([startVirtex], startVirtex, True, startVirtex, adjacencyList, cycles, [])
+        adjacencyList[startVirtex]['marked'] = True # only consider each startVirtex once
+    return cycles
+
 SCANNER = re.compile(r'''
   (\s+) |                      # whitespace
   ([0-9A-Za-z_][$A-Za-z0-9_]*) |   # identifiers, numbers
@@ -231,7 +258,7 @@ def processFile(moduleName):
                     elif inVector[0] == '//METAEXCLUSIVE':
                         moduleItem['exclusive'].append(inVector[1:])
                     elif inVector[0] == '//METAPRIORITY':
-                        moduleItem['priority'][inVector[1]] = inVector[2]
+                        moduleItem['priority'][inVector[1]] = inVector[2:]
                         print 'SSSS', moduleItem
                     elif metaIndex:
                         checkMethod(moduleItem, inVector[1])
@@ -470,7 +497,11 @@ if __name__=='__main__':
         for key, value in sorted(totalList.iteritems()):
             print key + ': ' + value
         #print 'RR', json.dumps(ruleList, sort_keys=True, indent = 4)
+        #
+        # Collect schedule constraints (disjoint, before)
+        #
         for ritem in ruleList:
+            # Gather 'schedule before' info for each rule
             for iitem in ritem['invoke']:
                 for item in iitem[1:]:
                     moduleItem = mInfo[ritem['module']]
@@ -480,6 +511,22 @@ if __name__=='__main__':
                         befList = prependList(thisRef + '$', mInfo[innerFileName]['methods'][thisMeth]['before'])
                         ritem['before'] += befList
                     #print '        INV:', ritem['name'], iitem, thisRef, thisMeth, befList
+        #
+        # Find loops in 'schedule before'.
+        # For each loop, need to break it with a schedule constraint
+        # 
+        print tarjan([ \
+              {'marked': False, 'before':[1]}, \
+              {'marked': False, 'before':[4, 6, 7]}, \
+              {'marked': False, 'before':[4, 6, 7]}, \
+              {'marked': False, 'before':[4, 6, 7]}, \
+              {'marked': False, 'before':[2, 3]}, \
+              {'marked': False, 'before':[2, 3]}, \
+              {'marked': False, 'before':[5, 8]}, \
+              {'marked': False, 'before':[5, 8]}, \
+              {'marked': False, 'before':[]}, \
+              {'marked': False, 'before':[]}])
+
         schedList = []
         for ritem in ruleList:
             #print 'RR', ritem['name']
@@ -496,9 +543,6 @@ if __name__=='__main__':
                         break
                 sIndex += 1
             schedList.insert(sIndex, ritem)
-        print 'SCHED'
-        for sitem in schedList:
-            print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['invoke']]), '    :', ', '.join([foo[1] for foo in sitem['before']])
         for sIndex in range(len(schedList)):
             sitem = schedList[sIndex]
             for item in sitem['before']:
@@ -506,6 +550,14 @@ if __name__=='__main__':
                     witem = schedList[wIndex]
                     if item in witem['invoke']:
                         print 'error', item, 'before: ' + sitem['name'] + ', written: ' + witem['name'] + dumpDep(schedList, wIndex, item)
+        #
+        # Now go through the schedule constraint list, adding disjoint conditions to guards
+        #
+
+        # print schedule
+        print 'SCHED'
+        for sitem in schedList:
+            print '    ', sitem['name'], ', '.join([foo[1] for foo in sitem['invoke']]), '    :', ', '.join([foo[1] for foo in sitem['before']])
         print 'EXCL', exclusiveList
         if removeUnref:
             secondPass = True
