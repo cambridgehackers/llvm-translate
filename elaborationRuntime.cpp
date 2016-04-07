@@ -196,9 +196,9 @@ static void pushWork(std::string mName, Function *func)
     if (pushSeen[func] != "")
         return;
     setSeen(func, mName);
-    //printf("[%s:%d] mname %s funcname %s\n", __FUNCTION__, __LINE__, mName.c_str(), func->getName().str().c_str());
+    printf("[%s:%d] mname %s funcname %s\n", __FUNCTION__, __LINE__, mName.c_str(), func->getName().str().c_str());
     table->method[mName] = func;
-    updateParameterNames(mName, func);
+    updateParameterNames(baseMethod(mName), func);
     // inline intra-class method call bodies
     processMethodInlining(func, func);
     fixupFuncList.push_back(func);
@@ -360,23 +360,34 @@ extern "C" void exportRequest(Function *enaFunc)
 {
     ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
     std::string enaName = getMethodName(enaFunc->getName());
-    std::string rdyName = enaName + "__RDY";
     if (trace_pair)
-        printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), rdyName.c_str());
+        printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), enaName.c_str());
     for (unsigned int i = 0; i < table->vtableCount; i++)
-        if (getMethodName(table->vtable[i]->getName()) == rdyName)
-            pushPair(enaFunc, enaName, table->vtable[i], rdyName);
+        if (getMethodName(table->vtable[i]->getName()) == enaName + "__RDY") {
+            if (isActionMethod(enaFunc))
+            pushPair(enaFunc, enaName + "__ENA", table->vtable[i], enaName + "__RDY");
+            else
+            pushPair(enaFunc, enaName, table->vtable[i], enaName + "__RDY");
+        }
+        else if (getMethodName(table->vtable[i]->getName()) == enaName + "__READY") {
+            if (isActionMethod(enaFunc))
+            pushPair(enaFunc, enaName + "__VALID", table->vtable[i], enaName + "__READY");
+            else
+            pushPair(enaFunc, enaName, table->vtable[i], enaName + "__READY");
+        }
 }
 
 /*
  * Called from user constructors to process Blocks functions generated for a rule
+ * Rules only support RDY/ENA signalling.
  */
 extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Function **ENA)
 {
-    Function *enaFunc = fixupFunction(name, ENA[2], (uint8_t *)ENA);
+    std::string enaName = name + std::string("__ENA");
+    Function *enaFunc = fixupFunction(enaName, ENA[2], (uint8_t *)ENA);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2], (uint8_t *)RDY);
     ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
-    table->rules[name] = enaFunc;
+    table->rules[enaName] = enaFunc;
     if (trace_pair)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));

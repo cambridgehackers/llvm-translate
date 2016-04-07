@@ -158,3 +158,5 @@ void generateContainedStructs(const Type *Ty, std::string ODir);
 void startMeta(const Function *func);
 void appendList(int listIndex, BasicBlock *cond, std::string item);
 void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePrefix);
+std::string baseMethod(std::string mname);
+bool isActionMethod(const Function *func);

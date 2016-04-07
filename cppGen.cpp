@@ -27,6 +27,14 @@ using namespace llvm;
 
 #include "declarations.h"
 
+std::string baseMethod(std::string mname)
+{
+    if (endswith(mname, "__ENA"))
+        return mname.substr(0, mname.length() - 5);
+    else if (endswith(mname, "__VALID"))
+        return mname.substr(0, mname.length() - 7);
+    return mname;
+}
 /*
  * Recursively generate element definitions for a class.
  */
@@ -204,7 +212,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "class %s;\n", name.c_str());
         for (auto FI : table->method) {
             Function *func = FI.second;
-            fprintf(OStr, "extern %s;\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
+            std::string mname = baseMethod(FI.first);
+            fprintf(OStr, "extern %s;\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         }
         }
         fprintf(OStr, "class %s {\n", name.c_str());
@@ -215,8 +224,9 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "public:\n");
         for (auto FI : table->method) {
             Function *func = FI.second;
-            fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
-                printFunctionInstance(func, FI.first + "p", "p").c_str());
+            std::string mname = baseMethod(FI.first);
+            fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, mname, false).c_str(),
+                printFunctionInstance(func, mname + "p", "p").c_str());
         }
         std::string delim;
         fprintf(OStr, "  %s(", name.c_str());
@@ -249,7 +259,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 std::string vname = getMethodName(itable->vtable[i]->getName());
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
-                if (!endswith(vname, "__RDY")) {
+                // TODO: Should we support interfaces with VALID/READY or just RDY/ENA?
+                if (!endswith(vname, "__RDY") && !endswith(vname, "__READY")) {
                     std::string fname = name + "__" + vname;
                     fprintf(OStr, ", %s__RDY, %s", fname.c_str(), fname.c_str());
                     prefix = ",";
@@ -265,9 +276,10 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     for (auto FI : table->method) {
         Function *func = FI.second;
-        if (!cancelList[FI.first])
-        fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, FI.first, false).c_str(),
-            printFunctionInstance(func, name + "__" + FI.first, "this").c_str());
+        std::string mname = baseMethod(FI.first);
+        if (!cancelList[mname])
+        fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, mname, false).c_str(),
+            printFunctionInstance(func, name + "__" + mname, "this").c_str());
     }
     for (auto item: table->interfaces)
         fprintf(OStr, "  void set%s(%s) { %s = v; }\n", item.first.c_str(),
@@ -281,7 +293,9 @@ void generateClassDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
         Function *func = FI.second;
-        fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + FI.first, true).c_str());
+        std::string mname = baseMethod(FI.first);
+printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(), func->getName().str().c_str());
+        fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         auto AI = func->arg_begin();
         if (func->hasStructRetAttr())
             AI++;
@@ -312,7 +326,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
     for (auto item : table->rules)
         if (item.second)
-            fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.c_str(), item.first.c_str());
+            fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.substr(0, item.first.length()-5).c_str(), item.first.substr(0, item.first.length()-5).c_str());
     for (auto item : runLines)
         fprintf(OStr, "    %s.run();\n", item.c_str());
     fprintf(OStr, "    commit();\n");

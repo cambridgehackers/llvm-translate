@@ -97,11 +97,18 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
         funcMap[getMethodName(func->getName())] = func;
     }
     for (auto item: funcMap) {
-        if (endswith(item.first, "__RDY")) {
+        if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
+            std::string enaSuffix = "__ENA";
+            if (endswith(item.first, "__READY")) {
+                enaName = item.first.substr(0, item.first.length() - 7);
+                enaSuffix = "__VALID";
+            }
             Function *enaFunc = funcMap[enaName];
-//printf("[%s:%d] sname %s func %s %p %p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, enaFunc);
-            table->method[enaName] = enaFunc;
+            if (!isActionMethod(enaFunc))
+                enaSuffix = "";
+printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, (enaName+enaSuffix).c_str(), enaFunc);
+            table->method[enaName + enaSuffix] = enaFunc;
             table->method[item.first] = item.second;
         }
     }

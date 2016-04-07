@@ -38,7 +38,6 @@ static int trace_function;//=1;
 static int trace_call;//=1;
 static int trace_gep;//=1;
 static int trace_lookupMethod;//= 1;
-std::map<Function *, Function *> ruleRDYFunction;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
 int generateRegion = ProcessNone;
@@ -179,6 +178,15 @@ int inheritsModule(const StructType *STy, const char *name)
         }
     }
     return 0;
+}
+
+bool isActionMethod(const Function *func)
+{
+    Type *retType = func->getReturnType();
+    if (func->hasStructRetAttr())
+        if (auto PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
+            retType = PTy->getElementType();
+    return (retType == Type::getVoidTy(func->getContext()));
 }
 
 /*
@@ -633,14 +641,17 @@ static std::string printCall(Instruction &I)
         sep = ", ";
     }
     else if (generateRegion == ProcessVerilog) {
-        if (retType == Type::getVoidTy(func->getContext()))
-            muxEnable(I.getParent(), mname + "__ENA");
+        if (isActionMethod(func))
+{
+printf("[%s:%d] call %s\n", __FUNCTION__, __LINE__, mname.c_str());
+            muxEnable(I.getParent(), mname);
+}
         else
             vout += mname;
-        appendList(MetaInvoke, I.getParent(), mname);
+        appendList(MetaInvoke, I.getParent(), baseMethod(mname));
     }
     else {
-        vout += pcalledFunction + mname + "(";
+        vout += pcalledFunction + baseMethod(mname) + "(";
     }
     for (FAI++; AI != AE; ++AI, FAI++) { // first param processed as pcalledFunction
         bool indirect = dyn_cast<PointerType>((*AI)->getType()) != NULL;
@@ -652,7 +663,7 @@ static std::string printCall(Instruction &I)
             indirect = false;
         std::string parg = printOperand(*AI, indirect);
         if (generateRegion == ProcessVerilog)
-            muxValue(I.getParent(), mname + "_" + FAI->getName().str(), parg);
+            muxValue(I.getParent(), baseMethod(mname) + "_" + FAI->getName().str(), parg);
         else
             vout += sep + parg;
         sep = ", ";
@@ -991,6 +1002,7 @@ static void checkClass(const StructType *STy, const StructType *ActSTy)
                     bool foundSomething = false;
                     for (unsigned i = 0; i < itable->vtableCount; i++) {
                         std::string vname = getMethodName(itable->vtable[i]->getName());
+printf("[%s:%d] vname %s\n", __FUNCTION__, __LINE__, vname.c_str());
                         if (atable->method.find(vname) != atable->method.end()
                          || atable->method.find(fname + "_" + vname) != atable->method.end())
                             foundSomething = true;

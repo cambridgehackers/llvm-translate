@@ -53,6 +53,7 @@ struct MAPSEENcomp {
 };
 typedef std::map<std::string, Function *>MethodMapType;
 
+std::map<Function *, Function *> ruleRDYFunction;
 std::list<Function *> fixupFuncList;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 
@@ -254,15 +255,30 @@ restart:
                     II->eraseFromParent();
                     return;
                 }
-                std::string rdyName = mName + "__RDY";
-                if (table)
-                    table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
+                //moved if (table)
+                //moved     table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
                 for (unsigned int i = 0; table && i < table->vtableCount; i++) {
                     Function *calledFunctionGuard = table->vtable[i];
                     if (trace_hoist)
-                        printf("HOIST: act %s req %s\n", getMethodName(calledFunctionGuard->getName()).c_str(), rdyName.c_str());
-                    if (getMethodName(calledFunctionGuard->getName()) == rdyName) {
+                        printf("HOIST: act %s req %s\n", getMethodName(calledFunctionGuard->getName()).c_str(), mName.c_str());
+                    if (getMethodName(calledFunctionGuard->getName()) == mName + "__RDY") {
                         addGuard(II, calledFunctionGuard, currentFunction);
+                        if (table) {
+                            if (isActionMethod(func))
+                            table->method[mName + "__ENA"] = func;  // keep track of all functions that were called, not just ones that were defined
+                            else
+                            table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
+                        }
+                        break;
+                    }
+                    if (getMethodName(calledFunctionGuard->getName()) == mName + "__READY") {
+                        addGuard(II, calledFunctionGuard, currentFunction);
+                        if (table) {
+                            if (isActionMethod(func))
+                            table->method[mName + "__VALID"] = func;  // keep track of all functions that were called, not just ones that were defined
+                            else
+                            table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
+                        }
                         break;
                     }
                 }
@@ -427,7 +443,10 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
-        setSeen(func, mName);
+        std::string suffix;
+        if (!endswith(mName, "__RDY") && isActionMethod(func))
+            suffix = "__ENA";
+        setSeen(func, mName + suffix);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II)) {
@@ -446,20 +465,27 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     for (auto item: methodMap) {
         if (trace_pair)
             printf("[%s:%d] methodMap %s\n", __FUNCTION__, __LINE__, item.first.c_str());
-        if (endswith(item.first, "__RDY")) {
+        if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
+            std::string enaSuffix = "__ENA";
+            if (endswith(item.first, "__READY")) {
+                enaName = item.first.substr(0, item.first.length() - 7);
+                enaSuffix = "__VALID";
+            }
             Function *enaFunc = methodMap[enaName];
+            if (!isActionMethod(enaFunc))
+                enaSuffix = "";
             if (!enaFunc) {
-                printf("%s: guarded function not found %s\n", __FUNCTION__, item.first.c_str());
+                printf("%s: guarded function not found %s looking for %s\n", __FUNCTION__, item.first.c_str(), enaName.c_str());
                 for (auto item: methodMap)
                     if (item.second)
                         printf("    %s\n", item.first.c_str());
                 exit(-1);
             }
-            if (trace_pair)
+            //if (trace_pair)
                 printf("%s: seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
                     pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            pushPair(enaFunc, enaName, item.second, item.first);
+            pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
         }
     }
 }

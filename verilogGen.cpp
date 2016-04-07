@@ -99,8 +99,11 @@ void buildPrefix(ClassMethodTable *table, PrefixType &interfacePrefix)
     for (auto item: table->interfaceList) {
         ClassMethodTable *itable = classCreate[item.STy];
         for (unsigned i = 0; i < itable->vtableCount; i++) {
-            interfacePrefix[getMethodName(itable->vtable[i]->getName())] = item.name + "$";
-//printf("[%s:%d] class %s name %s prefix %s\n", __FUNCTION__, __LINE__, table->STy->getName().str().c_str(), getMethodName(itable->vtable[i]->getName()).c_str(), item.name.c_str());
+            std::string mname = getMethodName(itable->vtable[i]->getName());
+            interfacePrefix[mname] = item.name + "$";
+            interfacePrefix[mname + "__ENA"] = item.name + "$";
+            interfacePrefix[mname + "__VALID"] = item.name + "$";
+printf("[%s:%d] class %s name %s prefix %s\n", __FUNCTION__, __LINE__, table->STy->getName().str().c_str(), getMethodName(itable->vtable[i]->getName()).c_str(), item.name.c_str());
         }
     }
 }
@@ -131,8 +134,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 AI++;
             }
             std::string arrRange;
-            int isAction = (retType == Type::getVoidTy(func->getContext()));
-            std::string wparam = inp + mname + (isAction ? "__ENA" : "");
+            int isAction = isActionMethod(func);
+            std::string wparam = inp + mname;
             if (!isAction)
                 arrRange = verilogArrRange(retType);
             if (inlineValue(wparam, false) == "")
@@ -156,7 +159,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         Function *func = FI.second;
         std::string mname = interfacePrefix[FI.first] + FI.first;
         if (table->rules[mname]
-         || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5)]))
+         || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5) + "__ENA"]))
             continue;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
@@ -165,8 +168,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 retType = PTy->getElementType();
             AI++;
         }
-        int isAction = (retType == Type::getVoidTy(func->getContext()));
-        std::string wparam = inp + mname + (isAction ? "__ENA" : "");
+        int isAction = isActionMethod(func);
+        std::string wparam = inp + mname;
         if (instance != "")
             wparam = inlineValue(wparam, true);
         else if (!isAction)
@@ -205,14 +208,14 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                             retType = PTy->getElementType();
                         AI++;
                     }
-                    int isAction = (retType == Type::getVoidTy(func->getContext()));
+                    int isAction = isActionMethod(func);
                     if (isAction)
-                        wparam = outp + mname + "__ENA";
+                        wparam = outp + mname;
                     else
                         wparam = inp + (instance == "" ? verilogArrRange(retType):"") + mname;
                     paramList.push_back(wparam);
                     for (AI++; AI != AE; ++AI) {
-                        wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + mname + "_" + interfacePrefix[FI.first] + AI->getName().str();
+                        wparam = outp + (instance == "" ? verilogArrRange(AI->getType()):"") + baseMethod(mname) + "_" + interfacePrefix[FI.first] + AI->getName().str();
                         paramList.push_back(wparam);
                     }
                 }
@@ -311,9 +314,10 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     int ind = 0;
     for (auto item : table->rules)
         if (item.second) {
-            fprintf(OStr, "    wire %s__RDY_internal;\n", item.first.c_str());
-            fprintf(OStr, "    wire %s__ENA_internal = rule_enable[%d] && %s__RDY_internal;\n", item.first.c_str(), ind, item.first.c_str());
-            assignList["rule_ready[" + utostr(ind) + "]"] = item.first + "__RDY_internal";
+            std::string rdyName = item.first.substr(0, item.first.length()-5) + "__RDY";
+            fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
+            fprintf(OStr, "    wire %s_internal = rule_enable[%d] && %s_internal;\n", item.first.c_str(), ind, rdyName.c_str());
+            assignList["rule_ready[" + utostr(ind) + "]"] = rdyName + "_internal";
             ind++;
         }
     // generate local state element declarations
@@ -359,8 +363,11 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // generate wires for internal methods RDY/ENA.  Collect state element assignments
     // from each method
     for (auto FI : table->method) {
-        std::string mname = interfacePrefix[FI.first] + FI.first;
         Function *func = FI.second;
+        std::string mname = interfacePrefix[FI.first] + FI.first;
+        std::string rdyName = mname.substr(0, mname.length()-5) + "__RDY";
+        if (endswith(mname, "__VALID"))
+            rdyName = mname.substr(0, mname.length()-7) + "__READY";
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin();
         if (func->hasStructRetAttr()) {
@@ -368,13 +375,13 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 retType = PTy->getElementType();
             AI++;
         }
-        int isAction = (retType == Type::getVoidTy(func->getContext()));
-        globalCondition = mname + "__ENA_internal";
+        int isAction = isActionMethod(func);
+        globalCondition = mname + "_internal";
         startMeta(func);
         processFunction(func);
         if (!isAction) {
             std::string temp = combineCondList(functionList);
-            if (endswith(mname, "__RDY")) {
+            if (endswith(mname, "__RDY")) { // Guarded values always use '__RDY'
                 assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
                 table->guard[func] = temp;
             }
@@ -386,9 +393,10 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // generate ENA_internal wire that is and'ed with RDY_internal, so that we can
             // never be enabled unless we were actually ready.
             if (!table->rules[mname]) {
-                fprintf(OStr, "    wire %s__RDY_internal;\n", mname.c_str());
-                fprintf(OStr, "    wire %s__ENA_internal = %s__ENA && %s__RDY_internal;\n", mname.c_str(), mname.c_str(), mname.c_str());
-                assignList[mname + "__RDY"] = mname + "__RDY_internal";
+                fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
+// TODO: FIX FOR READY signalling (ENA line comes from rules enable lines
+                fprintf(OStr, "    wire %s_internal = %s && %s_internal;\n", mname.c_str(), mname.c_str(), rdyName.c_str());
+                assignList[rdyName] = rdyName + "_internal";
             }
             if (functionList.size() > 0) {
                 printf("%s: non-store lines in Action\n", __FUNCTION__);
@@ -402,7 +410,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
         }
         if (storeList.size() > 0) {
-            alwaysLines.push_back("if (" + mname + "__ENA_internal) begin");
+            alwaysLines.push_back("if (" + mname + "_internal) begin");
             for (auto info: storeList) {
                 if (Value *cond = getCondition(info.cond, 0))
                     alwaysLines.push_back("    if (" + printOperand(cond, false) + ")");
