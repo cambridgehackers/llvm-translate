@@ -157,8 +157,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = interfacePrefix[FI.first] + FI.first;
-        if (table->ruleFunctions[mname.substr(0, mname.length()-5)]
-         || (endswith(mname, "__RDY") && table->ruleFunctions[mname.substr(0, mname.length()-5)]))
+        if (table->ruleFunctions[mname.substr(0, mname.length()-5)])
             continue;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
@@ -390,7 +389,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // never be enabled unless we were actually ready.
             if (!table->ruleFunctions[mname.substr(0, mname.length()-5)]) {
                 fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
-// TODO: FIX FOR READY signalling (ENA line comes from rules enable lines
                 fprintf(OStr, "    wire %s_internal = %s && %s_internal;\n", mname.c_str(), mname.c_str(), rdyName.c_str());
                 assignList[rdyName] = rdyName + "_internal";
             }
