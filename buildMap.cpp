@@ -442,8 +442,12 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
         std::string suffix;
-        if (!endswith(mName, "__RDY") && isActionMethod(func))
-            suffix = "__ENA";
+        if (isActionMethod(func)) {
+            if (!endswith(mName, "__RDY"))
+                suffix = "__ENA";
+            //if (!endswith(mName, "__READY"))
+                //suffix = "__VALID";
+        }
         setSeen(func, mName + suffix);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
@@ -463,14 +467,13 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     for (auto item: methodMap) {
         if (trace_pair)
             printf("[%s:%d] methodMap %s\n", __FUNCTION__, __LINE__, item.first.c_str());
-        if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
+        if (Function *enaFunc = ruleENAFunction[item.second]) {
             std::string enaName = item.first.substr(0, item.first.length() - 5);
             std::string enaSuffix = "__ENA";
             if (endswith(item.first, "__READY")) {
                 enaName = item.first.substr(0, item.first.length() - 7);
                 enaSuffix = "__VALID";
             }
-            Function *enaFunc = methodMap[enaName];
             if (!isActionMethod(enaFunc))
                 enaSuffix = "";
             if (!enaFunc) {
