@@ -424,6 +424,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     const StructLayout *SLO = TD->getStructLayout(STy);
     ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
+    std::map<Function *, std::string> callNameMap;
     MethodMapType methodMap;
     int Idx = 0;
     if (trace_pair)
@@ -443,14 +444,13 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         std::string mName = getMethodName(func->getName());
         Function *rdyFunc = ruleRDYFunction[func];
         std::string rdyName = pushSeen[rdyFunc];
-        std::string suffix;
         if (isActionMethod(func)) {
             if (endswith(rdyName, "__RDY"))
-                suffix = "__ENA";
+                mName += "__ENA";
             if (endswith(rdyName, "__READY"))
-                suffix = "__VALID";
+                mName += "__VALID";
         }
-        setSeen(func, mName + suffix);
+        setSeen(func, mName);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II)) {
@@ -462,33 +462,21 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                     Function *calledFunc = callMap[sname];
                     if (trace_pair)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("$") + mName).c_str(), calledFunc, sname.c_str());
-                    if (calledFunc)
+                    if (calledFunc) {
                         methodMap[mName] = calledFunc;
+                        callNameMap[calledFunc] = mName;
+                    }
                 }
     }
     for (auto item: methodMap) {
-        if (trace_pair)
+        //if (trace_pair)
             printf("[%s:%d] methodMap %s\n", __FUNCTION__, __LINE__, item.first.c_str());
         if (Function *enaFunc = ruleENAFunction[item.second]) {
-            std::string enaName = item.first.substr(0, item.first.length() - 5);
-            std::string enaSuffix = "__ENA";
-            if (endswith(item.first, "__READY")) {
-                enaName = item.first.substr(0, item.first.length() - 7);
-                enaSuffix = "__VALID";
-            }
-            if (!isActionMethod(enaFunc))
-                enaSuffix = "";
-            if (!enaFunc) {
-                printf("%s: guarded function not found %s looking for %s\n", __FUNCTION__, item.first.c_str(), enaName.c_str());
-                for (auto item: methodMap)
-                    if (item.second)
-                        printf("    %s\n", item.first.c_str());
-                exit(-1);
-            }
+            std::string enaName = callNameMap[enaFunc];
             //if (trace_pair)
                 printf("%s: seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
                     pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
+            pushPair(enaFunc, enaName, item.second, item.first);
         }
     }
 }
