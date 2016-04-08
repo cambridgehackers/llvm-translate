@@ -134,9 +134,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 AI++;
             }
             std::string arrRange;
-            int isAction = isActionMethod(func);
             std::string wparam = inp + mname;
-            if (!isAction)
+            if (!isActionMethod(func))
                 arrRange = verilogArrRange(retType);
             if (inlineValue(wparam, false) == "")
                 fprintf(OStr, "    wire %s%s;\n", arrRange.c_str(), wparam.c_str());
@@ -168,11 +167,10 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 retType = PTy->getElementType();
             AI++;
         }
-        int isAction = isActionMethod(func);
         std::string wparam = inp + mname;
         if (instance != "")
             wparam = inlineValue(wparam, true);
-        else if (!isAction)
+        else if (!isActionMethod(func))
             wparam = outp + verilogArrRange(retType) + mname;
         paramList.push_back(wparam);
         for (AI++; AI != AE; ++AI) {
@@ -208,8 +206,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                             retType = PTy->getElementType();
                         AI++;
                     }
-                    int isAction = isActionMethod(func);
-                    if (isAction)
+                    if (isActionMethod(func))
                         wparam = outp + mname;
                     else
                         wparam = inp + (instance == "" ? verilogArrRange(retType):"") + mname;
@@ -375,14 +372,13 @@ void generateModuleDef(const StructType *STy, std::string oDir)
                 retType = PTy->getElementType();
             AI++;
         }
-        int isAction = isActionMethod(func);
         globalCondition = mname + "_internal";
         startMeta(func);
         processFunction(func);
-        if (!isAction) {
+        if (!isActionMethod(func)) {
             std::string temp = combineCondList(functionList);
-            if (endswith(mname, "__RDY")) { // Guarded values always use '__RDY'
-                assignList[mname + "_internal"] = temp;  // collect the text of the return value into a single 'assign'
+            if (ruleENAFunction[func]) {
+                assignList[globalCondition] = temp;  // collect the text of the return value into a single 'assign'
                 table->guard[func] = temp;
             }
             else if (temp != "")
@@ -410,7 +406,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             }
         }
         if (storeList.size() > 0) {
-            alwaysLines.push_back("if (" + mname + "_internal) begin");
+            alwaysLines.push_back("if (" + globalCondition + ") begin");
             for (auto info: storeList) {
                 if (Value *cond = getCondition(info.cond, 0))
                     alwaysLines.push_back("    if (" + printOperand(cond, false) + ")");

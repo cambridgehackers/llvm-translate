@@ -260,9 +260,10 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
                 // TODO: Should we support interfaces with VALID/READY or just RDY/ENA?
-                if (!endswith(vname, "__RDY") && !endswith(vname, "__READY")) {
-                    std::string fname = name + "__" + vname;
-                    fprintf(OStr, ", %s__RDY, %s", fname.c_str(), fname.c_str());
+                if (Function *rdyFunc = ruleRDYFunction[itable->vtable[i]]) {
+                    std::string fname = name + "__" + baseMethod(pushSeen[itable->vtable[i]]);
+                    std::string rname = name + "__" + pushSeen[rdyFunc];
+                    fprintf(OStr, ", %s, %s", rname.c_str(), fname.c_str());
                     prefix = ",";
                 }
             }
