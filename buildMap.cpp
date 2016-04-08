@@ -441,12 +441,14 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
+        Function *rdyFunc = ruleRDYFunction[func];
+        std::string rdyName = pushSeen[rdyFunc];
         std::string suffix;
         if (isActionMethod(func)) {
-            if (!endswith(mName, "__RDY"))
+            if (endswith(rdyName, "__RDY"))
                 suffix = "__ENA";
-            //if (!endswith(mName, "__READY"))
-                //suffix = "__VALID";
+            if (endswith(rdyName, "__READY"))
+                suffix = "__VALID";
         }
         setSeen(func, mName + suffix);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
