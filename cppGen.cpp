@@ -325,7 +325,7 @@ printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(),
         fprintf(OStr, "}\n");
     }
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
-    for (auto item : table->rules)
+    for (auto item : table->ruleFunctions)
         if (item.second)
             fprintf(OStr, "    if (%s__RDY()) %s();\n", item.first.substr(0, item.first.length()-5).c_str(), item.first.substr(0, item.first.length()-5).c_str());
     for (auto item : runLines)

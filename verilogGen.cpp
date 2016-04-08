@@ -157,8 +157,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = interfacePrefix[FI.first] + FI.first;
-        if (table->rules[mname]
-         || (endswith(mname, "__RDY") && table->rules[mname.substr(0, mname.length()-5) + "__ENA"]))
+        if (table->ruleFunctions[mname]
+         || (endswith(mname, "__RDY") && table->ruleFunctions[mname.substr(0, mname.length()-5) + "__ENA"]))
             continue;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
@@ -294,7 +294,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::string name = getStructName(STy);
     ClassMethodTable *table = classCreate[STy];
     std::list<std::string> alwaysLines;
-    std::string extraRules = utostr(table->rules.size());
+    std::string extraRules = utostr(table->ruleFunctions.size());
     std::map<std::string, int> includeLines;
 
     if (inheritsModule(STy, "class.InterfaceClass"))
@@ -309,7 +309,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     generateModuleSignature(OStr, STy, "");
     // assign ENA/RDY lines for local rules
     int ind = 0;
-    for (auto item : table->rules)
+    for (auto item : table->ruleFunctions)
         if (item.second) {
             std::string rdyName = item.first.substr(0, item.first.length()-5) + "__RDY";
             fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
@@ -388,7 +388,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // generate RDY_internal wire so that we can reference RDY expression inside module
             // generate ENA_internal wire that is and'ed with RDY_internal, so that we can
             // never be enabled unless we were actually ready.
-            if (!table->rules[mname]) {
+            if (!table->ruleFunctions[mname]) {
                 fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
 // TODO: FIX FOR READY signalling (ENA line comes from rules enable lines
                 fprintf(OStr, "    wire %s_internal = %s && %s_internal;\n", mname.c_str(), mname.c_str(), rdyName.c_str());

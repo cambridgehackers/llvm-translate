@@ -66,7 +66,7 @@ public:
     std::map<int, Type *>             replaceType;
     std::map<int, uint64_t>           replaceCount;
     std::map<int, bool>               allocateLocally;
-    std::map<std::string, Function *> rules;
+    std::map<std::string, Function *> ruleFunctions;
     std::list<InterfaceConnectType>   interfaceConnect;
     unsigned int                      vtableCount;
     std::string                       instance;
