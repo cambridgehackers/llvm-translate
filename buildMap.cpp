@@ -424,8 +424,8 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     const StructLayout *SLO = TD->getStructLayout(STy);
     ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
-    std::map<Function *, std::string> callNameMap;
     MethodMapType methodMap;
+    std::map<Function *, std::string> methodNameMap;
     int Idx = 0;
     if (trace_pair)
         printf("[%s:%d] addr %p struct %s name %s vtableCount %d\n", __FUNCTION__, __LINE__, addr, STy->getName().str().c_str(), name, table->vtableCount);
@@ -464,21 +464,13 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("$") + mName).c_str(), calledFunc, sname.c_str());
                     if (calledFunc) {
                         methodMap[mName] = calledFunc;
-                        callNameMap[calledFunc] = mName;
+                        methodNameMap[calledFunc] = mName;
                     }
                 }
     }
-    for (auto item: methodMap) {
-        //if (trace_pair)
-            printf("[%s:%d] methodMap %s\n", __FUNCTION__, __LINE__, item.first.c_str());
-        if (Function *enaFunc = ruleENAFunction[item.second]) {
-            std::string enaName = callNameMap[enaFunc];
-            //if (trace_pair)
-                printf("%s: seen %s pair rdy %s ena %s[%s]\n", __FUNCTION__,
-                    pushSeen[enaFunc].c_str(), item.first.c_str(), enaName.c_str(), enaFunc->getName().str().c_str());
-            pushPair(enaFunc, enaName, item.second, item.first);
-        }
-    }
+    for (auto item: methodMap)
+        if (Function *enaFunc = ruleENAFunction[item.second])
+            pushPair(enaFunc, methodNameMap[enaFunc], item.second, item.first);
 }
 
 /*
