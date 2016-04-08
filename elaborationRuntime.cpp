@@ -386,7 +386,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
     Function *enaFunc = fixupFunction(enaName, ENA[2], (uint8_t *)ENA);
     Function *rdyFunc = fixupFunction(std::string(name) + "__RDY", RDY[2], (uint8_t *)RDY);
     ClassMethodTable *table = classCreate[findThisArgument(rdyFunc)];
-    table->ruleFunctions[enaName] = enaFunc;
+    table->ruleFunctions[name] = enaFunc;
     if (trace_pair)
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls

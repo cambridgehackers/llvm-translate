@@ -130,7 +130,7 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
     std::string ruleNames;
     for (auto item : table->ruleFunctions)
         if (item.second)
-            ruleNames += "; " + item.first.substr(0, item.first.length()-5);
+            ruleNames += "; " + item.first;
     if (ruleNames != "")
         metaList.push_back("//METARULES" + ruleNames);
     for (auto item: table->interfaceConnect) {

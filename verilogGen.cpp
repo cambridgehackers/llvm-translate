@@ -157,8 +157,8 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = interfacePrefix[FI.first] + FI.first;
-        if (table->ruleFunctions[mname]
-         || (endswith(mname, "__RDY") && table->ruleFunctions[mname.substr(0, mname.length()-5) + "__ENA"]))
+        if (table->ruleFunctions[mname.substr(0, mname.length()-5)]
+         || (endswith(mname, "__RDY") && table->ruleFunctions[mname.substr(0, mname.length()-5)]))
             continue;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
@@ -311,9 +311,9 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     int ind = 0;
     for (auto item : table->ruleFunctions)
         if (item.second) {
-            std::string rdyName = item.first.substr(0, item.first.length()-5) + "__RDY";
+            std::string rdyName = item.first + "__RDY";
             fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
-            fprintf(OStr, "    wire %s_internal = rule_enable[%d] && %s_internal;\n", item.first.c_str(), ind, rdyName.c_str());
+            fprintf(OStr, "    wire %s__ENA_internal = rule_enable[%d] && %s_internal;\n", item.first.c_str(), ind, rdyName.c_str());
             assignList["rule_ready[" + utostr(ind) + "]"] = rdyName + "_internal";
             ind++;
         }
@@ -388,7 +388,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
             // generate RDY_internal wire so that we can reference RDY expression inside module
             // generate ENA_internal wire that is and'ed with RDY_internal, so that we can
             // never be enabled unless we were actually ready.
-            if (!table->ruleFunctions[mname]) {
+            if (!table->ruleFunctions[mname.substr(0, mname.length()-5)]) {
                 fprintf(OStr, "    wire %s_internal;\n", rdyName.c_str());
 // TODO: FIX FOR READY signalling (ENA line comes from rules enable lines
                 fprintf(OStr, "    wire %s_internal = %s && %s_internal;\n", mname.c_str(), mname.c_str(), rdyName.c_str());
