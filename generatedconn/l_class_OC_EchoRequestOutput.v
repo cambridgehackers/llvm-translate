@@ -28,7 +28,7 @@ module l_class_OC_EchoRequestOutput (
         if (request$say__ENA_internal) begin
             ind$data$say$meth <= say_meth;
             ind$data$say$v <= say_v;
-        end; // End of request$say
+        end; // End of request$say__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

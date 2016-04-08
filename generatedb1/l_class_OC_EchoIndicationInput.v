@@ -42,10 +42,10 @@ module l_class_OC_EchoIndicationInput (
             v_delay <= enq_v$data$heard$v;
             if (enq_v$tag == 1)
             busy_delay <= 1;
-        end; // End of pipe$enq
+        end; // End of pipe$enq__ENA
         if (input_rule__ENA_internal) begin
             busy_delay <= 0;
-        end; // End of input_rule
+        end; // End of input_rule__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

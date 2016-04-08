@@ -28,7 +28,7 @@ module l_class_OC_EchoIndicationOutput (
         if (indication$heard__ENA_internal) begin
             ind$data$heard$meth <= heard_meth;
             ind$data$heard$v <= heard_v;
-        end; // End of indication$heard
+        end; // End of indication$heard__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

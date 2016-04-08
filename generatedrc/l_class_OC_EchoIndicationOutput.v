@@ -55,13 +55,13 @@ module l_class_OC_EchoIndicationOutput (
             ind0$data$heard$v <= heard_v;
             ind_busy <= 1;
             even <= (even != 0) ^ 1;
-        end; // End of indication$heard
+        end; // End of indication$heard__ENA
         if (output_rulee__ENA_internal) begin
             ind_busy <= 0;
-        end; // End of output_rulee
+        end; // End of output_rulee__ENA
         if (output_ruleo__ENA_internal) begin
             ind_busy <= 0;
-        end; // End of output_ruleo
+        end; // End of output_ruleo__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

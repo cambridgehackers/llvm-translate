@@ -33,12 +33,12 @@ module l_class_OC_Fifo1_OC_1 (
       else begin
         if (out$deq__ENA_internal) begin
             full <= 0;
-        end; // End of out$deq
+        end; // End of out$deq__ENA
         if (in$enq__ENA_internal) begin
             element <= enq_v;
             full <= 1;
-        end; // End of in$enq
-        if (out$first__ENA_internal) begin
+        end; // End of in$enq__ENA
+        if (out$first_internal) begin
             first$a <= element$a;
             first$b <= element$b;
         end; // End of out$first

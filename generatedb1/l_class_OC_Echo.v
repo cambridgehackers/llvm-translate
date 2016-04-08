@@ -4,13 +4,13 @@
 module l_class_OC_Echo (
     input CLK,
     input nRST,
-    input request$say__ENA,
-    input [31:0]request$say_meth,
-    input [31:0]request$say_v,
     input request$say2__ENA,
     input [31:0]request$say2_meth,
     input [31:0]request$say2_v,
     output request$say2__RDY,
+    input request$say__ENA,
+    input [31:0]request$say_meth,
+    input [31:0]request$say_v,
     output request$say__RDY,
     input x2y__ENA,
     output x2y__RDY,
@@ -28,10 +28,10 @@ module l_class_OC_Echo (
     wire delay_rule__ENA_internal = rule_enable[0] && delay_rule__RDY_internal;
     wire respond_rule__RDY_internal;
     wire respond_rule__ENA_internal = rule_enable[1] && respond_rule__RDY_internal;
-    wire request$say__RDY_internal;
-    wire request$say__ENA_internal = request$say__ENA && request$say__RDY_internal;
     wire request$say2__RDY_internal;
     wire request$say2__ENA_internal = request$say2__ENA && request$say2__RDY_internal;
+    wire request$say__RDY_internal;
+    wire request$say__ENA_internal = request$say__ENA && request$say__RDY_internal;
     wire x2y__RDY_internal;
     wire x2y__ENA_internal = x2y__ENA && x2y__RDY_internal;
     wire y2x__RDY_internal;
@@ -81,26 +81,26 @@ module l_class_OC_Echo (
             busy_delay <= 1;
             meth_delay <= meth_temp;
             v_delay <= v_temp;
-        end; // End of delay_rule
+        end; // End of delay_rule__ENA
         if (respond_rule__ENA_internal) begin
             busy_delay <= 0;
-        end; // End of respond_rule
-        if (request$say__ENA_internal) begin
-            meth_temp <= say_meth;
-            v_temp <= say_v;
-            busy <= 1;
-        end; // End of request$say
+        end; // End of respond_rule__ENA
         if (request$say2__ENA_internal) begin
             meth_temp <= say2_meth;
             v_temp <= say2_v;
             busy <= 1;
-        end; // End of request$say2
+        end; // End of request$say2__ENA
+        if (request$say__ENA_internal) begin
+            meth_temp <= say_meth;
+            v_temp <= say_v;
+            busy <= 1;
+        end; // End of request$say__ENA
         if (x2y__ENA_internal) begin
             y <= x;
-        end; // End of x2y
+        end; // End of x2y__ENA
         if (y2x__ENA_internal) begin
             x <= y;
-        end; // End of y2x
+        end; // End of y2x__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

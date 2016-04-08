@@ -53,7 +53,7 @@ module l_class_OC_IVector (
             agg_2e_tmp <= fifo$out$first$a;
             agg_2e_tmp4 <= fifo$out$first$b;
             gcounter <= gcounter + 1;
-        end; // End of respond
+        end; // End of respond__ENA
       end
     end // always @ (posedge CLK)
 endmodule 

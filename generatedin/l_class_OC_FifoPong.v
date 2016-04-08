@@ -64,7 +64,7 @@ module l_class_OC_FifoPong (
       else begin
         if (out$deq__ENA_internal) begin
             pong <= pong ^ 1;
-        end; // End of out$deq
+        end; // End of out$deq__ENA
       end
     end // always @ (posedge CLK)
 endmodule 
