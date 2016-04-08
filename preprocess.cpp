@@ -110,6 +110,8 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
 printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, (enaName+enaSuffix).c_str(), enaFunc);
             table->method[enaName + enaSuffix] = enaFunc;
             table->method[item.first] = item.second;
+            ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
+            ruleENAFunction[item.second] = enaFunc;
         }
     }
 }

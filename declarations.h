@@ -105,6 +105,7 @@ enum {MetaNone, MetaRead, MetaWrite, MetaInvoke, MetaMax};
 extern ExecutionEngine *EE;
 extern std::map<const StructType *,ClassMethodTable *> classCreate;
 extern std::map<Function *, Function *> ruleRDYFunction;
+extern std::map<Function *, Function *> ruleENAFunction;
 extern std::list<ReferenceType> functionList;
 extern std::map<std::string, std::string> declareList;
 extern std::list<StoreType> storeList;

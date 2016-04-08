@@ -54,6 +54,7 @@ struct MAPSEENcomp {
 typedef std::map<std::string, Function *>MethodMapType;
 
 std::map<Function *, Function *> ruleRDYFunction;
+std::map<Function *, Function *> ruleENAFunction;
 std::list<Function *> fixupFuncList;
 static std::map<MAPSEEN_TYPE, int, MAPSEENcomp> addressTypeAlreadyProcessed;
 
@@ -255,31 +256,28 @@ restart:
                     II->eraseFromParent();
                     return;
                 }
-                //moved if (table)
-                //moved     table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
-                for (unsigned int i = 0; table && i < table->vtableCount; i++) {
-                    Function *calledFunctionGuard = table->vtable[i];
-                    if (trace_hoist)
-                        printf("HOIST: act %s req %s\n", getMethodName(calledFunctionGuard->getName()).c_str(), mName.c_str());
-                    if (getMethodName(calledFunctionGuard->getName()) == mName + "__RDY") {
-                        addGuard(II, calledFunctionGuard, currentFunction);
-                        if (table) {
-                            if (isActionMethod(func))
-                            table->method[mName + "__ENA"] = func;  // keep track of all functions that were called, not just ones that were defined
-                            else
-                            table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
-                        }
-                        break;
+                Function *calledFunctionGuard = ruleRDYFunction[func];
+                if (trace_hoist)
+                    printf("HOIST: act %s req %s\n", calledFunctionGuard ? getMethodName(calledFunctionGuard->getName()).c_str() : " ", mName.c_str());
+                if (!calledFunctionGuard) {
+                    printf("[%s:%d] guard not found %s %p\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), func);
+                }
+                else if (getMethodName(calledFunctionGuard->getName()) == mName + "__RDY") {
+                    addGuard(II, calledFunctionGuard, currentFunction);
+                    if (table) {
+                        if (isActionMethod(func))
+                        table->method[mName + "__ENA"] = func;  // keep track of all functions that were called, not just ones that were defined
+                        else
+                        table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
                     }
-                    if (getMethodName(calledFunctionGuard->getName()) == mName + "__READY") {
-                        addGuard(II, calledFunctionGuard, currentFunction);
-                        if (table) {
-                            if (isActionMethod(func))
-                            table->method[mName + "__VALID"] = func;  // keep track of all functions that were called, not just ones that were defined
-                            else
-                            table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
-                        }
-                        break;
+                }
+                else if (getMethodName(calledFunctionGuard->getName()) == mName + "__READY") {
+                    addGuard(II, calledFunctionGuard, currentFunction);
+                    if (table) {
+                        if (isActionMethod(func))
+                        table->method[mName + "__VALID"] = func;  // keep track of all functions that were called, not just ones that were defined
+                        else
+                        table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
                     }
                 }
                 break;
