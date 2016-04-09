@@ -361,19 +361,18 @@ extern "C" void exportRequest(Function *enaFunc)
     std::string enaName = getMethodName(enaFunc->getName());
     if (trace_pair)
         printf("[%s:%d] func %s [%s]\n", __FUNCTION__, __LINE__, enaFunc->getName().str().c_str(), enaName.c_str());
-    for (unsigned int i = 0; i < table->vtableCount; i++)
-        if (getMethodName(table->vtable[i]->getName()) == enaName + "__RDY") {
-            if (isActionMethod(enaFunc))
-            pushPair(enaFunc, enaName + "__ENA", table->vtable[i], enaName + "__RDY");
-            else
-            pushPair(enaFunc, enaName, table->vtable[i], enaName + "__RDY");
-        }
-        else if (getMethodName(table->vtable[i]->getName()) == enaName + "__READY") {
-            if (isActionMethod(enaFunc))
-            pushPair(enaFunc, enaName + "__VALID", table->vtable[i], enaName + "__READY");
-            else
-            pushPair(enaFunc, enaName, table->vtable[i], enaName + "__READY");
-        }
+    for (unsigned int i = 0; i < table->vtableCount; i++) {
+        Function *func = table->vtable[i];
+        std::string mname = getMethodName(func->getName());
+        std::string suffix = "__VALID";
+        if (mname == enaName + "__RDY")
+           suffix = "__ENA";
+        else if (mname != enaName + "__READY")
+            continue;
+        if (!isActionMethod(enaFunc))
+            suffix = "";
+        pushPair(enaFunc, enaName + suffix, func, mname);
+    }
 }
 
 /*
