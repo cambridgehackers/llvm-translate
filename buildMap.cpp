@@ -261,25 +261,19 @@ restart:
                     printf("HOIST: act %s req %s\n", calledFunctionGuard ? getMethodName(calledFunctionGuard->getName()).c_str() : " ", mName.c_str());
                 if (!calledFunctionGuard) {
                     printf("[%s:%d] guard not found %s %p\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), func);
+                    break;
                 }
-                else if (getMethodName(calledFunctionGuard->getName()) == mName + "__RDY") {
-                    addGuard(II, calledFunctionGuard, currentFunction);
-                    if (table) {
-                        if (isActionMethod(func))
-                        table->method[mName + "__ENA"] = func;  // keep track of all functions that were called, not just ones that were defined
-                        else
-                        table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
-                    }
-                }
-                else if (getMethodName(calledFunctionGuard->getName()) == mName + "__READY") {
-                    addGuard(II, calledFunctionGuard, currentFunction);
-                    if (table) {
-                        if (isActionMethod(func))
-                        table->method[mName + "__VALID"] = func;  // keep track of all functions that were called, not just ones that were defined
-                        else
-                        table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
-                    }
-                }
+                std::string methName = getMethodName(calledFunctionGuard->getName());
+                std::string suffix = "__VALID";
+                if (methName == mName + "__RDY")
+                    suffix = "__ENA";
+                else if (methName != mName + "__READY")
+                    break;
+                if (!isActionMethod(func))
+                    suffix = "";
+                addGuard(II, calledFunctionGuard, currentFunction);
+                if (table)
+                    table->method[mName + suffix] = func;  // keep track of all functions that were called, not just ones that were defined
                 break;
                 }
             case Instruction::Br: {
