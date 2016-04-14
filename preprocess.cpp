@@ -169,8 +169,7 @@ static void processMethodToFunction(CallInst *II)
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
     recursiveDelete(oldOp);
     Instruction *store = NULL;
-    Value *val = NULL;
-    Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
+    if (Instruction *load = dyn_cast<Instruction>(II->getOperand(0)))
     if (load->getOpcode() == Instruction::Alloca) {
         for (auto UI = load->use_begin(), UE = load->use_end(); UI != UE; UI++) {
             if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
@@ -179,42 +178,33 @@ static void processMethodToFunction(CallInst *II)
             }
         }
     }
-    else {
-    Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
-    Value *gepPtr = gep->getOperand(0);
-    for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
-        if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
-        if (IR->getOpcode() == Instruction::Store) {
-            store = IR;
-        }
-    }
-    }
     if (!store) {
         printf("%s: store was NULL\n", __FUNCTION__);
         II->getParent()->getParent()->dump();
         exit(-1);
     }
-            if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
-                Value *vop = CS->getOperand(0);
-                Function *func = NULL;
-                int64_t offset = -1;
-                if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
-                    offset = CI->getZExtValue()/sizeof(uint64_t);
-                    if (offset >= table->vtableCount) {
-                        printf("[%s:%d] offset %ld too large %d\n", __FUNCTION__, __LINE__, offset, table->vtableCount);
-                        exit(-1);
-                    }
-                    func = table->vtable[offset];
-                }
-                else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
-                    ERRORIF(CE->getOpcode() != Instruction::PtrToInt);
-                    func = dyn_cast<Function>(CE->getOperand(0));
-                }
-                else
-                    ERRORIF(1);
-                //printf("[%s:%d] STY %s offset %ld. func %p [%s]\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), offset, func, func->getName().str().c_str());
-                val = ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func);
+    Value *val = NULL;
+    if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
+        Value *vop = CS->getOperand(0);
+        Function *func = NULL;
+        int64_t offset = -1;
+        if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
+            offset = CI->getZExtValue()/sizeof(uint64_t);
+            if (offset >= table->vtableCount) {
+                printf("[%s:%d] offset %ld too large %d\n", __FUNCTION__, __LINE__, offset, table->vtableCount);
+                exit(-1);
             }
+            func = table->vtable[offset];
+        }
+        else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
+            ERRORIF(CE->getOpcode() != Instruction::PtrToInt);
+            func = dyn_cast<Function>(CE->getOperand(0));
+        }
+        else
+            ERRORIF(1);
+        //printf("[%s:%d] STY %s offset %ld. func %p [%s]\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), offset, func, func->getName().str().c_str());
+        val = ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func);
+    }
     recursiveDelete(store);
     II->replaceAllUsesWith(val);
     recursiveDelete(II);      // No longer need to call methodToFunction() !
