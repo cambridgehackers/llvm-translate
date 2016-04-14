@@ -168,15 +168,32 @@ static void processMethodToFunction(CallInst *II)
     Value *oldOp = II->getOperand(1);
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
     recursiveDelete(oldOp);
-    Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
-    Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
-    Value *gepPtr = gep->getOperand(0);
     Instruction *store = NULL;
     Value *val = NULL;
+    Instruction *load = dyn_cast<Instruction>(II->getOperand(0));
+    if (load->getOpcode() == Instruction::Alloca) {
+        for (auto UI = load->use_begin(), UE = load->use_end(); UI != UE; UI++) {
+            if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
+            if (IR->getOpcode() == Instruction::Store) {
+                store = IR;
+            }
+        }
+    }
+    else {
+    Instruction *gep = dyn_cast<Instruction>(load->getOperand(0));
+    Value *gepPtr = gep->getOperand(0);
     for (auto UI = gepPtr->use_begin(), UE = gepPtr->use_end(); UI != UE; UI++) {
         if (Instruction *IR = dyn_cast<Instruction>(UI->getUser()))
         if (IR->getOpcode() == Instruction::Store) {
             store = IR;
+        }
+    }
+    }
+    if (!store) {
+        printf("%s: store was NULL\n", __FUNCTION__);
+        II->getParent()->getParent()->dump();
+        exit(-1);
+    }
             if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
                 Value *vop = CS->getOperand(0);
                 Function *func = NULL;
@@ -198,13 +215,6 @@ static void processMethodToFunction(CallInst *II)
                 //printf("[%s:%d] STY %s offset %ld. func %p [%s]\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), offset, func, func->getName().str().c_str());
                 val = ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)func);
             }
-        }
-    }
-    if (!store) {
-        printf("%s: store was NULL\n", __FUNCTION__);
-        II->getParent()->getParent()->dump();
-        exit(-1);
-    }
     recursiveDelete(store);
     II->replaceAllUsesWith(val);
     recursiveDelete(II);      // No longer need to call methodToFunction() !
