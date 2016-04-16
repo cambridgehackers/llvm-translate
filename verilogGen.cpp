@@ -287,6 +287,9 @@ static std::string combineCondList(std::list<ReferenceType> &functionList)
     return temp;
 }
 
+/*
+ * Generate *.v and *.vh for a Verilog module
+ */
 void generateModuleDef(const StructType *STy, std::string oDir)
 {
     std::list<std::string> metaList;
@@ -296,8 +299,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     std::string extraRules = utostr(table->ruleFunctions.size());
     std::map<std::string, int> includeLines;
 
-    if (inheritsModule(STy, "class.InterfaceClass"))
-        return;
     muxValueList.clear();
     assignList.clear();
     // first generate the verilog module file '.v'

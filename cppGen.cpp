@@ -148,9 +148,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
     std::map<std::string, int> cancelList;
     bool inInterface = inheritsModule(STy, "class.InterfaceClass");
 
-    if (STy->getName() == "class.InterfaceClass")
-        return;
-    includeList.clear();
     // first generate '.h' file
     FILE *OStr = fopen((oDir + "/" + name + ".h").c_str(), "w");
     fprintf(OStr, "#ifndef __%s_H__\n#define __%s_H__\n", name.c_str(), name.c_str());
@@ -259,7 +256,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 std::string vname = getMethodName(itable->vtable[i]->getName());
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
-                // TODO: Should we support interfaces with VALID/READY or just RDY/ENA?
                 if (Function *rdyFunc = ruleRDYFunction[itable->vtable[i]]) {
                     std::string fname = name + "__" + baseMethod(pushSeen[itable->vtable[i]]);
                     std::string rname = name + "__" + pushSeen[rdyFunc];
@@ -270,9 +266,8 @@ void generateClassDef(const StructType *STy, std::string oDir)
             fprintf(OStr, ")");
         }
         fprintf(OStr, " {\n");
-        for (auto item: table->interfaceConnect) {
+        for (auto item: table->interfaceConnect)
             fprintf(OStr, "    %s = &%s;\n", item.target.c_str(), item.source.c_str());
-        }
         fprintf(OStr, "  }\n");
     }
     for (auto FI : table->method) {
@@ -288,6 +283,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     fprintf(OStr, "}%s;\n#endif  // __%s_H__\n", (name.substr(0,12) == "l_struct_OC_" ? name.c_str():""), name.c_str());
     fclose(OStr);
+
     // now generate '.cpp' file
     if (name.substr(0,12) != "l_struct_OC_" && !inInterface) {
     OStr = fopen((oDir + "/" + name + ".cpp").c_str(), "w");
@@ -295,7 +291,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
     for (auto FI : table->method) {
         Function *func = FI.second;
         std::string mname = baseMethod(FI.first);
-printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(), func->getName().str().c_str());
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         auto AI = func->arg_begin();
         if (func->hasStructRetAttr())
@@ -309,6 +304,8 @@ printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(),
             if (Value *cond = getCondition(info.cond, 0))
                 fprintf(OStr, "        if (%s) {\n    ", printOperand(cond, false).c_str());
             if (info.target.substr(0, 7) == "thisp->" && table->shadow[info.target.substr(7)]) {
+                // State element updates are written to shadow variables so that changes
+                // in state are not visible until 'commit()' method is called.
                 fprintf(OStr, "        %s_shadow = %s;\n", info.target.c_str(), info.item.c_str());
                 fprintf(OStr, "        %s_valid = 1;\n", info.target.c_str());
             }
@@ -324,6 +321,7 @@ printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(),
         }
         fprintf(OStr, "}\n");
     }
+    // Generate 'run()' method to execute all rules in this and contained Modules
     fprintf(OStr, "void %s::run()\n{\n", name.c_str());
     for (auto item : table->ruleFunctions)
         if (item.second)
@@ -332,6 +330,7 @@ printf("[%s:%d] GENERATEMETH %s %s\n", __FUNCTION__, __LINE__, FI.first.c_str(),
         fprintf(OStr, "    %s.run();\n", item.c_str());
     fprintf(OStr, "    commit();\n");
     fprintf(OStr, "}\n");
+    // Generate 'commit()' method to copy values from shadow variable into state elements
     fprintf(OStr, "void %s::commit()\n{\n", name.c_str());
     int Idx = 0;
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {

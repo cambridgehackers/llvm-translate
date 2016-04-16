@@ -386,6 +386,10 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
     cbuffer += postfix;
     return cbuffer;
 }
+
+/*
+ * Calculate offset from base pointer for GEP
+ */
 int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_type_iterator E)
 {
     uint64_t Total = 0;
@@ -437,7 +441,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
      && (table = classCreate[findThisArgumentType(PTy, 0)])) {
         // Lookup method index in vtable
         referstr = lookupMethodName(table, Total/sizeof(void *));
-        //if (trace_gep)
+        if (trace_gep)
             printf("%s: Method invocation referstr %s\n", __FUNCTION__, referstr.c_str());
         I = E; // skip post processing
     }
@@ -918,11 +922,11 @@ std::string printOperand(Value *Operand, bool Indirect)
                 if (Ty == Type::getInt1Ty(CPV->getContext()))
                     cbuffer += CI->getZExtValue() ? "1" : "0";
                 else if (Ty == Type::getInt32Ty(CPV->getContext()) || Ty->getPrimitiveSizeInBits() > 32)
-                    sprintf(temp, "%ld", CI->getZExtValue());
+                    sprintf(temp, "%ld", (long)CI->getZExtValue());
                 else if (CI->isMinValue(true))
-                    sprintf(temp, "%ld", CI->getZExtValue());//  'u';
+                    sprintf(temp, "%ld", (long)CI->getZExtValue());//  'u';
                 else
-                    sprintf(temp, "%ld", CI->getSExtValue());
+                    sprintf(temp, "%ld", (long)CI->getSExtValue());
                 cbuffer += temp;
             }
             else
@@ -1015,6 +1019,10 @@ printf("[%s:%d] vname %s\n", __FUNCTION__, __LINE__, vname.c_str());
             checkClass(inherit, ActSTy);
     }
 }
+
+/*
+ * Recursively generate output *.h/*.cpp/*.v/*.vh files.
+ */
 void generateContainedStructs(const Type *Ty, std::string ODir)
 {
     if (!Ty)
@@ -1031,6 +1039,7 @@ void generateContainedStructs(const Type *Ty, std::string ODir)
             ClassMethodTable *table = classCreate[STy];
             checkClass(STy, STy);
             int Idx = 0;
+            // Recursively generate for all classes we use in our class
             for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
                 Type *element = *I;
                 std::string fname = fieldName(STy, Idx);
@@ -1041,14 +1050,19 @@ void generateContainedStructs(const Type *Ty, std::string ODir)
                     generateContainedStructs(element, ODir);
                 }
             }
+            /*
+             * Actual generation of output files takes place here
+             */
             if (STy->getName() != "class.Module") {
                 // Only generate verilog for modules derived from Module
                 generateRegion = ProcessVerilog;
-                if (inheritsModule(STy, "class.Module"))
+                if (inheritsModule(STy, "class.Module")
+                 && !inheritsModule(STy, "class.InterfaceClass"))
                     generateModuleDef(STy, ODir);
                 // Generate cpp for all modules except class.ModuleExternal
                 generateRegion = ProcessCPP;
-                if (!inheritsModule(STy, "class.ModuleExternal"))
+                if (!inheritsModule(STy, "class.ModuleExternal")
+                 && STy->getName() != "class.InterfaceClass")
                     generateClassDef(STy, ODir);
             }
         }
