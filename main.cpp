@@ -28,6 +28,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/DynamicLibrary.h"
 
 using namespace llvm;
 
@@ -93,6 +94,14 @@ int main(int argc, char **argv, char * const *envp)
     builder.setOptLevel(CodeGenOpt::None);
     EE = builder.create();
     assert(EE);
+#ifdef __APPLE__
+    std::string extraLibFilename = "libstdc++.dylib";
+    if (sys::DynamicLibrary::LoadLibraryPermanently(extraLibFilename.c_str(), &ErrorMsg)) {
+        printf("[%s:%d] error opening %s\n", __FUNCTION__, __LINE__, extraLibFilename.c_str());
+        exit(-1);
+    }
+#endif
+
 
     /*
      * Top level processing done after all module object files are loaded
