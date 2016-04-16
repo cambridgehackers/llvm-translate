@@ -97,6 +97,7 @@ typedef  struct {
     uint64_t   vecCount;
 } MEMORY_REGION;
 
+typedef std::map<std::string, int> StringMapType;
 typedef std::map<std::string,std::string> PrefixType;
 
 enum {ProcessNone=0, ProcessVerilog, ProcessCPP};

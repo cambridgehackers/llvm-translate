@@ -131,8 +131,7 @@ static std::string printFunctionInstance(const Function *F, std::string altname,
  * Generate class definition into output file.  Class methods are
  * only generated as prototypes.
  */
-static std::map<std::string, int> includeList;
-static void addIncludeName(const StructType *iSTy)
+static void addIncludeName(StringMapType &includeList, const StructType *iSTy)
 {
      std::string sname = getStructName(iSTy);
      if (!inheritsModule(iSTy, "class.BitsClass")
@@ -143,6 +142,7 @@ static void addIncludeName(const StructType *iSTy)
 void generateClassDef(const StructType *STy, std::string oDir)
 {
     std::list<std::string> runLines;
+    StringMapType includeList;
     ClassMethodTable *table = classCreate[STy];
     std::string name = getStructName(STy);
     std::map<std::string, int> cancelList;
@@ -167,7 +167,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
             if (const StructType *iSTy = dyn_cast<StructType>(element))
                 if (!inheritsModule(iSTy, "class.BitsClass")) {
                     std::string sname = getStructName(iSTy);
-                    addIncludeName(iSTy);
+                    addIncludeName(includeList, iSTy);
                     if (!inheritsModule(iSTy, "class.InterfaceClass")) {
                     int dimIndex = 0;
                     std::string vecDim;
@@ -181,7 +181,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
                 }
             if (const PointerType *PTy = dyn_cast<PointerType>(element))
             if (const StructType *iSTy = dyn_cast<StructType>(PTy->getElementType()))
-                addIncludeName(iSTy);
+                addIncludeName(includeList, iSTy);
     }
     for (auto FI : table->method) {
         Function *func = FI.second;
@@ -193,14 +193,14 @@ void generateClassDef(const StructType *STy, std::string oDir)
             AI++;
         }
         if (const StructType *iSTy = dyn_cast<StructType>(retType))
-            addIncludeName(iSTy);
+            addIncludeName(includeList, iSTy);
         AI++;
         for (; AI != AE; ++AI) {
             Type *element = AI->getType();
             if (auto PTy = dyn_cast<PointerType>(element))
                 element = PTy->getElementType();
             if (const StructType *iSTy = dyn_cast<StructType>(element))
-                addIncludeName(iSTy);
+                addIncludeName(includeList, iSTy);
         }
     }
     for (auto item: includeList)
