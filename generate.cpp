@@ -139,11 +139,14 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     unsigned int subs = 0;
     int idx = ind;
     while (idx-- > 0) {
-        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',')
+        while (subs < STy->structFieldMap.length() && STy->structFieldMap[subs] != ',') {
+            if (STy->structFieldMap[subs] == '/')
+                return "";
             subs++;
+        }
         subs++;
     }
-    if (subs >= STy->structFieldMap.length())
+    if (subs >= STy->structFieldMap.length() || STy->structFieldMap[subs] == '/')
         return "";
     std::string ret = STy->structFieldMap.substr(subs);
     idx = ret.find(',');
