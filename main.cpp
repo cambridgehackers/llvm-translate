@@ -52,7 +52,10 @@ static Module *llvm_ParseIRFile(const std::string &Filename, LLVMContext &Contex
     M->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
     ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr = MemoryBuffer::getFileOrSTDIN(Filename);
     if (parseAssemblyInto(FileOrErr.get()->getMemBufferRef(), *M, Err, Slots)) {
-        printf("llvm-translate: load error in %s\n", Filename.c_str());
+        printf("llvm-translate: load error in %s, error: %s, line: %s\n", Filename.c_str(),
+            Err.getMessage().str().c_str(),
+            Err.getLineContents().str().c_str());
+        exit(-1);
     }
     return M;
 }
