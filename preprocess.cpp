@@ -402,6 +402,48 @@ sourceTmp->getType()->dump();
  */
 void preprocessModule(Module *Mod)
 {
+    // remove dwarf info, if it was compiled in
+    static const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
+    const char **p = delete_names;
+    while(*p)
+        if (Function *Declare = Mod->getFunction(*p++)) {
+            while (!Declare->use_empty()) {
+                CallInst *CI = cast<CallInst>(Declare->user_back());
+                CI->eraseFromParent();
+            }
+            Declare->eraseFromParent();
+        }
+
+    // remove Select statements; construct vtab tables
+    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
+        processSelect(FI);
+
+    // process various function calls
+    static struct {
+        const char *name;
+        void (*func)(CallInst *II);
+    } callProcess[] = {
+        // replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
+        {"llvm.umul.with.overflow.i64", processOverflow}, {"llvm.uadd.with.overflow.i64", processOverflow},
+        // remap all calls to 'malloc' and 'new' to our runtime.
+        {"_Znwm", processMalloc}, {"_Znam", processMalloc}, {"malloc", processMalloc},
+        // replace calls to methodToFunction with "Function *" values.
+        // Context: Must be after all vtable processing.
+        {"methodToFunction", processMethodToFunction},
+        {"connectInterface", processConnectInterface},
+        {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
+        {"_ZL20atomiccNewArrayCountm", processMSize},
+        {"atomiccSchedulePriority", processPriority},
+        {NULL}};
+
+    for (int i = 0; callProcess[i].name; i++) {
+        if (Function *Declare = Mod->getFunction(callProcess[i].name))
+        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
+            auto NI = std::next(I);
+            callProcess[i].func(cast<CallInst>(*I));
+            I = NI;
+        }
+    }
     TypeFinder StructTypes;
     StructTypes.run(*Mod, true);
     for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
@@ -451,48 +493,6 @@ printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, STy->getNa
                 //if (!inheritsModule(STy, "class.InterfaceClass"))
                     //pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
             }
-        }
-    }
-    // remove dwarf info, if it was compiled in
-    static const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
-    const char **p = delete_names;
-    while(*p)
-        if (Function *Declare = Mod->getFunction(*p++)) {
-            while (!Declare->use_empty()) {
-                CallInst *CI = cast<CallInst>(Declare->user_back());
-                CI->eraseFromParent();
-            }
-            Declare->eraseFromParent();
-        }
-
-    // remove Select statements; construct vtab tables
-    for (auto FI = Mod->begin(), FE = Mod->end(); FI != FE; FI++)
-        processSelect(FI);
-
-    // process various function calls
-    static struct {
-        const char *name;
-        void (*func)(CallInst *II);
-    } callProcess[] = {
-        // replace unsupported calls to llvm.umul.with.overflow.i64, llvm.uadd.with.overflow.i64
-        {"llvm.umul.with.overflow.i64", processOverflow}, {"llvm.uadd.with.overflow.i64", processOverflow},
-        // remap all calls to 'malloc' and 'new' to our runtime.
-        {"_Znwm", processMalloc}, {"_Znam", processMalloc}, {"malloc", processMalloc},
-        // replace calls to methodToFunction with "Function *" values.
-        // Context: Must be after all vtable processing.
-        {"methodToFunction", processMethodToFunction},
-        {"connectInterface", processConnectInterface},
-        {"llvm.memcpy.p0i8.p0i8.i64", processMemcpy},
-        {"_ZL20atomiccNewArrayCountm", processMSize},
-        {"atomiccSchedulePriority", processPriority},
-        {NULL}};
-
-    for (int i = 0; callProcess[i].name; i++) {
-        if (Function *Declare = Mod->getFunction(callProcess[i].name))
-        for(auto I = Declare->user_begin(), E = Declare->user_end(); I != E; ) {
-            auto NI = std::next(I);
-            callProcess[i].func(cast<CallInst>(*I));
-            I = NI;
         }
     }
 }
