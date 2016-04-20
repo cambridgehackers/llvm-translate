@@ -433,6 +433,9 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             if (trace_pair)
                 printf("[%s:%d] addr %p callMap[%s] = %p [%p = %s]\n", __FUNCTION__, __LINE__, addr, fname.c_str(), eaddr, func, func ? func->getName().str().c_str() : "none");
         }
+    int len = STy->structFieldMap.length();
+    int subs = 0, last_subs = 0;
+#if 1
     for (unsigned i = 0; i < table->vtableCount; i++) {
         Function *func = table->vtable[i];
         std::string mName = getMethodName(func->getName());
@@ -444,6 +447,25 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             if (endswith(rdyName, "__READY"))
                 mName += "__VALID";
         }
+        {
+#else
+    while (subs < len) {
+        while (subs < len && STy->structFieldMap[subs] != ',') {
+            subs++;
+        }
+        subs++;
+        if (STy->structFieldMap[last_subs] == '/')
+            last_subs++;
+        std::string ret = STy->structFieldMap.substr(last_subs);
+        int idx = ret.find(',');
+        if (idx >= 0)
+            ret = ret.substr(0,idx);
+        idx = ret.find(':');
+        if (idx >= 0) {
+            std::string fname = ret.substr(0, idx);
+            std::string mName = ret.substr(idx+1);
+            Function *func = globalMod->getFunction(fname);
+#endif
         setSeen(func, mName);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
@@ -461,6 +483,8 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                         methodNameMap[calledFunc] = mName;
                     }
                 }
+        }
+        last_subs = subs;
     }
     for (auto item: methodMap)
         if (Function *enaFunc = ruleENAFunction[item.second])

@@ -407,11 +407,11 @@ void preprocessModule(Module *Mod)
     for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
         StructType *STy = StructTypes[i];
         if (STy->isLiteral() || STy->getName().empty()) continue;
-        int len = STy->structFieldMap.length();
-        int subs = 0, last_subs = 0;
-        std::map<std::string, Function *> funcMap;
         getStructName(STy);  // make sure that classCreate is initialized
         ClassMethodTable *table = classCreate[STy];
+        std::map<std::string, Function *> funcMap;
+        int len = STy->structFieldMap.length();
+        int subs = 0, last_subs = 0;
         while (subs < len) {
             while (subs < len && STy->structFieldMap[subs] != ',') {
                 subs++;
