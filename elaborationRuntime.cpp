@@ -357,6 +357,7 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
  */
 extern "C" void exportRequest(Function *enaFunc)
 {
+#if 0
     ClassMethodTable *table = classCreate[findThisArgument(enaFunc)];
     std::string enaName = getMethodName(enaFunc->getName());
     if (trace_pair)
@@ -373,6 +374,7 @@ extern "C" void exportRequest(Function *enaFunc)
             suffix = "";
         pushPair(enaFunc, enaName + suffix, func, mname);
     }
+#endif
 }
 
 /*

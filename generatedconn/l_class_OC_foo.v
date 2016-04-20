@@ -5,8 +5,8 @@ module l_class_OC_foo (
     input CLK,
     input nRST,
     input indication$heard__ENA,
-    input [31:0]indication$meth,
-    input [31:0]indication$v,
+    input [31:0]indication$heard_meth,
+    input [31:0]indication$heard_v,
     output indication$heard__RDY,
     input [`l_class_OC_foo_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_foo_RULE_COUNT:0]rule_ready);
@@ -14,8 +14,5 @@ module l_class_OC_foo (
     wire indication$heard__ENA_internal = indication$heard__ENA && indication$heard__RDY_internal;
     assign indication$heard__RDY = indication$heard__RDY_internal;
     assign indication$heard__RDY_internal = 1;
-    assign meth_2e_addr = meth;
-    assign this_2e_addr = this_2e_addr;
-    assign v_2e_addr = v;
 endmodule 
 

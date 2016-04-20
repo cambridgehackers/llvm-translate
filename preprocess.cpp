@@ -490,8 +490,8 @@ printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, STy->getNa
                 ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
                 ruleENAFunction[item.second] = enaFunc;
                 // too early?
-                //if (!inheritsModule(STy, "class.InterfaceClass"))
-                    //pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
+                if (!inheritsModule(STy, "class.InterfaceClass"))
+                    pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
             }
         }
     }

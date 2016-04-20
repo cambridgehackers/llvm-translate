@@ -2,7 +2,7 @@
 #define __l_class_OC_foo_H__
 #include "l_class_OC_EchoIndication.h"
 class l_class_OC_foo;
-extern void l_class_OC_foo__heard(void *thisarg, unsigned int meth, unsigned int v);
+extern void l_class_OC_foo__heard(void *thisarg, unsigned int heard_meth, unsigned int heard_v);
 extern bool l_class_OC_foo__heard__RDY(void *thisarg);
 class l_class_OC_foo {
 public:
