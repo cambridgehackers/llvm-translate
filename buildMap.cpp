@@ -422,7 +422,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     std::map<Function *, std::string> methodNameMap;
     int Idx = 0;
     if (trace_pair)
-        printf("[%s:%d] addr %p struct %s name %s vtableCount %d\n", __FUNCTION__, __LINE__, addr, STy->getName().str().c_str(), name, table->vtableCount);
+        printf("[%s:%d] addr %p struct %s name %s\n", __FUNCTION__, __LINE__, addr, STy->getName().str().c_str(), name);
     for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++)
         if (PointerType *PTy = dyn_cast<PointerType>(*I))
         if (PTy->getElementType()->getTypeID() == Type::FunctionTyID) {
@@ -435,20 +435,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         }
     int len = STy->structFieldMap.length();
     int subs = 0, last_subs = 0;
-#if 1
-    for (unsigned i = 0; i < table->vtableCount; i++) {
-        Function *func = table->vtable[i];
-        std::string mName = getMethodName(func->getName());
-        Function *rdyFunc = ruleRDYFunction[func];
-        std::string rdyName = pushSeen[rdyFunc];
-        if (isActionMethod(func)) {
-            if (endswith(rdyName, "__RDY"))
-                mName += "__ENA";
-            if (endswith(rdyName, "__READY"))
-                mName += "__VALID";
-        }
-        {
-#else
     while (subs < len) {
         while (subs < len && STy->structFieldMap[subs] != ',') {
             subs++;
@@ -462,10 +448,16 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
             ret = ret.substr(0,idx);
         idx = ret.find(':');
         if (idx >= 0) {
-            std::string fname = ret.substr(0, idx);
+            Function *func = globalMod->getFunction(ret.substr(0, idx));
             std::string mName = ret.substr(idx+1);
-            Function *func = globalMod->getFunction(fname);
-#endif
+        Function *rdyFunc = ruleRDYFunction[func];
+        std::string rdyName = pushSeen[rdyFunc];
+        if (isActionMethod(func)) {
+            if (endswith(rdyName, "__RDY"))
+                mName += "__ENA";
+            if (endswith(rdyName, "__READY"))
+                mName += "__VALID";
+        }
         setSeen(func, mName);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)

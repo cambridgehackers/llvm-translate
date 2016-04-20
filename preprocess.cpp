@@ -425,9 +425,8 @@ void preprocessModule(Module *Mod)
                 ret = ret.substr(0,idx);
             idx = ret.find(':');
             if (idx >= 0) {
-                std::string fname = ret.substr(0, idx);
+                Function *func = Mod->getFunction(ret.substr(0, idx));
                 std::string mname = ret.substr(idx+1);
-                Function *func = Mod->getFunction(fname);
                 funcMap[mname] = func;
             }
             last_subs = subs;
@@ -448,6 +447,9 @@ printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, STy->getNa
                 table->method[item.first] = item.second;
                 ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
                 ruleENAFunction[item.second] = enaFunc;
+                // too early?
+                //if (!inheritsModule(STy, "class.InterfaceClass"))
+                    //pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
             }
         }
     }
