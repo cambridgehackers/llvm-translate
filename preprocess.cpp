@@ -66,7 +66,7 @@ static void addMethodTable(const StructType *STy, Function *func)
         }
     }
     if (trace_lookup)
-        printf("%s: %s[%d] = %s [%s]\n", __FUNCTION__, sname.c_str(), table->vtableCount, fname.c_str(), fdname.c_str());
+        printf("%s: %s = %s [%s]\n", __FUNCTION__, sname.c_str(), fname.c_str(), fdname.c_str());
     table->vtable[table->vtableCount++] = func;
 }
 
@@ -79,7 +79,6 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
      || !strncmp(sname.c_str(), "struct.std::", 12))
         return;   // don't generate anything for std classes
     getStructName(STy);  // make sure that classCreate is initialized
-    ClassMethodTable *table = classCreate[STy];
     if (GV->hasInitializer())
     if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
         std::string name = GV->getName();
@@ -169,7 +168,7 @@ static void processMethodToFunction(CallInst *II)
         if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
             offset = CI->getZExtValue()/sizeof(uint64_t);
             if (offset >= table->vtableCount) {
-                printf("[%s:%d] offset %ld too large %d\n", __FUNCTION__, __LINE__, offset, table->vtableCount);
+                printf("[%s:%d] offset %ld too large\n", __FUNCTION__, __LINE__, offset);
                 exit(-1);
             }
             func = table->vtable[offset];

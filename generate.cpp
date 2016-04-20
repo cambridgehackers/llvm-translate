@@ -161,7 +161,7 @@ std::string fieldName(const StructType *STy, uint64_t ind)
 std::string lookupMethodName(const ClassMethodTable *table, int ind)
 {
     if (trace_lookupMethod)
-        printf("[%s:%d] table %p, ind %d max %d\n", __FUNCTION__, __LINE__, table, ind, table ? table->vtableCount:-1);
+        printf("[%s:%d] table %p, ind %d\n", __FUNCTION__, __LINE__, table, ind);
     if (table && ind >= 0 && ind < (int)table->vtableCount)
         return table->vtable[ind]->getName();
     return "";

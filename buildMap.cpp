@@ -416,7 +416,6 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
 {
     const DataLayout *TD = EE->getDataLayout();
     const StructLayout *SLO = TD->getStructLayout(STy);
-    ClassMethodTable *table = classCreate[STy];
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
     std::map<Function *, std::string> methodNameMap;
