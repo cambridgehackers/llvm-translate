@@ -29,6 +29,7 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/TypeFinder.h"
 
 using namespace llvm;
 
@@ -89,29 +90,6 @@ static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
             if (CE->getOpcode() == Instruction::BitCast)
             if (Function *func = dyn_cast<Function>(CE->getOperand(0)))
                 addMethodTable(STy, func);
-        }
-    }
-    std::map<std::string, Function *> funcMap;
-    for (unsigned i = 0; i < table->vtableCount; i++) {
-        Function *func = table->vtable[i];
-        funcMap[getMethodName(func->getName())] = func;
-    }
-    for (auto item: funcMap) {
-        if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
-            std::string enaName = item.first.substr(0, item.first.length() - 5);
-            std::string enaSuffix = "__ENA";
-            if (endswith(item.first, "__READY")) {
-                enaName = item.first.substr(0, item.first.length() - 7);
-                enaSuffix = "__VALID";
-            }
-            Function *enaFunc = funcMap[enaName];
-            if (!isActionMethod(enaFunc))
-                enaSuffix = "";
-printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, sname.c_str(), item.first.c_str(), item.second, (enaName+enaSuffix).c_str(), enaFunc);
-            table->method[enaName + enaSuffix] = enaFunc;
-            table->method[item.first] = item.second;
-            ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
-            ruleENAFunction[item.second] = enaFunc;
         }
     }
 }
@@ -424,6 +402,55 @@ sourceTmp->getType()->dump();
  */
 void preprocessModule(Module *Mod)
 {
+    TypeFinder StructTypes;
+    StructTypes.run(*Mod, true);
+    for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
+        StructType *STy = StructTypes[i];
+        if (STy->isLiteral() || STy->getName().empty()) continue;
+        int len = STy->structFieldMap.length();
+        int subs = 0, last_subs = 0;
+        std::map<std::string, Function *> funcMap;
+        getStructName(STy);  // make sure that classCreate is initialized
+        ClassMethodTable *table = classCreate[STy];
+        while (subs < len) {
+            while (subs < len && STy->structFieldMap[subs] != ',') {
+                subs++;
+            }
+            subs++;
+            if (STy->structFieldMap[last_subs] == '/')
+                last_subs++;
+            std::string ret = STy->structFieldMap.substr(last_subs);
+            int idx = ret.find(',');
+            if (idx >= 0)
+                ret = ret.substr(0,idx);
+            idx = ret.find(':');
+            if (idx >= 0) {
+                std::string fname = ret.substr(0, idx);
+                std::string mname = ret.substr(idx+1);
+                Function *func = Mod->getFunction(fname);
+                funcMap[mname] = func;
+            }
+            last_subs = subs;
+        }
+        for (auto item: funcMap) {
+            if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
+                std::string enaName = item.first.substr(0, item.first.length() - 5);
+                std::string enaSuffix = "__ENA";
+                if (endswith(item.first, "__READY")) {
+                    enaName = item.first.substr(0, item.first.length() - 7);
+                    enaSuffix = "__VALID";
+                }
+                Function *enaFunc = funcMap[enaName];
+                if (!isActionMethod(enaFunc))
+                    enaSuffix = "";
+printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), item.first.c_str(), item.second, (enaName+enaSuffix).c_str(), enaFunc);
+                table->method[enaName + enaSuffix] = enaFunc;
+                table->method[item.first] = item.second;
+                ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
+                ruleENAFunction[item.second] = enaFunc;
+            }
+        }
+    }
     // remove dwarf info, if it was compiled in
     static const char *delete_names[] = { "llvm.dbg.declare", "llvm.dbg.value", "atexit", NULL};
     const char **p = delete_names;
