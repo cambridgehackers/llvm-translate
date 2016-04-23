@@ -98,12 +98,13 @@ void buildPrefix(ClassMethodTable *table, PrefixType &interfacePrefix)
 {
     for (auto item: table->interfaceList) {
         ClassMethodTable *itable = classCreate[item.STy];
-        for (unsigned i = 0; i < itable->vtableCount; i++) {
-            std::string mname = getMethodName(itable->vtable[i]->getName());
+        for (auto iitem: itable->method) {
+            Function *func = iitem.second;
+            std::string mname = getMethodName(func->getName());
             interfacePrefix[mname] = item.name + "$";
             interfacePrefix[mname + "__ENA"] = item.name + "$";
             interfacePrefix[mname + "__VALID"] = item.name + "$";
-printf("[%s:%d] class %s name %s prefix %s\n", __FUNCTION__, __LINE__, table->STy->getName().str().c_str(), getMethodName(itable->vtable[i]->getName()).c_str(), item.name.c_str());
+printf("[%s:%d] class %s name %s prefix %s\n", __FUNCTION__, __LINE__, table->STy->getName().str().c_str(), getMethodName(func->getName()).c_str(), item.name.c_str());
         }
     }
 }

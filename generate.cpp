@@ -1007,8 +1007,8 @@ static void checkClass(const StructType *STy, const StructType *ActSTy)
                 if (inheritsModule(iSTy, "class.InterfaceClass")) {
                     ClassMethodTable *itable = classCreate[iSTy];
                     bool foundSomething = false;
-                    for (unsigned i = 0; i < itable->vtableCount; i++) {
-                        std::string vname = getMethodName(itable->vtable[i]->getName());
+                    for (auto item: itable->method) {
+                        std::string vname = getMethodName(item.second->getName());
 printf("[%s:%d] vname %s\n", __FUNCTION__, __LINE__, vname.c_str());
                         if (atable->method.find(vname) != atable->method.end()
                          || atable->method.find(fname + "_" + vname) != atable->method.end())

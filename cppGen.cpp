@@ -252,12 +252,13 @@ void generateClassDef(const StructType *STy, std::string oDir)
         for (auto item: table->interfaceList) {
             fprintf(OStr, "%s\n      %s(this", prefix.c_str(), item.name.c_str());
             ClassMethodTable *itable = classCreate[item.STy];
-            for (unsigned i = 0; i < itable->vtableCount; i++) {
-                std::string vname = getMethodName(itable->vtable[i]->getName());
+            for (auto iitem: itable->method) {
+                Function *func = iitem.second;
+                std::string vname = getMethodName(func->getName());
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
-                if (Function *rdyFunc = ruleRDYFunction[itable->vtable[i]]) {
-                    std::string fname = name + "__" + baseMethod(pushSeen[itable->vtable[i]]);
+                if (Function *rdyFunc = ruleRDYFunction[func]) {
+                    std::string fname = name + "__" + baseMethod(pushSeen[func]);
                     std::string rname = name + "__" + pushSeen[rdyFunc];
                     fprintf(OStr, ", %s, %s", rname.c_str(), fname.c_str());
                     prefix = ",";
