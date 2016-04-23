@@ -41,6 +41,7 @@ module l_class_OC_Connect (
         lERI$request$say2__ENA,
         lERI$request$say2_meth,
         lERI$request$say2_v,
+        lERI$request$say2_v2,
         lERI$request$say2__RDY,
         lERI$request$say__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT],
@@ -55,6 +56,7 @@ module l_class_OC_Connect (
     wire lEcho$request$say2__ENA;
     wire [31:0]lEcho$request$say2_meth;
     wire [31:0]lEcho$request$say2_v;
+    wire [31:0]lEcho$request$say2_v2;
     wire lEcho$request$say2__RDY;
     wire lEcho$request$say__RDY;
     l_class_OC_Echo lEcho (
@@ -66,6 +68,7 @@ module l_class_OC_Connect (
         lEcho$request$say2__ENA,
         lEcho$request$say2_meth,
         lEcho$request$say2_v,
+        lEcho$request$say2_v2,
         lEcho$request$say2__RDY,
         lEcho$request$say__RDY,
         lEcho$indication$heard__ENA,
@@ -80,6 +83,7 @@ module l_class_OC_Connect (
     wire lERO_test$request$say2__ENA;
     wire [31:0]lERO_test$request$say2_meth;
     wire [31:0]lERO_test$request$say2_v;
+    wire [31:0]lERO_test$request$say2_v2;
     wire lERO_test$request$say2__RDY;
     wire lERO_test$request$say__RDY;
     l_class_OC_EchoRequestOutput lERO_test (
@@ -91,6 +95,7 @@ module l_class_OC_Connect (
         lERO_test$request$say2__ENA,
         lERO_test$request$say2_meth,
         lERO_test$request$say2_v,
+        lERO_test$request$say2_v2,
         lERO_test$request$say2__RDY,
         lERO_test$request$say__RDY,
         lERO_test$pipe$enq__ENA,

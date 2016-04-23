@@ -10,6 +10,7 @@ module l_class_OC_Echo (
     input request$say2__ENA,
     input [31:0]request$say2_meth,
     input [31:0]request$say2_v,
+    input [31:0]request$say2_v2,
     output request$say2__RDY,
     output request$say__RDY,
     output indication$heard__ENA,

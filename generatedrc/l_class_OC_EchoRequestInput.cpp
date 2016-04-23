@@ -5,7 +5,7 @@ void l_class_OC_EchoRequestInput__enq(void *thisarg, l_struct_OC_EchoRequest_dat
         if ((enq_v.tag) == 1)
             thisp->request->say(enq_v.data.say.meth, enq_v.data.say.v);
         if ((enq_v.tag) == 2)
-            thisp->request->say2(enq_v.data.say2.meth, enq_v.data.say2.v);
+            thisp->request->say2(enq_v.data.say2.meth, enq_v.data.say2.v, enq_v.data.say2.v2);
 }
 bool l_class_OC_EchoRequestInput__enq__RDY(void *thisarg) {
         l_class_OC_EchoRequestInput * thisp = (l_class_OC_EchoRequestInput *)thisarg;

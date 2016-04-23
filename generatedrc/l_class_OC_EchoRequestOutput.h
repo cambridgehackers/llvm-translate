@@ -4,7 +4,7 @@
 #include "l_class_OC_PipeIn.h"
 class l_class_OC_EchoRequestOutput;
 extern void l_class_OC_EchoRequestOutput__say(void *thisarg, unsigned int say_meth, unsigned int say_v);
-extern void l_class_OC_EchoRequestOutput__say2(void *thisarg, unsigned int say2_meth, unsigned int say2_v);
+extern void l_class_OC_EchoRequestOutput__say2(void *thisarg, unsigned int say2_meth, unsigned int say2_v, unsigned int say2_v2);
 extern bool l_class_OC_EchoRequestOutput__say2__RDY(void *thisarg);
 extern bool l_class_OC_EchoRequestOutput__say__RDY(void *thisarg);
 class l_class_OC_EchoRequestOutput {

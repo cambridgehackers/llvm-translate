@@ -10,6 +10,7 @@ module l_class_OC_EchoRequestOutput (
     input request$say2__ENA,
     input [31:0]request$say2_meth,
     input [31:0]request$say2_v,
+    input [31:0]request$say2_v2,
     output request$say2__RDY,
     output request$say__RDY,
     output pipe$enq__ENA,
@@ -40,6 +41,7 @@ module l_class_OC_EchoRequestOutput (
         if (request$say2__ENA_internal) begin
             ind$data$say2$meth <= say2_meth;
             ind$data$say2$v <= say2_v;
+            ind$data$say2$v2 <= say2_v2;
         end; // End of request$say2__ENA
       end
     end // always @ (posedge CLK)
