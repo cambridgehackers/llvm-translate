@@ -491,13 +491,13 @@ void preprocessModule(Module *Mod)
                 if (!isActionMethod(enaFunc))
                     enaSuffix = "";
 printf("[%s:%d] sname %s func %s=%p %s=%p\n", __FUNCTION__, __LINE__, STy->getName().str().c_str(), item.first.c_str(), item.second, (enaName+enaSuffix).c_str(), enaFunc);
-                table->method[enaName + enaSuffix] = enaFunc;
+                table->method[enaName] = enaFunc;
                 table->method[item.first] = item.second;
                 ruleRDYFunction[enaFunc] = item.second; // must be before pushWork() calls
                 ruleENAFunction[item.second] = enaFunc;
                 // too early?
                 if (!inheritsModule(STy, "class.InterfaceClass"))
-                    pushPair(enaFunc, enaName + enaSuffix, item.second, item.first);
+                    pushPair(enaFunc, enaName, enaSuffix, item.second, item.first);
             }
         }
     }

@@ -189,16 +189,16 @@ void setSeen(Function *func, std::string mName)
 /*
  * Add a function to the processing list for generation of cpp and verilog.
  */
-static void pushWork(std::string mName, Function *func)
+static void pushWork(std::string mName, std::string suffix, Function *func)
 {
     const StructType *STy = findThisArgument(func);
     ClassMethodTable *table = classCreate[STy];
     if (pushSeen[func] != "")
         return;
-    setSeen(func, mName);
+    setSeen(func, mName + suffix);
     printf("[%s:%d] mname %s funcname %s\n", __FUNCTION__, __LINE__, mName.c_str(), func->getName().str().c_str());
     table->method[mName] = func;
-    updateParameterNames(baseMethod(mName), func);
+    updateParameterNames(mName, func);
     // inline intra-class method call bodies
     processMethodInlining(func, func);
     fixupFuncList.push_back(func);
@@ -209,10 +209,10 @@ static void pushWork(std::string mName, Function *func)
  * is processed after processing for base method (so that guards promoted during
  * the method processing are later handled)
  */
-void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName)
+void pushPair(Function *enaFunc, std::string enaName, std::string enaSuffix, Function *rdyFunc, std::string rdyName)
 {
-    pushWork(enaName, enaFunc);
-    pushWork(rdyName, rdyFunc); // must be after 'ENA', since hoisting copies guards
+    pushWork(enaName, enaSuffix, enaFunc);
+    pushWork(rdyName, "", rdyFunc); // must be after 'ENA', since hoisting copies guards
 }
 
 /*
@@ -374,7 +374,7 @@ extern "C" void addBaseRule(void *thisp, const char *name, Function **RDY, Funct
         printf("[%s:%d] name %s ena %s rdy %s\n", __FUNCTION__, __LINE__, name, enaFunc->getName().str().c_str(), rdyFunc->getName().str().c_str());
     ruleRDYFunction[enaFunc] = rdyFunc; // must be before pushWork() calls
     ruleENAFunction[rdyFunc] = enaFunc;
-    pushPair(enaFunc, getMethodName(enaFunc->getName()), rdyFunc, getMethodName(rdyFunc->getName()));
+    pushPair(enaFunc, name, "__ENA", rdyFunc, getMethodName(rdyFunc->getName()));
 }
 
 /*

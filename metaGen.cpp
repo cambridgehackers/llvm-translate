@@ -70,7 +70,7 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
     // write out metadata comments at end of the file
     inhibitAppend = 1;
     for (auto FI : table->method) {
-        std::string mname = interfacePrefix[FI.first] + baseMethod(FI.first);
+        std::string mname = interfacePrefix[FI.first] + FI.first;
         Function *func = FI.second;
         std::string temp = table->guard[func];
         if (endswith(mname, "__RDY"))
@@ -85,7 +85,7 @@ void metaGenerate(FILE *OStr, ClassMethodTable *table, PrefixType &interfacePref
             std::map<std::string,std::string> metaBefore;
             std::map<std::string,std::string> metaConflict;
             for (auto innerFI : table->method) {
-                std::string innermname = interfacePrefix[innerFI.first] + baseMethod(innerFI.first);
+                std::string innermname = interfacePrefix[innerFI.first] + innerFI.first;
                 Function *innerfunc = innerFI.second;
                 MetaData *innerbm = &funcMetaMap[innerfunc];
                 std::string tempConflict;

@@ -273,7 +273,7 @@ restart:
                     suffix = "";
                 addGuard(II, calledFunctionGuard, currentFunction);
                 if (table)
-                    table->method[mName + suffix] = func;  // keep track of all functions that were called, not just ones that were defined
+                    table->method[mName] = func;  // keep track of all functions that were called, not just ones that were defined
                 break;
                 }
             case Instruction::Br: {
@@ -412,13 +412,17 @@ static void inlineReferences(Module *Mod, const StructType *STy, uint64_t Idx, T
     }
 }
 
+typedef struct {
+    std::string name;
+    std::string suffix;
+} STRINGPAIR;
 static void registerInterface(char *addr, StructType *STy, const char *name)
 {
     const DataLayout *TD = EE->getDataLayout();
     const StructLayout *SLO = TD->getStructLayout(STy);
     std::map<std::string, Function *> callMap;
     MethodMapType methodMap;
-    std::map<Function *, std::string> methodNameMap;
+    std::map<Function *, STRINGPAIR> methodNameMap;
     int Idx = 0;
     if (trace_pair)
         printf("[%s:%d] addr %p struct %s name %s\n", __FUNCTION__, __LINE__, addr, STy->getName().str().c_str(), name);
@@ -449,15 +453,16 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
         if (idx >= 0) {
             Function *func = globalMod->getFunction(ret.substr(0, idx));
             std::string mName = ret.substr(idx+1);
+            std::string enaSuffix;
         Function *rdyFunc = ruleRDYFunction[func];
         std::string rdyName = pushSeen[rdyFunc];
         if (isActionMethod(func)) {
             if (endswith(rdyName, "__RDY"))
-                mName += "__ENA";
+                enaSuffix = "__ENA";
             if (endswith(rdyName, "__READY"))
-                mName += "__VALID";
+                enaSuffix = "__VALID";
         }
-        setSeen(func, mName);
+        setSeen(func, mName + enaSuffix);
         for (auto BB = func->begin(), BE = func->end(); BB != BE; ++BB)
             for (auto II = BB->begin(), IE = BB->end(); II != IE; II++)
                 if (CallInst *ICL = dyn_cast<CallInst>(II)) {
@@ -471,7 +476,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
                         printf("[%s:%d] set methodMap [%s] = %p [%s]\n", __FUNCTION__, __LINE__, (name + std::string("$") + mName).c_str(), calledFunc, sname.c_str());
                     if (calledFunc) {
                         methodMap[mName] = calledFunc;
-                        methodNameMap[calledFunc] = mName;
+                        methodNameMap[calledFunc] = STRINGPAIR{mName, enaSuffix};
                     }
                 }
         }
@@ -479,7 +484,7 @@ static void registerInterface(char *addr, StructType *STy, const char *name)
     }
     for (auto item: methodMap)
         if (Function *enaFunc = ruleENAFunction[item.second])
-            pushPair(enaFunc, methodNameMap[enaFunc], item.second, item.first);
+            pushPair(enaFunc, methodNameMap[enaFunc].name, methodNameMap[enaFunc].suffix, item.second, item.first);
 }
 
 /*

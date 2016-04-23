@@ -1,7 +1,6 @@
 #ifndef __l_class_OC_Echo_H__
 #define __l_class_OC_Echo_H__
 #include "l_class_OC_EchoIndication.h"
-#include "l_class_OC_EchoRequest.h"
 #include "l_class_OC_Fifo1.h"
 class l_class_OC_Echo;
 extern void l_class_OC_Echo__respond_rule(void *thisarg);

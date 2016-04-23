@@ -155,7 +155,7 @@ void setAssign(std::string target, std::string value);
 void recursiveDelete(Value *V);
 void setSeen(Function *func, std::string mName);
 void dumpMemoryRegions(int arg);
-void pushPair(Function *enaFunc, std::string enaName, Function *rdyFunc, std::string rdyName);
+void pushPair(Function *enaFunc, std::string enaName, std::string enaSuffix, Function *rdyFunc, std::string rdyName);
 void generateContainedStructs(const Type *Ty, std::string ODir);
 void startMeta(const Function *func);
 void appendList(int listIndex, BasicBlock *cond, std::string item);

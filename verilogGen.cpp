@@ -100,7 +100,7 @@ void buildPrefix(ClassMethodTable *table, PrefixType &interfacePrefix)
         ClassMethodTable *itable = classCreate[item.STy];
         for (auto iitem: itable->method) {
             Function *func = iitem.second;
-            std::string mname = getMethodName(func->getName());
+            std::string mname = iitem.first;
             interfacePrefix[mname] = item.name + "$";
             interfacePrefix[mname + "__ENA"] = item.name + "$";
             interfacePrefix[mname + "__VALID"] = item.name + "$";
@@ -126,7 +126,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
         inpClk = "";
         for (auto FI : table->method) {
             const Function *func = FI.second;
-            std::string mname = interfacePrefix[FI.first] + FI.first;
+            std::string mname = interfacePrefix[FI.first] + pushSeen[func];
             Type *retType = func->getReturnType();
             auto AI = func->arg_begin(), AE = func->arg_end();
             if (func->hasStructRetAttr()) {
@@ -157,7 +157,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
     paramList.push_back(inpClk + "nRST");
     for (auto FI : table->method) {
         Function *func = FI.second;
-        std::string mname = interfacePrefix[FI.first] + FI.first;
+        std::string mname = interfacePrefix[FI.first] + pushSeen[func];
         if (table->ruleFunctions[mname.substr(0, mname.length()-5)])
             continue;
         Type *retType = func->getReturnType();
@@ -197,7 +197,7 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
                 buildPrefix(itable, interfacePrefix);
                 for (auto FI : itable->method) {
                     Function *func = FI.second;
-                    std::string wparam, mname = fname + MODULE_SEPARATOR + interfacePrefix[FI.first] + FI.first;
+                    std::string wparam, mname = fname + MODULE_SEPARATOR + interfacePrefix[FI.first] + pushSeen[func];
 //printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                     Type *retType = func->getReturnType();
                     auto AI = func->arg_begin(), AE = func->arg_end();
@@ -362,7 +362,7 @@ void generateModuleDef(const StructType *STy, std::string oDir)
     // from each method
     for (auto FI : table->method) {
         Function *func = FI.second;
-        std::string mname = interfacePrefix[FI.first] + FI.first;
+        std::string mname = interfacePrefix[FI.first] + pushSeen[func];
         std::string rdyName = mname.substr(0, mname.length()-5) + "__RDY";
         if (endswith(mname, "__VALID"))
             rdyName = mname.substr(0, mname.length()-7) + "__READY";

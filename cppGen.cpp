@@ -209,7 +209,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "class %s;\n", name.c_str());
         for (auto FI : table->method) {
             Function *func = FI.second;
-            std::string mname = baseMethod(FI.first);
+            std::string mname = FI.first;
             fprintf(OStr, "extern %s;\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         }
         }
@@ -221,7 +221,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
         fprintf(OStr, "public:\n");
         for (auto FI : table->method) {
             Function *func = FI.second;
-            std::string mname = baseMethod(FI.first);
+            std::string mname = FI.first;
             fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, mname, false).c_str(),
                 printFunctionInstance(func, mname + "p", "p").c_str());
         }
@@ -254,11 +254,11 @@ void generateClassDef(const StructType *STy, std::string oDir)
             ClassMethodTable *itable = classCreate[item.STy];
             for (auto iitem: itable->method) {
                 Function *func = iitem.second;
-                std::string vname = getMethodName(func->getName());
+                std::string vname = iitem.first;
                 // HACKHACKHACK: we don't know that the names match!!!!
                 cancelList[vname] = 1;
                 if (Function *rdyFunc = ruleRDYFunction[func]) {
-                    std::string fname = name + "__" + baseMethod(pushSeen[func]);
+                    std::string fname = name + "__" + iitem.first;
                     std::string rname = name + "__" + pushSeen[rdyFunc];
                     fprintf(OStr, ", %s, %s", rname.c_str(), fname.c_str());
                     prefix = ",";
@@ -273,7 +273,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     }
     for (auto FI : table->method) {
         Function *func = FI.second;
-        std::string mname = baseMethod(FI.first);
+        std::string mname = FI.first;
         if (!cancelList[mname])
         fprintf(OStr, "  %s { %s; }\n", printFunctionSignature(func, mname, false).c_str(),
             printFunctionInstance(func, name + "__" + mname, "this").c_str());
@@ -291,7 +291,7 @@ void generateClassDef(const StructType *STy, std::string oDir)
     fprintf(OStr, "#include \"%s.h\"\n", name.c_str());
     for (auto FI : table->method) {
         Function *func = FI.second;
-        std::string mname = baseMethod(FI.first);
+        std::string mname = FI.first;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         auto AI = func->arg_begin();
         if (func->hasStructRetAttr())
