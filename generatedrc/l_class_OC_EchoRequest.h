@@ -8,9 +8,9 @@ public:
   bool  (*say2__RDYp) (void *);
   void  (*say2p) (void *, unsigned int , unsigned int );
 public:
+  void say(unsigned int meth, unsigned int v) { sayp(p, meth, v); }
   void say2(unsigned int meth, unsigned int v) { say2p(p, meth, v); }
   bool say2__RDY(void) { return say2__RDYp(p); }
-  void say(unsigned int meth, unsigned int v) { sayp(p, meth, v); }
   bool say__RDY(void) { return say__RDYp(p); }
   l_class_OC_EchoRequest(decltype(p) ap, decltype(say__RDYp) asay__RDYp, decltype(sayp) asayp, decltype(say2__RDYp) asay2__RDYp, decltype(say2p) asay2p) {
     p = ap;

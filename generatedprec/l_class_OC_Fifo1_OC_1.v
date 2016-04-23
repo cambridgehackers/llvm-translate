@@ -7,9 +7,9 @@ module l_class_OC_Fifo1_OC_1 (
     input out$deq__ENA,
     output out$deq__RDY,
     input in$enq__ENA,
-    input [383:0]in$enq_v,
+    input [255:0]in$enq_v,
     output in$enq__RDY,
-    output [383:0]out$first,
+    output [255:0]out$first,
     output out$first__RDY,
     input [`l_class_OC_Fifo1_OC_1_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_Fifo1_OC_1_RULE_COUNT:0]rule_ready);
@@ -17,7 +17,7 @@ module l_class_OC_Fifo1_OC_1 (
     wire out$deq__ENA_internal = out$deq__ENA && out$deq__RDY_internal;
     wire in$enq__RDY_internal;
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
-    reg[383:0] element;
+    reg[255:0] element;
     reg full;
     assign in$enq__RDY = in$enq__RDY_internal;
     assign in$enq__RDY_internal = full ^ 1;

@@ -35,13 +35,13 @@ module l_class_OC_Connect (
         lERI$pipe$enq__ENA,
         lERI$pipe$enq_v,
         lERI$pipe$enq__RDY,
+        lERI$request$say__ENA,
+        lERI$request$say_meth,
+        lERI$request$say_v,
         lERI$request$say2__ENA,
         lERI$request$say2_meth,
         lERI$request$say2_v,
         lERI$request$say2__RDY,
-        lERI$request$say__ENA,
-        lERI$request$say_meth,
-        lERI$request$say_v,
         lERI$request$say__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT:`l_class_OC_EchoRequestInput_RULE_COUNT]);
@@ -49,24 +49,24 @@ module l_class_OC_Connect (
     wire lEcho$delay_rule__RDY;
     wire lEcho$respond_rule__ENA;
     wire lEcho$respond_rule__RDY;
+    wire lEcho$request$say__ENA;
+    wire [31:0]lEcho$request$say_meth;
+    wire [31:0]lEcho$request$say_v;
     wire lEcho$request$say2__ENA;
     wire [31:0]lEcho$request$say2_meth;
     wire [31:0]lEcho$request$say2_v;
     wire lEcho$request$say2__RDY;
-    wire lEcho$request$say__ENA;
-    wire [31:0]lEcho$request$say_meth;
-    wire [31:0]lEcho$request$say_v;
     wire lEcho$request$say__RDY;
     l_class_OC_Echo lEcho (
         CLK,
         nRST,
+        lEcho$request$say__ENA,
+        lEcho$request$say_meth,
+        lEcho$request$say_v,
         lEcho$request$say2__ENA,
         lEcho$request$say2_meth,
         lEcho$request$say2_v,
         lEcho$request$say2__RDY,
-        lEcho$request$say__ENA,
-        lEcho$request$say_meth,
-        lEcho$request$say_v,
         lEcho$request$say__RDY,
         lEcho$indication$heard__ENA,
         lEcho$indication$heard_meth,
@@ -74,24 +74,24 @@ module l_class_OC_Connect (
         lEcho$indication$heard__RDY,
         rule_enable[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT],
         rule_ready[0 + `l_class_OC_EchoIndicationOutput_RULE_COUNT + `l_class_OC_EchoRequestInput_RULE_COUNT:`l_class_OC_Echo_RULE_COUNT]);
+    wire lERO_test$request$say__ENA;
+    wire [31:0]lERO_test$request$say_meth;
+    wire [31:0]lERO_test$request$say_v;
     wire lERO_test$request$say2__ENA;
     wire [31:0]lERO_test$request$say2_meth;
     wire [31:0]lERO_test$request$say2_v;
     wire lERO_test$request$say2__RDY;
-    wire lERO_test$request$say__ENA;
-    wire [31:0]lERO_test$request$say_meth;
-    wire [31:0]lERO_test$request$say_v;
     wire lERO_test$request$say__RDY;
     l_class_OC_EchoRequestOutput lERO_test (
         CLK,
         nRST,
+        lERO_test$request$say__ENA,
+        lERO_test$request$say_meth,
+        lERO_test$request$say_v,
         lERO_test$request$say2__ENA,
         lERO_test$request$say2_meth,
         lERO_test$request$say2_v,
         lERO_test$request$say2__RDY,
-        lERO_test$request$say__ENA,
-        lERO_test$request$say_meth,
-        lERO_test$request$say_v,
         lERO_test$request$say__RDY,
         lERO_test$pipe$enq__ENA,
         lERO_test$pipe$enq_v,

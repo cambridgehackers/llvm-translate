@@ -28,6 +28,16 @@ bool l_class_OC_Echo__respond_rule__RDY(void *thisarg) {
         tmp__1 = thisp->indication->heard__RDY();
         return ((thisp->busy_delay) != 0) & tmp__1;
 }
+void l_class_OC_Echo__say(void *thisarg, unsigned int say_meth, unsigned int say_v) {
+        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
+        thisp->meth_temp_shadow = say_meth;
+        thisp->meth_temp_valid = 1;
+        thisp->v_temp_shadow = say_v;
+        thisp->v_temp_valid = 1;
+        thisp->busy_shadow = 1;
+        thisp->busy_valid = 1;
+        printf("[%s:%d]Echo\n", ("say"), 236);
+}
 void l_class_OC_Echo__say2(void *thisarg, unsigned int say2_meth, unsigned int say2_v) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->meth_temp_shadow = say2_meth;
@@ -41,16 +51,6 @@ void l_class_OC_Echo__say2(void *thisarg, unsigned int say2_meth, unsigned int s
 bool l_class_OC_Echo__say2__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         return ((thisp->busy) != 0) ^ 1;
-}
-void l_class_OC_Echo__say(void *thisarg, unsigned int say_meth, unsigned int say_v) {
-        l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
-        thisp->meth_temp_shadow = say_meth;
-        thisp->meth_temp_valid = 1;
-        thisp->v_temp_shadow = say_v;
-        thisp->v_temp_valid = 1;
-        thisp->busy_shadow = 1;
-        thisp->busy_valid = 1;
-        printf("[%s:%d]Echo\n", ("say"), 236);
 }
 bool l_class_OC_Echo__say__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
