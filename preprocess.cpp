@@ -466,13 +466,20 @@ void preprocessModule(Module *Mod)
                 ret = ret.substr(0,idx);
             idx = ret.find(':');
             if (idx >= 0) {
-                Function *func = Mod->getFunction(ret.substr(0, idx));
+                std::string fname = ret.substr(0, idx);
                 std::string mname = ret.substr(idx+1);
+                Function *func = Mod->getFunction(fname);
+                //printf("[%s:%d] mname %s func %p\n", __FUNCTION__, __LINE__, mname.c_str(), func);
+                if (!func) {
+                    printf("[%s:%d] function def missing %s\n", __FUNCTION__, __LINE__, fname.c_str());
+                    exit(-1);
+                }
                 funcMap[mname] = func;
             }
             last_subs = subs;
         }
         for (auto item: funcMap) {
+            //printf("[%s:%d] first %s second %p\n", __FUNCTION__, __LINE__, item.first.c_str(), item.second);
             if (endswith(item.first, "__RDY") || endswith(item.first, "__READY")) {
                 std::string enaName = item.first.substr(0, item.first.length() - 5);
                 std::string enaSuffix = "__ENA";
