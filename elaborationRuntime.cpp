@@ -345,14 +345,6 @@ extern "C" void *llvm_translate_malloc(size_t size, Type *type, const StructType
 }
 
 /*
- * Called from user constructors to force processing of interface 'request' methods
- * to classes.
- */
-extern "C" void exportRequest(Function *enaFunc)
-{
-}
-
-/*
  * Called from user constructors to process Blocks functions generated for a rule
  * Rules only support RDY/ENA signalling.
  */

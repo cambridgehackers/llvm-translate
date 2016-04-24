@@ -23,7 +23,7 @@ void l_class_OC_EchoIndicationOutput__heard(void *thisarg, unsigned int heard_me
         thisp->ind_busy_valid = 1;
         thisp->even_shadow = ((thisp->even) != 0) ^ 1;
         thisp->even_valid = 1;
-        printf("[%s:%d]EchoIndicationOutput even %d\n", ("heard"), 166, thisp->even);
+        printf("[%s:%d]EchoIndicationOutput even %d\n", ("heard"), 159, thisp->even);
 }
 bool l_class_OC_EchoIndicationOutput__heard__RDY(void *thisarg) {
         l_class_OC_EchoIndicationOutput * thisp = (l_class_OC_EchoIndicationOutput *)thisarg;

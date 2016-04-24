@@ -36,7 +36,7 @@ void l_class_OC_Echo__say(void *thisarg, unsigned int say_meth, unsigned int say
         thisp->v_temp_valid = 1;
         thisp->busy_shadow = 1;
         thisp->busy_valid = 1;
-        printf("[%s:%d]Echo\n", ("say"), 238);
+        printf("[%s:%d]Echo\n", ("say"), 228);
 }
 void l_class_OC_Echo__say2(void *thisarg, unsigned int say2_meth, unsigned int say2_v) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -46,7 +46,7 @@ void l_class_OC_Echo__say2(void *thisarg, unsigned int say2_meth, unsigned int s
         thisp->v_temp_valid = 1;
         thisp->busy_shadow = 1;
         thisp->busy_valid = 1;
-        printf("[%s:%d]Echo\n", ("say2"), 244);
+        printf("[%s:%d]Echo\n", ("say2"), 234);
 }
 bool l_class_OC_Echo__say2__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -60,7 +60,7 @@ void l_class_OC_Echo__x2y(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->y_shadow = thisp->x;
         thisp->y_valid = 1;
-        printf("[%s:%d]Echo\n", ("x2y"), 258);
+        printf("[%s:%d]Echo\n", ("x2y"), 248);
 }
 bool l_class_OC_Echo__x2y__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -70,7 +70,7 @@ void l_class_OC_Echo__y2x(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
         thisp->x_shadow = thisp->y;
         thisp->x_valid = 1;
-        printf("[%s:%d]Echo\n", ("y2x"), 250);
+        printf("[%s:%d]Echo\n", ("y2x"), 240);
 }
 bool l_class_OC_Echo__y2x__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
@@ -78,7 +78,7 @@ bool l_class_OC_Echo__y2x__RDY(void *thisarg) {
 }
 void l_class_OC_Echo__y2xnull(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
-        printf("[%s:%d]Echo\n", ("y2xnull"), 254);
+        printf("[%s:%d]Echo\n", ("y2xnull"), 244);
 }
 bool l_class_OC_Echo__y2xnull__RDY(void *thisarg) {
         l_class_OC_Echo * thisp = (l_class_OC_Echo *)thisarg;
