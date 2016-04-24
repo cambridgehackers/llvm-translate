@@ -57,7 +57,6 @@ typedef struct {
     const StructType *STy;
 } InterfaceListType;
 
-#define MAX_MEMBER_SIZE 100
 class ClassMethodTable {
 public:
     const StructType                  *STy;
@@ -68,15 +67,12 @@ public:
     std::map<int, bool>               allocateLocally;
     std::map<std::string, Function *> ruleFunctions;
     std::list<InterfaceConnectType>   interfaceConnect;
-    unsigned int                      vtableCount;
     std::string                       instance;
-    Function                          *vtable[MAX_MEMBER_SIZE];
     std::map<std::string, Type *>     interfaces;
     std::list<InterfaceListType>      interfaceList;
     std::map<const Function *, std::string> guard;
     std::map<std::string, std::string> priority; // indexed by rulename, result is 'high'/etc
-    ClassMethodTable(): vtableCount(0)//static for now, vtable(NULL)
-    {}
+    ClassMethodTable() {}
 };
 
 typedef struct {
@@ -131,7 +127,6 @@ void memdumpl(unsigned char *p, int len, const char *title);
 bool GenerateRunOnModule(Module *Mod, std::string OutDirectory);
 const Metadata *fetchType(const Metadata *arg);
 std::string ucName(std::string inname);
-Function *lookup_function(std::string className, std::string methodName);
 Instruction *cloneTree(const Instruction *I, Instruction *insertPoint);
 void prepareClone(Instruction *TI, const Instruction *I);
 std::string printString(std::string arg);
@@ -141,7 +136,6 @@ void generateClassDef(const StructType *STy, std::string oDir);
 void generateModuleDef(const StructType *STy, std::string oDir);
 void generateModuleSignature(FILE *OStr, const StructType *STy, std::string instance);
 const StructType *findThisArgument(Function *func);
-std::string lookupMethodName(const ClassMethodTable *table, int ind);
 void preprocessModule(Module *Mod);
 std::string GetValueName(const Value *Operand);
 int inheritsModule(const StructType *STy, const char *name);

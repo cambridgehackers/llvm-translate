@@ -35,64 +35,6 @@ using namespace llvm;
 
 #include "declarations.h"
 
-static int trace_lookup;//= 1;
-
-static void addMethodTable(const StructType *STy, Function *func)
-{
-    std::string sname = STy->getName();
-    ClassMethodTable *table = classCreate[STy];
-    std::string fname = func->getName();
-    int status;
-    const char *ret = abi::__cxa_demangle(fname.c_str(), 0, 0, &status);
-    std::string fdname = ret;
-    std::string cname = sname.substr(6);
-    if (sname.substr(0, 6) == "class.") {
-        int ind = cname.find(".");
-        if (ind > 0)
-            cname = cname.substr(0,ind);
-    }
-    int dind = fdname.find("::");
-    if (dind > 0)
-        fdname = fdname.substr(0,dind);
-    if (fdname.substr(0, cname.length()) == cname) {
-        fdname = fdname.substr(cname.length());
-        if (fdname[0] == '<' && fdname[fdname.length()-1] == '>')
-            fdname = fdname.substr(1, fdname.length() - 2);
-        if (table->instance == "")
-            table->instance = fdname;
-        if (table->instance != fdname) {
-            printf("[%s:%d] instance name does not match '%s' '%s'\n", __FUNCTION__, __LINE__, table->instance.c_str(), fdname.c_str());
-            exit(-1);
-        }
-    }
-    if (trace_lookup)
-        printf("%s: %s = %s [%s]\n", __FUNCTION__, sname.c_str(), fname.c_str(), fdname.c_str());
-    table->vtable[table->vtableCount++] = func;
-}
-
-static void initializeVtable(const StructType *STy, const GlobalVariable *GV)
-{
-    if (!STy || !STy->hasName())
-        return;
-    std::string sname = STy->getName();
-    if (!strncmp(sname.c_str(), "class.std::", 11)
-     || !strncmp(sname.c_str(), "struct.std::", 12))
-        return;   // don't generate anything for std classes
-    getStructName(STy);  // make sure that classCreate is initialized
-    if (GV->hasInitializer())
-    if (const ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer())) {
-        std::string name = GV->getName();
-        if (trace_lookup)
-            printf("%s: global %s\n", __FUNCTION__, name.c_str());
-        for (auto initI = CA->op_begin(), initE = CA->op_end(); initI != initE; initI++) {
-            if (ConstantExpr *CE = dyn_cast<ConstantExpr>((*initI)))
-            if (CE->getOpcode() == Instruction::BitCast)
-            if (Function *func = dyn_cast<Function>(CE->getOperand(0)))
-                addMethodTable(STy, func);
-        }
-    }
-}
-
 static void processSelect(Function *thisFunc)
 {
     for (auto BB = thisFunc->begin(), BE = thisFunc->end(); BB != BE; ++BB) {
@@ -104,21 +46,6 @@ static void processSelect(Function *thisFunc)
                 // _Znam (operator new[](unsigned long))
                 II->replaceAllUsesWith(II->getOperand(2));
                 recursiveDelete(II);
-                break;
-            case Instruction::Store: // Look for instructions to set up vtable pointers
-                if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) // vtable reference
-                if (CE->getOpcode() == Instruction::BitCast)
-                if (const ConstantExpr *vtab = dyn_cast<ConstantExpr>(CE->getOperand(0)))
-                if (vtab->getOpcode() == Instruction::GetElementPtr)
-                if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(vtab->getOperand(0)))
-                if (const Instruction *target = dyn_cast<Instruction>(II->getOperand(1)))
-                if (target->getOpcode() == Instruction::BitCast)
-                if (const PointerType *PTy = dyn_cast<PointerType>(target->getOperand(0)->getType()))
-                if (const StructType *STy = dyn_cast<StructType>(PTy->getElementType())) {
-                    //std::string gname = GV->getName(), sname = STy->getName();
-                    //printf("[%s:%d] gname %s sname %s\n", __FUNCTION__, __LINE__, gname.c_str(), sname.c_str());
-                    initializeVtable(STy, GV);
-                }
                 break;
             };
             II = PI;
@@ -141,7 +68,6 @@ static void processMethodToFunction(CallInst *II)
     IRBuilder<> builder(II->getParent());
     builder.SetInsertPoint(II);
     const StructType *STy = findThisArgument(callingFunction);
-    ClassMethodTable *table = classCreate[STy];
     Value *oldOp = II->getOperand(1);
     II->setOperand(1, ConstantInt::get(Type::getInt64Ty(II->getContext()), (uint64_t)STy));
     recursiveDelete(oldOp);
@@ -164,16 +90,7 @@ static void processMethodToFunction(CallInst *II)
     if (const ConstantStruct *CS = cast<ConstantStruct>(store->getOperand(0))) {
         Value *vop = CS->getOperand(0);
         Function *func = NULL;
-        int64_t offset = -1;
-        if (ConstantInt *CI = dyn_cast<ConstantInt>(vop)) {
-            offset = CI->getZExtValue()/sizeof(uint64_t);
-            if (offset >= table->vtableCount) {
-                printf("[%s:%d] offset %ld too large\n", __FUNCTION__, __LINE__, offset);
-                exit(-1);
-            }
-            func = table->vtable[offset];
-        }
-        else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
+        if (ConstantExpr *CE = dyn_cast<ConstantExpr>(vop)) {
             ERRORIF(CE->getOpcode() != Instruction::PtrToInt);
             func = dyn_cast<Function>(CE->getOperand(0));
         }
@@ -394,7 +311,6 @@ sourceTmp->getType()->dump();
  * This includes:
  *    * Removal of calls to dwarf debug functions
  *    * change all malloc/new calls to point to our runtime, so we can track them
- *    * Capture all vtable information for types (so we can lookup functions)
  *    * Process/remove all 'methodToFunction' calls (which allow the generation
  *    *     of function pointers for class methods)
  * Context: Run after IR file load, before executing constructors.

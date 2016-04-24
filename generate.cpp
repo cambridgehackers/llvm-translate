@@ -37,7 +37,6 @@ using namespace llvm;
 static int trace_function;//=1;
 static int trace_call;//=1;
 static int trace_gep;//=1;
-static int trace_lookupMethod;//= 1;
 std::map<const StructType *,ClassMethodTable *> classCreate;
 static unsigned NextTypeID;
 int generateRegion = ProcessNone;
@@ -153,18 +152,6 @@ std::string fieldName(const StructType *STy, uint64_t ind)
     if (idx >= 0)
         ret = ret.substr(0,idx);
     return ret;
-}
-
-/*
- * Lookup a function name from the vtable for a class.
- */
-std::string lookupMethodName(const ClassMethodTable *table, int ind)
-{
-    if (trace_lookupMethod)
-        printf("[%s:%d] table %p, ind %d\n", __FUNCTION__, __LINE__, table, ind);
-    if (table && ind >= 0 && ind < (int)table->vtableCount)
-        return table->vtable[ind]->getName();
-    return "";
 }
 
 int inheritsModule(const StructType *STy, const char *name)
@@ -420,8 +407,6 @@ int64_t getGEPOffset(VectorType **LastIndexIsVector, gep_type_iterator I, gep_ty
 static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_iterator E)
 {
     std::string cbuffer, sep = " ", amper = "&";
-    ClassMethodTable *table;
-    PointerType *PTy;
     ConstantDataArray *CPA;
     int64_t Total = 0;
     VectorType *LastIndexIsVector = 0;
@@ -439,16 +424,7 @@ static std::string printGEPExpression(Value *Ptr, gep_type_iterator I, gep_type_
     }
     if (I == E)
         return referstr;
-    if ((PTy = dyn_cast<PointerType>(Ptr->getType()))
-     && (PTy = dyn_cast<PointerType>(PTy->getElementType()))
-     && (table = classCreate[findThisArgumentType(PTy, 0)])) {
-        // Lookup method index in vtable
-        referstr = lookupMethodName(table, Total/sizeof(void *));
-        if (trace_gep)
-            printf("%s: Method invocation referstr %s\n", __FUNCTION__, referstr.c_str());
-        I = E; // skip post processing
-    }
-    else if (FirstOp && FirstOp->isNullValue()) {
+    if (FirstOp && FirstOp->isNullValue()) {
         ++I;  // Skip the zero index.
         if (I == E) {
             // HACK HACK HACK HACK for 'fifo0'

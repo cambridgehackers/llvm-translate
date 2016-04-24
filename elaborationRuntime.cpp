@@ -64,13 +64,6 @@ restart:
                     recursiveDelete(II);
                     }
                 }
-                else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(II->getOperand(0))) {
-                    // vtable reference
-                    (void)CE;
-                    //printf("[%s:%d] func %s val %d\n", __FUNCTION__, __LINE__, func->getName().str().c_str(), II->getOperand(0)->getValueID());
-                    //CE->dump();
-                    recursiveDelete(II);
-                }
                 }
                 break;
             case Instruction::Load:
