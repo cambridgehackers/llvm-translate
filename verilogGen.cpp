@@ -38,14 +38,44 @@ static int dontInlineValues;//=1;
 static std::map<std::string, std::list<MUX_VALUE>> muxValueList;
 static std::map<std::string, std::string> assignList;
 
-std::string verilogArrRange(Type *Ty)
+static uint64_t sizeType(Type *Ty)
 {
     const DataLayout *TD = EE->getDataLayout();
-    if (auto PTy = dyn_cast<PointerType>(Ty))
-        Ty = PTy->getElementType();
-    unsigned NumBits = TD->getTypeAllocSize(Ty) * 8;
 
-    if (NumBits > 8)
+    switch (Ty->getTypeID()) {
+    case Type::IntegerTyID:
+        return cast<IntegerType>(Ty)->getBitWidth();
+    case Type::StructTyID: {
+        //unsigned NumBits = TD->getTypeAllocSize(Ty) * 8;
+        const StructType *STy = cast<StructType>(Ty);
+        uint64_t len = 0;
+        int Idx = 0;
+        for (auto I = STy->element_begin(), E = STy->element_end(); I != E; ++I, Idx++) {
+            if (fieldName(STy, Idx) != "")
+                len += sizeType(*I);
+        }
+        return len;
+        }
+    case Type::ArrayTyID: {
+        ArrayType *ATy = cast<ArrayType>(Ty);
+        unsigned len = ATy->getNumElements();
+        if (len == 0) len = 1;
+        return len * sizeType(ATy->getElementType());
+        }
+    case Type::PointerTyID:
+        return sizeType(cast<PointerType>(Ty)->getElementType());
+    case Type::VoidTyID:
+    case Type::FunctionTyID:
+    default:
+        llvm_unreachable("Unhandled case in sizeType!");
+    }
+}
+
+std::string verilogArrRange(Type *Ty)
+{
+    uint64_t NumBits = sizeType(Ty);
+
+    if (NumBits > 1)
         return "[" + utostr(NumBits - 1) + ":0]";
     return "";
 }

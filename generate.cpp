@@ -261,6 +261,9 @@ std::string printType(Type *Ty, bool isSigned, std::string NameSoFar, std::strin
         break;
     case Type::IntegerTyID: {
         unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
+if (NumBits != 1 && NumBits != 8 && NumBits != 32 && NumBits != 64) {
+printf("[%s:%d] NUMBITS %d\n", __FUNCTION__, __LINE__, NumBits);
+}
         assert(NumBits <= 128 && "Bit widths > 128 not implemented yet");
         if (generateRegion == ProcessVerilog) {
         if (NumBits == 1)
