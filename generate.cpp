@@ -547,6 +547,8 @@ static std::string printCall(Instruction &I)
         FAI++;
     }
     if (func->hasStructRetAttr()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+exit(-1);
         structRetTemp = *AI;
         structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
         if (declareList[structRet] == "")
@@ -734,6 +736,9 @@ static std::string processInstruction(Instruction &I)
                 vout += printOperand(I.getOperand(0), false);
         }
         else if (processIFunction && processIFunction->hasStructRetAttr()) {
+printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+I.getParent()->getParent()->dump();
+exit(-1);
             if (generateRegion == ProcessCPP)
                 vout += "return ";
             if (generateRegion == ProcessCPP)
@@ -782,6 +787,18 @@ static std::string processInstruction(Instruction &I)
     case Instruction::Trunc: case Instruction::ZExt: case Instruction::BitCast:
         vout += printOperand(I.getOperand(0), false);
         break;
+
+    case Instruction::ExtractValue: {
+        const ExtractValueInst *EVI = cast<ExtractValueInst>(&I);
+        //Vals.append(EVI->idx_begin(), EVI->idx_end());
+printf("[%s:%d] before %d\n", __FUNCTION__, __LINE__, (int)I.getNumOperands());
+I.dump();
+        uint64_t val = *EVI->idx_begin();
+printf("[%s:%d] val %d\n", __FUNCTION__, __LINE__, (int)val);
+        vout += printOperand(I.getOperand(0), false) + "." + fieldName(dyn_cast<StructType>(I.getOperand(0)->getType()), val);
+printf("[%s:%d] after\n", __FUNCTION__, __LINE__);
+        break;
+    }
 
     // Other instructions...
     case Instruction::ICmp: case Instruction::FCmp: {
@@ -927,7 +944,7 @@ void processFunction(Function *func)
     declareList.clear();
     if (trace_function || trace_call)
         printf("PROCESSING %s\n", func->getName().str().c_str());
-if (func->getName() == "zz_ZN5Fifo1I9ValuePairE3enqERKS0_") {
+if (func->getName() == "_ZN7IVector3sayEii") {
 printf("[%s:%d]\n", __FUNCTION__, __LINE__);
 func->dump();
 }

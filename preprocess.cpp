@@ -61,6 +61,8 @@ static void processSelect(Function *thisFunc)
  * The first i64 is either the address of a C++ function or (if odd)
  * the offset in bytes + 1 in the vtable.
  * The second i64 seems to be an offset for 'this', for derived types.
+ *
+ * Reference: ItaniumCXXABI::EmitLoadOfMemberFunctionPointer()
  */
 static void processMethodToFunction(CallInst *II)
 {
