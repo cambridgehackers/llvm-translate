@@ -65,8 +65,6 @@ void prepareClone(Instruction *TI, const Instruction *I)
     auto TargetA = TI->getParent()->getParent()->arg_begin();
     const Function *SourceF = I->getParent()->getParent();
     auto AI = SourceF->arg_begin(), AE = SourceF->arg_end();
-    if (AI->hasStructRetAttr())
-        AI++;
     for (; AI != AE; ++AI, ++TargetA)
         cloneVmap[AI] = TargetA;
 }

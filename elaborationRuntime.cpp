@@ -166,10 +166,6 @@ static void processMethodInlining(Function *thisFunc, Function *parentFunc)
 static void updateParameterNames(std::string mName, Function *func)
 {
     auto AI = ++func->arg_begin(), AE = func->arg_end();
-    if (func->hasStructRetAttr()) {
-        func->arg_begin()->setName(mName);
-        AI++;
-    }
     for (; AI != AE; AI++)
         AI->setName(mName + "_" + AI->getName());
 }

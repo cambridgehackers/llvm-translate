@@ -88,11 +88,6 @@ static std::string printFunctionSignature(const Function *F, std::string altname
     auto AI = F->arg_begin(), AE = F->arg_end();
     if (F->hasLocalLinkage()) statstr = "static ";
     ERRORIF(F->isDeclaration());
-    if (F->hasStructRetAttr()) {
-        if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-            retType = PTy->getElementType();
-        AI++;
-    }
     if (addThis) {
         tstr += "void *thisarg";
         sep = ", ";
@@ -116,10 +111,8 @@ static std::string printFunctionInstance(const Function *F, std::string altname,
     ERRORIF(F->isDeclaration());
     auto AI = F->arg_begin(), AE = F->arg_end();
     std::string tstr;
-    if (F->hasStructRetAttr())
-        AI++;
     AI++;
-    if (F->hasStructRetAttr() || F->getReturnType() != Type::getVoidTy(F->getContext()))
+    if (F->getReturnType() != Type::getVoidTy(F->getContext()))
         tstr += "return ";
     tstr += altname + "(" + firstArg;
     for (; AI != AE; ++AI)
@@ -184,11 +177,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
         Function *func = FI.second;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
         if (const StructType *iSTy = dyn_cast<StructType>(retType))
             addIncludeName(includeList, iSTy);
         AI++;
@@ -294,8 +282,6 @@ void generateClassDef(const StructType *STy, std::string oDir)
         std::string mname = FI.first;
         fprintf(OStr, "%s {\n", printFunctionSignature(func, name + "__" + mname, true).c_str());
         auto AI = func->arg_begin();
-        if (func->hasStructRetAttr())
-            AI++;
         std::string argt = printType(AI->getType(), /*isSigned=*/false, "", "", "", false);
         fprintf(OStr, "        %s thisp = (%s)thisarg;\n", argt.c_str(), argt.c_str());
         processFunction(func);

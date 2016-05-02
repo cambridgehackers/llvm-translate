@@ -163,10 +163,7 @@ static Instruction *copyFunction(Instruction *insertPoint, const Instruction *I,
     preCopy.clear();
     Instruction *retItem = NULL;
     prepareClone(insertPoint, I);
-    int ind = 0;
-    if (const CallInst *CI = dyn_cast<CallInst>(I))
-        ind = CI->hasStructRetAttr();
-    Value *new_thisp = I->getOperand(ind);
+    Value *new_thisp = I->getOperand(0);
     if (Instruction *orig_thisp = dyn_cast<Instruction>(new_thisp))
         new_thisp = cloneTree(orig_thisp, insertPoint);
     preCopy.push_back(dyn_cast<Instruction>(new_thisp));

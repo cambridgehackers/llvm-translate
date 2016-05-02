@@ -40,8 +40,7 @@ static std::map<std::string, std::string> assignList;
 
 static uint64_t sizeType(Type *Ty)
 {
-    const DataLayout *TD = EE->getDataLayout();
-
+    //const DataLayout *TD = EE->getDataLayout();
     switch (Ty->getTypeID()) {
     case Type::IntegerTyID:
         return cast<IntegerType>(Ty)->getBitWidth();
@@ -159,11 +158,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             std::string mname = interfacePrefix[FI.first] + pushSeen[func];
             Type *retType = func->getReturnType();
             auto AI = func->arg_begin(), AE = func->arg_end();
-            if (func->hasStructRetAttr()) {
-                if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                    retType = PTy->getElementType();
-                AI++;
-            }
             std::string arrRange;
             std::string wparam = inp + mname;
             if (!isActionMethod(func))
@@ -192,11 +186,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
             continue;
         Type *retType = func->getReturnType();
         auto AI = func->arg_begin(), AE = func->arg_end();
-        if (func->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
         std::string wparam = inp + mname;
         if (instance != "")
             wparam = inlineValue(wparam, true);
@@ -231,11 +220,6 @@ void generateModuleSignature(FILE *OStr, const StructType *STy, std::string inst
 //printf("[%s:%d] mname %s\n", __FUNCTION__, __LINE__, mname.c_str());
                     Type *retType = func->getReturnType();
                     auto AI = func->arg_begin(), AE = func->arg_end();
-                    if (func->hasStructRetAttr()) {
-                        if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                            retType = PTy->getElementType();
-                        AI++;
-                    }
                     if (isActionMethod(func))
                         wparam = outp + mname;
                     else
@@ -396,13 +380,6 @@ void generateModuleDef(const StructType *STy, std::string oDir)
         std::string rdyName = mname.substr(0, mname.length()-5) + "__RDY";
         if (endswith(mname, "__VALID"))
             rdyName = mname.substr(0, mname.length()-7) + "__READY";
-        Type *retType = func->getReturnType();
-        auto AI = func->arg_begin();
-        if (func->hasStructRetAttr()) {
-            if (auto PTy = dyn_cast<PointerType>(AI->getType()))
-                retType = PTy->getElementType();
-            AI++;
-        }
         globalCondition = mname + "_internal";
         startMeta(func);
         processFunction(func);

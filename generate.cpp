@@ -173,9 +173,6 @@ int inheritsModule(const StructType *STy, const char *name)
 bool isActionMethod(const Function *func)
 {
     Type *retType = func->getReturnType();
-    if (func->hasStructRetAttr())
-        if (auto PTy = dyn_cast<PointerType>(func->arg_begin()->getType()))
-            retType = PTy->getElementType();
     return (retType == Type::getVoidTy(func->getContext()));
 }
 
@@ -242,7 +239,7 @@ static const StructType *findThisArgumentType(const PointerType *PTy, int ind)
 }
 const StructType *findThisArgument(Function *func)
 {
-    return findThisArgumentType(func->getType(), func->hasStructRetAttr());
+    return findThisArgumentType(func->getType(), false);
 }
 
 /*
@@ -311,6 +308,8 @@ printf("[%s:%d] NUMBITS %d\n", __FUNCTION__, __LINE__, NumBits);
         auto AI = FTy->param_begin(), AE = FTy->param_end();
         bool structRet = (*AI) != Type::getInt8PtrTy(globalMod->getContext());
         if (structRet) {  //FTy->hasStructRetAttr()
+//printf("[%s:%d]\n", __FUNCTION__, __LINE__);
+//exit(-1);
             if (auto PTy = dyn_cast<PointerType>(*AI))
                 retType = PTy->getElementType();
             AI++;
@@ -543,22 +542,7 @@ static std::string printCall(Instruction &I)
         callingFunction->dump();
         exit(-1);
     }
-    Type *retType = func->getReturnType();
     auto FAI = func->arg_begin();
-    if (func->hasStructRetAttr()) {
-        retType = cast<PointerType>(FAI->getType())->getElementType();
-        FAI++;
-    }
-    if (func->hasStructRetAttr()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-exit(-1);
-        structRetTemp = *AI;
-        structRet = printOperand(*AI, dyn_cast<Argument>(*AI) == NULL); // get structure return area
-        if (declareList[structRet] == "")
-            declareList[structRet] = printType(cast<PointerType>((*AI)->getType())
-                ->getElementType(), false, structRet, "", "", false);
-        AI++;
-    }
     std::string pcalledFunction = printOperand(*AI++, false); // skips 'this' param
     std::string calledName = func->getName();
     std::string fname = pushSeen[func];
@@ -737,15 +721,6 @@ static std::string processInstruction(Instruction &I)
                 vout += "return ";
             if (I.getNumOperands())
                 vout += printOperand(I.getOperand(0), false);
-        }
-        else if (processIFunction && processIFunction->hasStructRetAttr()) {
-printf("[%s:%d]\n", __FUNCTION__, __LINE__);
-I.getParent()->getParent()->dump();
-exit(-1);
-            if (generateRegion == ProcessCPP)
-                vout += "return ";
-            if (generateRegion == ProcessCPP)
-            vout += GetValueName(processIFunction->arg_begin());
         }
         break;
     case Instruction::Unreachable:
@@ -953,12 +928,6 @@ func->dump();
 }
     /* Generate cpp/Verilog for all instructions.  Record function calls for post processing */
     processIFunction = func;
-    if (func->hasStructRetAttr())
-    if (auto PTy = dyn_cast<PointerType>(func->arg_begin()->getType())) {
-        std::string sname = GetValueName(func->arg_begin());
-        declareList[sname] = printType(PTy->getElementType(), false,
-            sname, "", "", false);
-    }
     for (auto BI = func->begin(), BE = func->end(); BI != BE; ++BI) {
         for (auto II = BI->begin(), IE = BI->end(); II != IE;II++) {
             if (!isInlinableInst(*II)) {
