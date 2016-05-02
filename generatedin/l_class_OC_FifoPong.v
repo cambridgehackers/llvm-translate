@@ -55,7 +55,11 @@ module l_class_OC_FifoPong (
     assign in$enq__RDY_internal = (element2$in$enq__RDY | (pong ^ 1)) & (element1$in$enq__RDY | pong);
     assign out$deq__RDY = out$deq__RDY_internal;
     assign out$deq__RDY_internal = (element2$out$deq__RDY | (pong ^ 1)) & (element1$out$deq__RDY | pong);
+    assign out$first = retval;
     assign out$first__RDY_internal = (element2$out$first__RDY | (pong ^ 1)) & (element1$out$first__RDY | pong);
+    assign retval$a = element1$out$first.a;
+    assign retval$b = element1$out$first.b;
+    assign retval$c = element1$out$first.c;
 
     always @( posedge CLK) begin
       if (!nRST) begin

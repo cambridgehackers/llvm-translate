@@ -23,7 +23,7 @@ module l_class_OC_Fifo1_OC_3 (
     assign in$enq__RDY_internal = full ^ 1;
     assign out$deq__RDY = out$deq__RDY_internal;
     assign out$deq__RDY_internal = full;
-    assign out$first = element;
+    assign out$first = retval;
     assign out$first__RDY_internal = full;
 
     always @( posedge CLK) begin
@@ -39,6 +39,9 @@ module l_class_OC_Fifo1_OC_3 (
             element <= enq_v;
             full <= 1;
         end; // End of in$enq__ENA
+        if (out$first_internal) begin
+            retval <= element;
+        end; // End of out$first
       end
     end // always @ (posedge CLK)
 endmodule 

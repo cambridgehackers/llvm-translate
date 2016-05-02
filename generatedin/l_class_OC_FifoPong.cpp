@@ -33,12 +33,34 @@ bool l_class_OC_FifoPong__enq__RDY(void *thisarg) {
 }
 l_struct_OC_ValuePair l_class_OC_FifoPong__first(void *thisarg) {
         l_class_OC_FifoPong * thisp = (l_class_OC_FifoPong *)thisarg;
-        l_struct_OC_ValuePair first;
-        if (thisp->pong)
-            first = thisp->element2.out.first();
-        if ((thisp->pong) ^ 1)
-            first = thisp->element1.out.first();
-        return first;
+        l_struct_OC_ValuePair call;
+        l_struct_OC_ValuePair call3;
+        l_struct_OC_ValuePair retval;
+        if (thisp->pong) {
+            call = thisp->element2.out.first();
+        }
+            if (thisp->pong) {
+            retval.a = call.a;
+        }
+            if (thisp->pong) {
+            retval.b = call.b;
+        }
+            if (thisp->pong) {
+            retval.c = call.c;
+        }
+            if ((thisp->pong) ^ 1) {
+            call3 = thisp->element1.out.first();
+        }
+            if ((thisp->pong) ^ 1) {
+            retval.a = call3.a;
+        }
+            if ((thisp->pong) ^ 1) {
+            retval.b = call3.b;
+        }
+            if ((thisp->pong) ^ 1) {
+            retval.c = call3.c;
+        }
+            return retval;
 }
 bool l_class_OC_FifoPong__first__RDY(void *thisarg) {
         l_class_OC_FifoPong * thisp = (l_class_OC_FifoPong *)thisarg;

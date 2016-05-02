@@ -1,8 +1,12 @@
 #include "l_class_OC_IVector.h"
 void l_class_OC_IVector__respond0(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo0.out.first();
+        call = thisp->fifo0.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo0.out.deq();
         thisp->ind->heard(0, temp.b);
 }
@@ -18,8 +22,12 @@ bool l_class_OC_IVector__respond0__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond1(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo1.out.first();
+        call = thisp->fifo1.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo1.out.deq();
         thisp->ind->heard(1, temp.b);
 }
@@ -35,8 +43,12 @@ bool l_class_OC_IVector__respond1__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond2(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo2.out.first();
+        call = thisp->fifo2.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo2.out.deq();
         thisp->ind->heard(2, temp.b);
 }
@@ -52,8 +64,12 @@ bool l_class_OC_IVector__respond2__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond3(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo3.out.first();
+        call = thisp->fifo3.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo3.out.deq();
         thisp->ind->heard(3, temp.b);
 }
@@ -69,8 +85,12 @@ bool l_class_OC_IVector__respond3__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond4(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo4.out.first();
+        call = thisp->fifo4.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo4.out.deq();
         thisp->ind->heard(4, temp.b);
 }
@@ -86,8 +106,12 @@ bool l_class_OC_IVector__respond4__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond5(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo5.out.first();
+        call = thisp->fifo5.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo5.out.deq();
         thisp->ind->heard(5, temp.b);
 }
@@ -103,8 +127,12 @@ bool l_class_OC_IVector__respond5__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond6(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo6.out.first();
+        call = thisp->fifo6.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo6.out.deq();
         thisp->ind->heard(6, temp.b);
 }
@@ -120,8 +148,12 @@ bool l_class_OC_IVector__respond6__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond7(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo7.out.first();
+        call = thisp->fifo7.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo7.out.deq();
         thisp->ind->heard(7, temp.b);
 }
@@ -137,8 +169,12 @@ bool l_class_OC_IVector__respond7__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond8(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo8.out.first();
+        call = thisp->fifo8.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo8.out.deq();
         thisp->ind->heard(8, temp.b);
 }
@@ -154,8 +190,12 @@ bool l_class_OC_IVector__respond8__RDY(void *thisarg) {
 }
 void l_class_OC_IVector__respond9(void *thisarg) {
         l_class_OC_IVector * thisp = (l_class_OC_IVector *)thisarg;
+        l_struct_OC_ValuePair call;
         l_struct_OC_ValuePair temp;
-        temp = thisp->fifo9.out.first();
+        call = thisp->fifo9.out.first();
+        temp.a = call.a;
+        temp.b = call.b;
+        temp.c = call.c;
         thisp->fifo9.out.deq();
         thisp->ind->heard(9, temp.b);
 }
