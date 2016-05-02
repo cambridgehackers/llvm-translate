@@ -1,7 +1,7 @@
-#ifndef __l_class_OC_PipeIn_OC_3_H__
-#define __l_class_OC_PipeIn_OC_3_H__
+#ifndef __l_class_OC_PipeIn_OC_2_H__
+#define __l_class_OC_PipeIn_OC_2_H__
 #include "l_struct_OC_ValueType.h"
-class l_class_OC_PipeIn_OC_3 {
+class l_class_OC_PipeIn_OC_2 {
 public:
   void *p;
   bool  (*enq__RDYp) (void *);
@@ -9,10 +9,10 @@ public:
 public:
   void enq(l_struct_OC_ValueType v) { enqp(p, v); }
   bool enq__RDY(void) { return enq__RDYp(p); }
-  l_class_OC_PipeIn_OC_3(decltype(p) ap, decltype(enq__RDYp) aenq__RDYp, decltype(enqp) aenqp) {
+  l_class_OC_PipeIn_OC_2(decltype(p) ap, decltype(enq__RDYp) aenq__RDYp, decltype(enqp) aenqp) {
     p = ap;
     enq__RDYp = aenq__RDYp;
     enqp = aenqp;
   }
 };
-#endif  // __l_class_OC_PipeIn_OC_3_H__
+#endif  // __l_class_OC_PipeIn_OC_2_H__

@@ -1,5 +1,5 @@
 #include "l_class_OC_IVectorRequest.h"
-void l_class_OC_IVectorRequest__say(void *thisarg, BITS say_meth, BITS say_v) {
+void l_class_OC_IVectorRequest__say(void *thisarg, bool say_meth, bool say_v) {
         l_class_OC_IVectorRequest * thisp = (l_class_OC_IVectorRequest *)thisarg;
 }
 bool l_class_OC_IVectorRequest__say__RDY(void *thisarg) {

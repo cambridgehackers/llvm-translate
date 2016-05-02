@@ -1,28 +1,29 @@
 
-`include "l_class_OC_Fifo1_OC_1.vh"
+`include "l_class_OC_Fifo1_OC_0.vh"
 
-module l_class_OC_Fifo1_OC_1 (
+module l_class_OC_Fifo1_OC_0 (
     input CLK,
     input nRST,
     input out$deq__ENA,
     output out$deq__RDY,
     input in$enq__ENA,
-    input [255:0]in$enq_v,
+    input [15:0]in$enq_v,
     output in$enq__RDY,
-    output [255:0]out$first,
+    output [15:0]out$first,
     output out$first__RDY,
-    input [`l_class_OC_Fifo1_OC_1_RULE_COUNT:0]rule_enable,
-    output [`l_class_OC_Fifo1_OC_1_RULE_COUNT:0]rule_ready);
+    input [`l_class_OC_Fifo1_OC_0_RULE_COUNT:0]rule_enable,
+    output [`l_class_OC_Fifo1_OC_0_RULE_COUNT:0]rule_ready);
     wire out$deq__RDY_internal;
     wire out$deq__ENA_internal = out$deq__ENA && out$deq__RDY_internal;
     wire in$enq__RDY_internal;
     wire in$enq__ENA_internal = in$enq__ENA && in$enq__RDY_internal;
-    reg[255:0] element;
+    reg[15:0] element;
     reg full;
     assign in$enq__RDY = in$enq__RDY_internal;
     assign in$enq__RDY_internal = full ^ 1;
     assign out$deq__RDY = out$deq__RDY_internal;
     assign out$deq__RDY_internal = full;
+    assign out$first = retval;
     assign out$first__RDY_internal = full;
 
     always @( posedge CLK) begin
@@ -39,8 +40,7 @@ module l_class_OC_Fifo1_OC_1 (
             full <= 1;
         end; // End of in$enq__ENA
         if (out$first_internal) begin
-            first$a <= element$a;
-            first$b <= element$b;
+            retval <= element;
         end; // End of out$first
       end
     end // always @ (posedge CLK)

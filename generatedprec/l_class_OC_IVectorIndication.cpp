@@ -1,5 +1,5 @@
 #include "l_class_OC_IVectorIndication.h"
-void l_class_OC_IVectorIndication__heard(void *thisarg, BITS heard_meth, BITS heard_v) {
+void l_class_OC_IVectorIndication__heard(void *thisarg, bool heard_meth, bool heard_v) {
         l_class_OC_IVectorIndication * thisp = (l_class_OC_IVectorIndication *)thisarg;
         printf("Heard an ivector: %d %d\n", 0, 0);
 }

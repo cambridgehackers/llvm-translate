@@ -31,11 +31,12 @@ typedef BITS BITS1;
 typedef BITS BITS4;
 typedef BITS BITS6;
 typedef BITS BITS10;
+typedef BITS BITS14;
 typedef BITS BITS23;
 unsigned int stop_main_program;
 #include "l_struct_OC_ValueType.h"   // HACKHACK -> need to scan method bodies for used datatypes
 #include "l_class_OC_IVector.cpp"
-#include "l_class_OC_Fifo1_OC_1.cpp"
+#include "l_class_OC_Fifo1_OC_0.cpp"
 #include "l_class_OC_IVectorIndication.cpp"
 
 int testCount;
