@@ -5,12 +5,12 @@ module l_class_OC_IVector (
     input CLK,
     input nRST,
     input say__ENA,
-    input say_meth,
-    input say_v,
+    input [5:0]say_meth,
+    input [3:0]say_v,
     output say__RDY,
     output ind$heard__ENA,
-    output ind$heard_heard_meth,
-    output ind$heard_heard_v,
+    output [5:0]ind$heard_heard_meth,
+    output [3:0]ind$heard_heard_v,
     input ind$heard__RDY,
     input [`l_class_OC_IVector_RULE_COUNT:0]rule_enable,
     output [`l_class_OC_IVector_RULE_COUNT:0]rule_ready);
@@ -19,7 +19,7 @@ module l_class_OC_IVector (
     wire say__RDY_internal;
     wire say__ENA_internal = say__ENA && say__RDY_internal;
     wire fifo$out$deq__RDY;
-    wire [15:0]fifo$out$first;
+    wire [9:0]fifo$out$first;
     wire fifo$out$first__RDY;
     l_class_OC_Fifo1_OC_0 fifo (
         CLK,
