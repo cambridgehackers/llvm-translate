@@ -35,3 +35,13 @@
 6) examine output in:
 
     output.tmp foo.tmp.xc foo.tmp.h
+
+----------------
+
+8) Klee
+
+    git clone https://github.com/niklasso/minisat
+    git clone https://github.com/stp/stp.git
+
+    cmake -DBUILD_SHARED_LIBS:BOOL=OFF -DENABLE_PYTHON_INTERFACE:BOOL=OFF ..
+    cmake -DBUILD_SHARED_LIBS:BOOL=OFF ..
