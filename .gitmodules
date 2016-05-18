@@ -1,0 +1,8 @@
+[submodule "llvm"]
+	path = llvm
+	url = git://github.com/cambridgehackers/llvm
+	branch = release_37atomicc1
+[submodule "clang"]
+	path = clang
+	url = git://github.com/cambridgehackers/clang
+	branch = release_37atomicc1
