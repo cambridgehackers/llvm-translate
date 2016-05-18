@@ -3,7 +3,7 @@
 
 0)
 
-    sudo apt-get install libffi-dev libblocksruntime-dev
+    sudo apt-get install libffi-dev libblocksruntime-dev clang
     git clone git://github.com/cambridgehackers/llvm
     git clone git://github.com/cambridgehackers/clang
     cd llvm; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
