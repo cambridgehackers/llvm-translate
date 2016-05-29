@@ -41,7 +41,8 @@
 8) Klee
 
     git clone https://github.com/niklasso/minisat
-    git clone https://github.com/stp/stp.git
-
-    cmake -DBUILD_SHARED_LIBS:BOOL=OFF -DENABLE_PYTHON_INTERFACE:BOOL=OFF ..
     cmake -DBUILD_SHARED_LIBS:BOOL=OFF ..
+
+    git clone https://github.com/stp/stp.git
+    cmake -DBUILD_SHARED_LIBS:BOOL=OFF -DENABLE_PYTHON_INTERFACE:BOOL=OFF -DNO_BOOST:BOOL=ON ..
+
