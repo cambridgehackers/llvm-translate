@@ -16,25 +16,14 @@
     source ../../llvm-translate/configure_llvm
     make -j10
 
-2) cd llvm-translate
-
-    ./configure
-
-3) cd llvm-translate
-
-    make
-
-4) cd atomicc/examples/echo
+2) cd atomicc/examples/rulec
 
     make 
+    make run
 
-5) cd llvm-translate
+3) examine output in:
 
-    ./run
-
-6) examine output in:
-
-    output.tmp foo.tmp.xc foo.tmp.h
+    ls *.generated.*
 
 ----------------
 
