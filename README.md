@@ -6,14 +6,14 @@
     sudo apt-get install libffi-dev libblocksruntime-dev clang
     git clone git://github.com/cambridgehackers/llvm
     git clone git://github.com/cambridgehackers/clang
-    cd llvm; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
-    cd ../clang; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
+    cd clang; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
+    cd ../llvm; git checkout remotes/origin/release_37atomicc1 -b release_37atomicc1
 
 1) cd llvm 
 
     mkdir build
     cd build
-    source ../../llvm-translate/configure_llvm
+    source ../configure_atomicc
     make -j10
 
 2) cd atomicc/examples/rulec
