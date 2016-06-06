@@ -1,9 +1,0 @@
-#!/bin/bash
-set -e
-set -x
-./Debug+Asserts/bin/llvm-translate --odir=generatedb1 ../atomicc/examples/before1/before1.ll
-#./bsvWrapper.py --directory generatedb1 --output Echo l_class_OC_IVector
-clang++ -std=c++11 -Igeneratedb1 -g test/rulec.cpp
-./a.out
-rm -f a.out
-

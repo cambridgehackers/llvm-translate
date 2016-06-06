@@ -1,9 +1,0 @@
-#!/bin/bash
-set -e
-set -x
-./Debug+Asserts/bin/llvm-translate --odir=generated ../atomicc/examples/echo/echo.ll
-./Debug+Asserts/bin/llvm-translate --odir=generatedb ../atomicc/examples/echo/fifo.ll
-#./bsvWrapper.py --directory generated --directory generatedb --output Echo l_class_OC_Echo
-clang++ -std=c++11 -Igeneratedb -Igenerated -g test/foo.tmp.cpp
-./a.out
-rm -f a.out
