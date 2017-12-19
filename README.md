@@ -27,6 +27,8 @@
 
 To update to newer llvm releases:
 
+    git clone git@github.com:cambridgehackers/llvm
+
     From https://help.github.com/articles/syncing-a-fork/  :
 
     git remote add upstream git@github.com:llvm-mirror/llvm.git
