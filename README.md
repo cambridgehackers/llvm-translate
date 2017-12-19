@@ -25,6 +25,25 @@
 
     ls *.generated.*
 
+To update to newer llvm releases:
+
+    From https://help.github.com/articles/syncing-a-fork/  :
+
+    git remote add upstream git@github.com:llvm-mirror/llvm.git
+    git fetch upstream
+    git checkout master
+    git pull upstream master
+    git remote -v
+    git push origin master
+    git checkout remotes/upstream/release_38 -b release_38
+    git push origin release_38
+    git checkout remotes/upstream/release_39 -b release_39
+    git push origin release_39
+    git checkout remotes/upstream/release_40 -b release_40
+    git push origin release_40
+    git checkout remotes/upstream/release_50 -b release_50
+    git push origin release_50
+
 ----------------
 
 8) Klee
