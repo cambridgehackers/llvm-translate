@@ -1,9 +1,0 @@
-#!/bin/bash
-set -e
-set -x
-./Debug+Asserts/bin/llvm-translate --odir=generatedin ../atomicc/examples/ivector/ivector.ll
-#./bsvWrapper.py --directory generatedin --output Echo l_class_OC_IVector
-clang++ -std=c++11 -Igeneratedin -g test/ivector.cpp
-./a.out
-rm -f a.out
-

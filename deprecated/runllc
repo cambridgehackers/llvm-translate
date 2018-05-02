@@ -1,2 +1,0 @@
-#
-../llvm/build/Debug+Asserts/bin/llc -march=cpp -o foo.cpp ../atomicc/examples/echo/echo.ll
